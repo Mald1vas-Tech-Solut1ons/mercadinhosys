@@ -1827,6 +1827,23 @@ class ContaPagar(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     pedido_compra = db.relationship("PedidoCompra", backref=db.backref("conta_pagar", uselist=False))
     __table_args__ = (db.Index("ix_conta_pagar_vencimento", "data_vencimento"), db.Index("ix_conta_pagar_status", "status"))
 
+class ContaPagarBaixa(db.Model, MultiTenantMixin):
+    """Histórico das novas baixas; chave opcional mantém clientes legados compatíveis."""
+    __tablename__ = 'contas_pagar_baixas'
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    conta_pagar_id = db.Column(db.Integer, db.ForeignKey('contas_pagar.id'), nullable=False, index=True)
+    despesa_id = db.Column(db.Integer, db.ForeignKey('despesas.id'), nullable=False, unique=True)
+    funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False)
+    valor = db.Column(db.Numeric(19, 4), nullable=False)
+    data_pagamento = db.Column(db.Date, nullable=False)
+    idempotency_key = db.Column(db.String(128))
+    request_hash = db.Column(db.String(64), nullable=False)
+    resposta_json = db.Column(db.JSON, nullable=False)
+    criado_em = db.Column(db.DateTime, nullable=False, default=utcnow)
+    __table_args__ = (db.UniqueConstraint('estabelecimento_id', 'idempotency_key', name='uq_baixa_tenant_key'),)
+
+
 class ContaReceber(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     __tablename__ = "contas_receber"
     id = db.Column(db.Integer, primary_key=True)

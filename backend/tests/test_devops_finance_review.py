@@ -1,15 +1,13 @@
-"""Aceites adicionais independentes; xfail registra lacunas, nunca aprovação."""
+"""Aceites independentes que reproduziram falhas antes da correção de release."""
 from decimal import Decimal
 
 import pytest
 
-from app.models import ContaPagar, Despesa
+from app.models import ContaPagar, ContaPagarBaixa, Despesa
 from test_fin01_boleto_payments import boleto_context  # fixture existente
 
 
 @pytest.mark.parametrize('value', ['NaN', 'valor-invalido'])
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason='FIN-REV-01: entrada numérica inválida resulta em 500')
 def test_invalid_numeric_payment_returns_client_error(client, session, boleto_context, value):
     boleto, headers = boleto_context
     response = client.post(f'/api/boletos/{boleto.id}/pagar',
@@ -20,8 +18,6 @@ def test_invalid_numeric_payment_returns_client_error(client, session, boleto_co
     assert session.query(Despesa).count() == 0
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason='FIN-REV-02: retry de pagamento cria segunda baixa')
 def test_payment_retry_same_key_has_one_financial_effect(client, session, boleto_context):
     boleto, headers = boleto_context
     headers = {**headers, 'Idempotency-Key': 'review-finance-retry-001'}
@@ -33,3 +29,5 @@ def test_payment_retry_same_key_has_one_financial_effect(client, session, boleto
     session.expire_all()
     assert session.get(ContaPagar, boleto.id).valor_pago == Decimal('10')
     assert session.query(Despesa).count() == 1
+    assert session.query(ContaPagarBaixa).count() == 1
+    assert first.get_json() == retry.get_json()

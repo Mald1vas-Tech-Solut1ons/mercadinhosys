@@ -33,3 +33,9 @@ O handoff chama falha de joins/unaccent/migração de "Causa Raiz Publicada". N�
 ## Regras de coordenação
 
 Não iniciar nova alteração nos mesmos arquivos até consumir este review. Para cada correção, entregar diff, contrato, teste que falhava antes e passa depois, comando, ambiente e exit code. Não comunicar "sprint concluída" enquanto houver aceite obrigatório pendente. Os demais sete bloqueios ERP da suíte de migração continuam registrados e não foram corrigidos por esta revisão DevOps.
+
+## Correção de release posterior à revisão
+
+Após autorização de push/deploy, GPT corrigiu as três falhas reproduzidas. A rota valida números finitos, centavos e datas; registra título, despesa e `ContaPagarBaixa` na mesma transação; replay de uma chave por tenant retorna o JSON original, inclusive após quitação; mudança de payload com a mesma chave retorna 409. O frontend mantém uma chave por abertura do modal. Clientes antigos sem chave continuam aceitos, mas não têm garantia de deduplicação entre requisições; para integração, enviar sempre uma chave estável por operação.
+
+A migration `f5d7b9c1e3a6` acrescenta histórico das novas baixas; não reconstrói pagamentos antigos nem modifica os saldos existentes. Os três xfails financeiros foram removidos. Suíte focada: **18 passed**, exit 0, incluindo replay, conflito, entrada inválida, rollback e migration. Testes PostgreSQL concorrentes foram acrescentados para verificar acúmulo e replay com conexões independentes. Sua execução será registrada no relatório de deploy. O diagnóstico inicial acima permanece como evidência histórica, não como descrição do código corrigido.

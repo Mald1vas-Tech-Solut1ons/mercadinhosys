@@ -689,6 +689,7 @@ export interface ModalPagamentoBoletoProps {
 }
 
 export const ModalPagamentoBoleto: React.FC<ModalPagamentoBoletoProps> = ({ boleto, onClose, onPago }) => {
+  const [paymentKey] = useState(() => crypto.randomUUID());
   const [formaPagamento, setFormaPagamento] = useState('pix');
   const [valorPago, setValorPago] = useState(boleto.valor_atual.toString());
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
@@ -699,6 +700,7 @@ export const ModalPagamentoBoleto: React.FC<ModalPagamentoBoletoProps> = ({ bole
     setProcessando(true);
     try {
       await purchaseOrderService.pagarBoleto(boleto.id, {
+        idempotency_key: paymentKey,
         valor_pago: parseFloat(valorPago),
         data_pagamento: dataPagamento,
         forma_pagamento: formaPagamento,

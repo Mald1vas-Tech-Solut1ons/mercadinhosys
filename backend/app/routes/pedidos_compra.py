@@ -706,7 +706,7 @@ def pagar_boleto(conta_id):
         
         data = request.get_json()
         
-        conta = ContaPagar.query.filter_by(
+        conta = ContaPagar.query.with_for_update().filter_by(
             id=conta_id,
             estabelecimento_id=estab_id
         ).first()
@@ -714,18 +714,31 @@ def pagar_boleto(conta_id):
         if not conta:
             return jsonify({'error': 'Boleto não encontrado'}), 404
         
-        if conta.status != 'aberto':
-            return jsonify({'error': 'Boleto já foi pago'}), 400
+        if conta.status not in ('aberto', 'parcial'):
+            return jsonify({'error': f'Boleto não pode ser pago no status atual: {conta.status}'}), 400
         
         valor_pago = Decimal(str(data.get('valor_pago', conta.valor_atual)))
+
+        if valor_pago <= 0:
+            return jsonify({'error': 'Valor pago deve ser maior que zero'}), 400
+
+        if valor_pago > conta.valor_atual:
+            return jsonify({'error': 'Valor pago não pode ser maior que o saldo devedor atual'}), 400
+
         data_pagamento = datetime.strptime(data.get('data_pagamento', date.today().isoformat()), '%Y-%m-%d').date()
         
-        # Atualizar conta
-        conta.valor_pago = valor_pago
-        conta.valor_atual = conta.valor_original - valor_pago
+        # Atualizar conta acumulando o valor pago
+        novo_valor_pago = (conta.valor_pago or Decimal('0')) + valor_pago
+        conta.valor_pago = novo_valor_pago
+        conta.valor_atual = conta.valor_original - novo_valor_pago
         conta.data_pagamento = data_pagamento
         conta.forma_pagamento = data.get('forma_pagamento', 'Transferência')
-        conta.status = 'pago' if conta.valor_atual <= 0 else 'parcial'
+
+        if conta.valor_atual <= 0:
+            conta.status = 'pago'
+        else:
+            conta.status = 'parcial'
+
         conta.observacoes = data.get('observacoes', conta.observacoes)
         
         # Criar despesa correspondente

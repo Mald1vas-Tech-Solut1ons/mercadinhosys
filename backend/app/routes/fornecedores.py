@@ -231,83 +231,51 @@ def listar_fornecedores():
             }
         )
 
-    except Exception as e:
-        current_app.logger.error(f"Erro ao listar fornecedores: {str(e)}")
+    except Exception:
+        current_app.logger.exception("Erro na consulta principal de fornecedores")
+        # PostgreSQL exige rollback antes de consultar após falha de SQL.
+        db.session.rollback()
         try:
             from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
             estabelecimento_id = get_authorized_establishment_id()
-            pagina = request.args.get("pagina", 1, type=int)
-            por_pagina = request.args.get("por_pagina", 50, type=int)
-            offset = (pagina - 1) * por_pagina
-        except Exception as e2:
+            if not estabelecimento_id:
+                return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
+            pagina = max(1, request.args.get("pagina", 1, type=int))
+            por_pagina = max(1, min(200, request.args.get("por_pagina", 50, type=int)))
+            # Projeção mínima: evita campos opcionais e serialização de relações.
+            query = db.session.query(
+                Fornecedor.id, Fornecedor.nome_fantasia, Fornecedor.razao_social,
+                Fornecedor.cnpj, Fornecedor.telefone, Fornecedor.email,
+                Fornecedor.cidade, Fornecedor.estado, Fornecedor.ativo, Fornecedor.classificacao,
+            ).filter(Fornecedor.deleted_at.is_(None))
+            if str(estabelecimento_id).lower() != "all":
+                query = query.filter(Fornecedor.estabelecimento_id == estabelecimento_id)
+            ativo = request.args.get("ativo")
+            if ativo is not None:
+                query = query.filter(Fornecedor.ativo == (ativo.lower() == "true"))
+            classificacao = request.args.get("classificacao")
+            if classificacao:
+                query = query.filter(Fornecedor.classificacao == classificacao.upper())
+            busca = request.args.get("busca", "").strip()
+            if busca:
+                query = query.filter(db.or_(*[
+                    ilike_unaccent(column, f"%{busca}%") for column in (
+                        Fornecedor.nome_fantasia, Fornecedor.razao_social, Fornecedor.cnpj,
+                        Fornecedor.email, Fornecedor.contato_nome,
+                    )
+                ]))
+            total = query.count()
+            rows = query.order_by(Fornecedor.nome_fantasia.asc()).limit(por_pagina).offset((pagina - 1) * por_pagina).all()
+            fornecedores = [dict(row._mapping, produtos_ativos=None, ultima_compra=None) for row in rows]
+            return jsonify({
+                "success": True, "fornecedores": fornecedores, "total": total,
+                "pagina": pagina, "por_pagina": por_pagina,
+                "total_paginas": (total + por_pagina - 1) // por_pagina,
+            })
+        except Exception:
             db.session.rollback()
-            current_app.logger.error(f"Fallback fornecedores falhou: {str(e2)}")
-            from sqlalchemy import text
-            
-            if str(estabelecimento_id).lower() == 'all':
-                sql = text(
-                    "SELECT id, nome_fantasia, razao_social, cnpj, telefone, email, cidade, estado, ativo, classificacao "
-                    "FROM fornecedores "
-                    "ORDER BY nome_fantasia ASC "
-                    "LIMIT :limit OFFSET :offset"
-                )
-                params = {"limit": por_pagina, "offset": offset}
-            else:
-                sql = text(
-                    "SELECT id, nome_fantasia, razao_social, cnpj, telefone, email, cidade, estado, ativo, classificacao "
-                    "FROM fornecedores "
-                    "WHERE estabelecimento_id = :estabelecimento_id "
-                    "ORDER BY nome_fantasia ASC "
-                    "LIMIT :limit OFFSET :offset"
-                )
-                params = {"estabelecimento_id": estabelecimento_id, "limit": por_pagina, "offset": offset}
-                
-            rows = db.session.execute(sql, params).fetchall()
-            fornecedores = []
-            for r in rows:
-                try:
-                    d = {
-                        "id": r[0] if isinstance(r, tuple) else r.id,
-                        "nome_fantasia": r[1] if isinstance(r, tuple) else r.nome_fantasia,
-                        "razao_social": r[2] if isinstance(r, tuple) else r.razao_social,
-                        "cnpj": r[3] if isinstance(r, tuple) else r.cnpj,
-                        "telefone": r[4] if isinstance(r, tuple) else r.telefone,
-                        "email": r[5] if isinstance(r, tuple) else r.email,
-                        "cidade": r[6] if isinstance(r, tuple) and len(r) > 6 else (r.cidade if hasattr(r, 'cidade') else None),
-                        "estado": r[7] if isinstance(r, tuple) and len(r) > 7 else (r.estado if hasattr(r, 'estado') else None),
-                        "ativo": bool(r[8]) if isinstance(r, tuple) and len(r) > 8 else (bool(r.ativo) if hasattr(r, 'ativo') else True),
-                        "classificacao": r[9] if isinstance(r, tuple) and len(r) > 9 else (r.classificacao if hasattr(r, 'classificacao') else "REGULAR"),
-                        "produtos_ativos": None,
-                    }
-                except Exception:
-                    pass
-                fornecedores.append(d)
-            if str(estabelecimento_id).lower() == 'all':
-                total_sql = text("SELECT COUNT(*) FROM fornecedores")
-                total = db.session.execute(total_sql).scalar() or 0
-            else:
-                total_sql = text("SELECT COUNT(*) FROM fornecedores WHERE estabelecimento_id = :estabelecimento_id")
-                total = db.session.execute(total_sql, {"estabelecimento_id": estabelecimento_id}).scalar() or 0
-            total_paginas = (total + por_pagina - 1) // por_pagina
-            return jsonify(
-                {
-                    "success": True,
-                    "fornecedores": fornecedores,
-                    "total": total,
-                    "pagina": pagina,
-                    "por_pagina": por_pagina,
-                    "total_paginas": total_paginas,
-                }
-            )
-        except Exception as e2:
-            current_app.logger.error(f"Fallback fornecedores falhou: {str(e2)}")
-            return (
-                jsonify(
-                    {"success": False, "message": "Erro interno ao listar fornecedores"}
-                ),
-                500,
-            )
-
+            current_app.logger.exception("Fallback fornecedores falhou")
+            return jsonify({"success": False, "message": "Erro interno ao listar fornecedores"}), 500
 
 @fornecedores_bp.route("/<int:id>", methods=["GET"])
 @funcionario_required

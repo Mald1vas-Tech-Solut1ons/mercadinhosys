@@ -340,7 +340,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                             {activeTab === 'precos' && (
                                 <div className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
+                                        <div className="p-6 bg-linear-to-br from-indigo-500 to-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20">
                                             <div className="flex justify-between items-start mb-6">
                                                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
                                                     <BarChart3 className="w-5 h-5 text-white" />
@@ -484,7 +484,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                 <div className="space-y-6">
                                     {fornecedorInfo ? (
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                            <div className="md:col-span-2 bg-gradient-to-br from-gray-800 to-gray-950 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden group">
+                                            <div className="md:col-span-2 bg-linear-to-br from-gray-800 to-gray-950 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden group">
                                                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:scale-110 transition-transform duration-500">
                                                     <Users className="w-40 h-40" />
                                                 </div>
@@ -521,7 +521,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                                         <div className="space-y-4">
                                                             {historicoCompras.map((compra) => (
                                                                 <div key={compra.id} className="relative pl-4 border-l-2 border-indigo-100 dark:border-gray-700">
-                                                                    <div className="absolute w-2 h-2 bg-indigo-500 rounded-full -left-[5px] top-1.5 ring-4 ring-white dark:ring-gray-800"></div>
+                                                                    <div className="absolute w-2 h-2 bg-indigo-500 rounded-full left-[-5px] top-1.5 ring-4 ring-white dark:ring-gray-800"></div>
                                                                     <p className="text-sm font-black text-gray-800 dark:text-white">
                                                                         {formatDate(compra.data_pedido || compra.created_at)}
                                                                     </p>

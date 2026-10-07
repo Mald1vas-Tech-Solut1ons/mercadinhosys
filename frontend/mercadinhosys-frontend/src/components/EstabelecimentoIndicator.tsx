@@ -14,7 +14,7 @@ const EstabelecimentoIndicator: React.FC = () => {
     return (
         <div className="fixed top-20 right-4 z-50 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg shadow-lg p-3 max-w-sm">
             <div className="flex items-center space-x-2">
-                <Building2 className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <Building2 className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" />
                 <div className="flex flex-col">
                     <span className="text-sm font-medium text-green-600 dark:text-green-400">
                         Visualizando:

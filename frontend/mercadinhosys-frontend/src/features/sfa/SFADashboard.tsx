@@ -160,7 +160,7 @@ export default function SFADashboard() {
                             <Card key={c.id || idx} className="overflow-hidden hover:shadow-lg transition-all border-slate-200 dark:border-slate-800 rounded-2xl">
                                 <CardContent className="p-0">
                                     <div className="p-5 flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-700">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700">
                                             <UserCircle className="w-7 h-7 text-slate-400" />
                                         </div>
                                         <div className="flex-1 min-w-0">

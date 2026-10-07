@@ -49,20 +49,20 @@ const ResponsiveModal: React.FC<ResponsiveModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 h-[100dvh] bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-0 sm:p-4 overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 h-dvh bg-black/60 backdrop-blur-sm flex items-center justify-center z-200 p-0 sm:p-4 overflow-hidden animate-in fade-in duration-200">
       <div
         className={`bg-white dark:bg-gray-800 shadow-2xl w-full ${sizeClasses[size]}
-          h-[100dvh] sm:h-auto sm:max-h-[95dvh] sm:rounded-xl overflow-hidden flex flex-col
+          h-dvh sm:h-auto sm:max-h-[95dvh] sm:rounded-xl overflow-hidden flex flex-col
           animate-in zoom-in-95 duration-200`}
       >
         {/* Header — paddingTop respeita o notch/status bar no modo tela cheia (mobile) */}
         <div
-          className={`bg-gradient-to-r ${headerColorClasses[headerColor] || 'from-blue-600 to-blue-700'} px-5 sm:px-6 py-4 flex justify-between items-center flex-shrink-0 shadow-sm z-10`}
+          className={`bg-linear-to-r ${headerColorClasses[headerColor] || 'from-blue-600 to-blue-700'} px-5 sm:px-6 py-4 flex justify-between items-center shrink-0 shadow-sm z-10`}
           style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             {headerIcon && (
-              <div className="text-white flex-shrink-0 bg-white/20 p-2 rounded-lg">
+              <div className="text-white shrink-0 bg-white/20 p-2 rounded-lg">
                 {headerIcon}
               </div>
             )}
@@ -80,7 +80,7 @@ const ResponsiveModal: React.FC<ResponsiveModalProps> = ({
           {closeButton && (
             <button
               onClick={onClose}
-              className="p-2.5 hover:bg-white/20 active:bg-white/30 rounded-xl transition-all flex-shrink-0 ml-2 text-white"
+              className="p-2.5 hover:bg-white/20 active:bg-white/30 rounded-xl transition-all shrink-0 ml-2 text-white"
               aria-label="Fechar"
             >
               <X className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -97,7 +97,7 @@ const ResponsiveModal: React.FC<ResponsiveModalProps> = ({
             para que os botões de ação nunca fiquem sob a barra do sistema no celular. */}
         {footer && (
           <div
-            className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/50 backdrop-blur-md px-5 sm:px-6 py-4 flex-shrink-0 flex items-center justify-end gap-3 translate-z-0"
+            className="border-t border-gray-100 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/50 backdrop-blur-md px-5 sm:px-6 py-4 shrink-0 flex items-center justify-end gap-3 translate-z-0"
             style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
           >
             {footer}

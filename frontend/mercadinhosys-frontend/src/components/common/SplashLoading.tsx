@@ -2,7 +2,7 @@ import React from 'react';
 
 export const SplashLoading: React.FC = () => {
     return (
-        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden font-sans"
+        <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden font-sans"
              style={{ background: 'radial-gradient(120% 140% at 50% 0%, #1D4ED8 0%, #0F2E5C 55%, #0A1220 100%)' }}>
             
             <div className="relative w-full max-w-[640px] h-[360px] flex flex-col items-center justify-center gap-5">
@@ -29,7 +29,7 @@ export const SplashLoading: React.FC = () => {
                 </div>
 
                 <div className="w-[180px] h-1 rounded-full bg-white/20 overflow-hidden mt-1 animate-msys-rise" style={{ animationDelay: '1.0s' }}>
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#2E9BFF] to-[#6FCBFF] animate-msys-fill" style={{ animationDelay: '1.15s' }} />
+                    <div className="h-full rounded-full bg-linear-to-r from-[#2E9BFF] to-[#6FCBFF] animate-msys-fill" style={{ animationDelay: '1.15s' }} />
                 </div>
             </div>
         </div>

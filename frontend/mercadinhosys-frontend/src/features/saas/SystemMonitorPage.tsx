@@ -322,7 +322,7 @@ const SystemMonitorPage: React.FC = () => {
                         <Plus size={20} />
                         Novo Cliente
                     </button>
-                    <div className="h-10 w-[1px] bg-gray-200 mx-2 hidden md:block" />
+                    <div className="h-10 w-px bg-gray-200 mx-2 hidden md:block" />
                     <button
                         onClick={() => setAutoRefresh(!autoRefresh)}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-semibold transition-colors ${autoRefresh
@@ -608,8 +608,8 @@ const SystemMonitorPage: React.FC = () => {
 
             {/* ONBOARDING MODAL */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all ease-out animate-in fade-in duration-300">
-                    <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
+                <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all ease-out animate-in fade-in duration-300">
+                    <div className="bg-white rounded-4xl shadow-2xl w-full max-w-2xl overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
                         <div className="bg-indigo-600 p-8 text-white relative">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
@@ -760,7 +760,7 @@ const SystemMonitorPage: React.FC = () => {
             )}
             {/* Modal de Edição */}
             {isEditModalOpen && (
-                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-1000 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)} />
                     <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="p-8 border-b bg-gray-50/50">
@@ -915,7 +915,7 @@ const SystemMonitorPage: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="flex-[2] h-14 bg-indigo-600 text-white rounded-2xl text-xs font-black italic tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="flex-2 h-14 bg-indigo-600 text-white rounded-2xl text-xs font-black italic tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50 flex items-center justify-center gap-2"
                                 >
                                     {submitting ? <RefreshCcw className="animate-spin" size={20} /> : 'SALVAR ALTERAÇÕES'}
                                 </button>

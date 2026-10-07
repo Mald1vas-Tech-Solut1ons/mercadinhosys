@@ -98,7 +98,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                                     }`
                                 }
                             >
-                                <item.icon className={`w-5 h-5 flex-shrink-0`} />
+                                <item.icon className={`w-5 h-5 shrink-0`} />
                                 {!isCollapsed && <span className="font-medium whitespace-nowrap overflow-hidden">{item.label}</span>}
                             </NavLink>
                         </li>
@@ -107,9 +107,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                 <div className="mt-6 border-t border-gray-100 dark:border-gray-700 pt-4">
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('start-tour'))}
-                        className={`w-full flex items-center rounded-lg transition-colors ${isCollapsed ? 'justify-center px-1 py-3' : 'px-4 py-3 space-x-3'} bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-700 hover:to-blue-800`}
+                        className={`w-full flex items-center rounded-lg transition-colors ${isCollapsed ? 'justify-center px-1 py-3' : 'px-4 py-3 space-x-3'} bg-linear-to-r from-blue-600 to-blue-700 text-white shadow-md hover:from-blue-700 hover:to-blue-800`}
                     >
-                        <Play className="w-5 h-5 flex-shrink-0 fill-white" />
+                        <Play className="w-5 h-5 shrink-0 fill-white" />
                         {!isCollapsed && <span className="font-bold whitespace-nowrap overflow-hidden text-sm">Tour & Ajuda</span>}
                     </button>
                 </div>

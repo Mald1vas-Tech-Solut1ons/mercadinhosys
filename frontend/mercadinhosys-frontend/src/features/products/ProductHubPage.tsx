@@ -299,7 +299,7 @@ export default function ProductHubPage() {
                         </button>
                     ) : (
                         <div
-                            className="flex items-center justify-center flex-shrink-0 rounded-2xl border border-gray-200 bg-gray-100 dark:border-slate-700 dark:bg-slate-800"
+                            className="flex items-center justify-center shrink-0 rounded-2xl border border-gray-200 bg-gray-100 dark:border-slate-700 dark:bg-slate-800"
                             style={{ width: 96, height: 96 }}
                         >
                             <Package size={32} className="text-gray-400 dark:text-slate-500" />

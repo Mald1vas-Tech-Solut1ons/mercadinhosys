@@ -43,9 +43,9 @@ export default function ConformidadeModal({ open, onClose }: Props) {
     const r = dados?.resumo;
 
     return createPortal(
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-200 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
             <div className="bg-white dark:bg-gray-900 w-full sm:max-w-xl sm:rounded-2xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                <div className={`sticky top-0 text-white p-5 flex items-center justify-between rounded-t-3xl sm:rounded-t-2xl ${r?.conforme ? 'bg-gradient-to-r from-emerald-600 to-teal-700' : 'bg-gradient-to-r from-rose-600 to-red-700'}`}>
+                <div className={`sticky top-0 text-white p-5 flex items-center justify-between rounded-t-3xl sm:rounded-t-2xl ${r?.conforme ? 'bg-linear-to-r from-emerald-600 to-teal-700' : 'bg-linear-to-r from-rose-600 to-red-700'}`}>
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-white/15">{r?.conforme ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}</div>
                         <div>

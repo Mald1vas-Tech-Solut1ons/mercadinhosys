@@ -100,7 +100,7 @@ export const DiagnosticoFotos: React.FC = () => {
 
       {erro && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 flex items-start gap-2">
-          <XCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+          <XCircle className="w-5 h-5 mt-0.5 shrink-0" />
           <div>
             <p className="font-semibold">Erro</p>
             <p>{erro}</p>

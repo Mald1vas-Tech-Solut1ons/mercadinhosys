@@ -157,12 +157,12 @@ const HeaderProfessional = () => {
         <>
             {/* Backdrop invisível para fechar ao clicar fora */}
             <div
-                className="fixed inset-0 z-[200]"
+                className="fixed inset-0 z-200"
                 onClick={() => setUserMenuOpen(false)}
             />
             {/* Menu em si */}
             <div
-                className="fixed z-[201] w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1"
+                className="fixed z-201 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1"
                 style={{ top: dropdownPos.top, right: dropdownPos.right }}
             >
                 {/* Info do usuário */}
@@ -182,7 +182,7 @@ const HeaderProfessional = () => {
                     onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                    <Settings className="w-4 h-4 flex-shrink-0" />
+                    <Settings className="w-4 h-4 shrink-0" />
                     Configurações
                 </button>
 
@@ -190,7 +190,7 @@ const HeaderProfessional = () => {
                     onClick={() => { setUserMenuOpen(false); setProfileModalOpen(true); }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                    <User className="w-4 h-4 flex-shrink-0" />
+                    <User className="w-4 h-4 shrink-0" />
                     Meu Perfil
                 </button>
 
@@ -200,7 +200,7 @@ const HeaderProfessional = () => {
                     onClick={handleLogout}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors font-medium"
                 >
-                    <LogOut className="w-4 h-4 flex-shrink-0" />
+                    <LogOut className="w-4 h-4 shrink-0" />
                     Sair
                 </button>
             </div>
@@ -211,12 +211,12 @@ const HeaderProfessional = () => {
     // ── Modal de Perfil via Portal ─────────────────────────────────────────────
     const profileModalPortal = profileModalOpen ? createPortal(
         <div
-            className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 p-4"
+            className="fixed inset-0 z-300 flex items-center justify-center bg-black/50 p-4"
             onClick={(e) => { if (e.target === e.currentTarget) setProfileModalOpen(false); }}
         >
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
                 {/* Header do modal */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Meu Perfil</h3>
                     <button
                         onClick={() => setProfileModalOpen(false)}
@@ -366,7 +366,7 @@ const HeaderProfessional = () => {
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center flex-shrink-0">
+                <div className="px-5 py-3 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center shrink-0">
                     <button
                         onClick={handleLogout}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-medium transition"
@@ -398,16 +398,16 @@ const HeaderProfessional = () => {
                             <img
                                 src={logoUrl}
                                 alt="Logo"
-                                className="h-8 sm:h-10 w-auto rounded-lg object-contain flex-shrink-0"
+                                className="h-8 sm:h-10 w-auto rounded-lg object-contain shrink-0"
                                 onError={(e) => { e.currentTarget.src = logo; }}
                             />
-                            <span className="text-base sm:text-xl font-extrabold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent truncate min-w-0">
+                            <span className="text-base sm:text-xl font-extrabold bg-linear-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent truncate min-w-0">
                                 MercadinhoSys
                             </span>
                         </div>
 
                         {/* Desktop Actions */}
-                        <div className="hidden md:flex items-center gap-3 flex-shrink-0">
+                        <div className="hidden md:flex items-center gap-3 shrink-0">
                             {isSuperAdmin && <EstablishmentSelector />}
                             <InstallButton />
 
@@ -439,12 +439,12 @@ const HeaderProfessional = () => {
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[120px] truncate">
                                     {user?.nome || 'Usuário'}
                                 </span>
-                                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
                         </div>
 
                         {/* Mobile Actions (tema apenas) */}
-                        <div className="flex md:hidden items-center gap-2 flex-shrink-0">
+                        <div className="flex md:hidden items-center gap-2 shrink-0">
                             <InstallButton className="md:hidden" />
                             <button
                                 onClick={toggleTheme}

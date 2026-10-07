@@ -50,10 +50,10 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
     const v = dados?.venda;
 
     return createPortal(
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-200 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
             <div className="bg-white dark:bg-gray-900 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" onClick={ev => ev.stopPropagation()}>
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-5 flex items-center justify-between rounded-t-3xl sm:rounded-t-2xl">
+                <div className="sticky top-0 bg-linear-to-r from-blue-700 to-indigo-800 text-white p-5 flex items-center justify-between rounded-t-3xl sm:rounded-t-2xl">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 rounded-xl bg-white/15"><Package className="w-5 h-5" /></div>
                         <div>
@@ -157,7 +157,7 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
                                 <ol className="relative border-l-2 border-blue-200 dark:border-blue-900 ml-2 space-y-4">
                                     {dados.rastreamento.map(ev => (
                                         <li key={ev.id} className="ml-4">
-                                            <div className="absolute -left-[9px] w-4 h-4 rounded-full bg-blue-600 border-2 border-white dark:border-gray-900" />
+                                            <div className="absolute left-[-9px] w-4 h-4 rounded-full bg-blue-600 border-2 border-white dark:border-gray-900" />
                                             <p className="text-sm font-bold text-gray-900 dark:text-white">{STATUS_LABEL[ev.status] || ev.status}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">{dataHora(ev.data_hora)}{ev.latitude ? ` · 📍 ${ev.latitude.toFixed(4)}, ${ev.longitude?.toFixed(4)}` : ''}</p>
                                             {ev.observacao && <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">{ev.observacao}</p>}

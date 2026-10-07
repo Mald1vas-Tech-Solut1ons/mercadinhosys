@@ -28,7 +28,7 @@ const ExpenseAnalyticsModal: React.FC<ExpenseAnalyticsModalProps> = ({ isOpen, o
 
     if (!resumo) {
         return (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
+            <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-md">
                 <div className="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 p-8 rounded-3xl flex flex-col items-center">
                     <BrainCircuit className="w-12 h-12 text-indigo-500 animate-pulse mb-4" />
                     <p className="text-gray-900 dark:text-white font-bold">Iniciando Redes Neurais Financeiras...</p>
@@ -105,8 +105,8 @@ const ExpenseAnalyticsModal: React.FC<ExpenseAnalyticsModalProps> = ({ isOpen, o
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-6 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
-            <div className="w-full max-w-6xl bg-gradient-to-br from-slate-900 to-indigo-950 border border-indigo-500/30 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col my-auto max-h-[95dvh]">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/80 backdrop-blur-xl p-4 md:p-6 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+            <div className="w-full max-w-6xl bg-linear-to-br from-slate-900 to-indigo-950 border border-indigo-500/30 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col my-auto max-h-[95dvh]">
 
                 {/* Efeitos Decorativos Glass */}
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[100px] rounded-full pointer-events-none" />
@@ -158,7 +158,7 @@ const ExpenseAnalyticsModal: React.FC<ExpenseAnalyticsModalProps> = ({ isOpen, o
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Simulação: Redução de Custo Fixo */}
                         <div className="col-span-1 bg-white/5 border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 blur-[40px] rounded-full transition-all group-hover:bg-rose-500/20" />
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 blur-2xl rounded-full transition-all group-hover:bg-rose-500/20" />
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 dark:text-slate-400 mb-6 flex items-center gap-2">
                                 <TrendingDown className="w-4 h-4 text-rose-400" /> Simulação de Estresse
                             </h4>
@@ -194,14 +194,14 @@ const ExpenseAnalyticsModal: React.FC<ExpenseAnalyticsModalProps> = ({ isOpen, o
 
                     {/* Resumo de Dívidas Científico */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="bg-gradient-to-r from-rose-950/40 to-slate-900/40 border border-rose-500/20 rounded-3xl p-6">
+                        <div className="bg-linear-to-r from-rose-950/40 to-slate-900/40 border border-rose-500/20 rounded-3xl p-6">
                             <h4 className="text-sm font-bold text-rose-400 mb-4 flex items-center gap-2">
                                 <AlertTriangle className="w-5 h-5" /> Passivo Circulante Vencido (Imediato)
                             </h4>
                             <div className="text-4xl font-black text-gray-900 dark:text-white mb-2">{formatCurrency(cp.total_vencido)}</div>
                             <p className="text-xs text-rose-200/70 font-medium">Equivalente a {cp.qtd_vencidos} obrigações legais em default. Estas faturas estão gerando encargos compostos que sabotam a rentabilidade bruta da vitrine.</p>
                         </div>
-                        <div className="bg-gradient-to-r from-emerald-950/40 to-slate-900/40 border border-emerald-500/20 rounded-3xl p-6">
+                        <div className="bg-linear-to-r from-emerald-950/40 to-slate-900/40 border border-emerald-500/20 rounded-3xl p-6">
                             <h4 className="text-sm font-bold text-emerald-400 mb-4 flex items-center gap-2">
                                 <ShieldCheck className="w-5 h-5" /> Resiliência Hoje
                             </h4>

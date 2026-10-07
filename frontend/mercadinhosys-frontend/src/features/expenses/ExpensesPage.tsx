@@ -191,7 +191,7 @@ function KpiCard({ label, value, sub, trend, icon, color = "blue", loading, onCl
     return (
         <div 
             onClick={onClick}
-            className={`relative bg-gradient-to-br ${colorMap[color]} border rounded-2xl p-5 overflow-hidden transition-all ${onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-md' : 'hover:scale-[1.01]'}`}
+            className={`relative bg-linear-to-br ${colorMap[color]} border rounded-2xl p-5 overflow-hidden transition-all ${onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-md' : 'hover:scale-[1.01]'}`}
         >
             <div className="flex items-start justify-between mb-3">
                 <div className="p-2.5 rounded-xl bg-white/60 dark:bg-slate-900/60">
@@ -592,7 +592,7 @@ export default function ExpensesPage() {
     // ─────────────────────────────────────────────────────────────────────────
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-            <div className="max-w-screen-2xl mx-auto px-4 py-6 space-y-6">
+            <div className="max-w-(--breakpoint-2xl) mx-auto px-4 py-6 space-y-6">
 
                 {/* ── Header ───────────────────────────────────────────────── */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -669,7 +669,7 @@ export default function ExpensesPage() {
 
                         {/* Insights inteligentes no topo da Visão Geral */}
                         {historico && historico.insights && historico.insights.length > 0 && (
-                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-5 rounded-2xl border border-blue-100 dark:border-blue-800/50">
+                            <div className="bg-linear-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-5 rounded-2xl border border-blue-100 dark:border-blue-800/50">
                                 <h3 className="font-bold text-blue-900 dark:text-blue-100 flex items-center gap-2 mb-4">
                                     <Lightbulb className="w-5 h-5 text-yellow-500" />
                                     Insights Inteligentes do seu Negócio
@@ -1275,7 +1275,7 @@ export default function ExpensesPage() {
                 MODAL — Nova / Editar Despesa
             ════════════════════════════════════════════════════════════════ */}
             {modalAberto && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setModalAberto(false)} />
                     <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-6 z-10 max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="flex items-center justify-between mb-5">
@@ -1426,7 +1426,7 @@ export default function ExpensesPage() {
 
             {/* ── Modal de Detalhes dos Cards ────────────────────────────── */}
             {detalhesCard && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setDetalhesCard(null)} />
                     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col relative z-10 animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">

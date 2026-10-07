@@ -569,7 +569,7 @@ const PontoPage: React.FC = () => {
       {/* MODAL DE CÂMERA */}
       {showCamera && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 z-[200] flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black bg-opacity-75 z-200 flex items-center justify-center p-4 overflow-y-auto"
           style={{
             paddingTop: 'calc(1rem + env(safe-area-inset-top))',
             paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
@@ -624,7 +624,7 @@ const PontoPage: React.FC = () => {
       {/* PREVIEW DA FOTO COM CONFIRMAÇÃO DE LOCALIZAÇÃO */}
       {foto && !showCamera && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 z-[200] flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black bg-opacity-75 z-200 flex items-center justify-center p-4 overflow-y-auto"
           style={{
             paddingTop: 'calc(1rem + env(safe-area-inset-top))',
             paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
@@ -638,7 +638,7 @@ const PontoPage: React.FC = () => {
             {localizacao && (
               <div className="mb-4 p-4 bg-blue-50 rounded-lg border-2 border-blue-300">
                 <div className="flex items-start gap-3">
-                  <MapPin className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+                  <MapPin className="w-6 h-6 text-blue-600 mt-1 shrink-0" />
                   <div>
                     <p className="font-semibold text-gray-900">Localização Capturada</p>
                     <p className="text-sm text-gray-600 mt-1">
@@ -706,7 +706,7 @@ const PontoPage: React.FC = () => {
               key={item.tipo}
               onClick={() => !registrado && registrarPonto(item.tipo)}
               disabled={registrado || loading}
-              className={`relative p-6 rounded-2xl shadow-xl transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed border ${registrado ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700' : `bg-gradient-to-r ${item.color} border-transparent`
+              className={`relative p-6 rounded-2xl shadow-xl transform transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed border ${registrado ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700' : `bg-linear-to-r ${item.color} border-transparent`
                 }`}
             >
               {registrado && (
@@ -823,7 +823,7 @@ const PontoPage: React.FC = () => {
 
           {/* RESUMO ESTATÍSTICAS - MELHORADO */}
           <div className="space-y-4">
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-xl p-6 text-gray-900 dark:text-white">
+            <div className="bg-linear-to-r from-green-500 to-emerald-600 rounded-2xl shadow-xl p-6 text-gray-900 dark:text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm opacity-90 font-semibold">Taxa de Presença</p>
@@ -834,7 +834,7 @@ const PontoPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl shadow-xl p-6 text-gray-900 dark:text-white">
+            <div className="bg-linear-to-r from-red-500 to-orange-600 rounded-2xl shadow-xl p-6 text-gray-900 dark:text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm opacity-90 font-semibold">Total de Atrasos</p>
@@ -989,7 +989,7 @@ const PontoPage: React.FC = () => {
       {/* MODAL DE FOTO */}
       {fotoModal && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 z-[200] flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black bg-opacity-75 z-200 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
           style={{
             paddingTop: 'calc(0.5rem + env(safe-area-inset-top))',
             paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
@@ -997,7 +997,7 @@ const PontoPage: React.FC = () => {
         >
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-full flex flex-col overflow-hidden animate-fadeIn my-auto">
             {/* HEADER */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-gray-900 dark:text-white flex-shrink-0">
+            <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-gray-900 dark:text-white shrink-0">
               <div className="flex-1">
                 <h3 className="text-lg sm:text-2xl font-bold">📷 Visualizar Foto</h3>
                 <p className="text-blue-100 text-xs sm:text-sm mt-1">
@@ -1006,7 +1006,7 @@ const PontoPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setFotoModal(null)}
-                className="flex-shrink-0 p-2 hover:bg-white/20 rounded-lg transition ml-2"
+                className="shrink-0 p-2 hover:bg-white/20 rounded-lg transition ml-2"
               >
                 <X className="w-5 sm:w-6 h-5 sm:h-6" />
               </button>
@@ -1098,7 +1098,7 @@ const PontoPage: React.FC = () => {
             </div>
 
             {/* FOOTER */}
-            <div className="bg-gray-100 p-4 flex justify-end gap-3 flex-shrink-0">
+            <div className="bg-gray-100 p-4 flex justify-end gap-3 shrink-0">
               <button
                 onClick={() => setFotoModal(null)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition"

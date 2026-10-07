@@ -122,7 +122,7 @@ const SubscriptionSettings: React.FC = () => {
             {/* HERO SECTION PREMIUM */}
             <div className="relative overflow-hidden bg-gray-900 dark:bg-black rounded-[4rem] p-12 lg:p-20 border border-white/10 shadow-3xl">
                 {/* Efeito Visual de Fundo */}
-                <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/10 to-transparent blur-3xl opacity-50"></div>
+                <div className="absolute top-0 right-0 w-1/2 h-full bg-linear-to-l from-primary/10 to-transparent blur-3xl opacity-50"></div>
                 <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-primary/20 rounded-full blur-[120px] opacity-30"></div>
 
                 <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -140,7 +140,7 @@ const SubscriptionSettings: React.FC = () => {
 
                         <h1 className="text-5xl lg:text-7xl font-black text-white leading-[1.1] tracking-tighter mb-8">
                             Seu Plano: <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-blue-400 to-indigo-400">
+                            <span className="text-transparent bg-clip-text bg-linear-to-r from-primary via-blue-400 to-indigo-400">
                                 {status.plano}
                             </span>
                         </h1>
@@ -229,7 +229,7 @@ const SubscriptionSettings: React.FC = () => {
                         <button
                             onClick={() => handleAction('Pro')}
                             disabled={processing}
-                            className="w-full py-6 bg-primary text-white rounded-[2rem] font-black text-lg hover:scale-[1.03] hover:brightness-110 active:scale-[0.98] transition-all duration-300 mb-12 shadow-3xl shadow-primary/40 disabled:opacity-50"
+                            className="w-full py-6 bg-primary text-white rounded-4xl font-black text-lg hover:scale-[1.03] hover:brightness-110 active:scale-[0.98] transition-all duration-300 mb-12 shadow-3xl shadow-primary/40 disabled:opacity-50"
                         >
                             Assinar Pro <ArrowRight className="w-6 h-6 ml-2" />
                         </button>
@@ -243,7 +243,7 @@ const SubscriptionSettings: React.FC = () => {
                                 'Suporte Suporte VIP WhatsApp'
                             ].map(f => (
                                 <div key={f} className="flex items-center gap-4 text-sm font-bold text-white">
-                                    <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" /> {f}
+                                    <CheckCircle2 className="w-6 h-6 text-primary shrink-0" /> {f}
                                 </div>
                             ))}
                         </div>

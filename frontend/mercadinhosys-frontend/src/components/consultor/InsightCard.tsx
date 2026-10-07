@@ -102,7 +102,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
       className={`relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 ${className}`}
     >
       {/* Top Banner with gradient */}
-      <div className={`h-2 w-full bg-gradient-to-r ${gradientMap[especialista]}`}></div>
+      <div className={`h-2 w-full bg-linear-to-r ${gradientMap[especialista]}`}></div>
       
       <div className="p-5">
         <div className="flex justify-between items-center mb-4">
@@ -112,7 +112,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
             </div>
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
               {titulo}
-              <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs font-medium flex items-center gap-1 shadow-sm">
+              <span className="px-2 py-0.5 rounded-full bg-linear-to-r from-indigo-500 to-purple-500 text-white text-xs font-medium flex items-center gap-1 shadow-sm">
                 <Sparkles className="w-3 h-3" /> IA
               </span>
             </h3>

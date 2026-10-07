@@ -50,7 +50,7 @@ export default function RHPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center space-x-5 mb-8">
-          <div className="p-4 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl shadow-indigo-500/20">
+          <div className="p-4 bg-linear-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-xl shadow-indigo-500/20">
             <Users className="w-8 h-8 text-white" />
           </div>
           <div>
@@ -76,7 +76,7 @@ export default function RHPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-5 py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden group ${isActive
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 ring-1 ring-white/20'
+                    ? 'bg-linear-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/30 ring-1 ring-white/20'
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50'
                   }`}
               >

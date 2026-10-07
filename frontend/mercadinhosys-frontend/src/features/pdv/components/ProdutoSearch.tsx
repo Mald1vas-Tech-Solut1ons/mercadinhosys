@@ -178,7 +178,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
             <div className="flex items-center space-x-2 mb-4">
                 <button
                     onClick={() => setScannerAberto(true)}
-                    className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-lg transition"
+                    className="p-3 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-lg transition"
                     title="Abrir scanner de código de barras"
                 >
                     <Camera className="w-5 h-5" />
@@ -243,7 +243,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                                         <button
                                             type="button"
                                             onClick={(e) => { e.stopPropagation(); setZoomSrc({ src: imagemUrl, alt: produto.nome }); }}
-                                            className="flex-shrink-0"
+                                            className="shrink-0"
                                             title="Ampliar foto"
                                         >
                                             <img
@@ -255,7 +255,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                                             />
                                         </button>
                                     ) : (
-                                        <div className={`w-14 h-14 flex-shrink-0 rounded-xl flex items-center justify-center text-[11px] font-black ${isPeso
+                                        <div className={`w-14 h-14 shrink-0 rounded-xl flex items-center justify-center text-[11px] font-black ${isPeso
                                             ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
                                             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                                             }`}>
@@ -304,7 +304,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                                     </div>
 
                                     {/* Preço + Estoque */}
-                                    <div className="text-right flex-shrink-0 min-w-[90px]">
+                                    <div className="text-right shrink-0 min-w-[90px]">
                                         <p className="font-black text-base text-gray-800 dark:text-white tabular-nums leading-tight">
                                             R$ {Number(preco).toFixed(2).replace('.', ',')}
                                             <span className="text-[10px] font-normal text-slate-400">/{un.toLowerCase()}</span>

@@ -139,7 +139,7 @@ function EntradaTab() {
 
             {/* Modal de preview */}
             {preview && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && setPreview(null)}>
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && setPreview(null)}>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90dvh] flex flex-col overflow-hidden">
                         <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                             <h3 className="font-black text-slate-900 dark:text-white">Conferir importação</h3>

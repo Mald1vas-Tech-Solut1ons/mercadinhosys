@@ -239,7 +239,7 @@ const CardEntrega: React.FC<{ entrega: Entrega; onRefresh: () => void; onClickDe
                             href={wppUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex-shrink-0 flex items-center justify-center px-4 py-2.5 bg-green-500 hover:bg-green-600 rounded-xl text-white transition-all"
+                            className="shrink-0 flex items-center justify-center px-4 py-2.5 bg-green-500 hover:bg-green-600 rounded-xl text-white transition-all"
                         >
                             <Phone className="w-4 h-4" />
                         </a>
@@ -528,7 +528,7 @@ const PainelMobile: React.FC<{ user: any }> = ({ user }) => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
-            <div className="bg-gradient-to-br from-blue-700 to-indigo-800 px-5 pt-10 pb-5 text-white">
+            <div className="bg-linear-to-br from-blue-700 to-indigo-800 px-5 pt-10 pb-5 text-white">
                 <div className="flex items-center justify-between z-10 relative">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white backdrop-blur-sm border border-white/10">

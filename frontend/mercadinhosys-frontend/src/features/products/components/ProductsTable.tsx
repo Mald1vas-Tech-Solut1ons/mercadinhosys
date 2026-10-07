@@ -17,7 +17,7 @@ const ProdutoThumb: React.FC<{ produto: Produto; size?: number; onZoom: (produto
             <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onZoom(produto); }}
-                className="relative flex-shrink-0 group/thumb"
+                className="relative shrink-0 group/thumb"
                 style={{ width: size, height: size }}
                 title="Ampliar foto"
             >
@@ -38,7 +38,7 @@ const ProdutoThumb: React.FC<{ produto: Produto; size?: number; onZoom: (produto
     return (
         <div
             style={{ width: size, height: size }}
-            className="flex-shrink-0 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center"
+            className="shrink-0 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center"
         >
             <Package className="text-gray-400 dark:text-slate-500" size={Math.round(size * 0.45)} />
         </div>

@@ -122,7 +122,7 @@ const GerenteAuthModal = ({
                 <div className="space-y-4">
                     {erro && (
                         <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl flex items-center gap-2 text-orange-700 dark:text-orange-400">
-                            <X className="w-4 h-4 flex-shrink-0" />
+                            <X className="w-4 h-4 shrink-0" />
                             <p className="text-xs font-semibold">{erro}</p>
                         </div>
                     )}

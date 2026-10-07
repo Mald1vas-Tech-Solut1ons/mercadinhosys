@@ -426,7 +426,7 @@ const PDVPage: React.FC = () => {
                     <div className="flex-1 p-4 sm:p-6 flex flex-col justify-end gap-4 sm:p-6">
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none text-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Total a Pagar</span>
-                            <span className="text-xl lg:text-xl xl:text-3xl font-black text-red-600 dark:text-red-400 tabular-nums block break-words leading-none">
+                            <span className="text-xl lg:text-xl xl:text-3xl font-black text-red-600 dark:text-red-400 tabular-nums block wrap-break-word leading-none">
                                 {formatCurrency(total)}
                             </span>
                         </div>
@@ -463,15 +463,15 @@ const PDVPage: React.FC = () => {
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => setFormaPagamentoAberta(false)}
-                            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[90]"
+                            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-90"
                         />
                         <motion.div
                             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="fixed top-0 right-0 h-[100dvh] w-full sm:w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-[100] flex flex-col"
+                            className="fixed top-0 right-0 h-dvh w-full sm:w-[480px] bg-white dark:bg-slate-900 shadow-2xl z-100 flex flex-col"
                         >
                             {/* Drawer Header */}
-                            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-slate-900">
                                         <Check className="w-6 h-6" />
@@ -826,7 +826,7 @@ const PDVPage: React.FC = () => {
                             {/* Drawer Footer — paddingBottom respeita a barra de gestos/home indicator
                                 para o botão "Concluir Venda" nunca ficar sob a UI do sistema. */}
                             <div
-                                className="p-4 sm:p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 space-y-6 flex-shrink-0"
+                                className="p-4 sm:p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 space-y-6 shrink-0"
                                 style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
                             >
 

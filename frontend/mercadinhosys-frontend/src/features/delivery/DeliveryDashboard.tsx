@@ -149,7 +149,7 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
                     </button>
                     <button
                         onClick={() => setIsUnifiedModalOpen(true)}
-                        className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-700 hover:from-indigo-700 hover:to-blue-800 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center gap-2 border border-white/10"
+                        className="px-4 py-2 bg-linear-to-r from-indigo-600 to-blue-700 hover:from-indigo-700 hover:to-blue-800 text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-500/30 transition-all active:scale-95 flex items-center gap-2 border border-white/10"
                     >
                         <Plus className="w-4 h-4" /> Venda Entrega
                     </button>
@@ -292,7 +292,7 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
                 <div className="space-y-6">
                     <LiveTracking entrega={entregasRecentes.find(e => e.status === 'em_rota')} />
                     
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20">
+                    <div className="bg-linear-to-br from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-xl shadow-blue-500/20">
                         <div className="flex items-center gap-3 mb-6">
                             <Users className="w-6 h-6" />
                             <h3 className="font-bold">Equipe Ativa</h3>

@@ -193,7 +193,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
     // ────────────────────────────────────────────────────────
     if (!caixaAtual) {
         return createPortal(
-            <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6"
+            <div className="fixed inset-0 z-200 flex items-center justify-center p-3 sm:p-6"
                 style={{
                     background: 'linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(30,27,75,0.85) 100%)',
                     backdropFilter: 'blur(16px)',
@@ -273,7 +273,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
     ] as const;
 
     return createPortal(
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
+        <div className="fixed inset-0 z-200 flex items-end sm:items-center justify-center p-0 sm:p-4"
             style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px)' }}
             onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
 

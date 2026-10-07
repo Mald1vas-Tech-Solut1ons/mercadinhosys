@@ -12,7 +12,7 @@ interface ImageZoomModalProps {
 /**
  * Visualizador universal de foto de produto — clique na miniatura em
  * qualquer lugar do sistema (PDV, carrinho, lista, hub, cadastro) abre a
- * imagem em tamanho grande. z-[300]: acima de qualquer modal comum
+ * imagem em tamanho grande. z-300: acima de qualquer modal comum
  * (z-[200]/z-[210]), porque pode ser aberto de dentro de outro modal
  * (ex.: zoom da foto durante o cadastro do produto).
  */
@@ -30,7 +30,7 @@ const ImageZoomModal: React.FC<ImageZoomModalProps> = ({ src, alt, onClose }) =>
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[300] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-150"
+            className="fixed inset-0 z-300 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-in fade-in duration-150"
             onClick={onClose}
             role="dialog"
             aria-modal="true"

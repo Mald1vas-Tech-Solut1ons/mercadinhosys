@@ -88,7 +88,7 @@ export const ConsultorPage: React.FC = () => {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center z-10">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md">
+          <div className="p-2.5 rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
@@ -136,7 +136,7 @@ export const ConsultorPage: React.FC = () => {
               <div className={`p-4 rounded-2xl shadow-sm leading-relaxed ${
                 msg.isBot 
                   ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-none' 
-                  : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-tr-none'
+                  : 'bg-linear-to-r from-indigo-500 to-purple-600 text-white rounded-tr-none'
               }`}>
                 {msg.isBot ? (
                   <div className="prose dark:prose-invert prose-sm max-w-none">
@@ -173,7 +173,7 @@ export const ConsultorPage: React.FC = () => {
             <button
               key={i}
               onClick={() => setInputValue(sug)}
-              className="whitespace-nowrap px-4 py-2 bg-gray-50 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 hover:border-indigo-200 dark:hover:border-indigo-500 text-sm font-medium text-gray-600 dark:text-gray-300 rounded-full transition-all flex-shrink-0"
+              className="whitespace-nowrap px-4 py-2 bg-gray-50 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 hover:border-indigo-200 dark:hover:border-indigo-500 text-sm font-medium text-gray-600 dark:text-gray-300 rounded-full transition-all shrink-0"
             >
               {sug}
             </button>

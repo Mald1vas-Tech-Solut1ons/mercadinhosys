@@ -223,14 +223,14 @@ export default function RetrospectivaWrapped({ open, onClose, funcionarioId, ano
     const voltar = () => setIdx(i => Math.max(i - 1, 0));
 
     return createPortal(
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black">
+        <div className="fixed inset-0 z-300 flex items-center justify-center bg-black">
             {loading || !slide ? (
                 <div className="flex flex-col items-center gap-4 text-white">
                     <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
                     <p className="font-bold uppercase tracking-widest text-sm animate-pulse">Montando sua retrospectiva…</p>
                 </div>
             ) : (
-                <div className={`relative w-full h-full bg-gradient-to-br ${slide.gradiente} transition-[background] duration-700 flex flex-col`}>
+                <div className={`relative w-full h-full bg-linear-to-br ${slide.gradiente} transition-[background] duration-700 flex flex-col`}>
                     {/* Barras de progresso (stories) */}
                     <div className="flex gap-1.5 p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
                         {slides.map((_, i) => (

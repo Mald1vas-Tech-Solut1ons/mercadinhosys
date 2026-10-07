@@ -130,7 +130,7 @@ export default function SFAManagement() {
         <div className="container mx-auto p-4 space-y-6 pb-24 max-w-6xl">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-500 flex items-center gap-2">
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-500 flex items-center gap-2">
                         <Target className="w-8 h-8 text-indigo-500" />
                         Gestão SFA
                     </h1>

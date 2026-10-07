@@ -65,7 +65,7 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-200 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90dvh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -122,7 +122,7 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
               </div>
 
               {/* FIFO Info */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-xl p-4">
+              <div className="bg-linear-to-r from-purple-50 to-blue-50 border border-purple-100 rounded-xl p-4">
                 <p className="text-sm text-purple-700">
                   <strong>FIFO ativo:</strong> Os lotes estao ordenados do mais proximo a vencer para o mais distante.
                   A venda consome automaticamente do lote mais antigo primeiro.

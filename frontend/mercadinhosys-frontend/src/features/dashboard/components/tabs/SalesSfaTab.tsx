@@ -144,7 +144,7 @@ export default function SalesSfaTab({ data }: SalesSfaTabProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white dark:bg-slate-800/80 rounded-3xl p-6 border border-gray-200 dark:border-slate-700/60 shadow-xl">
               <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400"><DollarSign className="w-5 h-5" /></div><h3 className="text-gray-600 dark:text-slate-300 font-bold text-sm">Faturamento PDV</h3></div>
-              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-words">{formatCurrency(vendasMes)}</div>
+              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter wrap-break-word">{formatCurrency(vendasMes)}</div>
             </div>
             <div className="bg-white dark:bg-slate-800/80 rounded-3xl p-6 border border-gray-200 dark:border-slate-700/60 shadow-xl">
               <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-blue-500/10 rounded-xl text-blue-400"><ShoppingCart className="w-5 h-5" /></div><h3 className="text-gray-600 dark:text-slate-300 font-bold text-sm">Cupons Emitidos</h3></div>
@@ -152,11 +152,11 @@ export default function SalesSfaTab({ data }: SalesSfaTabProps) {
             </div>
             <div className="bg-white dark:bg-slate-800/80 rounded-3xl p-6 border border-gray-200 dark:border-slate-700/60 shadow-xl">
               <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-purple-500/10 rounded-xl text-purple-400"><Activity className="w-5 h-5" /></div><h3 className="text-gray-600 dark:text-slate-300 font-bold text-sm">Ticket Médio</h3></div>
-              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-words">{formatCurrency(ticketMedio)}</div>
+              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter wrap-break-word">{formatCurrency(ticketMedio)}</div>
             </div>
             <div className="bg-white dark:bg-slate-800/80 rounded-3xl p-6 border border-gray-200 dark:border-slate-700/60 shadow-xl">
               <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-amber-500/10 rounded-xl text-amber-400"><Clock className="w-5 h-5" /></div><h3 className="text-gray-600 dark:text-slate-300 font-bold text-sm">Pico de Movimento</h3></div>
-              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-words">
+              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter wrap-break-word">
                 {vendasPorHora.length > 0 ? `${[...vendasPorHora].sort((a,b) => b.total - a.total)[0].hora}h` : '--'}
               </div>
             </div>
@@ -581,7 +581,7 @@ export default function SalesSfaTab({ data }: SalesSfaTabProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className={`bg-white dark:bg-slate-800/80 rounded-3xl p-6 border shadow-xl ${selectedVendedor ? 'border-blue-500/50 ring-2 ring-blue-500/20' : 'border-gray-200 dark:border-slate-700/60'}`}>
               <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-blue-500/10 rounded-xl text-blue-400"><Target className="w-5 h-5" /></div><h3 className="text-gray-600 dark:text-slate-300 font-bold text-sm">Realizado vs Meta</h3></div>
-              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-words">{formatCurrency(selectedVendedor ? selectedVendedor.alcancado : globalAlcancado)}</div>
+              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter wrap-break-word">{formatCurrency(selectedVendedor ? selectedVendedor.alcancado : globalAlcancado)}</div>
               <p className="text-xs text-gray-500 dark:text-slate-400 font-medium mb-3">de {formatCurrency(selectedVendedor ? selectedVendedor.meta : globalMeta)}</p>
             </div>
             <div className={`bg-white dark:bg-slate-800/80 rounded-3xl p-6 border shadow-xl ${selectedVendedor ? 'border-emerald-500/50 ring-2 ring-emerald-500/20' : 'border-gray-200 dark:border-slate-700/60'}`}>
@@ -596,7 +596,7 @@ export default function SalesSfaTab({ data }: SalesSfaTabProps) {
             </div>
             <div className={`bg-white dark:bg-slate-800/80 rounded-3xl p-6 border shadow-xl ${selectedVendedor ? 'border-amber-500/50 ring-2 ring-amber-500/20' : 'border-gray-200 dark:border-slate-700/60'}`}>
               <div className="flex items-center gap-3 mb-4"><div className="p-2 bg-amber-500/10 rounded-xl text-amber-400"><DollarSign className="w-5 h-5" /></div><h3 className="text-gray-600 dark:text-slate-300 font-bold text-sm">Ticket Médio (Operador)</h3></div>
-              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter break-words">{formatCurrency(selectedVendedor ? (selectedVendedor.vendas_count > 0 ? selectedVendedor.alcancado/selectedVendedor.vendas_count : 0) : ticketMedioGlobal)}</div>
+              <div className="text-2xl xl:text-3xl font-black text-gray-900 dark:text-white tracking-tighter wrap-break-word">{formatCurrency(selectedVendedor ? (selectedVendedor.vendas_count > 0 ? selectedVendedor.alcancado/selectedVendedor.vendas_count : 0) : ticketMedioGlobal)}</div>
             </div>
           </div>
 

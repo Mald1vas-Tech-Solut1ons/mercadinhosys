@@ -33,7 +33,7 @@ const SplashIntro: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
+            className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden"
             style={{ background: 'radial-gradient(120% 140% at 50% 0%, #1D4ED8 0%, #0F2E5C 55%, #0A1220 100%)' }}
         >
             <motion.div 
@@ -89,7 +89,7 @@ const SplashIntro: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
                 transition={{ duration: 0.5, delay: 1.0, ease: "easeOut" }}
             >
                 <motion.div 
-                    className="h-full rounded-full bg-gradient-to-r from-[#2E9BFF] to-[#6FCBFF]"
+                    className="h-full rounded-full bg-linear-to-r from-[#2E9BFF] to-[#6FCBFF]"
                     initial={{ width: 0 }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 1.4, delay: 1.15, ease: "easeInOut" }}
@@ -313,7 +313,7 @@ const LandingPage: React.FC = () => {
                 {showSplash && <SplashIntro onComplete={() => setShowSplash(false)} />}
             </AnimatePresence>
 
-            <div className="bg-gradient-to-r from-red-600 to-red-500 text-white py-2 px-4 text-center text-sm font-bold tracking-wide z-[60] relative shadow-md">
+            <div className="bg-linear-to-r from-red-600 to-red-500 text-white py-2 px-4 text-center text-sm font-bold tracking-wide z-60 relative shadow-md">
                 <span className="inline-block animate-pulse mr-2">⚠️</span> 
                 ATENÇÃO: O SEU CONCORRENTE JÁ ESTÁ DIGITALIZADO. PARE DE PERDER DINHEIRO COM SISTEMAS OBSOLETOS.
             </div>
@@ -323,7 +323,7 @@ const LandingPage: React.FC = () => {
                 href="https://wa.me/5511919889233"
                 target="_blank"
                 rel="noreferrer"
-                className="fixed bottom-8 right-8 z-[100] bg-emerald-500 text-white p-4 rounded-full shadow-2xl shadow-emerald-400/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
+                className="fixed bottom-8 right-8 z-100 bg-emerald-500 text-white p-4 rounded-full shadow-2xl shadow-emerald-400/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
             >
                 <MessageCircle className="w-8 h-8" />
                 <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-500 font-bold whitespace-nowrap">
@@ -396,7 +396,7 @@ const LandingPage: React.FC = () => {
                         </div>
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] lg:leading-[1.05] mb-8 text-white">
                             Pare de perder venda, margem e tempo. <br className="hidden sm:block" />
-                            <span className="bg-gradient-to-r from-[#2E9BFF] to-[#6FCBFF] bg-clip-text text-transparent">Controle sua operação em um só lugar.</span>
+                            <span className="bg-linear-to-r from-[#2E9BFF] to-[#6FCBFF] bg-clip-text text-transparent">Controle sua operação em um só lugar.</span>
                         </h1>
                         <p className="text-xl lg:text-2xl text-[#8FA3C0] leading-relaxed mb-6 font-medium max-w-3xl">
                             PDV rápido, estoque confiável, compras organizadas, caixa sob controle e visão clara do negócio para <span className="text-white font-bold">mercados, mercearias, conveniências e distribuidores</span>.
@@ -441,14 +441,14 @@ const LandingPage: React.FC = () => {
                         initial={{ opacity: 0, scale: 0.95, y: 50 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         transition={{ duration: 1, delay: 0.2 }}
-                        className="relative w-full max-w-[1000px] mx-auto rounded-t-[32px] rounded-b-[16px] shadow-[0_0_80px_rgba(46,155,255,0.2)] border-x-4 border-t-4 border-b-[24px] border-[#101C31] bg-[#0A1220] overflow-hidden group"
+                        className="relative w-full max-w-[1000px] mx-auto rounded-t-[32px] rounded-b-[16px] shadow-[0_0_80px_rgba(46,155,255,0.2)] border-x-4 border-t-4 border-b-24 border-[#101C31] bg-[#0A1220] overflow-hidden group"
                     >
                         <div className="absolute top-0 left-0 right-0 h-8 bg-[#101C31] border-b border-[#24344F] flex items-center px-4 gap-2 z-20">
                             <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
                             <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
                             <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
                         </div>
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#0A1220]/80 via-transparent to-transparent z-10 pointer-events-none"></div>
+                        <div className="absolute inset-0 bg-linear-to-t from-[#0A1220]/80 via-transparent to-transparent z-10 pointer-events-none"></div>
                         <video 
                             src="/assets/vídeo marketing.mp4" 
                             autoPlay 
@@ -488,7 +488,7 @@ const LandingPage: React.FC = () => {
                         <h2 className="text-red-500 font-bold tracking-[2px] text-xs uppercase mb-4 animate-pulse">Chega de Travar no Horário de Pico</h2>
                         <h3 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
                             Sistema Lento = <br/>
-                            <span className="bg-gradient-to-r from-red-500 to-[#FF6A5C] bg-clip-text text-transparent">Cliente na Concorrência.</span>
+                            <span className="bg-linear-to-r from-red-500 to-[#FF6A5C] bg-clip-text text-transparent">Cliente na Concorrência.</span>
                         </h3>
                         <p className="text-xl text-[#8FA3C0]">
                             Nós entendemos a dor de ver fila crescendo, operador travado e cliente desistindo da compra. O MercadinhoSys foi desenhado para o varejo real: resposta rápida, operação fluida e menos atrito no balcão.
@@ -497,10 +497,10 @@ const LandingPage: React.FC = () => {
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
                         {/* HIGH CONVERSION AI CARD */}
-                        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-gradient-to-b from-[#0A1220] to-[#101C31] p-8 rounded-[20px] border-2 border-emerald-500/50 hover:border-emerald-400 hover:shadow-[0_0_40px_rgba(16,185,129,0.2)] transition-all group relative overflow-hidden">
+                        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="bg-linear-to-b from-[#0A1220] to-[#101C31] p-8 rounded-[20px] border-2 border-emerald-500/50 hover:border-emerald-400 hover:shadow-[0_0_40px_rgba(16,185,129,0.2)] transition-all group relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all"></div>
                             
-                            <div className="absolute top-4 right-4 bg-gradient-to-r from-emerald-500 to-teal-400 text-white text-[10px] font-black uppercase tracking-widest py-1 px-3 rounded-full shadow-lg shadow-emerald-500/30 animate-pulse">
+                            <div className="absolute top-4 right-4 bg-linear-to-r from-emerald-500 to-teal-400 text-white text-[10px] font-black uppercase tracking-widest py-1 px-3 rounded-full shadow-lg shadow-emerald-500/30 animate-pulse">
                                 Exclusividade
                             </div>
                             
@@ -599,7 +599,7 @@ const LandingPage: React.FC = () => {
                         <h2 className="text-red-500 font-bold tracking-[2px] text-xs uppercase mb-4">Por dentro da Máquina</h2>
                         <h3 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
                             Não vendemos promessas. <br/>
-                            Entregamos <span className="bg-gradient-to-r from-red-500 to-[#FF6A5C] bg-clip-text text-transparent">Poder de Controle.</span>
+                            Entregamos <span className="bg-linear-to-r from-red-500 to-[#FF6A5C] bg-clip-text text-transparent">Poder de Controle.</span>
                         </h3>
                         <p className="text-xl text-[#8FA3C0]">
                             Dê uma olhada no motor do MercadinhoSys. Um painel de comando desenvolvido para quem precisa de dados rápidos, precisos e sem complicação. O seu negócio na palma da sua mão.
@@ -707,7 +707,7 @@ const LandingPage: React.FC = () => {
 
                     <div className="grid md:grid-cols-3 gap-8 relative">
                         {/* Connecting Line */}
-                        <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-0.5 bg-gradient-to-r from-red-600/20 via-red-500 to-red-600/20 -translate-y-1/2 z-0"></div>
+                        <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-0.5 bg-linear-to-r from-red-600/20 via-red-500 to-red-600/20 -translate-y-1/2 z-0"></div>
 
                         <div className="relative z-10 bg-[#101C31] p-10 rounded-[20px] border border-[#24344F] text-center shadow-xl">
                             <div className="w-16 h-16 bg-[#2E9BFF] text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-[0_0_20px_rgba(46,155,255,0.4)]">1</div>
@@ -732,7 +732,7 @@ const LandingPage: React.FC = () => {
 
             {/* TESTIMONIALS SECTION */}
             <section id="testimonials" className="py-24 bg-[#101C31] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#2E9BFF]/5 via-[#101C31] to-[#101C31] pointer-events-none"></div>
+                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-[#2E9BFF]/5 via-[#101C31] to-[#101C31] pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div className="text-center max-w-3xl mx-auto mb-20">
                         <h2 className="text-[#8FA3C0] font-bold tracking-[1.5px] text-xs uppercase mb-4">Prova Social</h2>
@@ -767,7 +767,7 @@ const LandingPage: React.FC = () => {
 
             {/* COMPARISON SECTION */}
             <section className="py-24 bg-[#101C31] border-y border-[#24344F] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-500/5 via-[#101C31] to-[#101C31] pointer-events-none"></div>
+                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-red-500/5 via-[#101C31] to-[#101C31] pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div className="text-center max-w-4xl mx-auto mb-16">
                         <h2 className="text-red-500 font-bold tracking-[2px] text-xs uppercase mb-4">A Verdade Inconveniente do Mercado</h2>
@@ -782,7 +782,7 @@ const LandingPage: React.FC = () => {
                                     <tr>
                                         <th className="p-6 border-b border-[#24344F] text-[#8FA3C0] font-bold text-lg w-1/3">Critério Corporativo</th>
                                         <th className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-[#8FA3C0] font-bold text-lg bg-[#101C31]/50 w-1/3 text-center">Gigantes Tradicionais <br/><span className="text-xs font-normal opacity-70">(Sankhya, SAP, TOTVS)</span></th>
-                                        <th className="p-6 border-b-2 border-red-500 text-white font-black text-xl bg-gradient-to-t from-red-500/10 to-transparent text-center w-1/3">MercadinhoSys</th>
+                                        <th className="p-6 border-b-2 border-red-500 text-white font-black text-xl bg-linear-to-t from-red-500/10 to-transparent text-center w-1/3">MercadinhoSys</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[#DCE8F7]">
@@ -840,7 +840,7 @@ const LandingPage: React.FC = () => {
                                 className={`bg-[#101C31] rounded-[24px] p-10 border ${tier.highlight ? 'border-[#2E9BFF] shadow-[0_0_40px_rgba(46,155,255,0.15)] relative transform md:-translate-y-4' : 'border-[#24344F]'}`}
                             >
                                 {tier.highlight && (
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-[#2E9BFF] to-[#1D4ED8] text-white px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg">
+                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-linear-to-r from-[#2E9BFF] to-[#1D4ED8] text-white px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg">
                                         RECOMENDADO PARA ESCALAR
                                     </div>
                                 )}
@@ -867,7 +867,7 @@ const LandingPage: React.FC = () => {
                                     onClick={() => handlePlanSelect(tier)}
                                     className={`w-full py-5 rounded-[12px] font-bold text-lg transition-all ${
                                         tier.highlight 
-                                        ? 'bg-gradient-to-r from-[#2E9BFF] to-[#1D4ED8] text-white hover:shadow-[0_0_20px_rgba(46,155,255,0.4)] hover:scale-[1.02]'
+                                        ? 'bg-linear-to-r from-[#2E9BFF] to-[#1D4ED8] text-white hover:shadow-[0_0_20px_rgba(46,155,255,0.4)] hover:scale-[1.02]'
                                         : 'bg-transparent border border-[#2E9BFF] text-[#2E9BFF] hover:bg-[#2E9BFF]/10'
                                     }`}>
                                     {tier.cta}
@@ -917,8 +917,8 @@ const LandingPage: React.FC = () => {
             {/* CONTACT SECTION */}
             <section id="contact" className="py-24 bg-[#0A1220]">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="bg-gradient-to-br from-[#101C31] to-[#0A1220] rounded-[32px] border border-[#24344F] overflow-hidden shadow-2xl relative">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#2E9BFF] via-[#FF6A5C] to-[#2E9BFF]"></div>
+                    <div className="bg-linear-to-br from-[#101C31] to-[#0A1220] rounded-[32px] border border-[#24344F] overflow-hidden shadow-2xl relative">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-[#2E9BFF] via-[#FF6A5C] to-[#2E9BFF]"></div>
                         <div className="grid lg:grid-cols-2">
                             <div className="p-10 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#24344F] flex flex-col justify-center">
                                 <h3 className="text-4xl font-bold text-white mb-6">Pronto para transformar sua gestão?</h3>
@@ -1014,13 +1014,13 @@ const LandingPage: React.FC = () => {
             
             {/* CONVERSION MODAL */}
             {conversionModalOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#0A1220]/90 backdrop-blur-md overflow-y-auto">
+                <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-[#0A1220]/90 backdrop-blur-md overflow-y-auto">
                     <div className="bg-[#101C31] border border-[#2E9BFF]/30 w-full max-w-5xl rounded-[24px] shadow-[0_0_50px_rgba(46,155,255,0.15)] overflow-hidden relative flex flex-col md:flex-row">
                         <button onClick={() => setConversionModalOpen(false)} className="absolute top-4 right-4 z-10 text-[#8FA3C0] hover:text-white bg-[#0A1220] rounded-full p-2 border border-[#24344F]">
                             <X className="w-5 h-5" />
                         </button>
 
-                        <div className="bg-gradient-to-b from-[#0A1220] to-[#101C31] border-r border-[#24344F] w-full md:w-5/12 p-10 flex flex-col justify-between relative overflow-hidden">
+                        <div className="bg-linear-to-b from-[#0A1220] to-[#101C31] border-r border-[#24344F] w-full md:w-5/12 p-10 flex flex-col justify-between relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-[#2E9BFF]/5 rounded-full blur-[80px] pointer-events-none"></div>
                             <div className="relative z-10">
                                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#2E9BFF]/10 border border-[#2E9BFF]/30 text-[#2E9BFF] rounded-full text-xs font-black uppercase mb-6">
@@ -1093,7 +1093,7 @@ const LandingPage: React.FC = () => {
                                         Li, compreendi e aceito os <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-[#2E9BFF] hover:underline font-bold">Termos de Uso</a> e a <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-[#2E9BFF] hover:underline font-bold">Política de Privacidade</a>.
                                     </label>
                                 </div>
-                                <button type="submit" disabled={loadingCheckout || !termsAccepted} className={`w-full py-4 mt-8 text-white rounded-[12px] font-black text-lg transition-all flex items-center justify-center ${termsAccepted ? 'bg-gradient-to-r from-[#2E9BFF] to-[#1D4ED8] hover:shadow-[0_0_25px_rgba(46,155,255,0.4)] hover:scale-[1.02]' : 'bg-[#24344F] text-[#8FA3C0] cursor-not-allowed'}`}>
+                                <button type="submit" disabled={loadingCheckout || !termsAccepted} className={`w-full py-4 mt-8 text-white rounded-[12px] font-black text-lg transition-all flex items-center justify-center ${termsAccepted ? 'bg-linear-to-r from-[#2E9BFF] to-[#1D4ED8] hover:shadow-[0_0_25px_rgba(46,155,255,0.4)] hover:scale-[1.02]' : 'bg-[#24344F] text-[#8FA3C0] cursor-not-allowed'}`}>
                                     {loadingCheckout ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'IR PARA O PAGAMENTO SEGURO'}
                                 </button>
                                 <p className="text-center text-[#4F6A8F] text-xs font-medium mt-4 flex items-center justify-center gap-1">

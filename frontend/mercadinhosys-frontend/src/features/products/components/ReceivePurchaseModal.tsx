@@ -279,12 +279,12 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[210] p-2 sm:p-4" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-210 p-2 sm:p-4" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900 dark:to-green-800">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-green-50 to-green-100 dark:from-green-900 dark:to-green-800">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 dark:text-green-300 flex-shrink-0" />
+            <Package className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 dark:text-green-300 shrink-0" />
             <div className="min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white truncate">
                 Receber Pedido
@@ -296,7 +296,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-green-200 dark:hover:bg-green-700 rounded-lg transition-colors flex-shrink-0"
+            className="p-2 hover:bg-green-200 dark:hover:bg-green-700 rounded-lg transition-colors shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
@@ -416,7 +416,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                               <button 
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); toggleExpanded(index); }}
-                                className={`p-1.5 rounded-lg transition-colors flex-shrink-0 ${item.expanded ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                                className={`p-1.5 rounded-lg transition-colors shrink-0 ${item.expanded ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-200'}`}
                               >
                                 {item.expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                               </button>
@@ -644,7 +644,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="flex-shrink-0 flex justify-between gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700" style={{ paddingBottom: 'max(1rem, calc(1rem + env(safe-area-inset-bottom)))' }}>
+            <div className="shrink-0 flex justify-between gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700" style={{ paddingBottom: 'max(1rem, calc(1rem + env(safe-area-inset-bottom)))' }}>
               <button
                 type="button"
                 onClick={handleDevolver}

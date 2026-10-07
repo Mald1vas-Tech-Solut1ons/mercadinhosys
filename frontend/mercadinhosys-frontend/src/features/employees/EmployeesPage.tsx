@@ -540,7 +540,7 @@ export default function EmployeesPage() {
             <div className="mb-8">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex items-center space-x-4">
-                        <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                        <div className="p-3 bg-linear-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg">
                             <UserCog className="w-8 h-8 text-white" />
                         </div>
                         <div>
@@ -622,7 +622,7 @@ export default function EmployeesPage() {
 
                         <button
                             onClick={abrirModalNovo}
-                            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all flex items-center gap-2 shadow-lg font-medium"
+                            className="bg-linear-to-r from-blue-500 to-blue-600 text-white px-6 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all flex items-center gap-2 shadow-lg font-medium"
                         >
                             <Plus className="w-5 h-5" />
                             Novo Funcionário
@@ -634,7 +634,7 @@ export default function EmployeesPage() {
             {/* Métricas KPI */}
             {estatisticas && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-6 rounded-xl shadow-md border border-purple-200 dark:border-purple-800">
+                    <div className="bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-6 rounded-xl shadow-md border border-purple-200 dark:border-purple-800">
                         <div className="flex items-center justify-between mb-2">
                             <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Total Funcionários</div>
                             <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -645,7 +645,7 @@ export default function EmployeesPage() {
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-xl shadow-md border border-green-200 dark:border-green-800">
+                    <div className="bg-linear-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-xl shadow-md border border-green-200 dark:border-green-800">
                         <div className="flex items-center justify-between mb-2">
                             <div className="text-sm text-green-700 dark:text-green-300 font-medium">Funcionários Ativos</div>
                             <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -656,7 +656,7 @@ export default function EmployeesPage() {
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-xl shadow-md border border-blue-200 dark:border-blue-800">
+                    <div className="bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-xl shadow-md border border-blue-200 dark:border-blue-800">
                         <div className="flex items-center justify-between mb-2">
                             <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Folha de Pagamento</div>
                             <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -667,7 +667,7 @@ export default function EmployeesPage() {
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-6 rounded-xl shadow-md border border-orange-200 dark:border-orange-800">
+                    <div className="bg-linear-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-6 rounded-xl shadow-md border border-orange-200 dark:border-orange-800">
                         <div className="flex items-center justify-between mb-2">
                             <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Tempo Médio</div>
                             <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
@@ -1192,7 +1192,7 @@ export default function EmployeesPage() {
 
             {/* Modal Criar/Editar Funcionário */}
             {modalAberto && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -1534,7 +1534,7 @@ export default function EmployeesPage() {
                                 </button>
                                 <button
                                     onClick={salvarFuncionario}
-                                    className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg font-medium"
+                                    className="px-6 py-2.5 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg font-medium"
                                 >
                                     {modoEdicao ? "Atualizar" : "Criar"} Funcionário
                                 </button>
@@ -1546,7 +1546,7 @@ export default function EmployeesPage() {
 
             {/* Modal Detalhes do Funcionário */}
             {modalDetalhesAberto && funcionarioSelecionado && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -1694,7 +1694,7 @@ export default function EmployeesPage() {
                                         setModalDetalhesAberto(false);
                                         abrirModalEdicao(funcionarioSelecionado);
                                     }}
-                                    className="px-6 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg font-medium"
+                                    className="px-6 py-2.5 bg-linear-to-r from-purple-500 to-purple-600 text-white rounded-lg hover:from-purple-600 hover:to-purple-700 transition-all shadow-lg font-medium"
                                 >
                                     Editar
                                 </button>

@@ -28,7 +28,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     },
     card: {
       container: 'bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700',
-      header: 'px-4 py-3 sm:px-6 sm:py-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800',
+      header: 'px-4 py-3 sm:px-6 sm:py-4 bg-linear-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800',
       content: 'px-4 py-3 sm:px-6 sm:py-4',
     },
     minimal: {
@@ -47,18 +47,18 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         className={`w-full flex items-center justify-between ${styles.header} hover:bg-opacity-75 transition-colors`}
       >
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-          {icon && <span className="flex-shrink-0 text-gray-600 dark:text-gray-400">{icon}</span>}
+          {icon && <span className="shrink-0 text-gray-600 dark:text-gray-400">{icon}</span>}
           <span className="font-semibold text-gray-800 dark:text-white text-sm sm:text-base truncate">
             {title}
           </span>
           {badge !== undefined && (
-            <span className="ml-2 px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full flex-shrink-0">
+            <span className="ml-2 px-2 py-1 text-xs font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full shrink-0">
               {badge}
             </span>
           )}
         </div>
         <ChevronDown
-          className={`w-5 h-5 text-gray-600 dark:text-gray-400 flex-shrink-0 transition-transform ${
+          className={`w-5 h-5 text-gray-600 dark:text-gray-400 shrink-0 transition-transform ${
             isOpen ? 'transform rotate-180' : ''
           }`}
         />

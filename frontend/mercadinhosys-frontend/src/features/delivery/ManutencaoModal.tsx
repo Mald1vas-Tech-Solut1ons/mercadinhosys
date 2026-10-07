@@ -70,7 +70,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
                     transition={{ type: "spring", damping: 25, stiffness: 200 }}
                     className="bg-white dark:bg-gray-800 rounded-t-3xl sm:rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
                 >
-                    <div className="bg-gradient-to-r from-blue-700 to-indigo-700 p-6 text-white text-center rounded-t-3xl sm:rounded-none">
+                    <div className="bg-linear-to-r from-blue-700 to-indigo-700 p-6 text-white text-center rounded-t-3xl sm:rounded-none">
                         <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
                             <Wrench className="w-8 h-8 text-white" />
                         </div>

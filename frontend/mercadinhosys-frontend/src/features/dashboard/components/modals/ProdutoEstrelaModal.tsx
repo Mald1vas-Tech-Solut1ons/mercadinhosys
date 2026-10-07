@@ -88,7 +88,7 @@ export const ProdutoEstrelaModal: React.FC<ProdutoEstrelaModalProps> = ({
         </div>
 
         {/* Análise Financeira */}
-        <div className="bg-gradient-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 rounded-2xl p-6 border border-green-100 dark:border-green-800/50 shadow-sm">
+        <div className="bg-linear-to-br from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 rounded-2xl p-6 border border-green-100 dark:border-green-800/50 shadow-sm">
           <h3 className="font-black text-green-900 dark:text-green-300 mb-6 flex items-center gap-2 uppercase tracking-tighter text-lg">
             <DollarSign className="w-6 h-6" />
             Engenharia Financeira
@@ -196,7 +196,7 @@ export const ProdutoEstrelaModal: React.FC<ProdutoEstrelaModalProps> = ({
               { t: 'Qualidade', d: 'Alta rotatividade exige frescor e integridade total.' }
             ].map((alert, i) => (
               <div key={i} className="flex gap-3">
-                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full mt-1.5 shrink-0"></div>
                 <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                   <strong className="text-amber-900 dark:text-amber-400">{alert.t}:</strong> {alert.d}
                 </p>

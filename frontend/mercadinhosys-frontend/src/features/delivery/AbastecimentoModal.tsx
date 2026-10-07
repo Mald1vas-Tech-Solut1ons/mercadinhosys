@@ -78,7 +78,7 @@ export const AbastecimentoModal: React.FC<AbastecimentoModalProps> = ({ isOpen, 
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
                 >
-                    <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-6 text-white text-center">
+                    <div className="bg-linear-to-r from-orange-500 to-amber-500 p-6 text-white text-center">
                         <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
                             <Fuel className="w-8 h-8 text-white" />
                         </div>

@@ -118,12 +118,12 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
             <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden my-auto flex flex-col">
                 {/* Header */}
-                <div className="relative bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white shrink-0">
+                <div className="relative bg-linear-to-r from-blue-600 to-indigo-600 p-6 text-white shrink-0">
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors"
@@ -370,28 +370,28 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
                             Métricas e Estatísticas
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-xl text-white">
+                            <div className="bg-linear-to-br from-blue-500 to-blue-600 p-4 rounded-xl text-white">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Users size={16} />
                                     <span className="text-sm text-blue-100">Funcionários</span>
                                 </div>
                                 <p className="text-2xl font-bold">{estabelecimento.total_funcionarios || 0}</p>
                             </div>
-                            <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-xl text-white">
+                            <div className="bg-linear-to-br from-green-500 to-green-600 p-4 rounded-xl text-white">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Package size={16} />
                                     <span className="text-sm text-green-100">Produtos</span>
                                 </div>
                                 <p className="text-2xl font-bold">{estabelecimento.total_produtos || 0}</p>
                             </div>
-                            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-xl text-white">
+                            <div className="bg-linear-to-br from-purple-500 to-purple-600 p-4 rounded-xl text-white">
                                 <div className="flex items-center gap-2 mb-2">
                                     <ShoppingBag size={16} />
                                     <span className="text-sm text-purple-100">Clientes</span>
                                 </div>
                                 <p className="text-2xl font-bold">{estabelecimento.total_clientes || 0}</p>
                             </div>
-                            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 rounded-xl text-white">
+                            <div className="bg-linear-to-br from-orange-500 to-orange-600 p-4 rounded-xl text-white">
                                 <div className="flex items-center gap-2 mb-2">
                                     <TrendingUp size={16} />
                                     <span className="text-sm text-orange-100">Faturamento</span>

@@ -1,9 +1,5 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import MainLayout from '../components/layout/MainLayout';
-import ConnectionTest from '../components/ConnectionTest';
-import { LoginPage } from '../features/auth/LoginPage';
-import { RegisterPage } from '../features/auth/RegisterPage';
 import { authService } from '../features/auth/authService';
 import SuperAdminRoute from '../components/routes/SuperAdminRoute';
 import ModuleGuard from '../components/routes/ModuleGuard';
@@ -12,6 +8,10 @@ import { getDefaultRoute } from '../utils/permissions';
 import { SplashLoading } from '../components/common/SplashLoading';
 
 // Lazy loading das páginas
+const MainLayout = lazy(() => import('../components/layout/MainLayout'));
+const ConnectionTest = lazy(() => import('../components/ConnectionTest'));
+const LoginPage = lazy(() => import('../features/auth/LoginPage').then(module => ({ default: module.LoginPage })));
+const RegisterPage = lazy(() => import('../features/auth/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage'));
 const PDVPage = lazy(() => import('../features/pdv/PDVPage'));
 const ProductsPage = lazy(() => import('../features/products/ProductsPage'));

@@ -1,0 +1,8 @@
+[Unit]
+Description=MercadinhoSys PostgreSQL backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /home/ubuntu/mercadinhosys/infra/oracle/backup-database.sh

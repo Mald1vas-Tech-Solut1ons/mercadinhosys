@@ -79,6 +79,11 @@ def parse_nfe_xml(xml_bytes: bytes | str) -> Dict[str, Any]:
     """
     if isinstance(xml_bytes, str):
         xml_bytes = xml_bytes.encode("utf-8")
+    if len(xml_bytes) > 5 * 1024 * 1024:
+        raise XMLNotaError('XML excede o limite de 5MB')
+    declarations = xml_bytes.replace(b'\x00', b'').upper()
+    if b'<!DOCTYPE' in declarations or b'<!ENTITY' in declarations:
+        raise XMLNotaError('Declarações DTD e entidades não são permitidas')
     try:
         root = ET.fromstring(xml_bytes)
     except ET.ParseError as e:

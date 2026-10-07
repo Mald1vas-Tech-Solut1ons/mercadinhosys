@@ -42,6 +42,7 @@ PREFIX_RESOURCE: list[tuple[str, str]] = [
     ("/api/fiscal", "fiscal"),
     ("/api/auditoria", "auditoria"),
     ("/api/delivery", "delivery"),
+    ("/api/logistica", "delivery"),
     ("/api/sfa/admin", "sfa_gestao"),
     ("/api/sfa", "sfa"),
     ("/api/dashboard", "dashboard"),
@@ -119,6 +120,33 @@ def init_access_control(app):
             claims = None
         if not claims:
             return None
+        resource = next((r for p, r in PREFIX_RESOURCE if path == p or path.startswith(p + '/')), None)
+        if path.startswith(SELF_SERVICE_EXEMPT_PREFIXES):
+            resource = None
+        if claims:
+            # Tokens assinados continuam válidos após demissão/rebaixamento.
+            # Consultar o cadastro atual antes de autorizar módulos de negócio.
+            from flask_jwt_extended import get_jwt_identity
+            from app.models import Funcionario
+            from app import db
+            from app.utils.auth_utils import is_user_active
+            try:
+                user = db.session.get(Funcionario, int(get_jwt_identity()))
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'Identidade inválida'}), 401
+            if not user or user.deleted_at is not None or not user.ativo or not is_user_active(user.status):
+                return jsonify({'success': False, 'error': 'Conta inativa ou inexistente'}), 401
+            if not user.is_super_admin and str(user.estabelecimento_id) != str(claims.get('estabelecimento_id')):
+                return jsonify({'success': False, 'error': 'Contexto de loja inválido'}), 403
+            if resource and not user.is_super_admin and nivel_do_role(user.role) not in RBAC_MATRIX.get(resource, set()):
+                return jsonify({'success': False, 'error': 'Permissão revogada', 'code': 'RBAC_RESTRICTED'}), 403
+            if claims.get('is_super_admin') and not user.is_super_admin:
+                return jsonify({'success': False, 'error': 'Privilégio revogado'}), 403
+            # Rotas self-service e decoradores que consultam claims recebem
+            # o papel atual, não privilégios congelados no token antigo.
+            claims['role'] = user.role
+            claims['is_super_admin'] = bool(user.is_super_admin)
+            request.current_user = user
         if claims.get("is_super_admin"):
             return None  # bypass total (modo espelho já é tratado no tenant context)
 
@@ -139,7 +167,7 @@ def init_access_control(app):
         # ---- Gate de NÍVEL (RBAC por módulo) ----
         if path.startswith(SELF_SERVICE_EXEMPT_PREFIXES):
             return None
-        resource = next((r for p, r in PREFIX_RESOURCE if path.startswith(p)), None)
+        resource = next((r for p, r in PREFIX_RESOURCE if path == p or path.startswith(p + '/')), None)
         if not resource:
             return None  # prefixo self-service ou não mapeado: a rota decide
 

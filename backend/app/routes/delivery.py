@@ -50,24 +50,7 @@ def _salvar_documento(arquivo, subpasta: str, prefixo: str):
     filename = f"{prefixo}_{uuid.uuid4().hex[:10]}_{nome_seguro}"
 
     documento_url = None
-    if os.getenv("CLOUDINARY_URL"):
-        try:
-            import cloudinary.uploader
-            import base64
-            doc_bytes = arquivo.read()
-            doc_b64 = f"data:{arquivo.content_type};base64,{base64.b64encode(doc_bytes).decode('utf-8')}"
-            
-            result = cloudinary.uploader.upload(
-                doc_b64,
-                folder=f"mercadinhosys/{subpasta}",
-                public_id=filename.rsplit(".", 1)[0],
-                resource_type="auto"
-            )
-            documento_url = result.get("secure_url")
-        except Exception as e:
-            current_app.logger.error(f"Erro Cloudinary (delivery): {e}")
-            documento_url = None
-
+    # Documentos pessoais permanecem no volume privado, servidos com autorização.
     if not documento_url:
         arquivo.seek(0)
         upload_dir = os.path.join(current_app.config.get("UPLOAD_FOLDER", "uploads"), subpasta)

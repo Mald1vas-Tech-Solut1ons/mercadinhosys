@@ -6,6 +6,8 @@ Utiliza modelos SQLAlchemy para garantir integridade dos dados.
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt
+from app.decorators.rbac import super_admin_required
+from pathlib import Path
 import json
 import os
 from datetime import datetime
@@ -62,7 +64,7 @@ def export_model_data(model):
     return data
 
 @sync_hybrid_bp.route('/export', methods=['GET'])
-@jwt_required()
+@super_admin_required
 def export_all():
     """Exporta todos os dados locais em JSON."""
     try:
@@ -81,7 +83,7 @@ def export_all():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @sync_hybrid_bp.route('/status', methods=['GET'])
-@jwt_required()
+@super_admin_required
 def sync_status():
     """Status da sincronização híbrida."""
     try:
@@ -108,7 +110,7 @@ def sync_status():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @sync_hybrid_bp.route('/upload', methods=['POST'])
-@jwt_required()
+@super_admin_required
 def sync_upload():
     """Sincroniza dados locais para a nuvem via API."""
     try:
@@ -179,7 +181,7 @@ def sync_download():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @sync_hybrid_bp.route('/backup', methods=['POST'])
-@jwt_required()
+@super_admin_required
 def create_backup():
     """Cria um backup local dos dados em JSON."""
     try:
@@ -206,16 +208,21 @@ def create_backup():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @sync_hybrid_bp.route('/restore', methods=['POST'])
-@jwt_required()
+@super_admin_required
 def restore_backup():
     """Restaura dados a partir de um arquivo de backup JSON."""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         filename = data.get('filename')
         if not filename:
             return jsonify({'success': False, 'error': 'Nome do arquivo não fornecido'}), 400
         
-        backup_path = os.path.join('/app/backups', filename)
+        backup_root = Path('/app/backups').resolve()
+        if not isinstance(filename, str) or '/' in filename or '\\' in filename:
+            return jsonify({'success': False, 'error': 'Nome de arquivo inválido'}), 400
+        backup_path = (backup_root / filename).resolve()
+        if backup_path.parent != backup_root or backup_path.suffix != '.json':
+            return jsonify({'success': False, 'error': 'Nome de arquivo inválido'}), 400
         if not os.path.exists(backup_path):
             return jsonify({'success': False, 'error': 'Arquivo de backup não encontrado'}), 404
         

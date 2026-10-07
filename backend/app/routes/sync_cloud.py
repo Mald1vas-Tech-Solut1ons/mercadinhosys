@@ -9,6 +9,7 @@ from flask import Blueprint, request, jsonify, current_app
 import json
 import logging
 import os
+import secrets
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -55,8 +56,10 @@ def receber_sincronia():
     session = None
     try:
         # 1. Autenticação via Token Estático (Sync Token)
-        sync_token = request.headers.get("Authorization", "").replace("Bearer ", "")
-        if sync_token != current_app.config.get("CLOUD_SYNC_TOKEN"):
+        authorization = request.headers.get("Authorization", "")
+        expected_token = current_app.config.get("CLOUD_SYNC_TOKEN")
+        sync_token = authorization[7:] if authorization.startswith("Bearer ") else ""
+        if not expected_token or not sync_token or not secrets.compare_digest(sync_token.encode(), expected_token.encode()):
             logger.warning("🚫 Tentativa de sincronia com token inválido")
             return jsonify({"success": False, "error": "Não autorizado"}), 401
             

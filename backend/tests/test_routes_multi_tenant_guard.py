@@ -111,14 +111,17 @@ def test_token_sem_estabelecimento_retorna_401_ou_403(client, session):
         )
 
 
-def test_isolamento_cruzado_de_tenants_nao_vaza_dados(client, tenants_isolados):
+def test_isolamento_cruzado_de_tenants_nao_vaza_dados(client, tenants_isolados, session):
     """
     Simula Tenant Alpha tentando acessar recursos e garante que 'PROD_BETA_SUPER_SECRET'
     jamais aparece na resposta.
     """
     t_alpha, t_beta = tenants_isolados
+    actor = session.query(Funcionario).first()
+    actor.estabelecimento_id = t_alpha.id
+    session.commit()
     token_alpha = create_access_token(
-        identity="user_alpha",
+        identity=str(actor.id),
         additional_claims={"estabelecimento_id": t_alpha.id, "role": "admin", "is_super_admin": False},
     )
     headers = {"Authorization": f"Bearer {token_alpha}"}

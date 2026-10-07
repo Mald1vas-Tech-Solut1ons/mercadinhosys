@@ -1,6 +1,7 @@
 import pandas as pd
 import io
 import re
+import zipfile
 from werkzeug.datastructures import FileStorage
 
 def normalize_header(header):
@@ -33,17 +34,25 @@ def read_import_file(file: FileStorage):
         if filename.endswith('.csv'):
             # Tenta diferentes encodings
             try:
-                df = pd.read_csv(file, encoding='utf-8')
+                df = pd.read_csv(file, encoding='utf-8', nrows=10001)
             except UnicodeDecodeError:
                 file.seek(0)
-                df = pd.read_csv(file, encoding='latin1')
+                df = pd.read_csv(file, encoding='latin1', nrows=10001)
                 
         elif filename.endswith(('.xls', '.xlsx')):
-            df = pd.read_excel(file)
+            if filename.endswith('.xlsx'):
+                with zipfile.ZipFile(file) as archive:
+                    entries = archive.infolist()
+                    if len(entries) > 2000 or sum(entry.file_size for entry in entries) > 50 * 1024 * 1024:
+                        raise ValueError('Planilha excede o limite de descompressão de 50MB')
+                file.seek(0)
+            df = pd.read_excel(file, nrows=10001)
         else:
             raise ValueError("Formato de arquivo não suportado. Use CSV ou Excel (.xlsx).")
             
         # Normaliza cabeçalhos
+        if len(df) > 10000:
+            raise ValueError('Importação limitada a 10.000 linhas por arquivo')
         df.columns = [normalize_header(col) for col in df.columns]
         
         # Remove linhas vazias

@@ -273,6 +273,15 @@ class SerializableMixin:
                     result[rel.key] = rel_list
         return result
 
+class EfiWebhookEvent(db.Model):
+    """Eventos confirmados pela Efí; chave persistente impede reprocessamento."""
+    __tablename__ = 'efi_webhook_events'
+    event_key = db.Column(db.String(64), primary_key=True)
+    charge_id = db.Column(db.String(50), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False)
+    received_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+
 class EnderecoMixin:
     cep = db.Column(db.String(9), nullable=False)
     logradouro = db.Column(db.String(200), nullable=False)

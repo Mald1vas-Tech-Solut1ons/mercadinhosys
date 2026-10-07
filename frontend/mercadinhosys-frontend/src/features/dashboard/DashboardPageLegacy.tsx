@@ -891,7 +891,7 @@ const DashboardPage: React.FC = () => {
   }, [data?.data?.analise_produtos?.curva_abc?.produtos, selectedABC]);
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="flex items-center justify-center h-screen bg-linear-to-br from-gray-50 to-blue-50">
       <div className="text-center">
         <div className="relative">
           <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-blue-600 mx-auto"></div>
@@ -1003,7 +1003,7 @@ const DashboardPage: React.FC = () => {
         const recoExp = data?.data?.recomendacoes?.find((r: any) => r.tipo === 'vencimento_critico');
         if (recoExp) {
           return (
-            <div className="bg-gradient-to-r from-rose-500 to-red-600 dark:from-rose-900/60 dark:to-red-900/60 backdrop-blur-xl border border-rose-400 dark:border-rose-500/30 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-red-500/20 transition-all duration-300 hover:-translate-y-1 p-4 sm:p-6 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 sm:p-6 animate-fadeIn">
+            <div className="bg-linear-to-r from-rose-500 to-red-600 dark:from-rose-900/60 dark:to-red-900/60 backdrop-blur-xl border border-rose-400 dark:border-rose-500/30 rounded-2xl shadow-xl hover:shadow-2xl hover:shadow-red-500/20 transition-all duration-300 hover:-translate-y-1 p-4 sm:p-6 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4 sm:p-6 animate-fadeIn">
               <div className="bg-white/20 p-4 rounded-full border border-white/30 backdrop-blur-md">
                 <AlertCircle className="w-8 h-8 text-white animate-pulse" />
               </div>
@@ -1199,7 +1199,7 @@ const DashboardPage: React.FC = () => {
                   const percentual = totalABC > 0 ? (dados?.faturamento_total || 0) / totalABC * 100 : 0;
 
                   return (
-                    <div key={classe} className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 p-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:shadow-lg transition-shadow">
+                    <div key={classe} className="bg-linear-to-br from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900/50 p-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:shadow-lg transition-shadow">
                       <div className="flex items-center justify-between mb-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg ${classe === 'A' ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400' :
                           classe === 'B' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' :
@@ -1238,7 +1238,7 @@ const DashboardPage: React.FC = () => {
 
             {/* RFM Analysis */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-500/20">
+              <div className="bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-500/20">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="w-5 h-5 text-blue-600" />
                   <h4 className="font-bold text-blue-900 dark:text-blue-400">Recência (R)</h4>
@@ -1248,7 +1248,7 @@ const DashboardPage: React.FC = () => {
                 </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400">Média de dias desde última compra</p>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 p-5 rounded-xl border border-purple-200 dark:border-purple-500/20">
+              <div className="bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 p-5 rounded-xl border border-purple-200 dark:border-purple-500/20">
                 <div className="flex items-center gap-2 mb-3">
                   <TargetIcon className="w-5 h-5 text-purple-600" />
                   <h4 className="font-bold text-purple-900 dark:text-purple-400">Frequência (F)</h4>
@@ -1258,7 +1258,7 @@ const DashboardPage: React.FC = () => {
                 </p>
                 <p className="text-xs text-purple-600 dark:text-purple-400">Número médio de compras</p>
               </div>
-              <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-500/20">
+              <div className="bg-linear-to-br from-emerald-50 to-green-50 dark:from-emerald-900/10 dark:to-green-900/10 p-5 rounded-xl border border-emerald-200 dark:border-emerald-500/20">
                 <div className="flex items-center gap-2 mb-3">
                   <DollarIcon className="w-5 h-5 text-emerald-600" />
                   <h4 className="font-bold text-emerald-900 dark:text-emerald-400">Monetário (M)</h4>
@@ -1294,7 +1294,7 @@ const DashboardPage: React.FC = () => {
             <div className="p-4 sm:p-6 animate-fadeIn">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:p-8">
                 {/* LineChart para Tendência de Vendas */}
-                <div className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-slate-900/50 p-4 sm:p-6 rounded-2xl border border-purple-200 dark:border-purple-500/20 lg:col-span-2">
+                <div className="bg-linear-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-slate-900/50 p-4 sm:p-6 rounded-2xl border border-purple-200 dark:border-purple-500/20 lg:col-span-2">
                   <h3 className="font-bold text-slate-900 dark:text-white mb-6 text-lg flex items-center gap-2">
                     <LineChartIcon className="w-5 h-5 text-purple-600 dark:text-purple-500" />
                     Evolução das Vendas (30 dias)
@@ -1380,7 +1380,7 @@ const DashboardPage: React.FC = () => {
                   <div
                     key={idx}
                     onClick={() => setSelectedAnomaly(anomalia)}
-                    className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/10 dark:to-rose-900/10 p-5 rounded-xl border border-red-200 dark:border-red-500/30 hover:shadow-lg hover:border-red-400 dark:hover:border-red-600 cursor-pointer transition-all duration-300"
+                    className="bg-linear-to-br from-red-50 to-rose-50 dark:from-red-900/10 dark:to-rose-900/10 p-5 rounded-xl border border-red-200 dark:border-red-500/30 hover:shadow-lg hover:border-red-400 dark:hover:border-red-600 cursor-pointer transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 text-xs font-bold rounded-full">
@@ -1419,7 +1419,7 @@ const DashboardPage: React.FC = () => {
                   <div
                     key={idx}
                     onClick={() => setSelectedRecommendation(rec)}
-                    className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-500/30 hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition-all duration-300"
+                    className="bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-500/30 hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-600 cursor-pointer transition-all duration-300"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <span className="px-2 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 text-xs font-bold rounded-full">
@@ -1461,7 +1461,7 @@ const DashboardPage: React.FC = () => {
 
             {/* Cards de Métricas de RH (3 métricas) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-purple-200 dark:border-purple-500/20">
+              <div className="bg-linear-to-br from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-purple-200 dark:border-purple-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-5 h-5 text-purple-600" />
                   <h4 className="font-bold text-purple-900 dark:text-purple-400">Funcionários Ativos</h4>
@@ -1471,7 +1471,7 @@ const DashboardPage: React.FC = () => {
                 </p>
                 <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">Colaboradores registrados</p>
               </div>
-              <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-900/10 p-5 rounded-xl border border-orange-200 dark:border-orange-500/20">
+              <div className="bg-linear-to-br from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-900/10 p-5 rounded-xl border border-orange-200 dark:border-orange-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-5 h-5 text-orange-600" />
                   <h4 className="font-bold text-orange-900 dark:text-orange-400">Custo Folha Mensal</h4>
@@ -1481,7 +1481,7 @@ const DashboardPage: React.FC = () => {
                 </p>
                 <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Salários + Benefícios + Extras</p>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 p-5 rounded-xl border border-green-200 dark:border-green-500/20">
+              <div className="bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 p-5 rounded-xl border border-green-200 dark:border-green-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <TargetIcon className="w-5 h-5 text-green-600" />
                   <h4 className="font-bold text-green-900 dark:text-green-400">Taxa de Pontualidade</h4>
@@ -1546,7 +1546,7 @@ const DashboardPage: React.FC = () => {
 
             {/* Cards de Métricas de Fiados (3 métricas, cores diferenciadas) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 p-5 rounded-xl border border-amber-200 dark:border-amber-500/20">
+              <div className="bg-linear-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 p-5 rounded-xl border border-amber-200 dark:border-amber-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <DollarIcon className="w-5 h-5 text-amber-600" />
                   <h4 className="font-bold text-amber-900 dark:text-amber-400">Total Fiado</h4>
@@ -1556,7 +1556,7 @@ const DashboardPage: React.FC = () => {
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Dívida ativa em aberto</p>
               </div>
-              <div className="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/10 dark:to-rose-900/10 p-5 rounded-xl border border-red-200 dark:border-red-500/20">
+              <div className="bg-linear-to-br from-red-50 to-rose-50 dark:from-red-900/10 dark:to-rose-900/10 p-5 rounded-xl border border-red-200 dark:border-red-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle className="w-5 h-5 text-red-600" />
                   <h4 className="font-bold text-red-900 dark:text-red-400">Vencidas (Risco)</h4>
@@ -1566,7 +1566,7 @@ const DashboardPage: React.FC = () => {
                 </p>
                 <p className="text-xs text-red-600 dark:text-red-400 mt-1">Dívidas atrasadas</p>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-500/20">
+              <div className="bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-5 rounded-xl border border-blue-200 dark:border-blue-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <Users className="w-5 h-5 text-blue-600" />
                   <h4 className="font-bold text-blue-900 dark:text-blue-400">Clientes com Fiado</h4>
@@ -1667,10 +1667,10 @@ const DashboardPage: React.FC = () => {
           <div
             key={kpi.key}
             onClick={() => setKpiModalAberto(kpi.title)}
-            className={`relative overflow-hidden bg-gradient-to-br ${kpi.color} rounded-2xl shadow-lg hover:shadow-2xl border border-white/10 dark:border-white/5 p-4 sm:p-6 text-white transform transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer group`}
+            className={`relative overflow-hidden bg-linear-to-br ${kpi.color} rounded-2xl shadow-lg hover:shadow-2xl border border-white/10 dark:border-white/5 p-4 sm:p-6 text-white transform transition-all duration-300 hover:-translate-y-1 hover:scale-[1.02] cursor-pointer group`}
             title="Clique para ver histórico detalhado"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000 rounded-2xl pointer-events-none" />
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 rounded-2xl pointer-events-none" />
             <div className="flex justify-between items-start mb-4 relative z-10">
               <div className="p-3 bg-white/30 rounded-xl backdrop-blur-md border border-white/40 shadow-inner">
                 <kpi.icon className="w-6 h-6 text-white" />
@@ -1685,7 +1685,7 @@ const DashboardPage: React.FC = () => {
                 <Calendar className="w-3.5 h-3.5" /> {kpi.periodo}
               </p>
               <h3 className="text-sm font-bold text-white mb-1 drop-shadow-sm">{kpi.title}</h3>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-black mb-2 tracking-tighter drop-shadow-md break-words leading-tight">{kpi.value}</p>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-black mb-2 tracking-tighter drop-shadow-md wrap-break-word leading-tight">{kpi.value}</p>
               <p className="text-xs sm:text-sm font-bold text-white/95 drop-shadow-sm">{kpi.subtitle}</p>
             </div>
           </div>
@@ -1711,7 +1711,7 @@ const DashboardPage: React.FC = () => {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Card A: Saúde da Margem */}
-            <div className={`bg-gradient-to-br ${smM?.bg} rounded-2xl p-4 sm:p-6 border ${smM?.border} shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
+            <div className={`bg-linear-to-br ${smM?.bg} rounded-2xl p-4 sm:p-6 border ${smM?.border} shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-md flex items-center justify-center text-xl">📈</div>
@@ -1722,7 +1722,7 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-black ${smM?.badge}`}>{smM?.emoji} {smM?.label}</span>
               </div>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white break-words leading-tight">{margemLiq.toFixed(1)}%</p>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white wrap-break-word leading-tight">{margemLiq.toFixed(1)}%</p>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 mb-3">De cada R$100 vendidos, sobram <strong className="text-slate-900 dark:text-white">R${margemLiq.toFixed(0)}</strong> de lucro</p>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-1">
                 <div className={`h-2 rounded-full transition-all duration-700 ${smM?.bar}`} style={{ width: `${Math.min(margemLiq * 2, 100)}%` }} />
@@ -1736,7 +1736,7 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {/* Card B: Capital em Estoque */}
-            <div className={`bg-gradient-to-br ${smE?.bg} rounded-2xl p-4 sm:p-6 border ${smE?.border} shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
+            <div className={`bg-linear-to-br ${smE?.bg} rounded-2xl p-4 sm:p-6 border ${smE?.border} shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1`}>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-md flex items-center justify-center text-xl">🏭</div>
@@ -1747,7 +1747,7 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-black ${smE?.badge}`}>{smE?.emoji} {smE?.label}</span>
               </div>
-              <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white break-words leading-tight">R$ {valorEstoque.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</p>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white wrap-break-word leading-tight">R$ {valorEstoque.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</p>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-1 mb-3">Equivalente a <strong className="text-slate-900 dark:text-white">{ratioEst.toFixed(1)}x</strong> o faturamento do período</p>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 mb-1">
                 <div className={`h-2 rounded-full transition-all duration-700 ${smE?.bar}`} style={{ width: `${Math.min((ratioEst / 12) * 100, 100)}%` }} />
@@ -1761,7 +1761,7 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {/* Card C: Velocidade de Vendas */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-4 sm:p-6 border border-blue-200 dark:border-blue-500/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div className="bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 rounded-2xl p-4 sm:p-6 border border-blue-200 dark:border-blue-500/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-md flex items-center justify-center text-xl">⚡</div>
@@ -1795,7 +1795,7 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {/* Card D: DRE Simplificado */}
-            <div id="detalhes-financeiros" className="bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-900/10 dark:to-purple-900/10 rounded-2xl p-4 sm:p-6 border border-violet-200 dark:border-violet-500/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <div id="detalhes-financeiros" className="bg-linear-to-br from-violet-50 to-purple-50 dark:from-violet-900/10 dark:to-purple-900/10 rounded-2xl p-4 sm:p-6 border border-violet-200 dark:border-violet-500/30 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl shadow-md flex items-center justify-center text-xl">📊</div>
                 <div>
@@ -1814,7 +1814,7 @@ const DashboardPage: React.FC = () => {
                     <span className={`text-sm font-black ${item.color}`}>R$ {item.val.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                   </div>
                 ))}
-                <div className="flex items-center justify-between bg-gradient-to-r from-violet-100 to-purple-100 dark:from-violet-800/40 dark:to-purple-800/40 rounded-lg px-3 py-2.5 border border-violet-200 dark:border-violet-500/30">
+                <div className="flex items-center justify-between bg-linear-to-r from-violet-100 to-purple-100 dark:from-violet-800/40 dark:to-purple-800/40 rounded-lg px-3 py-2.5 border border-violet-200 dark:border-violet-500/30">
                   <span className="text-sm text-slate-700 dark:text-white font-black uppercase">= LUCRO LÍQUIDO</span>
                   <span className={`text-lg font-black ${lucroLiq >= 0 ? 'text-violet-700 dark:text-violet-400' : 'text-rose-700 dark:text-rose-400'}`}>R$ {lucroLiq.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                 </div>
@@ -1833,7 +1833,7 @@ const DashboardPage: React.FC = () => {
       {viewMode === 'visao-geral' && (
         <div className="space-y-6">
           {/* Indicador de Modo Ativo */}
-          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg p-4 text-white">
+          <div className="bg-linear-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg p-4 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
@@ -1860,7 +1860,7 @@ const DashboardPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:p-6">
               {/* Desempenho Financeiro */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 rounded-2xl p-4 sm:p-6 border border-green-200 dark:border-green-500/20">
+              <div className="bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/10 dark:to-emerald-900/10 rounded-2xl p-4 sm:p-6 border border-green-200 dark:border-green-500/20">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <DollarIcon className="w-5 h-5 text-green-600 dark:text-green-500" />
                   Desempenho Financeiro
@@ -1894,7 +1894,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Produtos e Estoque */}
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-2xl p-4 sm:p-6 border border-blue-200 dark:border-blue-500/20">
+              <div className="bg-linear-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10 rounded-2xl p-4 sm:p-6 border border-blue-200 dark:border-blue-500/20">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <Package className="w-5 h-5 text-blue-600 dark:text-blue-500" />
                   Produtos e Estoque
@@ -1924,7 +1924,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Insights Rápidos */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl p-4 sm:p-6 border border-purple-200 dark:border-purple-500/20 md:col-span-2">
+              <div className="bg-linear-to-br from-purple-50 to-pink-50 dark:from-purple-900/10 dark:to-pink-900/10 rounded-2xl p-4 sm:p-6 border border-purple-200 dark:border-purple-500/20 md:col-span-2">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                   <Brain className="w-5 h-5 text-purple-600 dark:text-purple-500" />
                   💡 Insights Rápidos
@@ -1970,7 +1970,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 INDICADOR DE MODO: ANÁLISE DETALHADA */}
       {viewMode === 'detalhado' && (
-        <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg p-4 text-white mb-6">
+        <div className="bg-linear-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg p-4 text-white mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
@@ -1991,7 +1991,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 INDICADOR DE MODO: ANÁLISE AVANÇADA */}
       {viewMode === 'avancado' && (
-        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl shadow-lg p-4 text-white mb-6">
+        <div className="bg-linear-to-r from-cyan-500 to-blue-600 rounded-xl shadow-lg p-4 text-white mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
@@ -2107,7 +2107,7 @@ const DashboardPage: React.FC = () => {
 
                   {/* LEGENDA E DETALHES */}
                   <div className="space-y-6">
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-4 sm:p-6 rounded-2xl border border-blue-200 dark:border-blue-500/20">
+                    <div className="bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10 p-4 sm:p-6 rounded-2xl border border-blue-200 dark:border-blue-500/20">
                       <h3 className="font-bold text-slate-900 dark:text-white mb-4">📊 Interpretação da Curva ABC</h3>
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
@@ -2223,7 +2223,7 @@ const DashboardPage: React.FC = () => {
             <div className="p-4 sm:p-6 animate-fadeIn">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:p-8">
                 {/* GRÁFICO DE LINHA: EVOLUÇÃO DAS VENDAS */}
-                <div className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-slate-900/50 p-4 sm:p-6 rounded-2xl border border-purple-200 dark:border-purple-500/20 lg:col-span-2">
+                <div className="bg-linear-to-br from-purple-50 to-white dark:from-purple-900/10 dark:to-slate-900/50 p-4 sm:p-6 rounded-2xl border border-purple-200 dark:border-purple-500/20 lg:col-span-2">
                   <h3 className="font-bold text-slate-900 dark:text-white mb-6 text-lg flex items-center gap-2">
                     <LineChartIcon className="w-5 h-5 text-purple-600 dark:text-purple-500" />
                     Evolução das Vendas (30 dias)
@@ -2305,7 +2305,7 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* 🔥 MOVIDO: COMPARAÇÃO MENSAL - AGORA ABAIXO DO GRÁFICO */}
-                <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-900/10 p-4 sm:p-6 rounded-2xl border border-orange-200 dark:border-orange-500/20 lg:col-span-2">
+                <div className="bg-linear-to-r from-orange-50 to-red-50 dark:from-orange-900/10 dark:to-red-900/10 p-4 sm:p-6 rounded-2xl border border-orange-200 dark:border-orange-500/20 lg:col-span-2">
                   <h3 className="font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                     <LucideBarChart className="w-5 h-5 text-orange-600 dark:text-orange-500" />
                     Comparação Mensal
@@ -2344,7 +2344,7 @@ const DashboardPage: React.FC = () => {
       {/* 🔥 NOVO: SEÇÃO DE ANÁLISE DE VENDAS POR HORÁRIO */}
       {viewMode === 'detalhado' && (
         <div className="bg-white rounded-2xl shadow-xl mb-8 overflow-hidden border border-gray-200">
-          <div className="p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+          <div className="p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-indigo-50 to-purple-50">
             <div className="flex items-center gap-3">
               <Clock className="w-8 h-8 text-indigo-600" />
               <div>
@@ -2358,7 +2358,7 @@ const DashboardPage: React.FC = () => {
             {analise_temporal?.vendas_por_hora && analise_temporal.vendas_por_hora.length > 0 ? (
               <div className="space-y-6">
                 {/* Gráfico de Barras - Vendas por Hora */}
-                <div className="bg-gradient-to-br from-gray-50 to-indigo-50 rounded-xl p-4 sm:p-6">
+                <div className="bg-linear-to-br from-gray-50 to-indigo-50 rounded-xl p-4 sm:p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Volume de Vendas por Horário</h3>
                   <div className="h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -2450,7 +2450,7 @@ const DashboardPage: React.FC = () => {
                     return (
                       <>
                         {/* Melhor Horário */}
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-green-200">
+                        <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-green-200">
                           <div className="flex items-center gap-3 mb-3">
                             <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
                               <TrendingUp className="w-6 h-6 text-white" />
@@ -2473,7 +2473,7 @@ const DashboardPage: React.FC = () => {
                         </div>
 
                         {/* Horário Crítico */}
-                        <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-red-200">
+                        <div className="bg-linear-to-br from-red-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-red-200">
                           <div className="flex items-center gap-3 mb-3">
                             <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center">
                               <AlertTriangle className="w-6 h-6 text-white" />
@@ -2496,7 +2496,7 @@ const DashboardPage: React.FC = () => {
                         </div>
 
                         {/* Horários de Pico */}
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
+                        <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
                           <div className="flex items-center gap-3 mb-3">
                             <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
                               <TargetIcon className="w-6 h-6 text-white" />
@@ -2526,7 +2526,7 @@ const DashboardPage: React.FC = () => {
                 </div>
 
                 {/* Recomendações Estratégicas */}
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
+                <div className="bg-linear-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Lightbulb className="w-5 h-5 text-purple-600" />
                     💡 Recomendações Estratégicas
@@ -2553,7 +2553,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* 🔥 NOVO: Produtos Mais Vendidos por Horário */}
                 {analise_temporal?.produtos_por_hora && Object.keys(analise_temporal.produtos_por_hora).length > 0 && (
-                  <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-xl p-4 sm:p-6 border border-cyan-200">
+                  <div className="bg-linear-to-r from-cyan-50 to-blue-50 rounded-xl p-4 sm:p-6 border border-cyan-200">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Package className="w-5 h-5 text-cyan-600" />
                       🏆 Top Produtos por Horário
@@ -2589,7 +2589,7 @@ const DashboardPage: React.FC = () => {
                                 {produtosArray.map((produto, idx) => (
                                   <div
                                     key={produto.produto_id}
-                                    className="flex items-center justify-between p-2 bg-gradient-to-r from-cyan-50 to-blue-50 rounded-lg hover:from-cyan-100 hover:to-blue-100 transition-colors"
+                                    className="flex items-center justify-between p-2 bg-linear-to-r from-cyan-50 to-blue-50 rounded-lg hover:from-cyan-100 hover:to-blue-100 transition-colors"
                                   >
                                     <div className="flex items-center gap-2 flex-1 min-w-0">
                                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${idx === 0 ? 'bg-yellow-400 text-yellow-900' :
@@ -2681,7 +2681,7 @@ const DashboardPage: React.FC = () => {
             <div className="p-4 sm:p-6 animate-fadeIn">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:p-8">
                 {/* GRÁFICO DE COLUNAS: DISTRIBUIÇÃO DE DESPESAS */}
-                <div className="bg-gradient-to-br from-gray-50 to-white p-4 sm:p-6 rounded-xl border border-gray-200">
+                <div className="bg-linear-to-br from-gray-50 to-white p-4 sm:p-6 rounded-xl border border-gray-200">
                   <h3 className="font-bold text-gray-900 mb-6 text-lg">📊 Distribuição de Despesas</h3>
                   <div className="h-[300px]">
                     {analise_financeira?.despesas_detalhadas && analise_financeira?.despesas_detalhadas.length > 0 ? (
@@ -2775,7 +2775,7 @@ const DashboardPage: React.FC = () => {
                   </div>
 
                   {/* INDICADORES AVANÇADOS */}
-                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-200">
+                  <div className="bg-linear-to-br from-blue-50 to-indigo-50 p-4 sm:p-6 rounded-xl border border-blue-200">
                     <h4 className="font-bold text-gray-900 mb-4">📈 Indicadores Financeiros</h4>
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
@@ -2805,7 +2805,7 @@ const DashboardPage: React.FC = () => {
 
       {/* SEÇÃO: INSIGHTS CIENTÍFICOS */}
       {viewMode === 'avancado' && (
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden mb-8">
+        <div className="bg-linear-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl overflow-hidden mb-8">
           <div
             className="p-4 sm:p-6 border-b border-gray-700 flex justify-between items-center cursor-pointer hover:bg-gray-800/50"
             onClick={() => toggleCard('insights')}
@@ -2863,7 +2863,7 @@ const DashboardPage: React.FC = () => {
 
                 {/* PREVISÕES E RECOMENDAÇÕES */}
                 <div className="space-y-6">
-                  <div className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 rounded-xl p-4 sm:p-6">
+                  <div className="bg-linear-to-r from-blue-900/30 to-cyan-900/30 rounded-xl p-4 sm:p-6">
                     <h3 className="text-xl font-bold text-white mb-6">🔮 Previsões (Próximos 30 dias)</h3>
                     <div className="space-y-4">
                       {(insights_cientificos?.previsoes || []).map((prev, idx) => (
@@ -2894,7 +2894,7 @@ const DashboardPage: React.FC = () => {
                   </div>
 
                   {/* RECOMENDAÇÕES DE OTIMIZAÇÃO */}
-                  <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 sm:p-6">
+                  <div className="bg-linear-to-r from-purple-900/30 to-pink-900/30 rounded-xl p-4 sm:p-6">
                     <h3 className="text-xl font-bold text-white mb-6">🚀 Recomendações de Otimização</h3>
                     <div className="space-y-4">
                       {(insights_cientificos?.recomendacoes_otimizacao || []).map((rec, idx) => (
@@ -2938,7 +2938,7 @@ const DashboardPage: React.FC = () => {
       {viewMode === 'avancado' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:p-8 mb-8">
           {/* PRODUTOS ESTRELA */}
-          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-yellow-200">
+          <div className="bg-linear-to-br from-yellow-50 to-orange-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-yellow-200">
             <div className="flex items-center gap-3 mb-6">
               <Star className="w-8 h-8 text-yellow-600" />
               <div>
@@ -2955,7 +2955,7 @@ const DashboardPage: React.FC = () => {
                 >
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-linear-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
                         <Star className="w-5 h-5 text-white" />
                       </div>
                       <div>
@@ -2988,7 +2988,7 @@ const DashboardPage: React.FC = () => {
           </div>
 
           {/* PRODUTOS LENTOS */}
-          <div className="bg-gradient-to-br from-red-50 to-pink-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-red-200">
+          <div className="bg-linear-to-br from-red-50 to-pink-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-red-200">
             <div className="flex items-center gap-3 mb-6">
               <AlertTriangle className="w-8 h-8 text-red-600" />
               <div>
@@ -3006,7 +3006,7 @@ const DashboardPage: React.FC = () => {
                   >
                     <div className="flex justify-between items-center mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 bg-linear-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
                           <Package className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -3076,7 +3076,7 @@ const DashboardPage: React.FC = () => {
 
       {/* SEÇÃO: PREVISÃO DE DEMANDA */}
       {viewMode === 'avancado' && (
-        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-purple-200">
+        <div className="bg-linear-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-purple-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
             <Target className="w-8 h-8 text-purple-600" />
             📊 Previsão de Demanda Inteligente
@@ -3170,7 +3170,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: ANÁLISE CIENTÍFICA DE PADRÕES TEMPORAIS */}
       {viewMode === 'avancado' && analise_temporal?.padroes_temporais_clientes && Object.keys(analise_temporal.padroes_temporais_clientes.perfis_temporais || {}).length > 0 && (
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-indigo-200">
+        <div className="bg-linear-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-indigo-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
             <Clock className="w-8 h-8 text-indigo-600" />
             🕐 Análise Científica: Padrões Temporais de Clientes
@@ -3191,7 +3191,7 @@ const DashboardPage: React.FC = () => {
               }[perfil] || { icon: '⏰', color: 'from-gray-50 to-gray-100', border: 'border-gray-200', text: 'text-gray-900', badge: 'bg-gray-100 text-gray-800' };
 
               return (
-                <div key={perfil} className={`bg-gradient-to-br ${perfilConfig.color} rounded-xl p-4 sm:p-6 border ${perfilConfig.border}`}>
+                <div key={perfil} className={`bg-linear-to-br ${perfilConfig.color} rounded-xl p-4 sm:p-6 border ${perfilConfig.border}`}>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className={`text-lg font-bold ${perfilConfig.text} flex items-center gap-2`}>
                       <span className="text-2xl">{perfilConfig.icon}</span>
@@ -3275,7 +3275,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: MATRIZ DE CORRELAÇÃO PRODUTO × HORÁRIO */}
       {viewMode === 'avancado' && analise_temporal?.matriz_produto_horario && analise_temporal.matriz_produto_horario.matrix && analise_temporal.matriz_produto_horario.matrix.length > 0 && (
-        <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-teal-200">
+        <div className="bg-linear-to-br from-teal-50 to-cyan-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-teal-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
             <GitMerge className="w-8 h-8 text-teal-600" />
             🔬 Matriz de Correlação: Produto × Horário
@@ -3408,7 +3408,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: AFINIDADE CLIENTE × PRODUTO */}
       {viewMode === 'avancado' && analise_temporal?.afinidade_cliente_produto && analise_temporal.afinidade_cliente_produto.length > 0 && (
-        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-amber-200">
+        <div className="bg-linear-to-br from-amber-50 to-yellow-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-amber-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
             <Star className="w-8 h-8 text-amber-600" />
             ⭐ Análise de Afinidade: Cliente × Produto
@@ -3423,7 +3423,7 @@ const DashboardPage: React.FC = () => {
             <h3 className="font-bold text-amber-900 mb-4">🎯 Top 20 Afinidades Cliente-Produto</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
               {analise_temporal.afinidade_cliente_produto.slice(0, 20).map((afinidade: any, idx: number) => (
-                <div key={`${afinidade.cliente_id}-${afinidade.produto_id}`} className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-4 border border-amber-100 hover:shadow-md transition-shadow">
+                <div key={`${afinidade.cliente_id}-${afinidade.produto_id}`} className="bg-linear-to-r from-amber-50 to-yellow-50 rounded-lg p-4 border border-amber-100 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -3504,7 +3504,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: COMPORTAMENTO DE CLIENTES POR HORÁRIO */}
       {viewMode === 'avancado' && analise_temporal?.comportamento_clientes_horario && analise_temporal.comportamento_clientes_horario.comportamento_por_hora && analise_temporal.comportamento_clientes_horario.comportamento_por_hora.length > 0 && (
-        <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-violet-200">
+        <div className="bg-linear-to-br from-violet-50 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-violet-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
             <Clock className="w-8 h-8 text-violet-600" />
             👥 Comportamento de Clientes por Horário
@@ -3652,7 +3652,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: ANÁLISE DE CONCENTRAÇÃO DE FATURAMENTO */}
       {viewMode === 'avancado' && analise_temporal?.concentracao_horaria && (
-        <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-rose-200">
+        <div className="bg-linear-to-br from-rose-50 to-pink-50 rounded-2xl shadow-xl p-4 sm:p-6 mb-8 border border-rose-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
             <TrendingUp className="w-8 h-8 text-rose-600" />
             📊 Análise de Concentração: Índice de Gini & Diversificação
@@ -3742,7 +3742,7 @@ const DashboardPage: React.FC = () => {
             <h3 className="font-bold text-rose-900 mb-4">🏆 Top 5 Horários por Faturamento</h3>
             <div className="space-y-3">
               {(analise_temporal.concentracao_horaria.top_hours || []).map((hora, idx) => (
-                <div key={hora.hora} className="flex items-center gap-4 p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg">
+                <div key={hora.hora} className="flex items-center gap-4 p-3 bg-linear-to-r from-rose-50 to-pink-50 rounded-lg">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${idx === 0 ? 'bg-yellow-400 text-yellow-900' :
                     idx === 1 ? 'bg-gray-300 text-gray-700' :
                       idx === 2 ? 'bg-orange-400 text-orange-900' :
@@ -3806,7 +3806,7 @@ const DashboardPage: React.FC = () => {
         <div className="space-y-8 mb-8">
           {/* SEÇÃO 1: FATURAMENTO POR PERÍODO DO DIA */}
           {data.data.period_analysis && Object.keys(data.data.period_analysis).length > 0 && (
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-blue-200">
+            <div className="bg-linear-to-br from-blue-50 to-cyan-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-blue-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                 <Clock className="w-8 h-8 text-blue-600" />
                 ⏰ Análise por Período do Dia (Manhã/Tarde/Noite)
@@ -3868,7 +3868,7 @@ const DashboardPage: React.FC = () => {
 
           {/* SEÇÃO 2: ANÁLISE POR DIA DA SEMANA */}
           {data.data.weekday_analysis && Object.keys(data.data.weekday_analysis).length > 0 && (
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-green-200">
+            <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-green-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                 <Calendar className="w-8 h-8 text-green-600" />
                 📅 Análise por Dia da Semana
@@ -3917,7 +3917,7 @@ const DashboardPage: React.FC = () => {
 
           {/* SEÇÃO 3: RECOMENDAÇÕES DE ESTOQUE POR HORA */}
           {data.data.product_hourly_recommendations && data.data.product_hourly_recommendations.length > 0 && (
-            <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-orange-200">
+            <div className="bg-linear-to-br from-orange-50 to-red-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-orange-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                 <Package className="w-8 h-8 text-orange-600" />
                 📦 Recomendações de Estoque por Hora
@@ -3968,7 +3968,7 @@ const DashboardPage: React.FC = () => {
           {/* SEÇÃO 4: CORRELAÇÕES & INSIGHTS DE MERCADO */}
           {/* SEÇÃO 4: CORRELAÇÕES & INSIGHTS DE MERCADO */}
           {data.data.insights_cientificos?.correlações && data.data.insights_cientificos.correlações.length > 0 && (
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-indigo-200">
+            <div className="bg-linear-to-br from-indigo-50 to-purple-50 rounded-2xl shadow-xl p-4 sm:p-6 border border-indigo-200">
               <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
                 <GitMerge className="w-8 h-8 text-indigo-600" />
                 🔗 Correlações & Insights de Mercado
@@ -4016,7 +4016,7 @@ const DashboardPage: React.FC = () => {
       {viewMode === 'financeiro' && (
         <div className="space-y-6">
           {/* Cabeçalho Financeiro */}
-          <div className="bg-gradient-to-r from-emerald-600 to-teal-800 rounded-xl shadow-lg p-4 sm:p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="bg-linear-to-r from-emerald-600 to-teal-800 rounded-xl shadow-lg p-4 sm:p-6 text-white flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/20 rounded-xl backdrop-blur-md border border-white/20">
                 <DollarIcon className="w-8 h-8 text-white" />
@@ -4103,7 +4103,7 @@ const DashboardPage: React.FC = () => {
             {/* COLUNA DIREITA: Tendências, Previsões e Top Clientes */}
             <div className="lg:col-span-8 space-y-6">
               {/* Trends AI Card */}
-              <div className="bg-gradient-to-br from-indigo-900 to-slate-900 rounded-xl shadow-md p-4 sm:p-6 border border-indigo-800 relative overflow-hidden">
+              <div className="bg-linear-to-br from-indigo-900 to-slate-900 rounded-xl shadow-md p-4 sm:p-6 border border-indigo-800 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                   <Brain className="w-32 h-32 text-indigo-300" />
                 </div>
@@ -4857,7 +4857,7 @@ const DashboardPage: React.FC = () => {
 
               <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-100">
                 <div className="flex gap-3">
-                  <Lightbulb className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                  <Lightbulb className="w-5 h-5 text-purple-600 shrink-0" />
                   <div>
                     <h4 className="font-bold text-purple-900 text-sm">Dica de Gestão</h4>
                     <p className="text-xs text-purple-800 mt-1">
@@ -4973,9 +4973,9 @@ const DashboardPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-yellow-50 to-orange-50">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-yellow-50 to-orange-50">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-linear-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
                   <Star className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -4994,25 +4994,25 @@ const DashboardPage: React.FC = () => {
             <div className="p-4 sm:p-6 space-y-6">
               {/* Métricas Principais */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                <div className="bg-linear-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
                   <p className="text-sm text-green-700 mb-1">💰 Preço de Venda</p>
                   <p className="text-2xl font-bold text-green-900">
                     R$ {(modalProdutoEstrela.faturamento / modalProdutoEstrela.quantidade_vendida).toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
+                <div className="bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
                   <p className="text-sm text-blue-700 mb-1">📦 Custo Unitário</p>
                   <p className="text-2xl font-bold text-blue-900">
                     R$ {modalProdutoEstrela.custo_unitario.toFixed(2)}
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
+                <div className="bg-linear-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-200">
                   <p className="text-sm text-purple-700 mb-1">📈 Margem de Lucro</p>
                   <p className="text-2xl font-bold text-purple-900">
                     {modalProdutoEstrela.margem.toFixed(1)}%
                   </p>
                 </div>
-                <div className="bg-gradient-to-br from-orange-50 to-red-50 rounded-xl p-4 border border-orange-200">
+                <div className="bg-linear-to-br from-orange-50 to-red-50 rounded-xl p-4 border border-orange-200">
                   <p className="text-sm text-orange-700 mb-1">🎯 Vendas (30d)</p>
                   <p className="text-2xl font-bold text-orange-900">
                     {modalProdutoEstrela.quantidade_vendida} un
@@ -5021,7 +5021,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Análise Financeira */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-green-200">
+              <div className="bg-linear-to-r from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-green-200">
                 <h3 className="font-bold text-green-900 mb-4 flex items-center gap-2">
                   <DollarIcon className="w-5 h-5" />
                   💵 Análise Financeira Detalhada
@@ -5047,7 +5047,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Plano de Ação */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
+              <div className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
                 <h3 className="font-bold text-blue-900 mb-4 flex items-center gap-2">
                   <Target className="w-5 h-5" />
                   🎯 Plano de Ação Estratégico
@@ -5108,7 +5108,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Projeções */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
+              <div className="bg-linear-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
                 <h3 className="font-bold text-purple-900 mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
                   📊 Projeções e Metas
@@ -5136,7 +5136,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Alertas */}
-              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl p-4 sm:p-6 border border-yellow-200">
+              <div className="bg-linear-to-r from-yellow-50 to-amber-50 rounded-xl p-4 sm:p-6 border border-yellow-200">
                 <h3 className="font-bold text-yellow-900 mb-4 flex items-center gap-2">
                   <AlertCircle className="w-5 h-5" />
                   ⚠️ Alertas e Cuidados
@@ -5176,9 +5176,9 @@ const DashboardPage: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-gradient-to-r from-red-50 to-pink-50">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-red-50 to-pink-50">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-linear-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
                   <AlertTriangle className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -5196,7 +5196,7 @@ const DashboardPage: React.FC = () => {
 
             <div className="p-4 sm:p-6 space-y-6">
               {/* Diagnóstico do Problema */}
-              <div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-red-200">
+              <div className="bg-linear-to-r from-red-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-red-200">
                 <h3 className="font-bold text-red-900 mb-4 flex items-center gap-2">
                   <AlertCircle className="w-5 h-5" />
                   🔍 Diagnóstico do Problema
@@ -5228,7 +5228,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Estratégias de Liquidação */}
-              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
+              <div className="bg-linear-to-r from-orange-50 to-yellow-50 rounded-xl p-4 sm:p-6 border border-orange-200">
                 <h3 className="font-bold text-orange-900 mb-4 flex items-center gap-2">
                   <Target className="w-5 h-5" />
                   🎯 Estratégias de Liquidação (Prioridade Alta)
@@ -5289,7 +5289,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Análise Financeira da Liquidação */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
+              <div className="bg-linear-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
                 <h3 className="font-bold text-blue-900 mb-4 flex items-center gap-2">
                   <DollarIcon className="w-5 h-5" />
                   💰 Análise Financeira da Liquidação
@@ -5320,28 +5320,28 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Plano de Ação Passo a Passo */}
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
+              <div className="bg-linear-to-r from-purple-50 to-pink-50 rounded-xl p-4 sm:p-6 border border-purple-200">
                 <h3 className="font-bold text-purple-900 mb-4 flex items-center gap-2">
                   <ChartBar className="w-5 h-5" />
                   📋 Plano de Ação - Próximos 7 Dias
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
-                    <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">1</div>
+                    <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold shrink-0">1</div>
                     <div>
                       <p className="font-semibold text-gray-900">Dia 1-2: Preparação</p>
                       <p className="text-sm text-gray-700">Crie material de divulgação, defina desconto, treine equipe</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
-                    <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">2</div>
+                    <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold shrink-0">2</div>
                     <div>
                       <p className="font-semibold text-gray-900">Dia 3-5: Lançamento</p>
                       <p className="text-sm text-gray-700">Envie WhatsApp para clientes VIP, coloque cartazes na loja</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
-                    <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold flex-shrink-0">3</div>
+                    <div className="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold shrink-0">3</div>
                     <div>
                       <p className="font-semibold text-gray-900">Dia 6-7: Intensificação</p>
                       <p className="text-sm text-gray-700">Se não atingir meta, aumente desconto para 40-50%</p>
@@ -5351,7 +5351,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Decisão Final */}
-              <div className="bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl p-4 sm:p-6 border border-gray-300">
+              <div className="bg-linear-to-r from-gray-50 to-slate-50 rounded-xl p-4 sm:p-6 border border-gray-300">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5" />
                   ⚖️ Decisão Final (Se Não Vender)
@@ -5365,7 +5365,7 @@ const DashboardPage: React.FC = () => {
               </div>
 
               {/* Lições Aprendidas */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-green-200">
+              <div className="bg-linear-to-r from-green-50 to-emerald-50 rounded-xl p-4 sm:p-6 border border-green-200">
                 <h3 className="font-bold text-green-900 mb-4 flex items-center gap-2">
                   <Lightbulb className="w-5 h-5" />
                   💡 Lições para Evitar no Futuro

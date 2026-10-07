@@ -34,8 +34,11 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
 
   const faturamento = data?.financials?.revenue || data?.summary?.revenue?.value || 0;
   const lucroLiquido = data?.financials?.net_profit || data?.lucro_liquido || 0;
-  const cogs = data?.financials?.cogs || (faturamento > 0 ? faturamento * 0.5 : 0); // fallback if cogs missing
-  const despesas = data?.financials?.expenses || data?.total_despesas || (faturamento > 0 ? faturamento * 0.3 : 0);
+  const cogs = data?.financials?.cogs || 0;
+  const despesas = data?.financials?.expenses || data?.total_despesas || 0;
+  const growth = data?.summary?.growth_period || data?.summary?.growth;
+  const growthAvailable = growth && growth.status !== 'no_data' && growth.value !== null && growth.value !== undefined;
+  const previsoesAvailability = data?.analytics_availability?.previsoes;
   const margemLiquida = data?.financials?.net_margin || (faturamento > 0 ? (lucroLiquido / faturamento) * 100 : 0);
   const ticketMedio = data?.summary?.avg_ticket?.value || 0;
   
@@ -100,14 +103,17 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
               <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter break-words">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
             {formatCurrency(faturamento)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm">
-             <span className="text-emerald-400 flex items-center bg-emerald-400/10 px-2 py-0.5 rounded-full font-medium">
-                <TrendingUp size={14} className="mr-1" />
-                +12% vs mês ant.
-             </span>
+             {growthAvailable ? (
+               <span className={`flex items-center px-2 py-0.5 rounded-full font-medium ${growth.is_positive ? 'text-emerald-400 bg-emerald-400/10' : 'text-red-400 bg-red-400/10'}`}>
+                  {growth.display} vs período anterior
+               </span>
+             ) : (
+               <span className="text-gray-500 dark:text-slate-400">Variação indisponível (sem histórico comparável)</span>
+             )}
           </div>
         </div>
 
@@ -126,7 +132,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
               <Target className="w-5 h-5 text-emerald-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter break-words">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
             {formatCurrency(lucroLiquido)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm">
@@ -152,7 +158,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
               <Shield className="w-5 h-5 text-purple-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter break-words">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
             {formatCurrency(ticketMedio)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm text-gray-500 dark:text-slate-400">
@@ -175,7 +181,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
               <AlertTriangle className="w-5 h-5 text-orange-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter break-words">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
             {formatCurrency(data?.receivables?.total_recebivel || 0)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm mb-3">
@@ -393,7 +399,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
                  <div key={i} className="p-4 bg-gray-50 dark:bg-slate-900/40 rounded-xl border border-gray-200 dark:border-slate-700/50 hover:border-blue-500/30 transition-colors">
                    <div className="flex justify-between items-center mb-2">
                      <h4 className="font-bold text-gray-700 dark:text-slate-200">{prev.variavel}</h4>
-                     <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold">Confiança: {prev.confianca}%</span>
+                                           <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold">{prev.nivel_confianca ? `Confiança ${prev.nivel_confianca === 'low' ? 'baixa' : 'média'}` : 'Estimativa'}{prev.observacoes ? ` · ${prev.observacoes} dias` : ''}</span>
                    </div>
                    <div className="flex items-end justify-between">
                      <div>
@@ -409,7 +415,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
                  </div>
                ))
              ) : (
-               <p className="text-gray-400 dark:text-slate-500 text-center pt-10">Dados insuficientes para gerar previsões confiáveis neste período.</p>
+                               <p className="text-gray-400 dark:text-slate-500 text-center pt-10">{previsoesAvailability?.reason || 'Dados insuficientes para gerar previsões confiáveis neste período.'}</p>
              )}
           </div>
         </div>

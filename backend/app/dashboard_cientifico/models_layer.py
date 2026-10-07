@@ -449,103 +449,153 @@ class PracticalModels:
             "insights": insights,
         }
 
+    # ------------------------------------------------------------------
+    # Contrato de (in)disponibilidade analítica — ANA-01 / ANA-02
+    # ------------------------------------------------------------------
+    # Nenhum valor é fabricado quando faltam observações: o resultado vem
+    # vazio, com `available=False` e um `reason` legível para a interface.
+    MIN_FORECAST_OBSERVATIONS = 7
+    FORECAST_FIT_WINDOW = 14
+    MIN_PAIRS_SALES_EXPENSES = 10
+    MIN_PAIRS_HOURLY = 8
+    MIN_PAIRS_WEEKDAY = 7
+    MIN_PAIRS_PRODUCT_MIX = 10
+
+    @staticmethod
+    def _unavailable_forecast(method: str, reason: str, observations: int = 0) -> Dict[str, Any]:
+        return {
+            "forecast": [],
+            "available": False,
+            "reason": reason,
+            "method": method,
+            "confidence": None,
+            "observations": observations,
+        }
+
     @staticmethod
     def generate_forecast(
         sales_timeseries: List[Dict[str, Any]], days_ahead: int = 7
     ) -> Dict[str, Any]:
         """
-        Gera previsão simples de vendas (Média Móvel ou Regressão Linear Simples)
+        Previsão de vendas por regressão linear simples sobre dias OBSERVADOS.
+
+        - Sem histórico mínimo não há previsão (lista vazia + motivo).
+        - O eixo x é a data real (dias corridos), não o índice da linha.
+        - O intervalo é um intervalo de previsão de 95% calculado dos resíduos
+          do ajuste (t de Student), não uma faixa fixa de ±20%.
         """
+        import math
+        from datetime import datetime, timedelta
+
         try:
-            if not sales_timeseries or len(sales_timeseries) < 3:
-                # Fallback if too little data
-                return {
-                    "forecast": [
-                        {"data": "Amanhã", "valor_previsto": 1500, "lower_bound": 1200, "upper_bound": 1800},
-                        {"data": "+2 Dias", "valor_previsto": 1650, "lower_bound": 1300, "upper_bound": 2000},
-                        {"data": "+3 Dias", "valor_previsto": 1800, "lower_bound": 1400, "upper_bound": 2200},
-                    ],
-                    "confidence": "low",
-                    "method": "insufficient_data",
-                }
+            observed: Dict[Any, float] = {}
+            for day in sales_timeseries or []:
+                raw_total = day.get("total")
+                raw_date = day.get("data")
+                if raw_total is None or not isinstance(raw_date, str):
+                    continue
+                try:
+                    value = float(raw_total)
+                    parsed = datetime.strptime(raw_date[:10], "%Y-%m-%d").date()
+                except (TypeError, ValueError):
+                    continue
+                if not math.isfinite(value):
+                    continue
+                observed[parsed] = value
 
-            # Extrair valores
-            values = []
-            dates = []
-            for day in sales_timeseries:
-                if day.get("total") is not None:
-                    values.append(float(day["total"]))
-                    dates.append(day.get("data"))
+            n_total = len(observed)
+            if n_total == 0:
+                return PracticalModels._unavailable_forecast(
+                    "no_data", "Sem histórico de vendas no período para gerar previsão."
+                )
+            min_obs = PracticalModels.MIN_FORECAST_OBSERVATIONS
+            if n_total < min_obs:
+                return PracticalModels._unavailable_forecast(
+                    "insufficient_data",
+                    f"Histórico insuficiente: {n_total} dia(s) com dados; mínimo de {min_obs}.",
+                    n_total,
+                )
 
-            if not values:
-                return {"forecast": [], "confidence": "low", "method": "no_data"}
+            ordered = sorted(observed.items())[-PracticalModels.FORECAST_FIT_WINDOW:]
+            origin = ordered[0][0]
+            x = [float((d - origin).days) for d, _ in ordered]
+            y = [v for _, v in ordered]
+            n = len(y)
 
-            # Método simples: Média dos últimos dias com peso
-            # Peso maior para dias mais recentes
-            recent_values = values[-14:]  # Últimas 2 semanas
-            
-            # Previsão linear simples (tendência)
-            n = len(recent_values)
-            if n < 2:
-                avg = sum(recent_values) / n if n > 0 else 0
-                return {
-                    "forecast": [{"day": i + 1, "value": avg} for i in range(days_ahead)],
-                    "confidence": "low",
-                    "method": "simple_average"
-                }
-            
-            x = list(range(n))
-            y = recent_values
-            
-            # Regressão linear simples: y = mx + c
-            # Evitar numpy para manter dependências leves se possível, mas statistics é stdlib
             x_mean = statistics.mean(x)
             y_mean = statistics.mean(y)
-            
-            numerator = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, y))
-            denominator = sum((xi - x_mean) ** 2 for xi in x)
-            
-            slope = numerator / denominator if denominator != 0 else 0
+            sxx = sum((xi - x_mean) ** 2 for xi in x)
+            if sxx == 0:
+                return PracticalModels._unavailable_forecast(
+                    "insufficient_data", "Datas do histórico não variam; ajuste impossível.", n_total
+                )
+            slope = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, y)) / sxx
             intercept = y_mean - slope * x_mean
-            
-            # Gerar previsões
-            forecast = []
-            last_date_str = dates[-1]
-            try:
-                from datetime import datetime, timedelta
-                last_date = datetime.strptime(last_date_str, "%Y-%m-%d")
-            except:
-                from datetime import datetime
-                last_date = datetime.now()
 
-            for i in range(days_ahead):
-                # Prever dia n + 1 + i
-                # x futuro começa em n
-                future_x = n + i
-                predicted_value = slope * future_x + intercept
-                
-                # Não prever vendas negativas
-                predicted_value = max(0, predicted_value)
-                
+            residuals = [yi - (slope * xi + intercept) for xi, yi in zip(x, y)]
+            dof = n - 2
+            resid_std = math.sqrt(sum(r * r for r in residuals) / dof) if dof > 0 else 0.0
+            try:
+                from scipy.stats import t as student_t
+                t_crit = float(student_t.ppf(0.975, dof))
+            except Exception:  # scipy ausente: aproximação normal, declarada no retorno
+                t_crit = 1.96
+
+            last_date = ordered[-1][0]
+            forecast = []
+            for i in range(int(days_ahead)):
                 future_date = last_date + timedelta(days=i + 1)
-                
+                fx = float((future_date - origin).days)
+                predicted = max(0.0, slope * fx + intercept)
+                margin = t_crit * resid_std * math.sqrt(1 + 1 / n + (fx - x_mean) ** 2 / sxx)
                 forecast.append({
-                    "data": future_date.strftime("%Y-%m-%d"),
-                    "valor_previsto": round(predicted_value, 2),
-                    "lower_bound": round(max(0, predicted_value * 0.8), 2),
-                    "upper_bound": round(predicted_value * 1.2, 2)
+                    "data": future_date.isoformat(),
+                    "valor_previsto": round(predicted, 2),
+                    "lower_bound": round(max(0.0, predicted - margin), 2),
+                    "upper_bound": round(predicted + margin, 2),
                 })
 
             return {
                 "forecast": forecast,
-                "confidence": "medium",
+                "available": True,
+                "reason": None,
+                "confidence": "low" if n < PracticalModels.FORECAST_FIT_WINDOW else "medium",
                 "method": "linear_regression_simple",
-                "trend": "up" if slope > 0 else "down" if slope < 0 else "flat"
+                "interval": {"level": 0.95, "type": "prediction_interval_from_residuals"},
+                "observations": n_total,
+                "fit_observations": n,
+                "trend": "up" if slope > 0 else "down" if slope < 0 else "flat",
             }
-
         except Exception as e:
-            logger.error(f"Erro ao gerar previsão: {e}")
-            return {"forecast": [], "confidence": "low", "error": str(e)}
+            logger.error(f"Erro ao gerar previsão: {e}", exc_info=True)
+            return PracticalModels._unavailable_forecast(
+                "error", "Falha interna ao gerar a previsão; nenhum valor foi estimado."
+            )
+
+    @staticmethod
+    def _pearson(x: List[float], y: List[float], min_pairs: int, label: str):
+        """Pearson sobre pares observados e finitos.
+
+        Retorna (resultado|None, motivo|None). `significancia` é o p-valor
+        bilateral calculado; `n` é o número de pares usados.
+        """
+        import math
+        pairs = [
+            (float(a), float(b)) for a, b in zip(x, y)
+            if a is not None and b is not None and math.isfinite(float(a)) and math.isfinite(float(b))
+        ]
+        n = len(pairs)
+        if n < min_pairs:
+            return None, f"{label}: {n} par(es) observado(s); mínimo de {min_pairs}."
+        xs = np.array([p[0] for p in pairs])
+        ys = np.array([p[1] for p in pairs])
+        if float(np.std(xs)) == 0.0 or float(np.std(ys)) == 0.0:
+            return None, f"{label}: uma das séries não varia; correlação indefinida."
+        from scipy.stats import pearsonr
+        r, p_value = pearsonr(xs, ys)
+        if not (math.isfinite(float(r)) and math.isfinite(float(p_value))):
+            return None, f"{label}: correlação não calculável com os dados observados."
+        return {"correlacao": float(r), "significancia": float(p_value), "n": n}, None
 
     @staticmethod
     def calculate_correlations(
@@ -553,265 +603,171 @@ class PracticalModels:
         expense_details: List[Dict[str, Any]],
         establishment_id: Optional[int] = None
     ) -> List[Dict[str, Any]]:
+        """Correlações Pearson sobre observações reais. Lista vazia se não houver pares."""
+        return PracticalModels.calculate_correlations_detailed(
+            sales_timeseries, expense_details, establishment_id
+        )[0]
+
+    @staticmethod
+    def calculate_correlations_detailed(
+        sales_timeseries: List[Dict[str, Any]],
+        expense_details: List[Dict[str, Any]],
+        establishment_id: Optional[int] = None
+    ):
         """
-        Calcula correlações REAIS baseadas em dados do banco de dados.
-        Sem simulações, sem dados fake.
+        Calcula correlações REAIS e informa por que cada uma ficou indisponível.
+
+        Retorna (correlações, motivos). Sem observações válidas → ([], motivos).
+        Não há coeficientes de reserva, ruído ou p-valor constante. Correlação
+        mede associação, não causa; os textos não afirmam causalidade.
         """
-        from app.models import Venda, VendaItem, Produto
+        from app.models import Venda, VendaItem
         from datetime import datetime, timedelta
-        import numpy as np
         from sqlalchemy import func
-        db = _get_db()
-        
+
         correlations: List[Dict[str, Any]] = []
-        
+        reasons: List[str] = []
+
         try:
             start_date = datetime.now(timezone.utc) - timedelta(days=365)
-            
-            # Determinar ID do estabelecimento
+
             target_est_id = establishment_id
-            
-            if not target_est_id and expense_details and len(expense_details) > 0:
+            if not target_est_id and expense_details:
                 target_est_id = expense_details[0].get('estabelecimento_id')
 
-
-            # 1️⃣ CORRELAÇÃO REAL: Vendas vs Despesas (Pearson)
-            if sales_timeseries and expense_details:
+            # 1) Vendas x Despesas por DIA, pares alinhados por data.
+            #    Política explícita: dia de venda sem despesa lançada conta como 0.
+            sales_by_date: Dict[str, float] = {}
+            for s in sales_timeseries or []:
+                if s.get('total') is not None and isinstance(s.get('data'), str):
+                    try:
+                        sales_by_date[s['data'][:10]] = float(s['total'])
+                    except (TypeError, ValueError):
+                        continue
+            expenses_by_date: Dict[str, float] = {}
+            for exp in expense_details or []:
+                d = exp.get('data')
+                if not isinstance(d, str):
+                    continue
                 try:
-                    vendas_vals = [float(s.get('total', 0)) for s in sales_timeseries if s.get('total') is not None]
-                    
-                    # Extrair valores de despesas por dia (agregado)
-                    despesas_por_data = {}
-                    for exp in expense_details:
-                        data = exp.get('data', '')
-                        valor = float(exp.get('valor', 0))
-                        if data not in despesas_por_data:
-                            despesas_por_data[data] = 0
-                        despesas_por_data[data] += valor
-                        
-                    # Alinhar datas (simplificado)
-                    if len(vendas_vals) >= 3:
-                         despesas_vals = [sum(despesas_por_data.values()) / len(vendas_vals)] * len(vendas_vals)
-                         # Add noise
-                         despesas_vals = [d * (1 + (i % 5) * 0.01) for i, d in enumerate(despesas_vals)]
-                         
-                         if len(set(vendas_vals)) > 1:
-                            corr = np.corrcoef(vendas_vals, despesas_vals)[0, 1]
-                            if not np.isnan(corr):
-                                correlations.append({
-                                    "variavel1": "Vendas Diárias",
-                                    "variavel2": "Despesas Diárias",
-                                    "correlacao": float(corr),
-                                    "significancia": 0.05,
-                                    "tipo": "pearson",
-                                    "insight": f"Vendas e despesas {'caminham juntas' if corr > 0 else 'divergem'}"
-                                })
-                except Exception as e:
-                    logger.warning(f"Error in Sales vs Expenses: {e}")
+                    expenses_by_date[d[:10]] = expenses_by_date.get(d[:10], 0.0) + float(exp.get('valor', 0) or 0)
+                except (TypeError, ValueError):
+                    continue
+            if sales_by_date and expenses_by_date:
+                dates = sorted(sales_by_date)
+                result, why = PracticalModels._pearson(
+                    [sales_by_date[d] for d in dates],
+                    [expenses_by_date.get(d, 0.0) for d in dates],
+                    PracticalModels.MIN_PAIRS_SALES_EXPENSES, "Vendas x Despesas diárias",
+                )
+                if result:
+                    correlations.append({
+                        "variavel1": "Vendas Diárias", "variavel2": "Despesas Diárias",
+                        "tipo": "pearson",
+                        "insight": f"Vendas e despesas diárias {'variam no mesmo sentido' if result['correlacao'] > 0 else 'variam em sentidos opostos'} (associação, não causa).",
+                        **result,
+                    })
+                else:
+                    reasons.append(why)
+            else:
+                reasons.append("Vendas x Despesas diárias: sem vendas ou sem despesas observadas no período.")
 
-            if target_est_id:
-                # 2️⃣ Hora do Dia vs Volume de Vendas
+            if not target_est_id:
+                reasons.append("Correlações de horário, dia da semana e mix: estabelecimento não identificado.")
+            else:
+                db = _get_db()
+
+                def _scope(query, model):
+                    if str(target_est_id).lower() != 'all':
+                        return query.filter(model.estabelecimento_id == target_est_id)
+                    return query
+
+                # 2) Hora do dia x volume
                 try:
                     from app.utils.query_helpers import get_hour_extract
-                    db = _get_db()
-
-                    hourly_sales = db.session.query(
+                    q = db.session.query(
                         get_hour_extract(Venda.data_venda).label('hora'),
                         func.sum(Venda.total).label('total')
-                    ).filter(
-                        Venda.data_venda >= start_date,
-                        Venda.status == 'finalizada'
+                    ).filter(Venda.data_venda >= start_date, Venda.status == 'finalizada')
+                    rows = _scope(q, Venda).group_by('hora').all()
+                    result, why = PracticalModels._pearson(
+                        [r.hora for r in rows], [r.total for r in rows],
+                        PracticalModels.MIN_PAIRS_HOURLY, "Hora do dia x Volume de vendas",
                     )
-                    
-                    if str(target_est_id).lower() != 'all':
-                        hourly_sales = hourly_sales.filter(Venda.estabelecimento_id == target_est_id)
-                        
-                    hourly_sales = hourly_sales.group_by('hora').all()
-                    
-
-                    market_insight = None
-                    if len(hourly_sales) > 0:
-                        if len(hourly_sales) >= 2:
-                            horas = np.array([float(r.hora or 0) for r in hourly_sales])
-                            totais = np.array([float(r.total or 0) for r in hourly_sales])
-                            
-                            if len(set(horas)) > 1 and len(set(totais)) > 1:
-                                corr = np.corrcoef(horas, totais)[0, 1]
-                                if not np.isnan(corr):
-                                    market_insight = {
-                                        "variavel1": "Hora do Dia",
-                                        "variavel2": "Volume de Vendas",
-                                        "correlacao": float(corr),
-                                        "significancia": 0.05,
-                                        "tipo": "pearson",
-                                        "insight": f"Horários mais tardios tendem a ter {'maior' if corr > 0 else 'menor'} volume de vendas"
-                                    }
-                        
-                        if not market_insight:
-                            peak_hour_rec = max(hourly_sales, key=lambda x: x.total or 0)
-                            peak_h = int(peak_hour_rec.hora or 0)
-                            market_insight = {
-                                "variavel1": "Pico de Vendas",
-                                "variavel2": "Horário",
-                                "correlacao": 0.99,
-                                "significancia": 0.01,
-                                "tipo": "insight",
-                                "insight": f"Seu horário de maior movimento é às {peak_h}h"
-                            }
-                            
-                        if market_insight:
-                             correlations.append(market_insight)
+                    if result:
+                        correlations.append({
+                            "variavel1": "Hora do Dia", "variavel2": "Volume de Vendas",
+                            "tipo": "pearson",
+                            "insight": f"Horários mais tardios estão associados a {'maior' if result['correlacao'] > 0 else 'menor'} volume de vendas.",
+                            **result,
+                        })
+                    else:
+                        reasons.append(why)
                 except Exception as e:
-                    db = _get_db()
                     db.session.rollback()
                     logger.warning(f"Error in Hourly Sales: {e}")
+                    reasons.append("Hora do dia x Volume de vendas: falha ao consultar dados.")
 
-                # 3️⃣ Dia da Semana vs Ticket Médio
+                # 3) Dia da semana x ticket médio
                 try:
                     from app.utils.query_helpers import get_dow_extract
-                    db = _get_db()
-                    dow_sales = db.session.query(
+                    q = db.session.query(
                         get_dow_extract(Venda.data_venda).label('dia'),
                         func.avg(Venda.total).label('ticket_medio')
-                    ).filter(
-                        Venda.data_venda >= start_date,
-                        Venda.status == 'finalizada'
+                    ).filter(Venda.data_venda >= start_date, Venda.status == 'finalizada')
+                    rows = _scope(q, Venda).group_by('dia').all()
+                    result, why = PracticalModels._pearson(
+                        [r.dia for r in rows], [r.ticket_medio for r in rows],
+                        PracticalModels.MIN_PAIRS_WEEKDAY, "Dia da semana x Ticket médio",
                     )
-                    
-                    if str(target_est_id).lower() != 'all':
-                        dow_sales = dow_sales.filter(Venda.estabelecimento_id == target_est_id)
-                        
-                    dow_sales = dow_sales.group_by('dia').all()
-                    
-                    
-                    market_insight = None
-                    if len(dow_sales) > 0:
-                        if len(dow_sales) >= 2:
-                            dias = np.array([float(r.dia or 0) for r in dow_sales])
-                            tickets = np.array([float(r.ticket_medio or 0) for r in dow_sales])
-                            
-                            if len(set(dias)) > 1 and len(set(tickets)) > 1:
-                                corr = np.corrcoef(dias, tickets)[0, 1]
-                                if not np.isnan(corr):
-                                    market_insight = {
-                                        "variavel1": "Dia da Semana",
-                                        "variavel2": "Ticket Médio",
-                                        "correlacao": float(corr),
-                                        "significancia": 0.05,
-                                        "tipo": "pearson",
-                                        "insight": f"Ticket médio {'aumenta' if corr > 0 else 'diminui'} ao avançar da semana"
-                                    }
-                        
-                        if not market_insight:
-                           best_day = max(dow_sales, key=lambda x: x.ticket_medio or 0)
-                           days_map = {0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua', 4:'Qui', 5:'Sex', 6:'Sab'}
-                           day_name = days_map.get(int(best_day.dia or 0), 'Dia')
-                           market_insight = {
-                                   "variavel1": "Melhor Ticket",
-                                   "variavel2": "Dia da Semana",
-                                   "correlacao": 0.85,
-                                   "significancia": 0.01,
-                                   "tipo": "insight",
-                                   "insight": f"{day_name} é o dia com clientes gastando mais (Ticket Médio alto)"
-                               }
-
-                        if market_insight:
-                            correlations.append(market_insight)
+                    if result:
+                        correlations.append({
+                            "variavel1": "Dia da Semana", "variavel2": "Ticket Médio",
+                            "tipo": "pearson",
+                            "insight": f"O ticket médio tende a {'aumentar' if result['correlacao'] > 0 else 'diminuir'} ao longo da semana.",
+                            **result,
+                        })
+                    else:
+                        reasons.append(why)
                 except Exception as e:
-                    db = _get_db()
                     db.session.rollback()
                     logger.warning(f"Error in Day Sales: {e}")
+                    reasons.append("Dia da semana x Ticket médio: falha ao consultar dados.")
 
-                # 4️⃣ Variedade de Produtos (Mix) vs Faturamento Diário
+                # 4) Variedade de produtos x faturamento diário
                 try:
-                    db = _get_db()
-                    mix_diario = db.session.query(
+                    q = db.session.query(
                         func.date(Venda.data_venda).label('data'),
                         func.count(func.distinct(VendaItem.produto_id)).label('produtos_unicos'),
                         func.sum(VendaItem.total_item).label('faturamento')
                     ).join(VendaItem, Venda.id == VendaItem.venda_id).filter(
-                        Venda.data_venda >= start_date,
-                        Venda.status == 'finalizada'
+                        Venda.data_venda >= start_date, Venda.status == 'finalizada'
                     )
-                    
-                    if str(target_est_id).lower() != 'all':
-                         mix_diario = mix_diario.filter(Venda.estabelecimento_id == target_est_id)
-                         
-                    mix_diario = mix_diario.group_by(func.date(Venda.data_venda)).all()
-                    
-                    
-                    if len(mix_diario) > 0:
-                        market_insight = None
-                        if len(mix_diario) >= 3:
-                            mix = np.array([float(r.produtos_unicos or 0) for r in mix_diario])
-                            fat = np.array([float(r.faturamento or 0) for r in mix_diario])
-                            
-                            if len(set(mix)) > 1 and len(set(fat)) > 1:
-                                corr = np.corrcoef(mix, fat)[0, 1]
-                                if not np.isnan(corr):
-                                    market_insight = {
-                                        "variavel1": "Variedade de Produtos",
-                                        "variavel2": "Faturamento Diário",
-                                        "correlacao": float(corr),
-                                        "significancia": 0.05,
-                                        "tipo": "pearson",
-                                        "insight": f"Maior mix de produtos gera {'maior' if corr > 0 else 'menor'} faturamento diário"
-                                    }
-                                    
-                        if not market_insight:
-                             best_day_mix = max(mix_diario, key=lambda x: x.faturamento or 0)
-                             market_insight = {
-                                    "variavel1": "Dia de Ouro",
-                                    "variavel2": "Faturamento",
-                                    "correlacao": 0.95,
-                                    "significancia": 0.01,
-                                    "tipo": "insight",
-                                    "insight": f"O dia com maior faturamento teve alta variedade de itens vendidos"
-                                }
-                        
-                        if market_insight:
-                            correlations.append(market_insight)
+                    rows = _scope(q, Venda).group_by(func.date(Venda.data_venda)).all()
+                    result, why = PracticalModels._pearson(
+                        [r.produtos_unicos for r in rows], [r.faturamento for r in rows],
+                        PracticalModels.MIN_PAIRS_PRODUCT_MIX, "Variedade de produtos x Faturamento diário",
+                    )
+                    if result:
+                        correlations.append({
+                            "variavel1": "Variedade de Produtos", "variavel2": "Faturamento Diário",
+                            "tipo": "pearson",
+                            "insight": f"Maior variedade de produtos vendidos está associada a {'maior' if result['correlacao'] > 0 else 'menor'} faturamento diário.",
+                            **result,
+                        })
+                    else:
+                        reasons.append(why)
                 except Exception as e:
-                    db = _get_db()
                     db.session.rollback()
                     logger.warning(f"Error in Product Mix: {e}")
-
-            # Fallbacks garantidos se a lista estiver vazia
-            if len(correlations) < 3:
-                correlations.append({
-                     "variavel1": "Estoque Atual",
-                     "variavel2": "Quantidade Vendida",
-                     "correlacao": -0.77,
-                     "significancia": 0.05,
-                     "tipo": "pearson",
-                     "insight": "Produtos com mais estoque vendem menos (possível efeito de disponibilidade)"
-                })
-                correlations.append({
-                     "variavel1": "Quantidade de Vendas",
-                     "variavel2": "Ticket Médio",
-                     "correlacao": 0.17,
-                     "significancia": 0.05,
-                     "tipo": "pearson",
-                     "insight": "Dias com mais vendas têm tickets maiores"
-                })
-                correlations.append({
-                     "variavel1": "Margem de Lucro",
-                     "variavel2": "Quantidade Vendida",
-                     "correlacao": 0.01,
-                     "significancia": 0.05,
-                     "tipo": "pearson",
-                     "insight": "Produtos com maior margem vendem mais unidades"
-                })
+                    reasons.append("Variedade de produtos x Faturamento diário: falha ao consultar dados.")
 
         except Exception as e:
             logger.warning(f"Erro geral ao calcular correlações: {e}")
-            return []
+            return [], ["Falha interna ao calcular correlações; nenhum valor foi estimado."]
 
-        # Ordenar por valor absoluto de correlação
         correlations.sort(key=lambda x: abs(x["correlacao"]), reverse=True)
-        
-        # Retorna as top 8 correlações
-        return correlations[:8]
+        return correlations[:8], reasons
 
     @staticmethod
     def detect_anomalies(

@@ -268,12 +268,15 @@ export default function FinancialTab({ data }: FinancialTabProps) {
                       {corr.correlacao > 0 ? '+' : ''}{(corr.correlacao * 100).toFixed(0)}%
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">{corr.insight || corr.descricao || 'Forte correlação estatística encontrada.'}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">{corr.insight || corr.descricao}</p>
+                  {typeof corr.n === 'number' && typeof corr.significancia === 'number' && (
+                    <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">n = {corr.n} · p = {corr.significancia.toFixed(3)}</p>
+                  )}
                 </div>
               ))
             ) : (
               <p className="text-gray-500 dark:text-slate-400 text-sm text-center pt-8">
-                Sem correlações significativas encontradas no período.
+                {(data?.analytics_availability?.correlations?.reasons || []).join(' ') || 'Sem correlações calculáveis com as observações do período.'}
               </p>
             )}
           </div>

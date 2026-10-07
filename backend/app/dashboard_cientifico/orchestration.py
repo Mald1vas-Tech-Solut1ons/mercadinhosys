@@ -417,10 +417,12 @@ class DashboardOrchestrator:
             hourly_customer_behavior = []
 
         try:
-            forecast = PracticalModels.generate_forecast(sales_timeseries)
+            forecast = PracticalModels.generate_forecast(sales_timeseries, days_ahead=30)
         except Exception as e:
             _logger.warning(f"Erro ao gerar forecast: {e}")
-            forecast = []
+            forecast = PracticalModels._unavailable_forecast(
+                "error", "Falha interna ao gerar a previsão; nenhum valor foi estimado."
+            )
 
         # 5. Métricas de Comparação
         # 🔥 CORREÇÃO: Usar a MESMA fonte de dados (get_sales_summary_range) para ambos os períodos
@@ -483,11 +485,14 @@ class DashboardOrchestrator:
         
         # 🔥 NOVO: Calcular correlações estatísticas (Blindado contra TypeError/ValueError)
         correlations = []
+        correlations_reasons = []
         try:
-            if sales_timeseries and expense_details:
-                correlations = _PM.calculate_correlations(sales_timeseries, expense_details, establishment_id=self.establishment_id)
+            correlations, correlations_reasons = _PM.calculate_correlations_detailed(
+                sales_timeseries, expense_details, establishment_id=self.establishment_id
+            )
         except Exception as e:
             _logger.warning(f"Erro ao calcular correlações: {e}")
+            correlations_reasons = ["Falha interna ao calcular correlações; nenhum valor foi estimado."]
         
         # 🔥 NOVO: Detectar anomalias (Blindado)
         anomalies = []
@@ -655,12 +660,13 @@ class DashboardOrchestrator:
                     "classificação_abc": p.get("classificacao", "C"),
                     "variavel": p.get("nome", ""),
                     "valor_atual": p.get("faturamento", 0),
-                    "previsao_30d": p.get("faturamento", 0) * 1.1,  # Previsão simples: +10%
-                    "confianca": 75.0,
-                    "intervalo_confianca": [
-                        p.get("faturamento", 0) * 0.9,
-                        p.get("faturamento", 0) * 1.3
-                    ]
+                    # Sem modelo de previsão por produto: não inventamos valor,
+                    # confiança nem intervalo. `demanda_diaria_prevista` acima é a
+                    # média diária OBSERVADA no período.
+                    "previsao_30d": None,
+                    "confianca": None,
+                    "intervalo_confianca": None,
+                    "metodo": "media_historica_observada"
                 })
 
         risco_ids = [
@@ -1026,33 +1032,37 @@ class DashboardOrchestrator:
             p["ultima_compra"] = last_orders.get(pid) if pid else None
         
         # 10. Construir Previsões Financeiras para o painel avançado
-        forecast_list = forecast.get("forecast", []) if isinstance(forecast, dict) else forecast
-        forecast_faturamento = sum([f.get("valor_previsto", 0) for f in forecast_list[:30]]) if forecast_list else revenue * 1.05
-        previsao_despesas = total_despesas_periodo * 1.02
-        
-        previsoes_financeiras = [
-            {
+        # Só existe previsão financeira quando há previsão real de faturamento.
+        # Despesas e lucro projetados (antes: fatores fixos 1,02 e 1,05) foram
+        # removidos: não há modelo para eles. O intervalo diário não é somado
+        # em um intervalo mensal (não seria válido), então fica indisponível.
+        forecast_available = bool(isinstance(forecast, dict) and forecast.get("available") and forecast.get("forecast"))
+        previsoes_financeiras = []
+        if forecast_available:
+            previsoes_financeiras.append({
                 "variavel": "Faturamento Estimado",
                 "valor_atual": revenue,
-                "previsao_30d": forecast_faturamento,
-                "confianca": 85.0,
-                "intervalo_confianca": [forecast_faturamento * 0.9, forecast_faturamento * 1.1]
+                "previsao_30d": round(sum(f.get("valor_previsto", 0) for f in forecast["forecast"]), 2),
+                "confianca": None,
+                "nivel_confianca": forecast.get("confidence"),
+                "intervalo_confianca": None,
+                "metodo": forecast.get("method"),
+                "observacoes": forecast.get("observations"),
+            })
+        forecast_status = {
+            "available": forecast_available,
+            "reason": None if forecast_available else (forecast.get("reason") if isinstance(forecast, dict) else "Previsão indisponível."),
+            "method": forecast.get("method") if isinstance(forecast, dict) else None,
+            "observations": forecast.get("observations") if isinstance(forecast, dict) else 0,
+        }
+        analytics_availability = {
+            "forecast": forecast_status,
+            "previsoes": forecast_status,
+            "correlations": {
+                "available": bool(correlations),
+                "reasons": [] if correlations else list(correlations_reasons or ["Sem observações válidas para correlação."]),
             },
-            {
-                "variavel": "Despesas Projetadas",
-                "valor_atual": total_despesas_periodo,
-                "previsao_30d": previsao_despesas,
-                "confianca": 80.0,
-                "intervalo_confianca": [previsao_despesas * 0.95, previsao_despesas * 1.05]
-            },
-            {
-                "variavel": "Lucro Operacional",
-                "valor_atual": net_profit,
-                "previsao_30d": forecast_faturamento - previsao_despesas,
-                "confianca": 75.0,
-                "intervalo_confianca": [(forecast_faturamento - previsao_despesas) * 0.8, (forecast_faturamento - previsao_despesas) * 1.2]
-            }
-        ]
+        }
         
         # 11. Montar objeto final
         res = {
@@ -1125,6 +1135,7 @@ class DashboardOrchestrator:
             "correlations": correlations,
             "anomalies": anomalies,
             "previsoes": previsoes_financeiras,
+            "analytics_availability": analytics_availability,
             "analise_produtos": {
                 "produtos_estrela": produtos_estrela,
                 "produtos_lentos": produtos_lentos,

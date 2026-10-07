@@ -4,7 +4,7 @@ import traceback
 import unicodedata
 from flask import request
 from flask_jwt_extended import get_jwt
-from sqlalchemy import func, extract, text
+from sqlalchemy import func, extract, text, event
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,26 @@ def _strip_accents(s: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+def _sqlite_search_connection(connection, _record):
+    connection.create_function('mercadinho_fold', 1,
+                               lambda value: _strip_accents(value).lower() if value is not None else None,
+                               deterministic=True)
+
+
+def configure_sqlite_search(engine):
+    """Registra folding Unicode por conexão, antes de o pool abrir conexões."""
+    if engine.dialect.name == 'sqlite' and not event.contains(engine, 'connect', _sqlite_search_connection):
+        event.listen(engine, 'connect', _sqlite_search_connection)
+
+
 def _fold_accents_sql(column):
-    """Expressão SQL que retorna a coluna em minúsculas e sem acentos, usando
-    apenas lower()+replace() — portável (Postgres e SQLite), sem extensão."""
+    """Evita cinquenta REPLACE aninhados, que excedem o parser SQLite Linux."""
+    dialect = _get_db().engine.dialect.name
+    if dialect == 'sqlite':
+        return func.mercadinho_fold(column)
+    if dialect == 'postgresql':
+        return func.translate(func.lower(column), ''.join(a for a, _ in _ACCENT_PAIRS),
+                              ''.join(b for _, b in _ACCENT_PAIRS))
     expr = func.lower(column)
     for acento, base in _ACCENT_PAIRS:
         expr = func.replace(expr, acento, base)
@@ -56,8 +73,8 @@ def _get_db():
 def ilike_unaccent(column, search_term):
     """
     Busca case-insensitive E accent-insensitive, PORTÁVEL e robusta:
-    'agua' encontra 'Água', 'acai' encontra 'Açaí'. A coluna é dobrada (lower +
-    sem acento) em SQL; o termo é normalizado em Python. Não usa a extensão
+    'agua' encontra 'Água', 'acai' encontra 'Açaí'. A coluna é dobrada por função
+    SQLite/translate PostgreSQL; o termo é normalizado em Python. Não usa a extensão
     unaccent (evita 'function unaccent does not exist' no Neon → 500 na busca).
     """
     termo_norm = _strip_accents(search_term).lower()

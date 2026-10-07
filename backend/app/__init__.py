@@ -166,6 +166,10 @@ def create_app(config_name=None):
 
     # Inicializa extensões
     db.init_app(app)
+    from app.utils.query_helpers import configure_sqlite_search
+    with app.app_context():
+        for engine in db.engines.values():
+            configure_sqlite_search(engine)
     migrate.init_app(app, db)
     jwt.init_app(app)
     from app.middleware.rate_limit import limiter

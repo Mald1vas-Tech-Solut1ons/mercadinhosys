@@ -1116,7 +1116,7 @@ def gerar_mensagem_ia(id):
     if not ia_disponivel():
         return jsonify({
             "success": False,
-            "message": "IA não configurada. Peça ao administrador do sistema para configurar a chave da Groq (gratuita) no servidor.",
+            "message": "IA do CRM não configurada. Peça ao administrador para configurar GROQ_API_KEY no servidor.",
         }), 503
 
     try:

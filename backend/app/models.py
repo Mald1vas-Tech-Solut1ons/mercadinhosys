@@ -1291,7 +1291,7 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         except: return "Sem Vendas"
 
     def get_lotes_disponiveis(self):
-        return ProdutoLote.query.filter_by(produto_id=self.id, ativo=True).filter(ProdutoLote.quantidade > 0).order_by(ProdutoLote.data_validade.asc()).all()
+        return ProdutoLote.query.filter_by(produto_id=self.id, estabelecimento_id=self.estabelecimento_id, ativo=True).filter(ProdutoLote.quantidade > 0).order_by(ProdutoLote.data_validade.asc(), ProdutoLote.id.asc()).with_for_update().all()
 
     def consumir_estoque_fifo(self, quantidade) -> List[Dict]:
         consumidos = []

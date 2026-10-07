@@ -659,25 +659,12 @@ def buscar_produtos_pdv():
         engine_name = str(db.engine.name).lower()
         like_op = "ILIKE" if 'sqlite' not in engine_name else "LIKE"
 
-        if 'sqlite' in engine_name:
-            lot_join_sql = """
-            LEFT JOIN (
-                SELECT produto_id, MIN(data_validade) as data_validade, MIN(numero_lote) as numero_lote
-                FROM produto_lotes
-                WHERE ativo = true AND quantidade > 0
-                GROUP BY produto_id
-            ) pl ON p.id = pl.produto_id
-            """
-        else:
-            lot_join_sql = """
-            LEFT JOIN (
-                SELECT DISTINCT ON (produto_id) 
-                    produto_id, data_validade, numero_lote
-                FROM produto_lotes
-                WHERE ativo = true AND quantidade > 0
-                ORDER BY produto_id, data_validade ASC
-            ) pl ON p.id = pl.produto_id
-            """
+        # Consulta apenas os lotes dos produtos encontrados, com vínculo ao tenant.
+        # A mesma ordenação mantém validade e número associados ao mesmo lote.
+        lot_condition = """FROM produto_lotes pl
+            WHERE pl.produto_id = p.id AND pl.estabelecimento_id = p.estabelecimento_id
+              AND pl.ativo = true AND pl.quantidade > 0
+            ORDER BY pl.data_validade ASC, pl.id ASC LIMIT 1"""
 
         # Filtro de Tenant Híbrido (Suporte SuperAdmin 'all')
         estab_filter = ""
@@ -687,7 +674,8 @@ def buscar_produtos_pdv():
             params["estab_id"] = estabelecimento_id
 
         from sqlalchemy import text as sql_text
-        resultado = db.session.execute(sql_text(f"""
+        def execute_search(predicate):
+            return db.session.execute(sql_text(f"""
             SELECT
                 p.id,
                 p.nome,
@@ -698,21 +686,24 @@ def buscar_produtos_pdv():
                 p.preco_venda,
                 p.quantidade AS quantidade_estoque,
                 p.unidade_medida,
-                COALESCE(pl.data_validade, p.data_validade) as data_validade,
-                COALESCE(pl.numero_lote, p.lote) as lote
+                COALESCE((SELECT pl.data_validade {lot_condition}), p.data_validade) as data_validade,
+                COALESCE((SELECT pl.numero_lote {lot_condition}), p.lote) as lote
             FROM produtos p
-            {lot_join_sql}
-            WHERE p.ativo = true
+            WHERE p.ativo = true AND p.deleted_at IS NULL
               {estab_filter}
-              AND (
-                  p.nome {like_op} :busca
-                  OR p.codigo_barras {like_op} :busca
-                  OR p.codigo_interno {like_op} :busca
-                  OR p.marca {like_op} :busca
-              )
+              AND ({predicate})
             ORDER BY p.nome ASC
             LIMIT 20
         """), params).fetchall()
+
+        # Leitores enviam códigos completos: tenta igualdade indexada antes do LIKE.
+        resultado = []
+        if busca.isdigit():
+            params['codigo'] = busca
+            resultado = execute_search('p.codigo_barras = :codigo OR p.codigo_interno = :codigo')
+        if not resultado:
+            resultado = execute_search(f"p.nome {like_op} :busca OR p.codigo_barras {like_op} :busca "
+                                       f"OR p.codigo_interno {like_op} :busca OR p.marca {like_op} :busca")
 
 
         produtos = []
@@ -761,7 +752,7 @@ def finalizar_venda():
 
         data = request.get_json()
         current_app.logger.debug(f"[PDV] FINALIZAR payload: {list(data.keys()) if data else None}")
-        if not data:
+        if not isinstance(data, dict) or not data:
             return jsonify({"error": "Dados não fornecidos"}), 400
 
         # Carregar Estabelecimento para validação de plano
@@ -777,6 +768,12 @@ def finalizar_venda():
         # IDEMPOTÊNCIA (PDV offline): se esta venda já subiu antes (mesmo offline_uuid),
         # devolve a existente em vez de duplicar estoque/financeiro.
         offline_uuid = data.get("offline_uuid")
+        from app.utils.checkout_locking import lock_checkout, validate_credit
+        try:
+            locked_client = lock_checkout(estab_id, funcionario_data.get('id'), items, data.get('cliente_id'), offline_uuid)
+        except (ValueError, TypeError):
+            db.session.rollback()
+            return jsonify({'error': 'Identificador do carrinho inválido'}), 400
         if offline_uuid:
             ja_existe = Venda.query.filter_by(estabelecimento_id=estab_id, offline_uuid=offline_uuid).first()
             if ja_existe:
@@ -790,6 +787,23 @@ def finalizar_venda():
         subtotal = to_decimal(data.get("subtotal", 0))
         desconto = to_decimal(data.get("desconto", 0))
         total = to_decimal(data.get("total", 0))
+        from app.utils.sale_validation import validate_sale
+        if data.get('dados_entrega') is not None and not isinstance(data['dados_entrega'], dict):
+            return jsonify({'error': 'Dados de entrega inválidos'}), 400
+        validation_payments = data.get('pagamentos') or [{
+            'forma': data.get('paymentMethod', 'dinheiro'),
+            'valor': data.get('valor_recebido', data.get('total', 0)),
+        }]
+        try:
+            validate_sale(data, validation_payments, (data.get('dados_entrega') or {}).get('taxa_entrega', 0))
+            validate_credit(locked_client, validation_payments)
+            from app.utils.checkout_locking import validate_pricing
+            validate_pricing(request.current_user, items, desconto, estab_id)
+        except ValueError as error:
+            db.session.rollback()
+            return jsonify({'error': str(error)}), 400
+        if cliente_id and not Cliente.query.filter_by(id=cliente_id, estabelecimento_id=estab_id).first():
+            return jsonify({'error': 'Cliente não encontrado neste estabelecimento'}), 404
         
         # LOGISTICA / DELIVERY INJECTION
         dados_entrega = data.get("dados_entrega")
@@ -963,10 +977,13 @@ def finalizar_venda():
                 produto_id = item_data.get("id") or item_data.get("productId") or item_data.get("produto_id")
                 quantidade = to_decimal(item_data.get("quantity") or item_data.get("quantidade", 1), precision=3)
 
-                produto = db.session.query(Produto).with_for_update().get(produto_id)
+                produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=estab_id).with_for_update().first()
                 if not produto:
                     db.session.rollback()
                     return jsonify({"error": f"Produto {produto_id} não encontrado"}), 404
+                if not produto.ativo:
+                    db.session.rollback()
+                    return jsonify({'error': 'Produto inativo'}), 400
 
                 if to_decimal(produto.quantidade, precision=3) < quantidade:
                     db.session.rollback()
@@ -991,7 +1008,8 @@ def finalizar_venda():
                 db.session.add(novo_item)
 
                 estoque_anterior = to_decimal(produto.quantidade, precision=3)
-                produto.quantidade = to_decimal(estoque_anterior - quantidade, precision=3)
+                from app.utils.checkout_locking import consume_lots
+                lot_trace = consume_lots(produto, quantidade)
 
                 # Mantém os contadores denormalizados em sincronia com o ledger,
                 # para as telas de LISTAGEM (giro, mais vendidos) não ficarem zeradas.
@@ -1010,7 +1028,8 @@ def finalizar_venda():
                     venda_id=nova_venda.id,
                     funcionario_id=nova_venda.funcionario_id,
                     created_at=data_venda,
-                    motivo=f"Venda PDV {nova_venda.codigo}"
+                    motivo=f"Venda PDV {nova_venda.codigo}",
+                    observacoes=lot_trace,
                 )
                 db.session.add(mov)
 
@@ -1052,13 +1071,14 @@ def finalizar_venda():
 
                 if forma_norm == "dinheiro" and caixa_aberto:
                         # LÓGICA DE TROCO: O troco é subtraído prioritariamente da entrada em dinheiro
-                        entrada_dinheiro = float(valor)
+                        entrada_dinheiro = valor
                         if troco_calculado > 0:
-                            valor_abatido = min(Decimal(entrada_dinheiro), troco_calculado)
-                            entrada_dinheiro -= float(valor_abatido)
+                            valor_abatido = min(entrada_dinheiro, troco_calculado)
+                            entrada_dinheiro -= valor_abatido
                             troco_calculado -= valor_abatido
                         
-                        caixa_aberto.saldo_atual = float(caixa_aberto.saldo_atual) + entrada_dinheiro
+                        mov_caixa.valor = entrada_dinheiro
+                        caixa_aberto.saldo_atual = to_decimal(caixa_aberto.saldo_atual) + entrada_dinheiro
 
             if tem_fiado:
                 if not cliente_id:
@@ -1074,7 +1094,7 @@ def finalizar_venda():
                     db.session.rollback()
                     return jsonify({"success": False, "error": "Cliente não encontrado"}), 404
 
-                cliente.saldo_devedor = float(cliente.saldo_devedor or 0) + float(valor_fiado)
+                cliente.saldo_devedor = to_decimal(cliente.saldo_devedor or 0) + valor_fiado
 
                 from datetime import timedelta
                 from app.models import ContaReceber
@@ -1278,90 +1298,9 @@ def vendas_hoje():
 @pdv_bp.route("/cancelar-venda/<int:venda_id>", methods=["POST"])
 @funcionario_required
 def cancelar_venda_pdv(venda_id):
-    """
-    Cancela uma venda e devolve produtos ao estoque
-    Requer permissão específica
-    """
-    try:
-        from app.utils.query_helpers import get_funcionario_safe
-        current_user_id = get_jwt_identity()
-        funcionario_data = get_funcionario_safe(current_user_id)
-        
-        if not funcionario_data:
-            return jsonify({"error": "Funcionário não encontrado"}), 404
-        
-        # Proxy para o funcionário
-        class _Proxy:
-            def __init__(self, data):
-                for k, v in data.items(): setattr(self, k, v)
-                self.permissoes = data.get("permissoes", {})
-        funcionario = _Proxy(funcionario_data)
-        
-        # Verificar permissão
-        if not funcionario.permissoes.get("pode_cancelar_venda", False):
-            return jsonify({"error": "Sem permissão para cancelar vendas"}), 403
-        
-        data = request.get_json()
-        motivo = data.get("motivo", "Cancelamento solicitado")
-        
-        # Buscar venda
-        venda = Venda.query.get(venda_id)
-        
-        if not venda:
-            return jsonify({"error": "Venda não encontrada"}), 404
-        
-        if venda.status == "cancelada":
-            return jsonify({"error": "Venda já está cancelada"}), 400
-        
-        # Cancelar venda
-        try:
-            venda.status = "cancelada"
-            venda.observacoes = f"{venda.observacoes}\n[CANCELADA] {motivo}"
-            
-            # Devolver produtos ao estoque
-            for item in venda.itens:
-                produto = Produto.query.with_for_update().get(item.produto_id)
-                
-                if produto:
-                    estoque_anterior = produto.quantidade
-                    produto.quantidade += item.quantidade
-                    
-                    # Registrar movimentação
-                    movimentacao = MovimentacaoEstoque(
-                        estabelecimento_id=venda.estabelecimento_id,
-                        produto_id=produto.id,
-                        tipo="entrada",
-                        quantidade=item.quantidade,
-                        quantidade_anterior=estoque_anterior,
-                        quantidade_atual=produto.quantidade,
-                        venda_id=venda.id,
-                        funcionario_id=funcionario.id,
-                        created_at=datetime.now(),
-                        motivo=f"Cancelamento venda {venda.codigo}"
-                    )
-                    db.session.add(movimentacao)
-            
-            db.session.commit()
-            
-            current_app.logger.info(f"🚫 Venda {venda.codigo} cancelada por {funcionario.nome}")
-            
-            return jsonify({
-                "success": True,
-                "message": f"Venda {venda.codigo} cancelada com sucesso",
-                "venda": {
-                    "id": venda.id,
-                    "codigo": venda.codigo,
-                    "status": "cancelada",
-                }
-            }), 200
-            
-        except Exception as e:
-            db.session.rollback()
-            raise e
-    
-    except Exception as e:
-        current_app.logger.error(f"Erro ao cancelar venda: {str(e)}")
-        return jsonify({"error": f"Erro ao cancelar: {str(e)}"}), 500
+    # Uma única política de autorização, estorno e devolução dos lotes.
+    from app.routes.vendas import cancelar_venda
+    return cancelar_venda(venda_id)
 
 
 @pdv_bp.route("/estatisticas-rapidas", methods=["GET"])

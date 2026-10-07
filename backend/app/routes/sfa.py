@@ -7,7 +7,9 @@ from app.utils.errors import EstoqueInsuficienteError
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from datetime import datetime, timezone, timedelta
-from decimal import Decimal
+from decimal import Decimal, DecimalException
+import hashlib
+from uuid import uuid4
 import re
 import calendar as cal_lib
 from sqlalchemy import func
@@ -296,17 +298,29 @@ def sync_pedidos():
     """Recebe pedidos feitos offline (Pré-Venda) e persiste no banco."""
     try:
         data = request.json or {}
+        if not isinstance(data, dict):
+            raise ValueError('Payload de pedidos inválido')
         pedidos = data.get("pedidos", [])
+        if not isinstance(pedidos, list) or len(pedidos) > 1000:
+            raise ValueError('Lote de pedidos inválido')
         estab_id = _estab_id()
         vendedor_token = _vendedor_id()
         if not estab_id:
             return jsonify({"status": "error", "message": "Contexto de estabelecimento ausente"}), 400
 
         synced = []
+        item_count = 0
         for p_data in pedidos:
+            if not isinstance(p_data, dict):
+                raise ValueError('Pedido inválido')
             offline_uuid = p_data.get("offline_uuid")
 
             if offline_uuid:
+                if not isinstance(offline_uuid, str) or len(offline_uuid) > 36:
+                    raise ValueError('Identificador offline inválido')
+                if db.engine.dialect.name == 'postgresql':
+                    lock_key = int.from_bytes(hashlib.sha256(f'sfa:{estab_id}:{offline_uuid}'.encode()).digest()[:8], 'big', signed=True)
+                    db.session.execute(db.text('SELECT pg_advisory_xact_lock(:key)'), {'key': lock_key})
                 existente = db.session.execute(
                     db.text("SELECT id, codigo FROM pedidos_venda WHERE offline_uuid = :uuid AND estabelecimento_id = :eid LIMIT 1"),
                     {"uuid": offline_uuid, "eid": estab_id}
@@ -316,13 +330,36 @@ def sync_pedidos():
                     continue
 
             # vendedor sempre o do token; admin/gerente pode lançar em nome de outro (?vendedor_id)
-            vendedor_id = p_data.get("vendedor_id") if _is_privileged() else vendedor_token
+            vendedor_id = (p_data.get("vendedor_id") or vendedor_token) if _is_privileged() else vendedor_token
+            if not Funcionario.query.filter_by(id=vendedor_id, estabelecimento_id=estab_id, ativo=True).first():
+                raise ValueError('Vendedor indisponível na loja')
+            if not p_data.get('cliente_id') or not Cliente.query.filter_by(id=p_data['cliente_id'], estabelecimento_id=estab_id, ativo=True).first():
+                raise ValueError('Cliente indisponível na loja')
+            items = p_data.get('itens', [])
+            if not isinstance(items, list) or not items or any(not isinstance(item, dict) for item in items):
+                raise ValueError('Itens do pedido inválidos')
+            item_count += len(items)
+            if item_count > 1000:
+                raise ValueError('Lote limitado a 1.000 itens')
+            product_ids = {int(item.get('produto_id')) for item in items}
+            available_ids = {p.id for p in Produto.query.filter(Produto.id.in_(product_ids), Produto.estabelecimento_id == estab_id, Produto.ativo.is_(True)).all()}
+            if product_ids != available_ids:
+                raise ValueError('Produto indisponível na loja')
+            for field in ('subtotal', 'desconto', 'total'):
+                value = Decimal(str(p_data.get(field, 0)))
+                if not value.is_finite() or value < 0:
+                    raise ValueError('Valor financeiro inválido')
+            for item in items:
+                for field in ('quantidade', 'preco_unitario', 'desconto', 'total_item'):
+                    value = Decimal(str(item.get(field, 0)))
+                    if not value.is_finite() or value < 0 or (field == 'quantidade' and value == 0):
+                        raise ValueError('Valor do item inválido')
 
             novo_pedido = PedidoVenda(
                 estabelecimento_id=estab_id,
                 cliente_id=p_data.get("cliente_id"),
                 vendedor_id=vendedor_id,
-                codigo=p_data.get("codigo", f"PED-SFA-{int(datetime.utcnow().timestamp())}"),
+                codigo=p_data.get("codigo") or f"PED-SFA-{uuid4().hex[:12]}",
                 status="pendente",
                 subtotal=p_data.get("subtotal", 0),
                 desconto=p_data.get("desconto", 0),
@@ -335,7 +372,7 @@ def sync_pedidos():
             db.session.add(novo_pedido)
             db.session.flush()
 
-            for i_data in p_data.get("itens", []):
+            for i_data in items:
                 item = PedidoVendaItem(
                     estabelecimento_id=novo_pedido.estabelecimento_id,
                     pedido_id=novo_pedido.id,
@@ -351,10 +388,13 @@ def sync_pedidos():
 
         db.session.commit()
         return jsonify({"status": "success", "message": f"{len(synced)} pedidos sincronizados", "pedidos_sincronizados": synced}), 200
+    except (ValueError, TypeError, DecimalException) as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         import traceback; traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": 'Falha ao sincronizar pedidos'}), 500
 
 
 # ─────────────────────────────────────────────

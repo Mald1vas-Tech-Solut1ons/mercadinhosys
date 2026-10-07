@@ -1,4 +1,7 @@
 # Python
+.env
+.env.*
+uploads/
 __pycache__/
 *.py[cod]
 *$py.class

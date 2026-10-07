@@ -1,5 +1,19 @@
 # ==================== SECURITY - NEVER COMMIT =============
 # Credentials and Environment
+# Runtimes, snapshots, dumps e diagnósticos locais; preservar no disco.
+/scratch/
+# Pacotes gerados e estado local de infraestrutura.
+/infra/oracle/*.zip
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+*.tfvars.json
+scratch/oracle-credentials.local.md
+scratch/oracle-backend.tar.gz
+scratch/oracle-*.tar.gz
+scratch/oracle-known-hosts
 *.env
 .env.*
 !.env.example

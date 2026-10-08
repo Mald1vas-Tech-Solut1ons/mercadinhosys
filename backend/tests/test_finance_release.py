@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
@@ -71,7 +71,12 @@ def test_financial_history_migration_roundtrip_preserves_title(app, session, bol
     spec = importlib.util.spec_from_file_location('finance_migration', path)
     migration = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(migration)
+    # A leitura de boleto.id abre transação: fechar antes do DDL em outra conexão.
+    # PostgreSQL precisa retirar o FK e bloqueia se a conexão da fixture segura o pai.
+    session.rollback()
     with db.engine.begin() as connection:
+        if connection.dialect.name == 'postgresql':
+            connection.execute(text("SET LOCAL lock_timeout = '10s'"))
         with Operations.context(MigrationContext.configure(connection)):
             migration.downgrade()
             migration.upgrade()

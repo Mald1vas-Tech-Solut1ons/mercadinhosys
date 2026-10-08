@@ -12,6 +12,7 @@ on:
 jobs:
   backend-tests:
     name: Backend Pytest & Multi-Tenant Audit
+    timeout-minutes: 15
     runs-on: ubuntu-latest
 
     services:

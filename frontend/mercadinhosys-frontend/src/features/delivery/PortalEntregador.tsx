@@ -148,7 +148,7 @@ const CardEntrega: React.FC<{ entrega: Entrega; onRefresh: () => void; onClickDe
         if (!next) return;
         
         if (assumindo && !meuMotoristaId) {
-            toast.error("Motorista não identificado. O admin precisa cadastrar você com o mesmo nome exato em 'Frota & Motoristas'.");
+            toast.error("Motorista não identificado. Confira seu CPF no cadastro de funcionário e de motorista.");
             return;
         }
 
@@ -166,8 +166,8 @@ const CardEntrega: React.FC<{ entrega: Entrega; onRefresh: () => void; onClickDe
                     : '✅ Entrega confirmada! GPS desativado.'
             );
             onRefresh();
-        } catch {
-            toast.error('Erro ao atualizar status');
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Erro ao atualizar status');
         } finally {
             setLoading(false);
         }
@@ -438,14 +438,12 @@ const PainelMobile: React.FC<{ user: any }> = ({ user }) => {
     const [abastecimentoModalOpen, setAbastecimentoModalOpen] = useState(false);
 
     useEffect(() => {
-        if (user?.nome) {
-            deliveryService.getMotoristas(true).then(res => {
-                const mots = res.motoristas || res.data || [];
-                const match = mots.find((m: any) => m.nome.trim().toLowerCase() === user.nome.trim().toLowerCase());
-                if (match) setMeuMotoristaId(match.id);
-            }).catch(() => {});
+        if (user?.id) {
+            deliveryService.getMeuMotorista().then(res => {
+                setMeuMotoristaId(res.motorista_id);
+            }).catch(() => setMeuMotoristaId(null));
         }
-    }, [user?.nome]);
+    }, [user?.id]);
 
     const load = useCallback(async () => {
         setLoading(true);

@@ -11,7 +11,7 @@ from app.models import (
     Venda, Cliente, Produto, VendaItem, Caixa, MovimentacaoCaixa,
     ChecklistVeiculo, ITENS_CHECKLIST_PADRAO,
 )
-from app.decorators.rbac import tenant_or_super_admin_required
+from app.decorators.rbac import tenant_or_super_admin_required, resource_required
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import json
@@ -24,6 +24,17 @@ delivery_bp = Blueprint("delivery", __name__)
 logger = logging.getLogger(__name__)
 
 # ==================== UPLOAD DE DOCUMENTOS (CNH, CRLV) ====================
+
+@delivery_bp.route("/motoristas/me", methods=["GET"])
+@tenant_or_super_admin_required
+@resource_required("delivery")
+def meu_motorista():
+    import re
+    usuario = request.current_user
+    documento = re.sub(r"\D", "", usuario.cpf or "")
+    candidatos = Motorista.query.filter_by(estabelecimento_id=usuario.estabelecimento_id, ativo=True).all()
+    motorista = next((m for m in candidatos if documento and re.sub(r"\D", "", m.cpf or "") == documento), None)
+    return jsonify({"success": True, "motorista_id": motorista.id if motorista else None})
 
 EXTENSOES_DOCUMENTO = {"pdf", "jpg", "jpeg", "png"}
 TAMANHO_MAXIMO_DOCUMENTO = 5 * 1024 * 1024  # 5MB
@@ -464,7 +475,21 @@ def listar_entregas():
         status = request.args.get("status")
         motorista_id = request.args.get("motorista_id")
         
-        query = Entrega.query.filter_by(estabelecimento_id=request.allowed_estabelecimento_id)
+        from app.utils.query_helpers import get_authorized_establishment_id
+        from app.models import Pagamento
+        from sqlalchemy.orm import selectinload
+        est_id = get_authorized_establishment_id()
+        if not est_id:
+            return jsonify({"success": False, "error": "Selecione uma loja"}), 400
+        query = Entrega.query
+        if str(est_id).lower() != "all":
+            query = query.filter_by(estabelecimento_id=int(est_id))
+        query = query.options(selectinload(Entrega.venda).selectinload(Venda.pagamentos))
+        if request.args.get("pagamento_status") == "pendente":
+            query = query.filter(Entrega.pagamento_status == "pendente", Entrega.status != "cancelada",
+                Entrega.venda.has(Venda.status == "finalizada"),
+                Entrega.venda.has(Venda.pagamentos.any(and_(
+                    Pagamento.forma_pagamento == "entrega", Pagamento.status == "pendente"))))
         
         if status and status != "todos":
             query = query.filter_by(status=status)
@@ -544,51 +569,66 @@ def criar_entrega():
 
 @delivery_bp.route("/entregas/<int:id>/status", methods=["PUT"])
 @tenant_or_super_admin_required
+@resource_required("delivery")
 def atualizar_status(id):
     """Atualiza o status da entrega e registra no histórico"""
     try:
-        data = request.get_json()
-        entrega = Entrega.query.filter_by(
-            id=id, 
-            estabelecimento_id=request.allowed_estabelecimento_id
-        ).first_or_404()
-        
-        novo_status = data.get("status")
-        entrega.status = novo_status
-        
-        if novo_status == "em_rota":
-            entrega.data_saida = datetime.now()
-            entrega.motorista_id = data.get("motorista_id")
-            entrega.veiculo_id = data.get("veiculo_id")
-        elif novo_status == "entregue":
-            entrega.data_entrega = datetime.now()
-            
-            # Calcular o tempo real de entrega em minutos
-            if entrega.data_saida:
-                delta = entrega.data_entrega - entrega.data_saida
-            else:
-                delta = entrega.data_entrega - entrega.created_at
-            entrega.tempo_real_minutos = int(delta.total_seconds() / 60)
-            
-            # Incrementar estatística do motorista
-            if entrega.motorista:
-                entrega.motorista.total_entregas += 1
-        
-        # Registro no Rastreamento
-        rastreio = RastreamentoEntrega(
-            entrega_id=entrega.id,
-            status=novo_status,
-            observacao=data.get("observacao", f"Status alterado para {novo_status}"),
-            latitude=data.get("latitude"),
-            longitude=data.get("longitude")
-        )
-        db.session.add(rastreio)
+        from app.services.entrega_service import atualizar_status as transicionar
+        entrega, venda = _entrega_bloqueada(id)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise ValueError("Dados da entrega inválidos")
+        transicionar(entrega, venda, request.current_user, data)
         db.session.commit()
-        
         return jsonify({"success": True, "entrega": entrega.to_dict()})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _erro_operacao_entrega(e)
+
+
+def _entrega_bloqueada(id):
+    from app.utils.query_helpers import get_authorized_establishment_id
+    est_id = get_authorized_establishment_id()
+    if not est_id or str(est_id).lower() == "all":
+        raise ValueError("Selecione uma loja para operar a entrega")
+    est_id = int(est_id)
+    vinculo = db.session.query(Entrega.venda_id).filter_by(id=id, estabelecimento_id=est_id).first_or_404()
+    # Mesma ordem do cancelamento comercial: venda antes de caixa/entrega.
+    venda = Venda.query.filter_by(id=vinculo.venda_id, estabelecimento_id=est_id)\
+        .populate_existing().with_for_update().first_or_404()
+    entrega = Entrega.query.filter_by(id=id, estabelecimento_id=est_id)\
+        .populate_existing().with_for_update().first_or_404()
+    return entrega, venda
+
+
+def _erro_operacao_entrega(error):
+    from werkzeug.exceptions import HTTPException
+    from app.services.entrega_service import EntregaError
+    if isinstance(error, HTTPException):
+        return jsonify({"success": False, "error": "Entrega não encontrada"}), error.code
+    if isinstance(error, (EntregaError, ValueError, TypeError)):
+        return jsonify({"success": False, "error": str(error)}), getattr(error, "status", 400)
+    logger.exception("Falha na operação de entrega")
+    return jsonify({"success": False, "error": "Não foi possível processar a entrega"}), 500
+
+
+@delivery_bp.route("/entregas/<int:id>/receber", methods=["POST"])
+@tenant_or_super_admin_required
+@resource_required("gestao_caixa")
+def receber_entrega(id):
+    """Registra o acerto recebido pelo caixa/gestão, sem executar cobrança externa."""
+    try:
+        from app.services.entrega_service import receber
+        entrega, venda = _entrega_bloqueada(id)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            raise ValueError("Dados do acerto inválidos")
+        receber(entrega, venda, request.current_user, data)
+        db.session.commit()
+        return jsonify({"success": True, "entrega": entrega.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return _erro_operacao_entrega(e)
 
 @delivery_bp.route("/rastreamento/<int:id>", methods=["GET"])
 @tenant_or_super_admin_required

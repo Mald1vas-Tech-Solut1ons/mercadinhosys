@@ -2556,6 +2556,7 @@ class Entrega(db.Model, MultiTenantMixin, SoftDeleteMixin):
                       db.Index("ix_entrega_motorista", "motorista_id"))
 
     def to_dict(self):
+        from app.utils.timezone import iso_local
         return {"id": self.id, "codigo_rastreamento": self.codigo_rastreamento, "venda_id": self.venda_id,
                 "cliente_id": self.cliente_id, "cliente_nome": self.cliente.nome if self.cliente else None,
                 "motorista_id": self.motorista_id, "motorista_nome": self.motorista.nome if self.motorista else None,
@@ -2572,9 +2573,12 @@ class Entrega(db.Model, MultiTenantMixin, SoftDeleteMixin):
                 "taxa_entrega": float(self.taxa_entrega) if self.taxa_entrega else 0.0,
                 "custo_entrega": float(self.custo_entrega) if self.custo_entrega else 0.0,
                 "custo_combustivel": float(self.custo_combustivel) if self.custo_combustivel else 0.0,
-                "status": self.status, "data_prevista": self.data_prevista.isoformat() if self.data_prevista else None,
-                "data_saida": self.data_saida.isoformat() if self.data_saida else None,
-                "data_entrega": self.data_entrega.isoformat() if self.data_entrega else None,
+                "status": self.status, "data_prevista": iso_local(self.data_prevista),
+                "pagamento_tipo": self.pagamento_tipo, "pagamento_status": self.pagamento_status,
+                "valor_a_receber": float(sum((p.valor for p in self.venda.pagamentos
+                    if p.forma_pagamento == "entrega" and p.status == "pendente"), Decimal("0"))) if self.venda else 0.0,
+                "data_saida": iso_local(self.data_saida),
+                "data_entrega": iso_local(self.data_entrega),
                 "tempo_estimado_minutos": self.tempo_estimado_minutos, "tempo_real_minutos": self.tempo_real_minutos,
                 "nota_cliente": self.nota_cliente, "observacoes": self.observacoes}
 

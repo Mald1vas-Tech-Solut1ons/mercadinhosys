@@ -6,6 +6,9 @@ import {
 import { deliveryService, Entrega } from './deliveryService';
 import DetalheEntregaModal from './DetalheEntregaModal';
 import toast from 'react-hot-toast';
+import AcertoEntregaModal from './AcertoEntregaModal';
+import { authService } from '../auth/authService';
+import { canAccess } from '../../utils/permissions';
 
 // Configuração visual e de fluxo por status (paleta oficial do app)
 const STATUS_CONFIG: Record<string, { label: string; classe: string; dot: string }> = {
@@ -22,6 +25,7 @@ const FILTROS: Array<{ key: string; label: string }> = [
     { key: 'em_rota', label: 'Em rota' },
     { key: 'entregue', label: 'Entregues' },
     { key: 'cancelada', label: 'Canceladas' },
+    { key: 'acerto_pendente', label: 'Acertos pendentes' },
 ];
 
 const formatCurrency = (v: number) =>
@@ -48,6 +52,9 @@ const DeliveryList: React.FC = () => {
     const [entregaParaDespacho, setEntregaParaDespacho] = useState<Entrega | null>(null);
     const [motoristaDespachoId, setMotoristaDespachoId] = useState('');
     const [detalheId, setDetalheId] = useState<number | null>(null);
+    const [acerto, setAcerto] = useState<Entrega | null>(null);
+    const usuario = authService.getCurrentUser();
+    const podeReceber = canAccess('gestao_caixa', usuario);
 
     useEffect(() => {
         carregarEntregas();
@@ -90,10 +97,11 @@ const DeliveryList: React.FC = () => {
         executarAvanco(entrega.id, novoStatus, (entrega as any).motorista_id);
     };
 
-    const executarAvanco = async (entregaId: number, novoStatus: string, motoristaId: number | null) => {
+    const executarAvanco = async (entregaId: number, novoStatus: string, motoristaId: number | null, observacao?: string) => {
         setAcaoId(entregaId);
         try {
             const payload: Record<string, unknown> = {};
+            if (observacao) payload.observacao = observacao;
             if (novoStatus === 'em_rota') payload.motorista_id = motoristaId;
             const res = await deliveryService.atualizarStatus(entregaId, novoStatus, payload);
             if (res.success) {
@@ -102,16 +110,17 @@ const DeliveryList: React.FC = () => {
             } else {
                 toast.error(res.error || 'Não foi possível atualizar a entrega');
             }
-        } catch {
-            toast.error('Erro ao atualizar status da entrega');
+        } catch (error: any) {
+            toast.error(error.response?.data?.error || 'Erro ao atualizar status da entrega');
         } finally {
             setAcaoId(null);
         }
     };
 
     const cancelarEntrega = async (entrega: Entrega) => {
-        if (!window.confirm(`Cancelar a entrega ${entrega.codigo_rastreamento}?`)) return;
-        await avancarStatus(entrega, 'cancelada');
+        const motivo = window.prompt(`Motivo do cancelamento da entrega ${entrega.codigo_rastreamento}. A venda deve ser tratada separadamente no financeiro.`);
+        if (!motivo?.trim()) return;
+        await executarAvanco(entrega.id, 'cancelada', null, motivo.trim());
     };
 
     const entregasFiltradas = useMemo(() => {
@@ -257,6 +266,12 @@ const DeliveryList: React.FC = () => {
                             </div>
 
                             {/* Ações que FUNCIONAM */}
+                            {entrega.pagamento_status === 'pendente' && Number(entrega.valor_a_receber) > 0 && entrega.status !== 'cancelada' && (
+                                <div className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3 text-sm">
+                                    <p>Acerto pendente: <b>{formatCurrency(Number(entrega.valor_a_receber))}</b></p>
+                                    {podeReceber && <button disabled={ocupado} onClick={() => setAcerto(entrega)} className="mt-2 rounded-lg bg-primary-600 text-white px-3 py-2">Registrar recebimento</button>}
+                                </div>
+                            )}
                             <div className="pt-4 mt-auto flex items-center gap-2">
                                 {passo ? (
                                     <button
@@ -302,6 +317,7 @@ const DeliveryList: React.FC = () => {
             )}
 
             <DetalheEntregaModal entregaId={detalheId} onClose={() => setDetalheId(null)} />
+            {acerto && <AcertoEntregaModal entrega={acerto} onClose={() => setAcerto(null)} onSuccess={() => { setAcerto(null); carregarEntregas(); }} />}
 
             {/* Modal de Despacho (quando clica em Despachar e não tem motorista) */}
             {despachoModalAberto && entregaParaDespacho && (

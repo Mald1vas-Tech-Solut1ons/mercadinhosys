@@ -1838,7 +1838,8 @@ class DataLayer:
                 if isinstance(sales_data, dict):
                     result["vendas"].update(sales_data)
                 
-                # Total recebido no ato da venda (Cash Flow). Só pagamentos aprovados que
+                # Regime de caixa segue a data do pagamento, inclusive acerto de entrega
+                # posterior à venda. Só pagamentos aprovados que
                 # entram em caixa: fiado é a receber (entra quando o cliente paga) e
                 # o troco devolvido ao cliente não é entrada. Antes somava Venda.valor_recebido,
                 # que inclui o fiado e o excedente pago em dinheiro.
@@ -1846,15 +1847,23 @@ class DataLayer:
                 q_pagamentos = db.session.query(func.sum(Pagamento.valor)).join(
                     Venda, Venda.id == Pagamento.venda_id
                 ).filter(
-                    Venda.data_venda >= start_dt,
-                    Venda.data_venda <= end_dt,
+                    Pagamento.data_pagamento >= start_dt,
+                    Pagamento.data_pagamento <= end_dt,
                     Venda.status != 'cancelada',
                     Pagamento.status == 'aprovado',
                     func.lower(Pagamento.forma_pagamento) != 'fiado',
                 )
-                q_troco = db.session.query(func.sum(Venda.troco)).filter(
-                    Venda.data_venda >= start_dt,
-                    Venda.data_venda <= end_dt,
+                # Checkout e acerto liquidam os pagamentos juntos; o troco pertence
+                # a essa liquidação, contado uma única vez por venda.
+                liquidacao = db.session.query(Pagamento.venda_id.label('venda_id'),
+                    func.max(Pagamento.data_pagamento).label('data')).filter(
+                    Pagamento.status == 'aprovado',
+                    func.lower(Pagamento.forma_pagamento) != 'fiado',
+                ).group_by(Pagamento.venda_id).subquery()
+                q_troco = db.session.query(func.sum(Venda.troco)).join(
+                    liquidacao, liquidacao.c.venda_id == Venda.id).filter(
+                    liquidacao.c.data >= start_dt,
+                    liquidacao.c.data <= end_dt,
                     Venda.status != 'cancelada',
                 )
                 if estabelecimento_id != 'all':

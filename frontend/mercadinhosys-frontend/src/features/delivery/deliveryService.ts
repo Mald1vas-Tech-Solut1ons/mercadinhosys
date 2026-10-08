@@ -97,6 +97,9 @@ export interface Entrega {
     custo_combustivel?: number;
     taxa_entrega: number;
     motorista_nome?: string;
+    pagamento_tipo?: string;
+    pagamento_status?: string;
+    valor_a_receber?: number;
 }
 
 export interface CreateMotoristaData {
@@ -137,7 +140,7 @@ export const deliveryService = {
     },
 
     getEntregas: async (status?: string) => {
-        const params = status && status !== 'todos' ? `?status=${status}` : '';
+        const params = status === 'acerto_pendente' ? '?pagamento_status=pendente' : status && status !== 'todos' ? `?status=${encodeURIComponent(status)}` : '';
         const response = await apiClient.get(`/delivery/entregas${params}`);
         return response.data;
     },
@@ -174,6 +177,18 @@ export const deliveryService = {
 
     atualizarStatus: async (id: number, status: string, data: any) => {
         const response = await apiClient.put(`/delivery/entregas/${id}/status`, { status, ...data });
+        return response.data;
+    },
+
+    receberEntrega: async (id: number, chave: string, pagamentos: { forma_pagamento: string; valor: string }[]) => {
+        const response = await apiClient.post(`/delivery/entregas/${id}/receber`, {
+            chave_operacao: chave, pagamentos,
+        });
+        return response.data;
+    },
+
+    getMeuMotorista: async (): Promise<{ motorista_id: number | null }> => {
+        const response = await apiClient.get('/delivery/motoristas/me');
         return response.data;
     },
 

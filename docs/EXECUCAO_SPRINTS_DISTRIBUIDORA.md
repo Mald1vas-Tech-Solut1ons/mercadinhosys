@@ -114,7 +114,29 @@ Os 14 defeitos do parecer foram corrigidos de uma vez, com varredura de todos os
 
 1. **PED-01** — reserva → separação → expedição → entrega parcial.
 2. **COM-02** — vincular XML ao pedido/recebimento para não duplicar estoque e título.
-3. Entrega: máquina de estados e acerto do pagamento "na entrega".
+3. **ENT-01** — máquina de estados e acerto do pagamento "na entrega": implementação e aceites abaixo.
 4. Pós-venda: chamado, devolução parcial por lote, troca.
 5. CX comercial: campanha rastreada com consentimento e comissão de vendedor.
 6. NF-e modelo 55, depósitos e inventário, conciliação bancária.
+
+## Continuação ENT-01 — entrega e acerto financeiro (08/10/2026)
+
+Continua o trabalho do lote D-01..D-14 sobre a base `1989e17`, no checkout existente. Uma confirmação repetida de entrega antes incrementava novamente o motorista; qualquer texto era aceito como status; o pagamento `entrega` ficava pendente sem processo de acerto. O portal associava funcionário a motorista pelo nome.
+
+| Fluxo | Regra implementada | Evidência |
+|---|---|---|
+| Despacho | `pendente`/`em_preparo` → `em_rota`, com motorista ativo da loja e veículo da loja quando informado | API e serviço `entrega_service` |
+| Confirmação | Só `em_rota` → `entregue`; repetição preserva horários, histórico, quantidades e contadores de motorista/veículo | `test_entrega_acerto.py` |
+| Identidade | Entregador assume/atualiza apenas entrega correspondente ao seu CPF; portal resolve o cadastro pelo usuário autenticado | `GET /delivery/motoristas/me` e testes |
+| Recebimento | Caixa/gestão registra dinheiro, Pix, cartão ou combinação; exige valor finito, centavos, cobertura do saldo e troco só em dinheiro | `POST /delivery/entregas/<id>/receber` |
+| Dinheiro | Entra uma vez no caixa aberto de quem registra o acerto, descontado o troco; fechamento/baixa usam locks | Testes de acerto, caixa fechado e cancelamento da venda |
+| Retentativa | Chave de operação + composição dos pagamentos; repetir a mesma operação não duplica e mudar o conteúdo com a mesma chave retorna conflito | Testes de idempotência |
+| Caixa por data | Recebimento reconhecido no dia da liquidação, preservando a receita por competência da venda | Teste de venda ontem / recebimento hoje |
+| Pendências | Filtro `pagamento_status=pendente`, incluindo entregas concluídas; a fila remove o acerto liquidado | Tela “Acertos pendentes” e teste da API |
+| Cancelamento logístico | Exige motivo e mantém a venda/estoque/financeiro; cancelamento comercial continua no fluxo autorizado da venda | Testes separados de cancelamento logístico e estorno comercial |
+
+Os horários da entrega são devolvidos com offset para o navegador calcular o tempo real corretamente. O saldo pendente e o estado financeiro passaram a fazer parte do retorno da entrega. A listagem carrega vendas/pagamentos em lote.
+
+**Validação:** 30 casos novos, incluindo duas provas de concorrência exclusivas de PostgreSQL, adicionadas ao job PostgreSQL do CI. SQLite valida regras e efeitos financeiros; não comprova locks. A evidência de publicação deve identificar o commit, o run CI, o ensaio Oracle e o deployment Vercel da entrega.
+
+**Escopo:** o acerto registra valores já recebidos; não dispara cobrança, não verifica Pix no banco e não executa cartão em adquirente. A confirmação atual é integral; entrega parcial, devolução parcial, reserva/separação/expedição (PED-01), vínculo XML/pedido (COM-02) e pós-venda continuam no backlog. Não foi criada migração de schema nem realizado seed de produção.

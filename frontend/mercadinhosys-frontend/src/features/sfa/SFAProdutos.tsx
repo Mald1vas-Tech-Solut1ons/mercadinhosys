@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { apiClient } from '../../api/apiClient';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Search, PackageSearch, Tag, PackageX, Boxes } from 'lucide-react';
-import { showToast } from '../../utils/toast';
 import SFABottomNav from './SFABottomNav';
 
 export default function SFAProdutos() {
@@ -11,14 +9,14 @@ export default function SFAProdutos() {
     const [busca, setBusca] = useState('');
     const [loading, setLoading] = useState(true);
 
-    const loadProdutos = async () => {
+    // Mesmo catálogo offline do pedido: completo (paginado no sync), funciona
+    // sem internet na rua e não carrega custo para o celular do vendedor.
+    const loadProdutos = () => {
         try {
-            setLoading(true);
-            const res = await apiClient.get('/produtos'); // Vendedor agora tem acesso via RBAC
-            setProdutos(res.data.produtos || []);
-        } catch (error) {
-            console.error('Erro ao buscar produtos', error);
-            showToast.error('Erro ao carregar catálogo.');
+            const salvos = JSON.parse(localStorage.getItem('@sfa_produtos') || '[]');
+            setProdutos(Array.isArray(salvos) ? salvos : []);
+        } catch {
+            setProdutos([]);
         } finally {
             setLoading(false);
         }
@@ -31,7 +29,7 @@ export default function SFAProdutos() {
     const produtosFiltrados = produtos.filter(p => 
         p.nome.toLowerCase().includes(busca.toLowerCase()) || 
         (p.codigo_barras && p.codigo_barras.includes(busca)) ||
-        (p.categoria && p.categoria.toLowerCase().includes(busca.toLowerCase()))
+        (p.marca && p.marca.toLowerCase().includes(busca.toLowerCase()))
     );
 
     return (
@@ -70,13 +68,16 @@ export default function SFAProdutos() {
                     <div className="text-center py-12 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800">
                         <PackageX className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
                         <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">Nenhum produto encontrado</h3>
-                        <p className="text-sm text-slate-500 mt-2">Tente buscar por outro termo.</p>
+                        <p className="text-sm text-slate-500 mt-2">
+                            {produtos.length === 0 ? 'Sincronize o roteiro no painel para baixar o catálogo.' : 'Tente buscar por outro termo.'}
+                        </p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {produtosFiltrados.map((produto) => {
-                            const emEstoque = produto.estoque_atual > 0;
-                            const estoqueBaixo = emEstoque && produto.estoque_atual <= (produto.estoque_minimo || 5);
+                            const estoque = Number(produto.quantidade) || 0;
+                            const emEstoque = estoque > 0;
+                            const estoqueBaixo = emEstoque && estoque <= 5;
 
                             return (
                                 <Card key={produto.id} className="overflow-hidden border-none rounded-3xl shadow-sm hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-900 relative">
@@ -90,7 +91,7 @@ export default function SFAProdutos() {
                                     <CardContent className="p-5">
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="flex-1 pr-2">
-                                                <div className="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1 tracking-wider uppercase">{produto.categoria || 'Sem categoria'}</div>
+                                                <div className="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1 tracking-wider uppercase">{produto.marca || 'Sem marca'}</div>
                                                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">{produto.nome}</h3>
                                             </div>
                                             <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center shrink-0 text-slate-400 border border-slate-200 dark:border-slate-700">
@@ -108,7 +109,7 @@ export default function SFAProdutos() {
                                             <div className="text-right">
                                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Estoque</p>
                                                 <p className={`text-lg font-bold ${emEstoque ? (estoqueBaixo ? 'text-amber-500' : 'text-slate-800 dark:text-slate-200') : 'text-red-500'}`}>
-                                                    {produto.estoque_atual} {produto.unidade_medida || 'UN'}
+                                                    {estoque} {produto.unidade_medida || 'UN'}
                                                 </p>
                                             </div>
                                         </div>
@@ -116,9 +117,8 @@ export default function SFAProdutos() {
                                         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-semibold text-slate-500">
                                             <span className="flex items-center gap-1">
                                                 <Tag className="w-3.5 h-3.5 text-slate-400" />
-                                                Custo: R$ {parseFloat(produto.preco_custo || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                Cod: {produto.codigo_barras || 'N/A'}
                                             </span>
-                                            <span>Cod: {produto.codigo_barras || 'N/A'}</span>
                                         </div>
                                     </CardContent>
                                 </Card>

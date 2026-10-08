@@ -57,6 +57,34 @@ def to_decimal(value, precision=2):
 from sqlalchemy import text, func, or_, case, and_, Date, Integer
 produtos_bp = Blueprint("produtos", __name__)
 
+# Termos de campos com custo/rentabilidade; vendedor e entregador não os recebem.
+_CAMPOS_DE_CUSTO = ("custo", "margem", "lucro", "markup", "valor_total_estoque", "valor_estoque")
+
+
+def _sem_custos(valor):
+    if isinstance(valor, dict):
+        return {k: _sem_custos(v) for k, v in valor.items()
+                if not any(termo in str(k).lower() for termo in _CAMPOS_DE_CUSTO)}
+    if isinstance(valor, list):
+        return [_sem_custos(v) for v in valor]
+    return valor
+
+
+@produtos_bp.after_request
+def _ocultar_custos_de_quem_vende(response):
+    """Toda leitura de produtos sai sem custo/margem para vendedor e entregador."""
+    if request.method != "GET" or response.status_code >= 400 or not response.is_json:
+        return response
+    try:
+        claims = get_jwt()
+    except Exception:
+        return response
+    from app.decorators.rbac import nivel_do_role
+    if claims.get("is_super_admin") or nivel_do_role(claims.get("role")) < 5:
+        return response
+    response.set_data(current_app.json.dumps(_sem_custos(response.get_json())))
+    return response
+
 
 def _parse_optional_date(raw_value):
     if raw_value is None:
@@ -1642,8 +1670,11 @@ def criar_produto():
                     409,
                 )
 
-        quantidade_inicial = 0 if tipo_item == "servico" else safe_int(data.get("quantidade"), 0)
-        quantidade_minima = 0 if tipo_item == "servico" else safe_int(data.get("quantidade_minima"), 10)
+        # Decimal preserva estoque fracionado (kg, litro) no cadastro.
+        quantidade_inicial = Decimal("0") if tipo_item == "servico" else safe_decimal(data.get("quantidade"), "0")
+        quantidade_minima = Decimal("0") if tipo_item == "servico" else safe_decimal(data.get("quantidade_minima"), "10")
+        if not quantidade_inicial.is_finite() or quantidade_inicial < 0 or not quantidade_minima.is_finite() or quantidade_minima < 0:
+            return jsonify({"success": False, "error": "Quantidade inválida"}), 400
 
         produto = Produto(
             estabelecimento_id=estabelecimento_id,
@@ -2023,11 +2054,14 @@ def atualizar_produto(id):
         # Se quantidade foi alterada, criar movimentação
         if "quantidade" in data:
             try:
-                nova_quantidade = 0 if tipo_item == "servico" else int(data["quantidade"])
-                diferenca = nova_quantidade - quantidade_anterior
+                nova_quantidade = Decimal("0") if tipo_item == "servico" else Decimal(str(data["quantidade"]))
+                if not nova_quantidade.is_finite() or nova_quantidade < 0:
+                    raise ValueError("Quantidade inválida")
+                diferenca = nova_quantidade - Decimal(str(quantidade_anterior or 0))
 
                 if diferenca != 0:
                     custo_unitario = data.get("custo_unitario", None)
+                    custo_unitario = Decimal(str(custo_unitario)) if custo_unitario not in (None, "") else None
                     if diferenca > 0:
                         produto.recalcular_preco_custo_ponderado(
                             quantidade_entrada=diferenca,
@@ -2059,7 +2093,7 @@ def atualizar_produto(id):
                         observacoes=f"Produto atualizado por {claims.get('nome')}. Diferença: {diferenca}",
                     )
                     db.session.add(movimentacao)
-            except (ValueError, TypeError) as e:
+            except (ValueError, TypeError, DecimalException) as e:
                 current_app.logger.error(f"Erro ao processar quantidade: {data.get('quantidade')} - {e}")
                 return jsonify({"success": False, "message": f"Erro na quantidade: {str(e)}"}), 400
 
@@ -2690,7 +2724,7 @@ def descartar_produto(id):
             )
         else:
             # Lógica FIFO para descarte se lote não for especificado
-            lotes_consumidos = produto.consumir_estoque_fifo(quantidade)
+            lotes_consumidos = produto.consumir_estoque_fifo(quantidade, incluir_vencidos=True)  # descarte começa pelo vencido
             # Para descarte via endpoint legado ou simplificado, pegamos o custo do primeiro lote ou do produto
             custo_base = produto.preco_custo
             lote_id_mov = None
@@ -4210,8 +4244,8 @@ def criar_produto_estoque():
             descricao=data.get("descricao", "").strip(),
             marca=data.get("marca", "").strip(),
             unidade_medida=data.get("unidade_medida", "UN"),
-            quantidade=int(data.get("quantidade", 0)),
-            quantidade_minima=int(data.get("quantidade_minima", 10)),
+            quantidade=Decimal(str(data.get("quantidade", 0))),
+            quantidade_minima=Decimal(str(data.get("quantidade_minima", 10))),
             preco_custo=preco_custo,
             preco_venda=preco_venda,
             margem_lucro=margem,

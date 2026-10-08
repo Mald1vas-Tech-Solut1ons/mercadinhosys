@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/input';
 import { ArrowLeft, Plus, Minus, ShoppingCart, Check, Trash2, Tag, Search, } from 'lucide-react';
 import { showToast } from '../../utils/toast';
 import { v4 as uuidv4 } from 'uuid';
+import { deveReenviar, enfileirarPedido, motivoRecusa } from './sfaFilaPedidos';
 
 export default function SFAPedido() {
     const location = useLocation();
@@ -113,11 +114,15 @@ export default function SFAPedido() {
             await apiClient.post('/sfa/sync-pedidos', { pedidos: [pedido] });
             showToast.success('Pedido enviado com sucesso!');
             navigate('/sfa');
-        } catch (error) {
+        } catch (error: any) {
+            if (!deveReenviar(error)) {
+                // Recusa de regra (preço abaixo do mínimo, cliente/produto inativo):
+                // o vendedor corrige o pedido em vez de guardar algo que nunca entra.
+                showToast.error(motivoRecusa(error));
+                return;
+            }
             console.log('Offline: Salvar pedido na fila', error);
-            const fila = JSON.parse(localStorage.getItem('@sfa_fila_pedidos') || '[]');
-            fila.push(pedido);
-            localStorage.setItem('@sfa_fila_pedidos', JSON.stringify(fila));
+            enfileirarPedido(pedido);
             showToast.success('Pedido salvo offline! Será sincronizado depois.');
             navigate('/sfa');
         } finally {

@@ -8,6 +8,7 @@ import { showToast } from '../../utils/toast';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency } from '../../utils/formatters';
 import SFABottomNav from './SFABottomNav';
+import { enviarFilaPedidos, pedidosRecusados } from './sfaFilaPedidos';
 
 export default function SFADashboard() {
     const navigate = useNavigate();
@@ -16,6 +17,32 @@ export default function SFADashboard() {
     const [clientes, setClientes] = useState<any[]>([]);
     const [kpi, setKpi] = useState<any>(null);
     const [selectedCliente, setSelectedCliente] = useState<any>(null);
+
+    const baixarRestante = async (rota: string, cursor: number | null | undefined) => {
+        const itens: any[] = [];
+        while (cursor) {
+            const pagina = await apiClient.get(rota, { params: { apos: cursor } });
+            itens.push(...(pagina.data?.data || []));
+            cursor = pagina.data?.proximo;
+        }
+        return itens;
+    };
+
+    // Pedidos feitos sem internet sobem assim que há conexão.
+    const enviarFila = async () => {
+        const resultado = await enviarFilaPedidos();
+        if (resultado.enviados) showToast.success(`${resultado.enviados} pedido(s) offline enviado(s)`);
+        if (resultado.recusados) {
+            const ultimo = pedidosRecusados().slice(-1)[0];
+            showToast.error(`${resultado.recusados} pedido(s) recusado(s): ${ultimo?.motivo || 'verifique os preços'}`);
+        }
+    };
+
+    useEffect(() => {
+        const aoVoltarOnline = () => { enviarFila(); };
+        window.addEventListener('online', aoVoltarOnline);
+        return () => window.removeEventListener('online', aoVoltarOnline);
+    }, []);
 
     const loadData = async () => {
         if (!user?.id) return;
@@ -31,12 +58,21 @@ export default function SFADashboard() {
             const [syncData, kpiData] = await Promise.all([resSync, resKpi]);
             
             if (syncData.data?.status === 'success') {
-                const clientesData = syncData.data.data.clientes || [];
+                // Catálogo e carteira vêm paginados: baixa tudo antes de salvar,
+                // senão itens além da primeira página sumiriam do app offline.
+                const clientesData = [
+                    ...(syncData.data.data.clientes || []),
+                    ...(await baixarRestante('/sfa/sync-data/clientes', syncData.data.paginacao?.proximo_cliente)),
+                ];
+                const produtosData = [
+                    ...(syncData.data.data.produtos || []),
+                    ...(await baixarRestante('/sfa/sync-data/produtos', syncData.data.paginacao?.proximo_produto)),
+                ];
                 setClientes(clientesData);
-                
+
                 // Salvar offline para o fluxo de pedido
                 localStorage.setItem('@sfa_clientes', JSON.stringify(clientesData));
-                localStorage.setItem('@sfa_produtos', JSON.stringify(syncData.data.data.produtos || []));
+                localStorage.setItem('@sfa_produtos', JSON.stringify(produtosData));
                 localStorage.setItem('@sfa_tabelas', JSON.stringify(syncData.data.data.tabelas_preco || []));
                 localStorage.setItem('@sfa_tabelas_itens', JSON.stringify(syncData.data.data.tabelas_preco_itens || []));
             }
@@ -44,7 +80,8 @@ export default function SFADashboard() {
             if (kpiData.data?.status === 'success') {
                 setKpi(kpiData.data.data);
             }
-            
+
+            await enviarFila();
             showToast.success('Roteiro e Metas atualizados!');
         } catch (error) {
             console.error('Erro ao sincronizar SFA:', error);

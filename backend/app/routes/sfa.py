@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, current_app, jsonify, request, g
 from app.models import (db, TabelaPreco, TabelaPrecoItem, Rota, PedidoVenda, PedidoVendaItem,
                         Cliente, Produto, MetaVendedor, ProdutoFoco, Funcionario,
                         Venda, VendaItem, ContaReceber)
@@ -40,6 +40,64 @@ def _estab_id():
     return getattr(g, "estabelecimento_id", None)
 
 
+CENT = Decimal("0.01")
+
+
+def _precos_minimos(cliente, produto_ids, estab_id):
+    """Piso negociável por produto, igual ao do app do vendedor.
+
+    Item da tabela de preço ativa do cliente usa ``preco_minimo``; sem tabela,
+    o vendedor pode conceder até 10% sobre o preço de venda do cadastro.
+    """
+    pisos = {}
+    if cliente.tabela_preco_id:
+        tabela = TabelaPreco.query.filter_by(id=cliente.tabela_preco_id, estabelecimento_id=estab_id, ativa=True).first()
+        if tabela:
+            for item in TabelaPrecoItem.query.filter(TabelaPrecoItem.tabela_id == tabela.id,
+                                                     TabelaPrecoItem.produto_id.in_(produto_ids)).all():
+                pisos[item.produto_id] = Decimal(str(item.preco_minimo))
+    return pisos
+
+
+def _calcular_pedido(p_data, items, produtos, pisos):
+    """Recalcula o pedido no servidor; o total enviado pelo app só é aceito se conferir."""
+    from app.services.estoque_service import quantidade_valida
+    from app.utils.sale_validation import number
+    linhas, subtotal, total_piso = [], Decimal("0"), Decimal("0")
+    for item in items:
+        produto = produtos[int(item.get('produto_id'))]
+        quantidade = quantidade_valida(item.get('quantidade'))
+        preco = number(item.get('preco_unitario'), 'Preço', positive=True)
+        desconto_item = number(item.get('desconto', 0), 'Desconto do item')
+        bruto = (quantidade * preco).quantize(CENT)
+        if desconto_item > bruto:
+            raise ValueError(f'Desconto maior que o item {produto.nome}')
+        total_item = bruto - desconto_item
+        if item.get('total_item') is not None and abs(number(item['total_item'], 'Total do item') - total_item) > CENT:
+            raise ValueError(f'Total do item {produto.nome} não confere com quantidade × preço')
+        piso_unitario = pisos.get(produto.id, Decimal(str(produto.preco_venda or 0)) * Decimal("0.9"))
+        piso = (quantidade * piso_unitario).quantize(CENT)
+        if total_item < piso:
+            raise ValueError(f'Preço de {produto.nome} abaixo do mínimo negociável')
+        linhas.append({'produto_id': produto.id, 'quantidade': quantidade, 'preco_unitario': preco,
+                       'desconto': desconto_item, 'total_item': total_item})
+        subtotal += total_item
+        total_piso += piso
+    desconto = number(p_data.get('desconto', 0), 'Desconto')
+    if desconto > subtotal:
+        raise ValueError('Desconto maior que o pedido')
+    total = subtotal - desconto
+    # O app soma itens sem arredondar; aceita meio centavo por linha. O valor
+    # gravado é sempre o calculado aqui, nunca o enviado.
+    tolerancia = CENT + Decimal("0.005") * len(linhas)
+    for campo, calculado in (('subtotal', subtotal), ('total', total)):
+        if p_data.get(campo) is not None and abs(number(p_data[campo], campo.capitalize()) - calculado) > tolerancia:
+            raise ValueError(f'{campo.capitalize()} do pedido não confere com os itens')
+    if total < total_piso:
+        raise ValueError('Desconto do pedido ultrapassa o mínimo negociável')
+    return {'itens': linhas, 'subtotal': subtotal, 'desconto': desconto, 'total': total}
+
+
 def _is_privileged():
     """Admin/gerente/super-admin: pode consultar a carteira de qualquer vendedor da loja."""
     try:
@@ -63,10 +121,76 @@ def _vendedor_id():
 # ─────────────────────────────────────────────
 #  SYNC DATA (Download do Roteiro para o App)
 # ─────────────────────────────────────────────
+SYNC_LIMITE_PADRAO = 500
+SYNC_LIMITE_MAXIMO = 1000
+
+
+def _pagina(request_args):
+    """Cursor por id crescente; ``limite`` é tamanho de página, não teto do catálogo."""
+    limite = max(1, min(request_args.get("limite", SYNC_LIMITE_PADRAO, type=int), SYNC_LIMITE_MAXIMO))
+    apos = max(0, request_args.get("apos", 0, type=int))
+    return apos, limite
+
+
+def _rotas_do_vendedor(vendedor_id, estab_id, somente_hoje=False):
+    from sqlalchemy import text
+    params = {"vid": vendedor_id, "eid": estab_id}
+    sql_rotas = "SELECT id, nome, dia_semana, ativa FROM rotas WHERE vendedor_id = :vid AND estabelecimento_id = :eid AND (deleted_at IS NULL)"
+    if somente_hoje:
+        # Python weekday(): 0=Seg..6=Dom, mesmo padrão de Rota.dia_semana
+        params["dow"] = datetime.now(timezone.utc).weekday()
+        sql_rotas += " AND dia_semana = :dow"
+    return db.session.execute(text(sql_rotas), params).mappings().all()
+
+
+def _pagina_clientes(estab_id, rota_ids, apos, limite):
+    from sqlalchemy import bindparam, text
+    if not rota_ids:
+        return [], None
+    rows = db.session.execute(
+        text("""
+            SELECT id, nome, telefone, celular, email,
+                   logradouro, numero, complemento, bairro, cidade, estado, cep,
+                   limite_credito, saldo_devedor, tabela_preco_id, rota_id,
+                   ultima_compra, ativo
+            FROM clientes
+            WHERE rota_id IN :rotas AND estabelecimento_id = :eid AND (deleted_at IS NULL) AND id > :apos
+            ORDER BY id
+            LIMIT :lim
+        """).bindparams(bindparam("rotas", expanding=True)),
+        {"eid": estab_id, "rotas": list(rota_ids), "apos": apos, "lim": limite + 1}
+    ).mappings().all()
+    proximo = rows[limite - 1]["id"] if len(rows) > limite else None
+    return [dict(r) for r in rows[:limite]], proximo
+
+
+def _pagina_produtos(estab_id, apos, limite):
+    from sqlalchemy import text
+    # Custo e margem ficam no escritório: o pacote vai para o celular do vendedor.
+    rows = db.session.execute(
+        text("""
+            SELECT id, nome, descricao, preco_venda,
+                   quantidade, unidade_medida, codigo_barras, imagem_url,
+                   categoria_id, ativo, marca
+            FROM produtos
+            WHERE estabelecimento_id = :eid AND ativo = TRUE AND (deleted_at IS NULL) AND id > :apos
+            ORDER BY id
+            LIMIT :lim
+        """),
+        {"eid": estab_id, "apos": apos, "lim": limite + 1}
+    ).mappings().all()
+    proximo = rows[limite - 1]["id"] if len(rows) > limite else None
+    return [dict(r) for r in rows[:limite]], proximo
+
+
 @bp.route("/sfa/sync-data", methods=["GET"])
 @funcionario_required
 def sync_data():
-    """Baixa o roteiro do dia, clientes, produtos e tabelas do vendedor para o PWA."""
+    """Baixa rotas, clientes, produtos e tabelas do vendedor para o PWA.
+
+    Clientes e produtos vêm na primeira página; ``paginacao`` indica o cursor
+    das próximas em ``/sfa/sync-data/produtos`` e ``/sfa/sync-data/clientes``.
+    """
     try:
         vendedor_id = _vendedor_id()
         estab_id = _estab_id()
@@ -76,83 +200,72 @@ def sync_data():
 
         # Filtro opcional de rota "de hoje" (dia_semana: 0=Seg..6=Dom). ?hoje=1 aplica.
         somente_hoje = request.args.get("hoje") in ("1", "true", "True")
+        _, limite = _pagina(request.args)
 
         # 1. Rotas do vendedor (raw SQL, sempre restrito ao tenant do token)
-        from sqlalchemy import text
-        params = {"vid": vendedor_id, "eid": estab_id}
-        sql_rotas = "SELECT id, nome, dia_semana, ativa FROM rotas WHERE vendedor_id = :vid AND estabelecimento_id = :eid AND (deleted_at IS NULL)"
-        if somente_hoje:
-            # Python weekday(): 0=Seg..6=Dom, mesmo padrão de Rota.dia_semana
-            params["dow"] = datetime.now(timezone.utc).weekday()
-            sql_rotas += " AND dia_semana = :dow"
-        q_rotas = db.session.execute(text(sql_rotas), params).mappings().all()
-
+        from sqlalchemy import bindparam, text
+        q_rotas = _rotas_do_vendedor(vendedor_id, estab_id, somente_hoje)
         rota_ids = [r["id"] for r in q_rotas]
 
-        # 2. Clientes dessas rotas (com dados completos), sempre restrito ao tenant
-        clientes_rows = []
-        if rota_ids:
-            placeholders = ",".join(str(i) for i in rota_ids)
-            clientes_rows = db.session.execute(
-                text(f"""
-                    SELECT id, nome, telefone, celular, email,
-                           logradouro, numero, complemento, bairro, cidade, estado, cep,
-                           limite_credito, saldo_devedor, tabela_preco_id, rota_id,
-                           ultima_compra, ativo
-                    FROM clientes
-                    WHERE rota_id IN ({placeholders}) AND estabelecimento_id = :eid AND (deleted_at IS NULL)
-                    LIMIT 100
-                """),
-                {"eid": estab_id}
-            ).mappings().all()
-
-        # 3. Produtos do estabelecimento
-        produtos_rows = []
-        if estab_id:
-            produtos_rows = db.session.execute(
-                text("""
-                    SELECT id, nome, descricao, preco_venda, preco_custo,
-                           quantidade, unidade_medida, codigo_barras, imagem_url,
-                           categoria_id, ativo, marca
-                    FROM produtos
-                    WHERE estabelecimento_id = :eid AND ativo = TRUE
-                    LIMIT 500
-                """),
-                {"eid": estab_id}
-            ).mappings().all()
+        # 2. Clientes dessas rotas e 3. produtos ativos: primeira página
+        clientes, proximo_cliente = _pagina_clientes(estab_id, rota_ids, 0, limite)
+        produtos, proximo_produto = _pagina_produtos(estab_id, 0, limite)
 
         # 4. Tabelas de Preço
-        tabelas_rows = []
-        if estab_id:
-            tabelas_rows = db.session.execute(
-                text("SELECT id, nome, ativa FROM tabelas_preco WHERE estabelecimento_id = :eid AND ativa = TRUE"),
-                {"eid": estab_id}
-            ).mappings().all()
+        tabelas_rows = db.session.execute(
+            text("SELECT id, nome, ativa FROM tabelas_preco WHERE estabelecimento_id = :eid AND ativa = TRUE"),
+            {"eid": estab_id}
+        ).mappings().all()
 
         # 5. Itens das Tabelas
         tabelas_itens_rows = []
         if tabelas_rows:
-            tab_ids = ",".join(str(t["id"]) for t in tabelas_rows)
             tabelas_itens_rows = db.session.execute(
-                text(f"SELECT tabela_id, produto_id, preco_venda, preco_minimo FROM tabela_preco_itens WHERE tabela_id IN ({tab_ids})")
+                text("SELECT tabela_id, produto_id, preco_venda, preco_minimo FROM tabela_preco_itens "
+                     "WHERE tabela_id IN :tabelas AND estabelecimento_id = :eid").bindparams(bindparam("tabelas", expanding=True)),
+                {"tabelas": [t["id"] for t in tabelas_rows], "eid": estab_id}
             ).mappings().all()
-
-        def to_plain(row):
-            return dict(row)
 
         return jsonify({
             "status": "success",
             "data": {
-                "rotas": [to_plain(r) for r in q_rotas],
-                "clientes": [to_plain(c) for c in clientes_rows],
-                "produtos": [to_plain(p) for p in produtos_rows],
-                "tabelas_preco": [to_plain(t) for t in tabelas_rows],
-                "tabelas_preco_itens": [to_plain(i) for i in tabelas_itens_rows],
-            }
+                "rotas": [dict(r) for r in q_rotas],
+                "clientes": clientes,
+                "produtos": produtos,
+                "tabelas_preco": [dict(t) for t in tabelas_rows],
+                "tabelas_preco_itens": [dict(i) for i in tabelas_itens_rows],
+            },
+            "paginacao": {"limite": limite, "proximo_produto": proximo_produto, "proximo_cliente": proximo_cliente},
         }), 200
     except Exception as e:
-        import traceback; traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+        current_app.logger.error("Falha no sync SFA: %s", e)
+        return jsonify({"status": "error", "message": "Não foi possível sincronizar o roteiro"}), 500
+
+
+@bp.route("/sfa/sync-data/produtos", methods=["GET"])
+@funcionario_required
+def sync_data_produtos():
+    """Próxima página do catálogo do vendedor (``?apos=<último id>``)."""
+    estab_id = _estab_id()
+    if not estab_id:
+        return jsonify({"status": "error", "message": "Contexto de estabelecimento ausente"}), 400
+    apos, limite = _pagina(request.args)
+    produtos, proximo = _pagina_produtos(estab_id, apos, limite)
+    return jsonify({"status": "success", "data": produtos, "proximo": proximo}), 200
+
+
+@bp.route("/sfa/sync-data/clientes", methods=["GET"])
+@funcionario_required
+def sync_data_clientes():
+    """Próxima página da carteira do vendedor (``?apos=<último id>``)."""
+    estab_id = _estab_id()
+    if not estab_id:
+        return jsonify({"status": "error", "message": "Contexto de estabelecimento ausente"}), 400
+    apos, limite = _pagina(request.args)
+    somente_hoje = request.args.get("hoje") in ("1", "true", "True")
+    rota_ids = [r["id"] for r in _rotas_do_vendedor(_vendedor_id(), estab_id, somente_hoje)]
+    clientes, proximo = _pagina_clientes(estab_id, rota_ids, apos, limite)
+    return jsonify({"status": "success", "data": clientes, "proximo": proximo}), 200
 
 
 # ─────────────────────────────────────────────
@@ -333,7 +446,9 @@ def sync_pedidos():
             vendedor_id = (p_data.get("vendedor_id") or vendedor_token) if _is_privileged() else vendedor_token
             if not Funcionario.query.filter_by(id=vendedor_id, estabelecimento_id=estab_id, ativo=True).first():
                 raise ValueError('Vendedor indisponível na loja')
-            if not p_data.get('cliente_id') or not Cliente.query.filter_by(id=p_data['cliente_id'], estabelecimento_id=estab_id, ativo=True).first():
+            cliente = Cliente.query.filter_by(id=p_data.get('cliente_id'), estabelecimento_id=estab_id, ativo=True).first() \
+                if p_data.get('cliente_id') else None
+            if not cliente:
                 raise ValueError('Cliente indisponível na loja')
             items = p_data.get('itens', [])
             if not isinstance(items, list) or not items or any(not isinstance(item, dict) for item in items):
@@ -342,28 +457,20 @@ def sync_pedidos():
             if item_count > 1000:
                 raise ValueError('Lote limitado a 1.000 itens')
             product_ids = {int(item.get('produto_id')) for item in items}
-            available_ids = {p.id for p in Produto.query.filter(Produto.id.in_(product_ids), Produto.estabelecimento_id == estab_id, Produto.ativo.is_(True)).all()}
-            if product_ids != available_ids:
+            produtos = {p.id: p for p in Produto.query.filter(Produto.id.in_(product_ids), Produto.estabelecimento_id == estab_id, Produto.ativo.is_(True)).all()}
+            if product_ids != set(produtos):
                 raise ValueError('Produto indisponível na loja')
-            for field in ('subtotal', 'desconto', 'total'):
-                value = Decimal(str(p_data.get(field, 0)))
-                if not value.is_finite() or value < 0:
-                    raise ValueError('Valor financeiro inválido')
-            for item in items:
-                for field in ('quantidade', 'preco_unitario', 'desconto', 'total_item'):
-                    value = Decimal(str(item.get(field, 0)))
-                    if not value.is_finite() or value < 0 or (field == 'quantidade' and value == 0):
-                        raise ValueError('Valor do item inválido')
+            calculo = _calcular_pedido(p_data, items, produtos, _precos_minimos(cliente, product_ids, estab_id))
 
             novo_pedido = PedidoVenda(
                 estabelecimento_id=estab_id,
-                cliente_id=p_data.get("cliente_id"),
+                cliente_id=cliente.id,
                 vendedor_id=vendedor_id,
                 codigo=p_data.get("codigo") or f"PED-SFA-{uuid4().hex[:12]}",
                 status="pendente",
-                subtotal=p_data.get("subtotal", 0),
-                desconto=p_data.get("desconto", 0),
-                total=p_data.get("total", 0),
+                subtotal=calculo['subtotal'],
+                desconto=calculo['desconto'],
+                total=calculo['total'],
                 condicao_pagamento=p_data.get("condicao_pagamento"),
                 observacoes=p_data.get("observacoes"),
                 offline_uuid=offline_uuid,
@@ -372,17 +479,9 @@ def sync_pedidos():
             db.session.add(novo_pedido)
             db.session.flush()
 
-            for i_data in items:
-                item = PedidoVendaItem(
-                    estabelecimento_id=novo_pedido.estabelecimento_id,
-                    pedido_id=novo_pedido.id,
-                    produto_id=i_data.get("produto_id"),
-                    quantidade=i_data.get("quantidade"),
-                    preco_unitario=i_data.get("preco_unitario"),
-                    desconto=i_data.get("desconto", 0),
-                    total_item=i_data.get("total_item")
-                )
-                db.session.add(item)
+            for linha in calculo['itens']:
+                db.session.add(PedidoVendaItem(estabelecimento_id=novo_pedido.estabelecimento_id,
+                                               pedido_id=novo_pedido.id, **linha))
 
             synced.append(novo_pedido.codigo)
 
@@ -403,33 +502,81 @@ def sync_pedidos():
 @bp.route("/sfa/pedidos", methods=["GET"])
 @funcionario_required
 def listar_pedidos_vendedor():
-    """Lista pedidos do vendedor com filtro de status."""
+    """Lista pedidos com filtro de status.
+
+    Vendedor vê a própria carteira. Gerente/admin sem ``vendedor_id`` vê a loja
+    inteira, que é o que a fila de aprovação precisa; itens vêm junto.
+    """
     try:
         from sqlalchemy import text
-        vendedor_id = _vendedor_id()
         estab_id = _estab_id()
         status = request.args.get("status")
         if not estab_id:
             return jsonify({"status": "error", "message": "Contexto de estabelecimento ausente"}), 400
 
         sql = """
-            SELECT pv.id, pv.codigo, pv.total, pv.status, pv.data_emissao,
-                   pv.condicao_pagamento, pv.observacoes, pv.cliente_id,
-                   c.nome as cliente_nome
+            SELECT pv.id, pv.codigo, pv.total, pv.subtotal, pv.desconto, pv.status, pv.data_emissao,
+                   pv.condicao_pagamento, pv.observacoes, pv.cliente_id, pv.vendedor_id,
+                   c.nome as cliente_nome, c.limite_credito, c.saldo_devedor, f.nome as vendedor_nome
             FROM pedidos_venda pv
-            LEFT JOIN clientes c ON c.id = pv.cliente_id
-            WHERE pv.vendedor_id = :vid AND pv.estabelecimento_id = :eid AND (pv.deleted_at IS NULL)
+            LEFT JOIN clientes c ON c.id = pv.cliente_id AND c.estabelecimento_id = pv.estabelecimento_id
+            LEFT JOIN funcionarios f ON f.id = pv.vendedor_id AND f.estabelecimento_id = pv.estabelecimento_id
+            WHERE pv.estabelecimento_id = :eid AND (pv.deleted_at IS NULL)
         """
-        params = {"vid": vendedor_id, "eid": estab_id}
+        params = {"eid": estab_id}
+        if not (_is_privileged() and not request.args.get("vendedor_id")):
+            sql += " AND pv.vendedor_id = :vid"
+            params["vid"] = _vendedor_id()
         if status:
             sql += " AND pv.status = :status"
             params["status"] = status
-        sql += " ORDER BY pv.data_emissao DESC LIMIT 50"
+        sql += " ORDER BY pv.data_emissao DESC LIMIT 200"
 
-        rows = db.session.execute(text(sql), params).mappings().all()
-        return jsonify({"status": "success", "data": [dict(r) for r in rows]}), 200
+        pedidos = [dict(r) for r in db.session.execute(text(sql), params).mappings().all()]
+        if pedidos:
+            ids = ",".join(str(int(p["id"])) for p in pedidos)
+            itens = db.session.execute(text(f"""
+                SELECT i.pedido_id, i.produto_id, p.nome AS produto_nome, p.unidade_medida,
+                       i.quantidade, i.preco_unitario, i.desconto, i.total_item
+                FROM pedido_venda_itens i
+                JOIN produtos p ON p.id = i.produto_id AND p.estabelecimento_id = i.estabelecimento_id
+                WHERE i.pedido_id IN ({ids}) AND i.estabelecimento_id = :eid
+                ORDER BY i.id
+            """), {"eid": estab_id}).mappings().all()
+            por_pedido = {}
+            for item in itens:
+                por_pedido.setdefault(item["pedido_id"], []).append(dict(item))
+            for pedido in pedidos:
+                pedido["itens"] = por_pedido.get(pedido["id"], [])
+        return jsonify({"status": "success", "data": pedidos}), 200
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        current_app.logger.error("Falha ao listar pedidos SFA: %s", e)
+        return jsonify({"status": "error", "message": "Não foi possível listar os pedidos"}), 500
+
+
+@bp.route("/sfa/pedidos/<int:pedido_id>/rejeitar", methods=["POST"])
+@gerente_ou_admin_required
+def rejeitar_pedido(pedido_id):
+    """Recusa um pedido pendente; nada é baixado nem cobrado. Idempotente."""
+    try:
+        estab_id = _estab_id()
+        pedido = PedidoVenda.query.filter_by(id=pedido_id, estabelecimento_id=estab_id)\
+            .populate_existing().with_for_update().first() if estab_id else None
+        if not pedido:
+            return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
+        if pedido.status == "cancelado":
+            return jsonify({"status": "success", "message": "Pedido já estava rejeitado"}), 200
+        if pedido.status != "pendente":
+            return jsonify({"status": "error", "message": f"Pedido {pedido.status} não pode ser rejeitado"}), 400
+        motivo = str((request.get_json(silent=True) or {}).get("motivo") or "Rejeitado na aprovação")[:200]
+        pedido.status = "cancelado"
+        pedido.observacoes = f"{pedido.observacoes or ''} | Rejeitado: {motivo}".strip(" |")
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Pedido rejeitado"}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error("Falha ao rejeitar pedido SFA %s: %s", pedido_id, e)
+        return jsonify({"status": "error", "message": "Não foi possível rejeitar o pedido"}), 500
 
 
 @bp.route("/sfa/pedidos/<int:pedido_id>/aprovar", methods=["POST"])
@@ -439,7 +586,12 @@ def aprovar_pedido(pedido_id):
     valida crédito, baixa estoque, cria Venda + itens e gera Conta(s) a Receber
     conforme a condição de pagamento. Idempotente por pedido."""
     try:
-        pedido = PedidoVenda.query.get(pedido_id)
+        from app.services.estoque_service import registrar_saida
+        from app.utils.checkout_locking import lock_checkout
+        estab_id = _estab_id()
+        # Trava o pedido: duas aprovações simultâneas não faturam duas vezes.
+        pedido = PedidoVenda.query.filter_by(id=pedido_id, estabelecimento_id=estab_id)\
+            .populate_existing().with_for_update().first() if estab_id else None
         if not pedido:
             return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
 
@@ -451,15 +603,18 @@ def aprovar_pedido(pedido_id):
         if not pedido.itens:
             return jsonify({"status": "error", "message": "Pedido sem itens"}), 400
 
-        estab_id = pedido.estabelecimento_id
-        cliente = Cliente.query.get(pedido.cliente_id) if pedido.cliente_id else None
+        # Mesma ordem de locks do checkout: cliente (crédito) e depois produtos.
+        cliente = lock_checkout(estab_id, get_jwt_identity(),
+                                [{'produto_id': item.produto_id} for item in pedido.itens], pedido.cliente_id)
+        total_pedido = Decimal(str(pedido.total or 0))
 
         # 1. Validação de crédito (fiado a prazo consome limite do cliente)
         if cliente:
-            limite_disponivel = float(cliente.limite_credito or 0) - float(cliente.saldo_devedor or 0)
-            if float(pedido.total) > limite_disponivel:
+            limite_disponivel = Decimal(str(cliente.limite_credito or 0)) - Decimal(str(cliente.saldo_devedor or 0))
+            if total_pedido > limite_disponivel:
+                db.session.rollback()
                 return jsonify({"status": "error",
-                                "message": f"Limite de crédito excedido. Disponível: R$ {limite_disponivel:.2f}, pedido: R$ {float(pedido.total):.2f}"}), 400
+                                "message": f"Limite de crédito excedido. Disponível: R$ {limite_disponivel:.2f}, pedido: R$ {total_pedido:.2f}"}), 400
 
         agora = datetime.utcnow()
         codigo_venda = f"VD-SFA-{pedido.id}-{int(agora.timestamp())}"
@@ -482,22 +637,28 @@ def aprovar_pedido(pedido_id):
         db.session.add(venda)
         db.session.flush()  # obtém venda.id
 
-        # 3. Itens da venda + baixa de estoque (valida disponibilidade)
+        # 3. Itens da venda + baixa de estoque e lotes pela regra única dos canais
         for item in pedido.itens:
-            produto = Produto.query.get(item.produto_id)
+            produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estab_id).first()
             if not produto:
+                db.session.rollback()
                 return jsonify({"status": "error", "message": f"Produto {item.produto_id} não encontrado"}), 400
-            VendaService.atualizar_estoque(
-                produto_id=produto.id, quantidade=Decimal(str(item.quantidade)),
-                venda_id=venda.id, estabelecimento_id=estab_id,
-                funcionario_id=pedido.vendedor_id, data_venda=agora, codigo_venda=codigo_venda)
+            quantidade = Decimal(str(item.quantidade))
+            total_item = Decimal(str(item.total_item))
+            _, custo_unitario = registrar_saida(
+                produto, quantidade, venda_id=venda.id, funcionario_id=pedido.vendedor_id,
+                motivo=f"Venda SFA {codigo_venda}", data=agora)
             db.session.add(VendaItem(
                 estabelecimento_id=estab_id, venda_id=venda.id, produto_id=produto.id,
                 produto_nome=produto.nome, produto_codigo=produto.codigo_interno,
                 produto_unidade=produto.unidade_medida,
-                quantidade=item.quantidade, preco_unitario=item.preco_unitario,
-                desconto=item.desconto or Decimal("0"), total_item=item.total_item,
-                custo_unitario=produto.preco_custo))
+                quantidade=quantidade, preco_unitario=item.preco_unitario,
+                desconto=item.desconto or Decimal("0"), total_item=total_item,
+                custo_unitario=custo_unitario,
+                margem_lucro_real=(total_item - custo_unitario * quantidade).quantize(CENT)))
+            produto.quantidade_vendida = Decimal(str(produto.quantidade_vendida or 0)) + quantidade
+            produto.total_vendido = Decimal(str(produto.total_vendido or 0)) + total_item
+            produto.ultima_venda = agora
 
         # 4. Conta(s) a Receber conforme a condição de pagamento
         parcelas = _parcelas_condicao(pedido.condicao_pagamento, pedido.total, agora)
@@ -511,8 +672,8 @@ def aprovar_pedido(pedido_id):
 
         # 5. Atualiza saldo devedor e métricas do cliente
         if cliente:
-            cliente.saldo_devedor = float(cliente.saldo_devedor or 0) + float(pedido.total)
-            VendaService.atualizar_metricas_cliente(cliente.id, Decimal(str(pedido.total)), agora)
+            cliente.saldo_devedor = Decimal(str(cliente.saldo_devedor or 0)) + total_pedido
+            VendaService.atualizar_metricas_cliente(cliente.id, total_pedido, agora)
 
         # 6. Fecha o ciclo do pedido
         pedido.status = "faturado"
@@ -522,13 +683,13 @@ def aprovar_pedido(pedido_id):
         return jsonify({"status": "success", "message": "Pedido aprovado e faturado",
                         "data": {"venda_codigo": codigo_venda, "venda_id": venda.id,
                                  "parcelas": len(parcelas), "total": float(pedido.total)}}), 200
-    except EstoqueInsuficienteError as e:
+    except (EstoqueInsuficienteError, ValueError) as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         import traceback; traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": "Falha ao faturar o pedido"}), 500
 
 
 # ─────────────────────────────────────────────

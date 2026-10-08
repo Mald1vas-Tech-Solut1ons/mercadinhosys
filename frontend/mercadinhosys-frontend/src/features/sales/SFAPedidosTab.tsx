@@ -15,20 +15,14 @@ export default function SFAPedidosTab() {
     const carregarPedidos = async () => {
         setLoading(true);
         try {
-            // Em uma API real, teria uma rota GET /sfa/pedidos?status=pendente
-            // Aqui estamos simulando ou usando os dados de vendas/pedidos
-            const res = await apiClient.get('/sfa/sync-data'); // Usando sync-data como fallback se não houver rota dedicada
-            if (res.data?.status === 'success') {
-                // Filtra apenas os pedidos pendentes
-                const pendentes = (res.data.data.pedidos || []).filter((p: any) => p.status === 'pendente');
-                setPedidos(pendentes);
-            }
-        } catch (error) {
+            // Gerente/admin recebe a fila da loja inteira, com itens.
+            const res = await apiClient.get('/sfa/pedidos', { params: { status: 'pendente' } });
+            setPedidos(res.data?.status === 'success' ? res.data.data : []);
+        } catch (error: any) {
             console.error('Erro ao buscar pedidos SFA:', error);
-            // Dados fictícios para demonstração caso a rota falhe
-            setPedidos([
-                { id: 999, cliente_nome: 'Supermercado Nova Era', total: 1540.00, data_criacao: new Date().toISOString(), status: 'pendente', condicao_pagamento: '30 Dias', itens: [] }
-            ]);
+            // Sem pedido inventado: a fila fica vazia e o motivo aparece.
+            setPedidos([]);
+            showToast.error(error?.response?.data?.message || 'Não foi possível carregar os pedidos do SFA');
         } finally {
             setLoading(false);
         }
@@ -38,14 +32,20 @@ export default function SFAPedidosTab() {
         carregarPedidos();
     }, []);
 
+    const termo = busca.trim().toLowerCase();
+    const pedidosFiltrados = termo
+        ? pedidos.filter(p => `${p.cliente_nome || ''} ${p.codigo || ''} ${p.vendedor_nome || ''}`.toLowerCase().includes(termo))
+        : pedidos;
+
     const aprovarPedido = async (id: number) => {
         try {
             await apiClient.post(`/sfa/pedidos/${id}/aprovar`);
             showToast.success('Pedido aprovado com sucesso!');
             setDetalhe(null);
             carregarPedidos();
-        } catch (error) {
-            showToast.error('Erro ao aprovar pedido');
+        } catch (error: any) {
+            // Estoque, crédito ou preço recusados pelo servidor: mostrar o motivo real.
+            showToast.error(error?.response?.data?.message || 'Erro ao aprovar pedido');
         }
     };
 
@@ -55,8 +55,8 @@ export default function SFAPedidosTab() {
             showToast.success('Pedido rejeitado.');
             setDetalhe(null);
             carregarPedidos();
-        } catch (error) {
-            showToast.error('Erro ao rejeitar pedido');
+        } catch (error: any) {
+            showToast.error(error?.response?.data?.message || 'Erro ao rejeitar pedido');
         }
     };
 
@@ -79,7 +79,7 @@ export default function SFAPedidosTab() {
 
             {loading ? (
                 <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
-            ) : pedidos.length === 0 ? (
+            ) : pedidosFiltrados.length === 0 ? (
                 <Card className="bg-white dark:bg-slate-900 border-dashed border-2">
                     <CardContent className="flex flex-col items-center justify-center py-12 text-slate-500">
                         <Check className="w-12 h-12 text-slate-300 mb-4" />
@@ -89,7 +89,7 @@ export default function SFAPedidosTab() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {pedidos.map(p => (
+                    {pedidosFiltrados.map(p => (
                         <Card key={p.id} className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition">
                             <CardContent className="p-4 flex flex-col h-full justify-between">
                                 <div>
@@ -103,7 +103,7 @@ export default function SFAPedidosTab() {
                                     
                                     <div className="flex items-center gap-2 mb-4">
                                         <MapPin className="w-4 h-4 text-slate-400" />
-                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Vendedor em Rota</span>
+                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{p.vendedor_nome || 'Vendedor'} · {p.codigo}</span>
                                     </div>
                                 </div>
 
@@ -148,7 +148,7 @@ export default function SFAPedidosTab() {
                             </div>
                             
                             <div>
-                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Itens do Pedido (Simulação)</p>
+                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Itens do Pedido</p>
                                 <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
                                     <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 text-xs font-medium text-slate-500 grid grid-cols-12">
                                         <div className="col-span-6">Produto</div>
@@ -156,7 +156,7 @@ export default function SFAPedidosTab() {
                                         <div className="col-span-4 text-right">Subtotal</div>
                                     </div>
                                     <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        {(detalhe.itens?.length > 0 ? detalhe.itens : [{produto_nome: 'Itens em análise (Mock)', quantidade: 1, total_item: detalhe.total}]).map((it: any, i: number) => (
+                                        {(detalhe.itens || []).map((it: any, i: number) => (
                                             <div key={i} className="px-4 py-3 text-sm grid grid-cols-12 items-center">
                                                 <div className="col-span-6 font-medium text-slate-800 dark:text-slate-200 truncate pr-2">{it.produto_nome}</div>
                                                 <div className="col-span-2 text-center text-slate-600 dark:text-slate-400">{it.quantidade}</div>

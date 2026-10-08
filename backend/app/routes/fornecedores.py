@@ -10,6 +10,7 @@ from app.decorators.plan_guards import quota_required, permission_required
 from datetime import datetime
 from decimal import Decimal
 import re
+from werkzeug.exceptions import HTTPException
 from app.models import (
     db,
     Fornecedor,
@@ -21,6 +22,17 @@ from app.models import (
 from app.utils import validar_cnpj, validar_email, formatar_telefone
 
 fornecedores_bp = Blueprint("fornecedores", __name__)
+
+
+def _supplier_query(estabelecimento_id):
+    """Consulta autorizada; a sentinela global nunca vira um parâmetro SQL inteiro."""
+    query = Fornecedor.query.filter(Fornecedor.deleted_at.is_(None))
+    if str(estabelecimento_id).lower() == "all":
+        if not get_jwt().get("is_super_admin"):
+            from flask import abort
+            abort(403)
+        return query
+    return query.filter(Fornecedor.estabelecimento_id == estabelecimento_id)
 
 # ============================================
 # VALIDAÇÕES ESPECÍFICAS DE FORNECEDOR
@@ -165,10 +177,7 @@ def listar_fornecedores():
         busca = request.args.get("busca", "", type=str).strip()
 
         # Query base
-        if str(estabelecimento_id).lower() == 'all':
-             query = Fornecedor.query
-        else:
-             query = Fornecedor.query.filter_by(estabelecimento_id=estabelecimento_id)
+        query = _supplier_query(estabelecimento_id)
 
         # Filtros
         if ativo is not None:
@@ -214,7 +223,7 @@ def listar_fornecedores():
             produtos_ativos = Produto.query.filter_by(
                 fornecedor_id=fornecedor.id,
                 ativo=True,
-                estabelecimento_id=estabelecimento_id,
+                estabelecimento_id=fornecedor.estabelecimento_id,
             ).count()
             fornecedor_dict["produtos_ativos"] = produtos_ativos
 
@@ -271,6 +280,7 @@ def listar_fornecedores():
                 "success": True, "fornecedores": fornecedores, "total": total,
                 "pagina": pagina, "por_pagina": por_pagina,
                 "total_paginas": (total + por_pagina - 1) // por_pagina,
+                "degraded": True,
             })
         except Exception:
             db.session.rollback()
@@ -287,9 +297,8 @@ def obter_fornecedor(id):
         if not estabelecimento_id:
             return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
 
-        fornecedor = Fornecedor.query.filter_by(
-            id=id, estabelecimento_id=estabelecimento_id
-        ).first_or_404()
+        fornecedor = _supplier_query(estabelecimento_id).filter_by(id=id).first_or_404()
+        estabelecimento_id = fornecedor.estabelecimento_id
 
         # Dados básicos
         dados_fornecedor = fornecedor.to_dict()
@@ -367,6 +376,8 @@ def obter_fornecedor(id):
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         current_app.logger.error(f"Erro ao obter fornecedor {id}: {str(e)}")
         return (
@@ -715,9 +726,7 @@ def buscar_fornecedores():
         if not termo or len(termo) < 2:
             return jsonify({"success": True, "fornecedores": []})
 
-        query = Fornecedor.query.filter_by(
-            estabelecimento_id=estabelecimento_id
-        )
+        query = _supplier_query(estabelecimento_id)
 
         if apenas_ativos:
             query = query.filter_by(ativo=True)
@@ -775,41 +784,35 @@ def estatisticas_fornecedores():
         estabelecimento_id = get_authorized_establishment_id()
 
         # Total de fornecedores
-        total_fornecedores = Fornecedor.query.filter_by(
-            estabelecimento_id=estabelecimento_id
-        ).count()
+        total_fornecedores = _supplier_query(estabelecimento_id).count()
 
         # Fornecedores ativos
-        fornecedores_ativos = Fornecedor.query.filter_by(
-            estabelecimento_id=estabelecimento_id, ativo=True
-        ).count()
+        fornecedores_ativos = _supplier_query(estabelecimento_id).filter_by(ativo=True).count()
 
         # Fornecedores inativos
         fornecedores_inativos = total_fornecedores - fornecedores_ativos
 
         # Classificação por tipo
         classificacoes = (
-            db.session.query(
+            _supplier_query(estabelecimento_id).with_entities(
                 Fornecedor.classificacao, db.func.count(Fornecedor.id).label("total")
             )
-            .filter_by(estabelecimento_id=estabelecimento_id)
             .group_by(Fornecedor.classificacao)
             .all()
         )
 
         # Fornecedores por estado
         fornecedores_por_estado = (
-            db.session.query(
+            _supplier_query(estabelecimento_id).with_entities(
                 Fornecedor.estado, db.func.count(Fornecedor.id).label("total")
             )
-            .filter_by(estabelecimento_id=estabelecimento_id)
             .group_by(Fornecedor.estado)
             .all()
         )
 
         # Top 5 fornecedores por volume de compras
         top_fornecedores = (
-            Fornecedor.query.filter_by(estabelecimento_id=estabelecimento_id)
+            _supplier_query(estabelecimento_id)
             .order_by(Fornecedor.valor_total_comprado.desc())
             .limit(5)
             .all()
@@ -828,7 +831,7 @@ def estatisticas_fornecedores():
 
         # Últimos fornecedores cadastrados
         ultimos_cadastrados = (
-            Fornecedor.query.filter_by(estabelecimento_id=estabelecimento_id)
+            _supplier_query(estabelecimento_id)
             .order_by(Fornecedor.data_cadastro.desc())
             .limit(5)
             .all()
@@ -893,9 +896,8 @@ def listar_pedidos_fornecedor(id):
         status = request.args.get("status", None, type=str)
 
         # Verificar se fornecedor existe
-        fornecedor = Fornecedor.query.filter_by(
-            id=id, estabelecimento_id=estabelecimento_id
-        ).first_or_404()
+        fornecedor = _supplier_query(estabelecimento_id).filter_by(id=id).first_or_404()
+        estabelecimento_id = fornecedor.estabelecimento_id
 
         # Query de pedidos
         query = PedidoCompra.query.filter_by(
@@ -944,6 +946,8 @@ def listar_pedidos_fornecedor(id):
             }
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         current_app.logger.error(f"Erro ao listar pedidos do fornecedor {id}: {str(e)}")
         return (
@@ -965,9 +969,7 @@ def exportar_fornecedores():
         apenas_ativos = request.args.get("ativo", "true", type=str).lower() == "true"
 
         # Buscar fornecedores
-        query = Fornecedor.query.filter_by(
-            estabelecimento_id=estabelecimento_id
-        )
+        query = _supplier_query(estabelecimento_id)
 
         if apenas_ativos:
             query = query.filter_by(ativo=True)
@@ -1294,9 +1296,7 @@ def relatorio_analitico_fornecedores():
         classificacao = request.args.get("classificacao", None, type=str)
 
         # Query base de fornecedores
-        query = Fornecedor.query.filter_by(
-            estabelecimento_id=estabelecimento_id, ativo=True
-        )
+        query = _supplier_query(estabelecimento_id).filter_by(ativo=True)
 
         if classificacao:
             query = query.filter_by(classificacao=classificacao.upper())
@@ -1308,7 +1308,7 @@ def relatorio_analitico_fornecedores():
             # Pedidos do fornecedor no período
             pedidos_query = PedidoCompra.query.filter_by(
                 fornecedor_id=fornecedor.id,
-                estabelecimento_id=estabelecimento_id,
+                estabelecimento_id=fornecedor.estabelecimento_id,
             )
 
             if data_inicio:
@@ -1396,7 +1396,7 @@ def relatorio_analitico_fornecedores():
             # Produtos fornecidos e Variação de Preço (Simplificada)
             produtos = Produto.query.filter_by(
                 fornecedor_id=fornecedor.id,
-                estabelecimento_id=estabelecimento_id,
+                estabelecimento_id=fornecedor.estabelecimento_id,
                 ativo=True,
             ).all()
 
@@ -1649,7 +1649,8 @@ def get_inteligencia(id):
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
         
-        fornecedor = Fornecedor.query.filter_by(id=id, estabelecimento_id=estabelecimento_id).first_or_404()
+        fornecedor = _supplier_query(estabelecimento_id).filter_by(id=id).first_or_404()
+        estabelecimento_id = fornecedor.estabelecimento_id
         
         # Sincroniza em tempo real para garantir dados frescos
         sincronizar_metricas_fornecedor(fornecedor.id)
@@ -1716,6 +1717,8 @@ def get_inteligencia(id):
             },
             "timeline": timeline
         }), 200
+    except HTTPException:
+        raise
     except Exception as e:
         current_app.logger.error(f"Erro inteligência: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500

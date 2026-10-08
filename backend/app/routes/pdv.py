@@ -446,7 +446,9 @@ def obter_rfm_cliente(cliente_id):
             "cliente": {
                 "id": cliente.id,
                 "nome": cliente.nome,
-                "cpf": cliente.cpf
+                "cpf": cliente.cpf,
+                "documento": cliente.documento,
+                "tipo_pessoa": cliente.tipo_pessoa
             },
             "rfm": rfm_data
         }), 200

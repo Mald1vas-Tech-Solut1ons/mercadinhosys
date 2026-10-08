@@ -63,6 +63,8 @@ def validate_credit(client, payments):
     if credit:
         if not client:
             raise ValueError('Fiado exige cliente da loja')
+        from app.services.credito_service import validar_sem_atraso
+        validar_sem_atraso(client)
         limit = Decimal(str(client.limite_credito or 0))
         if limit <= 0 or Decimal(str(client.saldo_devedor or 0)) + credit > limit:
             raise ValueError('Limite de crédito excedido ou não aprovado')

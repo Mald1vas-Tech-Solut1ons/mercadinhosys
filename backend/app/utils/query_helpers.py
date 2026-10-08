@@ -1,10 +1,11 @@
 import logging
 import os
+import re
 import traceback
 import unicodedata
 from flask import request
 from flask_jwt_extended import get_jwt
-from sqlalchemy import func, extract, text, event
+from sqlalchemy import func, extract, text, event, or_
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,18 @@ def ilike_unaccent(column, search_term):
     """
     termo_norm = _strip_accents(search_term).lower()
     return _fold_accents_sql(column).like(termo_norm)
+
+def documento_contem(coluna, termo):
+    """Busca por CPF/CNPJ. O documento é gravado formatado (529.982.247-25), então digitar só os
+    números ('52998224725') também precisa achar o cadastro."""
+    texto = str(termo or "").strip().strip("%")
+    digitos = re.sub(r"\D", "", texto)
+    clausulas = [ilike_unaccent(coluna, f"%{texto}%")]
+    if len(digitos) >= 3:
+        sem_pontuacao = func.replace(func.replace(func.replace(coluna, ".", ""), "/", ""), "-", "")
+        clausulas.append(sem_pontuacao.like(f"%{digitos}%"))
+    return or_(*clausulas)
+
 
 def get_hour_extract(column):
     """

@@ -24,7 +24,7 @@ from app.models import (
 )
 from flask_jwt_extended import jwt_required, get_jwt
 from app.decorators.plan_guards import permission_required, normalize_plan
-from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id, get_dow_extract, get_hour_extract
+from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id, get_dow_extract, get_hour_extract
 from sqlalchemy import or_, func, distinct, select
 from collections import defaultdict
 import random
@@ -41,7 +41,7 @@ vendas_bp = Blueprint("vendas", __name__)
 FILTROS_PERMITIDOS_VENDAS = {
     "codigo": lambda value: ilike_unaccent(Venda.codigo, f"%{value}%"),
     "cliente_nome": lambda value: ilike_unaccent(Cliente.nome, f"%{value}%"),
-    "cliente_cpf": lambda value: ilike_unaccent(Cliente.cpf, f"%{value}%"),
+    "cliente_cpf": lambda value: or_(documento_contem(Cliente.cpf, value), documento_contem(Cliente.cnpj, value)),
     "funcionario_nome": lambda value: ilike_unaccent(Funcionario.nome, f"%{value}%"),
     "status": lambda value: ilike_unaccent(Venda.status, value),
     "observacoes": lambda value: ilike_unaccent(Venda.observacoes, f"%{value}%"),
@@ -90,10 +90,30 @@ def gerar_codigo_venda():
     random_part = "".join(random.choices(string.digits, k=4))
     return f"V-{data_atual}-{random_part}"
 
-def aplicar_filtros_avancados_vendas(query, filtros, estabelecimento_id):
-    """Aplica filtros avançados na query de vendas, compatível com múltiplos pagamentos."""
+def aplicar_filtros_avancados_vendas(query, filtros, estabelecimento_id, busca=None):
+    """Aplica filtros avançados na query de vendas, compatível com múltiplos pagamentos.
+
+    Filtros por cliente/funcionário e a busca livre exigem JOIN explícito. Sem ele o SQL vira
+    produto cartesiano: a venda passava se QUALQUER cliente (de qualquer loja) batesse com o
+    termo, devolvendo vendas que nada têm a ver com a busca e vazando existência entre lojas.
+    """
     if estabelecimento_id and str(estabelecimento_id).lower() != 'all':
         query = query.filter(Venda.estabelecimento_id == estabelecimento_id)
+
+    if busca or any(k in filtros for k in ("cliente_nome", "cliente_cpf")):
+        query = query.outerjoin(Cliente, Venda.cliente_id == Cliente.id)
+    if busca or "funcionario_nome" in filtros:
+        query = query.outerjoin(Funcionario, Venda.funcionario_id == Funcionario.id)
+    if busca:
+        query = query.filter(or_(
+            ilike_unaccent(Venda.codigo, f"%{busca}%"),
+            ilike_unaccent(Venda.observacoes, f"%{busca}%"),
+            ilike_unaccent(Cliente.nome, f"%{busca}%"),
+            documento_contem(Cliente.cpf, busca),
+            documento_contem(Cliente.cnpj, busca),
+            ilike_unaccent(Cliente.razao_social, f"%{busca}%"),
+            ilike_unaccent(Funcionario.nome, f"%{busca}%"),
+        ))
 
     for chave, valor in filtros.items():
         if chave in FILTROS_PERMITIDOS_VENDAS and valor:
@@ -306,18 +326,7 @@ def listar_vendas():
 
         query_base = Venda.query
 
-        if search:
-            query_base = query_base.filter(
-                or_(
-                    ilike_unaccent(Venda.codigo, f"%{search}%"),
-                    ilike_unaccent(Venda.observacoes, f"%{search}%"),
-                    ilike_unaccent(Cliente.nome, f"%{search}%"),
-                    ilike_unaccent(Cliente.cpf, f"%{search}%"),
-                    ilike_unaccent(Funcionario.nome, f"%{search}%"),
-                )
-            )
-
-        query_base = aplicar_filtros_avancados_vendas(query_base, filtros, estabelecimento_id)
+        query_base = aplicar_filtros_avancados_vendas(query_base, filtros, estabelecimento_id, busca=search)
 
         estatisticas = calcular_estatisticas_vendas(query_base, estabelecimento_id)
 
@@ -347,6 +356,7 @@ def listar_vendas():
                     "nome": v.cliente.nome if v.cliente else "Consumidor Final",
                     "telefone": v.cliente.telefone if v.cliente else None,
                     "cpf": v.cliente.cpf if v.cliente else None,
+                    "documento": v.cliente.documento if v.cliente else None,
                 } if v.cliente_id else {"nome": "Consumidor Final"},
                 "funcionario": {
                     "id": v.funcionario_id,
@@ -1041,7 +1051,8 @@ def obter_venda(venda_id):
                 "id": venda.cliente.id if venda.cliente else None,
                 "nome": venda.cliente.nome if venda.cliente else "Consumidor Final",
                 "telefone": venda.cliente.telefone if venda.cliente else None,
-                "cpf": venda.cliente.cpf if venda.cliente else None
+                "cpf": venda.cliente.cpf if venda.cliente else None,
+                "documento": venda.cliente.documento if venda.cliente else None
             },
             "funcionario": {
                 "id": venda.funcionario.id if venda.funcionario else None,

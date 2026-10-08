@@ -12,7 +12,8 @@ import hashlib
 from uuid import uuid4
 import re
 import calendar as cal_lib
-from sqlalchemy import func
+from sqlalchemy import bindparam, func
+from app.utils.timezone import iso_local, local_date_to_utc_naive, to_local
 
 bp = Blueprint("sfa", __name__)
 
@@ -149,7 +150,7 @@ def _pagina_clientes(estab_id, rota_ids, apos, limite):
         return [], None
     rows = db.session.execute(
         text("""
-            SELECT id, nome, telefone, celular, email,
+            SELECT id, nome, tipo_pessoa, razao_social, cnpj, telefone, celular, email,
                    logradouro, numero, complemento, bairro, cidade, estado, cep,
                    limite_credito, saldo_devedor, tabela_preco_id, rota_id,
                    ultima_compra, ativo
@@ -283,8 +284,13 @@ def kpi_vendedor():
         if not vendedor_id or not estab_id:
             return jsonify({"status": "error", "message": "Contexto de vendedor/estabelecimento ausente"}), 400
 
-        hoje = datetime.now(timezone.utc).date()
+        # Mês comercial no fuso da loja (UTC virava o mês 3h antes) e em intervalo semiaberto,
+        # que permite usar índice em data_emissao (EXTRACT não usa).
+        hoje = to_local(datetime.now(timezone.utc)).date()
         ano, mes = hoje.year, hoje.month
+        inicio_mes = local_date_to_utc_naive(hoje.replace(day=1))
+        proximo_mes = hoje.replace(day=28) + timedelta(days=4)
+        fim_mes = local_date_to_utc_naive(proximo_mes.replace(day=1))
 
         # 1. Meta do Vendedor (raw SQL sempre restrito ao tenant)
         meta_row = db.session.execute(
@@ -298,20 +304,23 @@ def kpi_vendedor():
         # 2. Vendas do mês atual deste vendedor (raw SQL)
         pedidos_rows = db.session.execute(
             text("""
-                SELECT id, total, cliente_id
+                SELECT id, total, cliente_id, status
                 FROM pedidos_venda
                 WHERE vendedor_id = :vid
                   AND estabelecimento_id = :eid
-                  AND EXTRACT(month FROM data_emissao) = :mes
-                  AND EXTRACT(year FROM data_emissao) = :ano
-                  AND status != 'cancelado'
+                  AND data_emissao >= :inicio AND data_emissao < :fim
+                  AND status IN ('pendente', 'aprovado', 'faturado')
                   AND (deleted_at IS NULL)
             """),
-            {"vid": vendedor_id, "mes": mes, "ano": ano, "eid": estab_id}
+            {"vid": vendedor_id, "inicio": inicio_mes, "fim": fim_mes, "eid": estab_id}
         ).mappings().all()
 
-        faturamento_realizado = sum(float(p["total"]) for p in pedidos_rows)
-        clientes_positivados = len(set(p["cliente_id"] for p in pedidos_rows if p["cliente_id"]))
+        # Meta e positivação só contam o que virou venda (faturado). Pedido pendente ainda
+        # pode ser recusado ou ficar sem estoque; é mostrado à parte, como pipeline.
+        faturados = [p for p in pedidos_rows if p["status"] == "faturado"]
+        faturamento_realizado = sum(float(p["total"]) for p in faturados)
+        pipeline_pendente = sum(float(p["total"]) for p in pedidos_rows if p["status"] != "faturado")
+        clientes_positivados = len(set(p["cliente_id"] for p in faturados if p["cliente_id"]))
 
         # 3. Base de clientes na rota do vendedor
         base_row = db.session.execute(
@@ -343,20 +352,19 @@ def kpi_vendedor():
 
         foco_vendido = 0.0
         if foco_rows:
-            foco_ids = ",".join(str(f["produto_id"]) for f in foco_rows)
             itens_foco = db.session.execute(
-                text(f"""
+                text("""
                     SELECT COALESCE(SUM(pvi.quantidade), 0) as total
                     FROM pedido_venda_itens pvi
                     JOIN pedidos_venda pv ON pv.id = pvi.pedido_id
                     WHERE pv.vendedor_id = :vid
                       AND pv.estabelecimento_id = :eid
-                      AND EXTRACT(month FROM pv.data_emissao) = :mes
-                      AND EXTRACT(year FROM pv.data_emissao) = :ano
-                      AND pv.status != 'cancelado'
-                      AND pvi.produto_id IN ({foco_ids})
-                """),
-                {"vid": vendedor_id, "mes": mes, "ano": ano, "eid": estab_id}
+                      AND pv.data_emissao >= :inicio AND pv.data_emissao < :fim
+                      AND pv.status = 'faturado'
+                      AND pvi.produto_id IN :foco_ids
+                """).bindparams(bindparam("foco_ids", expanding=True)),
+                {"vid": vendedor_id, "inicio": inicio_mes, "fim": fim_mes, "eid": estab_id,
+                 "foco_ids": [f["produto_id"] for f in foco_rows]}
             ).mappings().first()
             foco_vendido = float(itens_foco["total"]) if itens_foco else 0.0
 
@@ -382,6 +390,7 @@ def kpi_vendedor():
                 },
                 "realizado": {
                     "faturamento": faturamento_realizado,
+                    "pipeline_pendente": round(pipeline_pendente, 2),
                     "tendencia": round(tendencia, 2),
                     "dias_corridos": dias_corridos,
                     "total_dias": ultimo_dia_mes
@@ -394,7 +403,8 @@ def kpi_vendedor():
                 "produto_foco": {
                     "total_itens_vendidos": foco_vendido,
                 },
-                "historico_pedidos": [dict(h) for h in historico]
+                "historico_pedidos": [{**dict(h), "data_emissao": iso_local(h["data_emissao"]) if isinstance(h["data_emissao"], datetime) else h["data_emissao"]}
+                                      for h in historico]
             }
         }), 200
     except Exception as e:
@@ -607,16 +617,25 @@ def aprovar_pedido(pedido_id):
         cliente = lock_checkout(estab_id, get_jwt_identity(),
                                 [{'produto_id': item.produto_id} for item in pedido.itens], pedido.cliente_id)
         total_pedido = Decimal(str(pedido.total or 0))
+        agora = datetime.utcnow()
 
-        # 1. Validação de crédito (fiado a prazo consome limite do cliente)
-        if cliente:
+        # 1. Crédito só vale para venda a prazo: pedido à vista não consome limite
+        # nem é barrado por atraso (o cliente paga na entrega). A prazo exige
+        # cliente em dia e limite disponível.
+        a_vista = all(venc <= agora.date() for _, venc in _parcelas_condicao(pedido.condicao_pagamento, total_pedido, agora))
+        if cliente and not a_vista:
+            from app.services.credito_service import validar_sem_atraso
+            try:
+                validar_sem_atraso(cliente)
+            except ValueError as erro:
+                db.session.rollback()
+                return jsonify({"status": "error", "message": str(erro)}), 400
             limite_disponivel = Decimal(str(cliente.limite_credito or 0)) - Decimal(str(cliente.saldo_devedor or 0))
             if total_pedido > limite_disponivel:
                 db.session.rollback()
                 return jsonify({"status": "error",
                                 "message": f"Limite de crédito excedido. Disponível: R$ {limite_disponivel:.2f}, pedido: R$ {total_pedido:.2f}"}), 400
 
-        agora = datetime.utcnow()
         codigo_venda = f"VD-SFA-{pedido.id}-{int(agora.timestamp())}"
 
         # 2. Cria a Venda (faturamento) vinculada ao vendedor do pedido

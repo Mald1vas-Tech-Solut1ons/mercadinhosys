@@ -6,19 +6,74 @@ from datetime import timezone
 from flask import Blueprint, request, jsonify, current_app
 # from flask_login import login_required, current_user  # Removido - usando JWT
 from flask_jwt_extended import get_jwt_identity, get_jwt, jwt_required
-from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
+from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 import re
 from app.models import db, Cliente, Estabelecimento, Venda, VendaItem, ContaReceber, Funcionario
-from app.utils import validar_cpf, validar_email, formatar_telefone, calcular_idade
+from app.utils import validar_email, formatar_telefone, calcular_idade
+# Validadores com dígito verificador (os de app.utils só conferiam o tamanho).
+from app.utils.validators import validar_cpf, validar_cnpj
 from app.utils.ia_copiloto import gerar_texto, ia_disponivel
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 
 clientes_bp = Blueprint("clientes", __name__, url_prefix="/api/clientes")
+
+# ============================================
+# ESCOPO DO VENDEDOR EXTERNO
+# ============================================
+# O vendedor enxerga e cadastra clientes da própria carteira (rotas dele). Base inteira,
+# exportação, estatísticas, importação, cobrança e edição de crédito ficam com a gerência:
+# sem isso o vendedor leva a carteira da empresa (e os saldos) junto quando sai.
+PAPEIS_VENDEDOR = ("VENDEDOR", "SFA", "SAF")
+ENDPOINTS_VENDEDOR = {
+    "clientes.listar_clientes", "clientes.buscar_clientes", "clientes.obter_cliente",
+    "clientes.criar_cliente", "clientes.obter_credito_cliente",
+}
+
+
+def _eh_vendedor(claims) -> bool:
+    return bool(claims) and not claims.get("is_super_admin") and str(claims.get("role") or "").upper() in PAPEIS_VENDEDOR
+
+
+@clientes_bp.before_request
+def _escopo_do_vendedor():
+    from flask import g
+    from flask_jwt_extended import verify_jwt_in_request
+    from app.models import Rota
+    if request.method == "OPTIONS":
+        return None
+    g.carteira_rotas = None  # nunca herdar o escopo de outra requisição que reaproveite o contexto
+    try:
+        verify_jwt_in_request(optional=True)
+        claims = get_jwt()
+    except Exception:
+        return None  # sem token válido: o decorator da rota responde 401
+    if not _eh_vendedor(claims):
+        return None
+    if request.endpoint not in ENDPOINTS_VENDEDOR:
+        return jsonify({"success": False, "message": "Operação restrita à gerência."}), 403
+    estabelecimento_id = claims.get("estabelecimento_id")
+    # Consulta explícita: o tenant do request ainda não foi resolvido neste ponto.
+    rotas = [r[0] for r in db.session.query(Rota.id).filter(
+        Rota.estabelecimento_id == estabelecimento_id, Rota.vendedor_id == int(get_jwt_identity())).all()]
+    g.carteira_rotas = rotas
+    cliente_id = (request.view_args or {}).get("id")
+    if cliente_id is not None and not db.session.query(Cliente.id).filter(
+            Cliente.id == cliente_id, Cliente.estabelecimento_id == estabelecimento_id,
+            Cliente.rota_id.in_(rotas or [-1])).first():
+        return jsonify({"success": False, "message": "Cliente não encontrado"}), 404
+    return None
+
+
+def _restringir_carteira(query):
+    """Vendedor só enxerga a própria carteira; os demais perfis passam direto."""
+    from flask import g
+    rotas = getattr(g, "carteira_rotas", None)
+    return query if rotas is None else query.filter(Cliente.rota_id.in_(rotas or [-1]))
 
 # ============================================
 # VALIDAÇÕES ESPECÍFICAS DE CLIENTE (CPF)
@@ -34,42 +89,63 @@ def validar_dados_cliente(data, cliente_id=None, estabelecimento_id=None, is_upd
     """
     erros = []
 
+    # Tipo de pessoa: PF usa CPF; PJ usa CNPJ e razão social.
+    atual = Cliente.query.filter_by(id=cliente_id, estabelecimento_id=estabelecimento_id).first() if cliente_id else None
+    tipo = str(data.get("tipo_pessoa") or (atual.tipo_pessoa if atual else "PF")).upper()
+    if tipo not in ("PF", "PJ"):
+        erros.append("Tipo de pessoa deve ser PF ou PJ")
+        tipo = "PF"
+
     # Validação de campos obrigatórios
-    campos_obrigatorios = ["nome", "cpf", "celular"]
-    for campo in campos_obrigatorios:
+    obrigatorios = ["celular"] + (["cnpj", "razao_social"] if tipo == "PJ" else ["nome", "cpf"])
+    for campo in obrigatorios:
         if is_update:
             if campo in data and not data.get(campo):
                 erros.append(f'O campo {campo.replace("_", " ").title()} não pode ficar vazio')
         elif not data.get(campo):
             erros.append(f'O campo {campo.replace("_", " ").title()} é obrigatório')
-
-    # Log para depuração
-    current_app.logger.info(f"Validando cliente: CPF={data.get('cpf')}, ID={cliente_id}, Estab={estabelecimento_id}")
+    if is_update and atual:
+        # Trocar PF por PJ (ou o contrário) exige o documento do novo tipo.
+        if tipo == "PJ" and not (data.get("cnpj") or atual.cnpj):
+            erros.append("O campo Cnpj é obrigatório para pessoa jurídica")
+        if tipo == "PF" and not (data.get("cpf") or atual.cpf):
+            erros.append("O campo Cpf é obrigatório para pessoa física")
 
     # Validação de CPF
     if data.get("cpf"):
-        cpf = re.sub(r"\D", "", data["cpf"])
+        cpf = re.sub(r"\D", "", str(data["cpf"]))
         cpf_formatado = formatar_cpf(cpf)
         if len(cpf) != 11:
             erros.append("CPF deve conter 11 dígitos")
         elif not validar_cpf(cpf):
             erros.append("CPF inválido")
-
-        # Verifica se CPF já existe (exceto para o próprio cliente em atualização)
-        cliente_existente = (
-            Cliente.query.filter(
+        else:
+            # Verifica se CPF já existe (exceto para o próprio cliente em atualização)
+            cliente_existente = Cliente.query.filter(
                 Cliente.estabelecimento_id == estabelecimento_id,
-                db.or_(
-                    Cliente.cpf == cpf,
-                    Cliente.cpf == cpf_formatado,
-                ),
-            )
-            .first()
-        )
+                db.or_(Cliente.cpf == cpf, Cliente.cpf == cpf_formatado),
+            ).first()
+            if cliente_existente and cliente_existente.id != cliente_id:
+                erros.append("CPF já cadastrado para outro cliente")
 
-        if cliente_existente and cliente_existente.id != cliente_id:
-            current_app.logger.warning(f"CPF DUPLICADO DETECTADO: CPF={cpf}, Existente_ID={cliente_existente.id}, Novo_ID={cliente_id}")
-            erros.append("CPF já cadastrado para outro cliente")
+    # Validação de CNPJ
+    if data.get("cnpj"):
+        cnpj = re.sub(r"\D", "", str(data["cnpj"]))
+        cnpj_formatado = formatar_cnpj(cnpj)
+        if len(cnpj) != 14:
+            erros.append("CNPJ deve conter 14 dígitos")
+        elif not validar_cnpj(cnpj):
+            erros.append("CNPJ inválido")
+        else:
+            cliente_existente = Cliente.query.filter(
+                Cliente.estabelecimento_id == estabelecimento_id,
+                db.or_(Cliente.cnpj == cnpj, Cliente.cnpj == cnpj_formatado),
+            ).first()
+            if cliente_existente and cliente_existente.id != cliente_id:
+                erros.append("CNPJ já cadastrado para outro cliente")
+
+    if data.get("inscricao_estadual") and len(str(data["inscricao_estadual"]).strip()) > 20:
+        erros.append("Inscrição estadual deve ter no máximo 20 caracteres")
 
     # Validação de email
     if data.get("email") and not validar_email(data["email"]):
@@ -88,7 +164,7 @@ def validar_dados_cliente(data, cliente_id=None, estabelecimento_id=None, is_upd
             erros.append("Telefone inválido")
 
     # Validação de data de nascimento
-    if data.get("data_nascimento"):
+    if tipo == "PF" and data.get("data_nascimento"):
         try:
             data_nasc = datetime.strptime(data["data_nascimento"], "%Y-%m-%d").date()
             if data_nasc > date.today():
@@ -123,6 +199,14 @@ def formatar_cpf(cpf):
     if len(cpf) == 11:
         return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
     return cpf
+
+
+def formatar_cnpj(cnpj):
+    """Formata CNPJ para o padrão 00.000.000/0000-00"""
+    cnpj = re.sub(r"\D", "", str(cnpj or ""))
+    if len(cnpj) == 14:
+        return f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+    return cnpj
 
 
 def calcular_classificacao_cliente(cliente):
@@ -175,7 +259,7 @@ def listar_clientes():
         direcao = request.args.get("direcao", "desc")
 
         # Query base
-        query = Cliente.query
+        query = _restringir_carteira(Cliente.query)
         if estabelecimento_id != 'all':
             query = query.filter_by(estabelecimento_id=estabelecimento_id)
 
@@ -201,7 +285,9 @@ def listar_clientes():
             query = query.filter(
                 db.or_(
                     ilike_unaccent(Cliente.nome, busca_termo),
-                    ilike_unaccent(Cliente.cpf, busca_termo),
+                    documento_contem(Cliente.cpf, busca),
+                    documento_contem(Cliente.cnpj, busca),
+                    ilike_unaccent(Cliente.razao_social, busca_termo),
                     ilike_unaccent(Cliente.email, busca_termo),
                     ilike_unaccent(Cliente.celular, busca_termo),
                     ilike_unaccent(Cliente.telefone, busca_termo),
@@ -213,6 +299,7 @@ def listar_clientes():
             "id": Cliente.id,
             "nome": Cliente.nome,
             "cpf": Cliente.cpf,
+            "cnpj": Cliente.cnpj,
             "valor_total_gasto": Cliente.valor_total_gasto,
             "total_compras": Cliente.total_compras,
             "data_cadastro": Cliente.data_cadastro,
@@ -545,14 +632,30 @@ def criar_cliente():
             )
 
         # Formatar dados
-        cpf_formatado = formatar_cpf(data["cpf"])
+        tipo = str(data.get("tipo_pessoa") or "PF").upper()
+        cpf_formatado = formatar_cpf(data["cpf"]) if data.get("cpf") else None
+        cnpj_formatado = formatar_cnpj(data["cnpj"]) if tipo == "PJ" and data.get("cnpj") else None
         celular_formatado = formatar_telefone(data["celular"])
+
+        # Cliente cadastrado pelo vendedor entra na carteira dele; sem rota ele nunca aparece no app.
+        rota_id = None
+        if str(jwt_data.get("role") or "").upper() in ("VENDEDOR", "SFA", "SAF"):
+            from app.models import Rota
+            rota = Rota.query.filter_by(estabelecimento_id=estabelecimento_id, vendedor_id=int(get_jwt_identity()),
+                                        ativa=True).order_by(Rota.id).first()
+            rota_id = rota.id if rota else None
 
         # Criar cliente
         cliente = Cliente(
             estabelecimento_id=estabelecimento_id,
-            nome=data["nome"].strip(),
+            rota_id=rota_id,
+            tipo_pessoa=tipo,
+            nome=(data.get("nome") or data.get("razao_social") or "").strip(),
             cpf=cpf_formatado,
+            cnpj=cnpj_formatado,
+            razao_social=(data.get("razao_social") or "").strip() or None,
+            inscricao_estadual=(data.get("inscricao_estadual") or "").strip() or None,
+            contato_nome=(data.get("contato_nome") or "").strip() or None,
             rg=data.get("rg", "").strip(),
             data_nascimento=(
                 datetime.strptime(data["data_nascimento"], "%Y-%m-%d").date()
@@ -562,7 +665,8 @@ def criar_cliente():
             telefone=formatar_telefone(data.get("telefone", "")),
             celular=celular_formatado,
             email=data.get("email", "").strip().lower(),
-            limite_credito=Decimal(str(data.get("limite_credito", 0))),
+            # Crédito é decisão da gerência: cliente cadastrado pelo vendedor nasce sem limite.
+            limite_credito=Decimal("0") if _eh_vendedor(jwt_data) else Decimal(str(data.get("limite_credito", 0))),
             saldo_devedor=Decimal("0"),
             # Endereço
             cep=data.get("cep", "").strip(),
@@ -609,8 +713,14 @@ def criar_cliente():
         error_msg = str(e.orig) if hasattr(e, 'orig') else str(e)
         current_app.logger.error(f"IntegrityError ao criar cliente: {error_msg}")
         
-        # Tenta identificar se é realmente CPF duplicado
-        if "cpf" in error_msg.lower() or "uq_cliente_estab_cpf" in error_msg.lower():
+        # Identifica pelo nome da restrição (o texto do INSERT cita as duas colunas)
+        baixo = error_msg.lower()
+        if "uq_cliente_estab_cnpj" in baixo or "clientes.cnpj" in baixo:
+            return (
+                jsonify({"success": False, "message": "Este CNPJ já está cadastrado para outro cliente deste estabelecimento."}),
+                400,
+            )
+        if "uq_cliente_estab_cpf" in baixo or "clientes.cpf" in baixo:
             return (
                 jsonify({"success": False, "message": "Este CPF já está cadastrado para outro cliente deste estabelecimento."}),
                 400,
@@ -670,8 +780,12 @@ def atualizar_cliente(id):
             )
 
         # Formatar dados
+        if data.get("tipo_pessoa"):
+            cliente.tipo_pessoa = str(data["tipo_pessoa"]).upper()
         if "cpf" in data:
-            cliente.cpf = formatar_cpf(data["cpf"])
+            cliente.cpf = formatar_cpf(data["cpf"]) if data["cpf"] else None
+        if "cnpj" in data:
+            cliente.cnpj = formatar_cnpj(data["cnpj"]) if data["cnpj"] else None
 
         if "celular" in data:
             cliente.celular = formatar_telefone(data["celular"])
@@ -687,6 +801,9 @@ def atualizar_cliente(id):
             "limite_credito",
             "observacoes",
             "ativo",
+            "razao_social",
+            "inscricao_estadual",
+            "contato_nome",
         ]
 
         for campo in campos_basicos:
@@ -908,7 +1025,7 @@ def buscar_clientes():
         if not estabelecimento_id:
             return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
 
-        query = Cliente.query.filter_by(
+        query = _restringir_carteira(Cliente.query).filter_by(
             estabelecimento_id=estabelecimento_id
         )
 
@@ -925,7 +1042,9 @@ def buscar_clientes():
             query.filter(
                 db.or_(
                     ilike_unaccent(Cliente.nome, busca_termo),
-                    ilike_unaccent(Cliente.cpf, busca_termo),
+                    documento_contem(Cliente.cpf, termo),
+                    documento_contem(Cliente.cnpj, termo),
+                    ilike_unaccent(Cliente.razao_social, busca_termo),
                     ilike_unaccent(Cliente.email, busca_termo),
                     ilike_unaccent(Cliente.celular, busca_termo),
                 )
@@ -940,8 +1059,12 @@ def buscar_clientes():
                 {
                     "id": cliente.id,
                     "nome": cliente.nome,
-                    "cpf_cnpj": cliente.cpf or "",  # Alias para compatibilidade frontend
+                    "cpf_cnpj": cliente.documento,  # Alias para compatibilidade frontend
+                    "documento": cliente.documento,
+                    "tipo_pessoa": cliente.tipo_pessoa,
+                    "razao_social": cliente.razao_social or "",
                     "cpf": cliente.cpf or "",
+                    "cnpj": cliente.cnpj or "",
                     "telefone": cliente.celular or "",  # Alias para compatibilidade frontend
                     "celular": cliente.celular or "",
                     "email": cliente.email or "",
@@ -1014,6 +1137,8 @@ def recalcular_metricas_clientes():
             cliente.valor_total_gasto = valor_total_gasto
             cliente.ultima_compra = ultima_compra
             cliente.saldo_devedor = saldo_devedor
+            from app.services.credito_service import recalcular_credito
+            recalcular_credito(cliente)
             atualizados += 1
 
         db.session.commit()
@@ -1195,6 +1320,22 @@ def gerar_mensagem_ia(id):
         return jsonify({"success": False, "message": "Erro ao gerar mensagem com IA"}), 500
 
 
+@clientes_bp.route("/<int:id>/credito", methods=["GET"])
+@funcionario_required
+def obter_credito_cliente(id):
+    """Score de crédito explicável: componentes, atrasos e títulos vencidos."""
+    from app.services.credito_service import DIAS_TOLERANCIA_ATRASO, calcular_score, titulos_vencidos
+    estabelecimento_id = get_authorized_establishment_id()
+    cliente = Cliente.query.filter_by(id=id, estabelecimento_id=estabelecimento_id).first_or_404()
+    resultado = calcular_score(cliente)
+    resultado["limite_credito"] = float(cliente.limite_credito or 0)
+    resultado["saldo_devedor"] = float(cliente.saldo_devedor or 0)
+    resultado["limite_disponivel"] = calcular_limite_disponivel(cliente)
+    resultado["dias_tolerancia_atraso"] = DIAS_TOLERANCIA_ATRASO
+    resultado["bloqueado_para_prazo"] = bool(titulos_vencidos(cliente))
+    return jsonify({"success": True, "credito": resultado}), 200
+
+
 @clientes_bp.route("/<int:id>/pagar_fiado", methods=["POST"])
 @funcionario_required
 def pagar_fiado(id):
@@ -1202,122 +1343,108 @@ def pagar_fiado(id):
     Gera automaticamente um Suprimento no caixa aberto.
 
     Dois modos:
-    - conta_receber_id informado: quita ESSA venda específica (o cliente
-      questionou "por que devo X" e o funcionário resolve quitar aquela
-      compra pontual).
-    - sem conta_receber_id: abatimento livre — distribui o valor nas
-      contas em aberto por ordem FIFO (mais antiga primeiro), igual ao
-      caderninho tradicional.
+    - conta_receber_id informado: quita ESSA venda específica.
+    - sem conta_receber_id: abatimento livre, distribuído nas contas em aberto
+      por ordem FIFO (mais antiga primeiro).
 
-    Em ambos os casos, Cliente.saldo_devedor é RECONCILIADO ao final (não
-    apenas decrementado) para nunca divergir da soma real das ContaReceber
-    em aberto — essa divergência já causou bug real (ver bug de cancelamento
-    de venda que não revertia denormalizações)."""
+    Valores em Decimal, finitos e positivos; cliente e títulos ficam travados
+    durante a baixa (duas baixas simultâneas não abatem o mesmo título duas
+    vezes). Ao final o saldo do cliente é reconciliado com a soma real dos
+    títulos abertos e o score de crédito é recalculado."""
+    from decimal import ROUND_HALF_UP
+    from app.utils.sale_validation import number
+    centavo = Decimal("0.01")
     try:
         jwt_data = get_jwt()
         funcionario_id = int(get_jwt_identity())
         estabelecimento_id = jwt_data.get("estabelecimento_id")
+        if not estabelecimento_id:
+            return jsonify({"success": False, "message": "Estabelecimento não identificado"}), 400
 
-        cliente = Cliente.query.filter_by(
-            id=id, estabelecimento_id=estabelecimento_id
-        ).first_or_404()
-
-        data = request.get_json()
-        valor_pago = float(data.get("valor", 0))
-        forma_pagamento = data.get("forma_pagamento", "Dinheiro")
-        conta_receber_id = data.get("conta_receber_id")
-        observacoes = data.get("observacoes", f"Pagamento de fiado - Cliente {cliente.nome}")
-
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"success": False, "message": "Dados não fornecidos"}), 400
+        try:
+            valor_pago = number(data.get("valor", 0), "Valor", positive=True).quantize(centavo, rounding=ROUND_HALF_UP)
+        except ValueError:
+            return jsonify({"success": False, "message": "Informe um valor numérico maior que zero"}), 400
         if valor_pago <= 0:
             return jsonify({"success": False, "message": "O valor deve ser maior que zero"}), 400
 
-        saldo_atual = float(cliente.saldo_devedor or 0)
-        if valor_pago > saldo_atual + 0.01:
+        cliente = Cliente.query.filter_by(id=id, estabelecimento_id=estabelecimento_id) \
+            .populate_existing().with_for_update().first_or_404()
+        forma_pagamento = str(data.get("forma_pagamento", "Dinheiro"))[:30]
+        conta_receber_id = data.get("conta_receber_id")
+        observacoes = data.get("observacoes", f"Pagamento de fiado - Cliente {cliente.nome}")
+
+        saldo_atual = Decimal(str(cliente.saldo_devedor or 0))
+        if valor_pago > saldo_atual + centavo:
             return jsonify({
                 "success": False,
                 "message": f"Valor informado (R$ {valor_pago:.2f}) é maior que o saldo devedor (R$ {saldo_atual:.2f})"
             }), 400
 
-        # Trava de integridade: o abatimento livre só pode quitar o que existe
-        # de fato em ContaReceber. Sem isso, um Cliente.saldo_devedor
-        # desatualizado (dado legado sem conta correspondente) "engoliria"
-        # o pagamento sem lastro em nenhuma venda real.
-        if not conta_receber_id:
-            total_aberto_antes = float(db.session.query(
-                func.coalesce(func.sum(ContaReceber.valor_atual), 0)
-            ).filter_by(cliente_id=id, estabelecimento_id=estabelecimento_id, status="aberto").scalar() or 0)
-            if valor_pago > total_aberto_antes + 0.01:
-                return jsonify({
-                    "success": False,
-                    "message": (
-                        f"O saldo devedor (R$ {saldo_atual:.2f}) não corresponde a nenhuma venda "
-                        f"em aberto encontrada (R$ {total_aberto_antes:.2f}). Contate o suporte para "
-                        f"reconciliar o cadastro deste cliente antes de registrar o recebimento."
-                    ),
-                }), 409
+        abertas = ContaReceber.query.filter_by(cliente_id=id, estabelecimento_id=estabelecimento_id, status="aberto") \
+            .populate_existing().with_for_update().order_by(ContaReceber.data_emissao.asc(), ContaReceber.id.asc()).all()
+        total_aberto_antes = sum((Decimal(str(c.valor_atual or 0)) for c in abertas), Decimal("0"))
 
-        # Buscar caixa aberto para o funcionário logado
+        # O abatimento livre só pode quitar o que existe de fato em títulos: um
+        # saldo desatualizado (dado legado) não pode "engolir" o pagamento.
+        if not conta_receber_id and valor_pago > total_aberto_antes + centavo:
+            return jsonify({
+                "success": False,
+                "message": (
+                    f"O saldo devedor (R$ {saldo_atual:.2f}) não corresponde a nenhuma venda "
+                    f"em aberto encontrada (R$ {total_aberto_antes:.2f}). Contate o suporte para "
+                    f"reconciliar o cadastro deste cliente antes de registrar o recebimento."
+                ),
+            }), 409
+
         from app.models import Caixa, MovimentacaoCaixa, Auditoria
-        caixa_aberto = Caixa.query.filter_by(
-            funcionario_id=funcionario_id,
-            status="aberto"
-        ).order_by(Caixa.data_abertura.desc()).first()
-
+        caixa_aberto = Caixa.query.filter_by(funcionario_id=funcionario_id, estabelecimento_id=estabelecimento_id,
+                                             status="aberto").order_by(Caixa.data_abertura.desc()) \
+            .populate_existing().with_for_update().first()
         if not caixa_aberto:
             return jsonify({
                 "success": False,
                 "message": "É necessário ter um caixa aberto para registrar o recebimento de fiado."
             }), 403
 
-        # ── Quitação de venda específica (o cliente pediu detalhamento) ──
-        if conta_receber_id:
-            conta = ContaReceber.query.filter_by(
-                id=conta_receber_id, cliente_id=id,
-                estabelecimento_id=estabelecimento_id, status="aberto",
-            ).first()
-            if not conta:
-                return jsonify({"success": False, "message": "Conta de fiado não encontrada ou já quitada"}), 404
-            if valor_pago > float(conta.valor_atual or 0) + 0.01:
-                return jsonify({
-                    "success": False,
-                    "message": f"Valor informado (R$ {valor_pago:.2f}) é maior que o valor desta venda (R$ {float(conta.valor_atual):.2f})",
-                }), 400
-            conta.valor_recebido = float(conta.valor_recebido or 0) + valor_pago
-            conta.valor_atual = round(max(0, float(conta.valor_atual or 0) - valor_pago), 2)
-            if conta.valor_atual <= 0.01:
+        def baixar(conta, valor):
+            conta.valor_recebido = Decimal(str(conta.valor_recebido or 0)) + valor
+            conta.valor_atual = max(Decimal("0"), Decimal(str(conta.valor_atual or 0)) - valor).quantize(centavo)
+            conta.forma_recebimento = forma_pagamento
+            if conta.valor_atual <= centavo:
+                conta.valor_atual = Decimal("0")
                 conta.status = "pago"
                 conta.data_recebimento = date.today()
+
+        if conta_receber_id:
+            conta = next((c for c in abertas if str(c.id) == str(conta_receber_id)), None)
+            if not conta:
+                return jsonify({"success": False, "message": "Conta de fiado não encontrada ou já quitada"}), 404
+            if valor_pago > Decimal(str(conta.valor_atual or 0)) + centavo:
+                return jsonify({
+                    "success": False,
+                    "message": f"Valor informado (R$ {valor_pago:.2f}) é maior que o valor desta venda (R$ {Decimal(str(conta.valor_atual)):.2f})",
+                }), 400
+            baixar(conta, valor_pago)
             descricao_auditoria = f"Quitação da venda {conta.venda.codigo if conta.venda else conta.numero_documento}"
         else:
-            # ── Abatimento livre: distribui nas contas mais antigas (FIFO) ──
             restante = valor_pago
-            contas_abertas = (
-                ContaReceber.query.filter_by(
-                    cliente_id=id, estabelecimento_id=estabelecimento_id, status="aberto"
-                ).order_by(ContaReceber.data_emissao.asc()).all()
-            )
-            for conta in contas_abertas:
-                if restante <= 0.005:
+            for conta in abertas:
+                if restante <= 0:
                     break
-                valor_atual_conta = float(conta.valor_atual or 0)
-                abatimento = min(restante, valor_atual_conta)
-                conta.valor_recebido = float(conta.valor_recebido or 0) + abatimento
-                conta.valor_atual = round(max(0, valor_atual_conta - abatimento), 2)
-                if conta.valor_atual <= 0.01:
-                    conta.status = "pago"
-                    conta.data_recebimento = date.today()
-                restante = round(restante - abatimento, 2)
+                abatimento = min(restante, Decimal(str(conta.valor_atual or 0)))
+                baixar(conta, abatimento)
+                restante -= abatimento
             descricao_auditoria = "Abatimento geral do saldo em aberto"
 
-        # Reconciliar saldo do cliente com a soma REAL das contas ainda abertas
-        # (não decrementar às cegas — evita drift se houver dado legado).
-        total_aberto_real = db.session.query(
-            func.coalesce(func.sum(ContaReceber.valor_atual), 0)
-        ).filter_by(cliente_id=id, estabelecimento_id=estabelecimento_id, status="aberto").scalar()
-        cliente.saldo_devedor = round(float(total_aberto_real or 0), 2)
+        # Reconcilia o saldo com a soma REAL dos títulos ainda abertos.
+        total_aberto_real = sum((Decimal(str(c.valor_atual or 0)) for c in abertas if c.status == "aberto"), Decimal("0"))
+        cliente.saldo_devedor = total_aberto_real.quantize(centavo)
 
-        # Registrar como Suprimento no Caixa (dinheiro entrou na gaveta)
-        mov_caixa = MovimentacaoCaixa(
+        db.session.add(MovimentacaoCaixa(
             caixa_id=caixa_aberto.id,
             estabelecimento_id=estabelecimento_id,
             tipo="suprimento",
@@ -1325,12 +1452,12 @@ def pagar_fiado(id):
             forma_pagamento=forma_pagamento,
             descricao=f"Receb. Fiado - {cliente.nome}",
             observacoes=observacoes
-        )
-        db.session.add(mov_caixa)
-
-        # Atualizar saldo do caixa se for dinheiro
+        ))
         if forma_pagamento.lower() == "dinheiro":
-            caixa_aberto.saldo_atual = float(caixa_aberto.saldo_atual or 0) + valor_pago
+            caixa_aberto.saldo_atual = Decimal(str(caixa_aberto.saldo_atual or 0)) + valor_pago
+
+        from app.services.credito_service import recalcular_credito
+        recalcular_credito(cliente)
 
         Auditoria.registrar(
             estabelecimento_id=estabelecimento_id,
@@ -1344,15 +1471,16 @@ def pagar_fiado(id):
 
         current_app.logger.info(
             f"Fiado pago: Cliente {id} pagou R$ {valor_pago:.2f} via {forma_pagamento}. "
-            f"Saldo restante: R$ {float(cliente.saldo_devedor):.2f}"
+            f"Saldo restante: R$ {Decimal(str(cliente.saldo_devedor)):.2f}"
         )
 
         return jsonify({
             "success": True,
             "message": f"Pagamento de R$ {valor_pago:.2f} registrado com sucesso!",
-            "saldo_devedor_anterior": saldo_atual,
+            "saldo_devedor_anterior": float(saldo_atual),
             "saldo_devedor_atual": float(cliente.saldo_devedor),
-            "valor_pago": valor_pago
+            "valor_pago": float(valor_pago),
+            "score_credito": cliente.score_credito,
         }), 200
 
     except Exception as e:
@@ -1759,7 +1887,7 @@ def exportar_clientes():
                     [
                         c.id,
                         c.nome or "",
-                        c.cpf or "",
+                        c.documento,
                         c.rg or "",
                         (
                             c.data_nascimento.strftime("%d/%m/%Y")
@@ -1834,7 +1962,7 @@ def exportar_clientes():
                     {
                         "ID": c.id,
                         "Nome": c.nome or "",
-                        "CPF": c.cpf or "",
+                        "CPF/CNPJ": c.documento,
                         "RG": c.rg or "",
                         "Data Nascimento": (
                             c.data_nascimento.strftime("%d/%m/%Y")
@@ -2105,6 +2233,7 @@ def relatorio_analitico_clientes():
                         "id": cliente.id,
                         "nome": cliente.nome,
                         "cpf": cliente.cpf,
+                        "documento": cliente.documento,
                         "classificacao": calcular_classificacao_cliente(cliente),
                         "data_cadastro": (
                             cliente.data_cadastro.isoformat()
@@ -2240,133 +2369,185 @@ def obter_rfm():
         current_app.logger.error(f"Erro ao calcular RFM: {str(e)}")
         return jsonify({"success": False, "message": "Erro ao calcular RFM"}), 500
 
+_IMPORT_MAX_LINHAS = 10000
+
+
+def _decimal_br(valor, campo):
+    """Aceita 1234.56, 1.234,56 e R$ 1.234,56; recusa vazio inválido, negativo e não finito."""
+    texto = str(valor or "").replace("R$", "").strip().replace(" ", "")
+    if not texto:
+        return Decimal("0")
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        numero = Decimal(texto)
+    except Exception:
+        raise ValueError(f"{campo} inválido: {valor}") from None
+    if not numero.is_finite() or numero < 0:
+        raise ValueError(f"{campo} inválido: {valor}")
+    return numero.quantize(Decimal("0.01"))
+
+
+def _data_import(valor, campo):
+    texto = str(valor or "").strip()
+    if not texto:
+        return None
+    for formato in ("%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(texto, formato).date()
+        except ValueError:
+            continue
+    raise ValueError(f"{campo} inválida: {valor} (use AAAA-MM-DD ou DD/MM/AAAA)")
+
+
 @clientes_bp.route("/importar", methods=["POST"])
 @funcionario_required
 @permission_required('clientes')
 def importar_clientes_csv():
-    """
-    Importa clientes em massa via CSV.
-    Permissao: ADMIN ou GERENTE (via permission_required).
-    Processa saldo devedor inicial para migração de fiado.
+    """Importa clientes (PF e PJ) em massa via CSV, com saldo inicial por título.
+
+    Colunas: nome, cpf ou cnpj, celular, limite_credito, saldo_devedor,
+    vencimento_saldo, documento_saldo, razao_social, inscricao_estadual,
+    contato_nome, email, cep, logradouro, numero, complemento, bairro, cidade,
+    estado. O tipo (PF/PJ) sai do documento: 11 dígitos CPF, 14 CNPJ.
+
+    Cada linha é gravada isoladamente: erro em uma linha não derruba as demais,
+    e só conta como importada a que foi gravada de fato.
     """
     import csv
     import io
-    from decimal import Decimal
-    
+    from app.models import Auditoria
+    from app.services.credito_service import recalcular_credito
+
     try:
-        jwt_data = get_jwt()
         estabelecimento_id = get_authorized_establishment_id()
-        
+        if not estabelecimento_id or str(estabelecimento_id).lower() == "all":
+            return jsonify({"success": False, "message": "Selecione a loja que receberá os clientes"}), 400
         if 'arquivo' not in request.files:
             return jsonify({"success": False, "message": "Nenhum arquivo enviado"}), 400
-        
-        file = request.files['arquivo']
-        if file.filename == '' or not file.filename.endswith('.csv'):
+        arquivo = request.files['arquivo']
+        if arquivo.filename == '' or not arquivo.filename.lower().endswith('.csv'):
             return jsonify({"success": False, "message": "O arquivo deve ser um CSV"}), 400
 
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-        reader = csv.DictReader(stream, delimiter=';')
-        
-        if not reader.fieldnames or len(reader.fieldnames) < 2:
-            stream.seek(0)
-            reader = csv.DictReader(stream, delimiter=',')
-            
-        success_count = 0
-        error_count = 0
-        errors = []
-        
-        for row_idx, row in enumerate(reader, start=1):
+        bruto = arquivo.stream.read()
+        try:
+            texto = bruto.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            texto = bruto.decode("latin-1")  # planilhas exportadas pelo Excel antigo
+        delimitador = ";" if texto.splitlines() and texto.splitlines()[0].count(";") >= texto.splitlines()[0].count(",") else ","
+        leitor = csv.DictReader(io.StringIO(texto, newline=None), delimiter=delimitador)
+        if not leitor.fieldnames or len(leitor.fieldnames) < 2:
+            return jsonify({"success": False, "message": "CSV sem cabeçalho válido (nome;cpf;celular;...)"}), 400
+        leitor.fieldnames = [str(c or "").strip().lower().replace(" ", "_") for c in leitor.fieldnames]
+
+        importados, erros, vistos = 0, [], set()
+        for numero, linha in enumerate(leitor, start=2):  # linha 1 é o cabeçalho
+            if numero - 1 > _IMPORT_MAX_LINHAS:
+                erros.append(f"Limite de {_IMPORT_MAX_LINHAS} linhas por arquivo; divida a planilha")
+                break
+
+            def campo(*nomes):
+                for nome in nomes:
+                    valor = linha.get(nome)
+                    if valor is not None and str(valor).strip():
+                        return str(valor).strip()
+                return ""
+
             try:
-                nome = row.get('nome', '').strip()
-                cpf = row.get('cpf', '').strip()
-                celular = row.get('celular', '').strip()
-                limite_str = row.get('limite_credito', '0').replace(',', '.')
-                saldo_str = row.get('saldo_devedor', '0').replace(',', '.')
-                
-                if not nome:
-                    errors.append(f"Linha {row_idx}: Nome é obrigatório")
-                    error_count += 1
-                    continue
-                
-                cpf_formatado = formatar_cpf(cpf) if cpf else None
-                celular_formatado = formatar_telefone(celular) if celular else None
-                
-                # Check for existing CPF
-                if cpf_formatado:
-                    existente = Cliente.query.filter_by(
-                        estabelecimento_id=estabelecimento_id,
-                        cpf=cpf_formatado
-                    ).first()
-                    
-                    if existente:
-                        errors.append(f"Linha {row_idx}: CPF {cpf_formatado} já cadastrado")
-                        error_count += 1
-                        continue
+                with db.session.begin_nested():
+                    nome = campo("nome", "nome_fantasia")
+                    razao = campo("razao_social")
+                    documento = re.sub(r"\D", "", campo("cnpj", "cpf", "documento", "cpf_cnpj"))
+                    if len(documento) == 14:
+                        tipo, cnpj, cpf = "PJ", formatar_cnpj(documento), None
+                        if not validar_cnpj(documento):
+                            raise ValueError("CNPJ inválido")
+                        if not (razao or nome):
+                            raise ValueError("Informe a razão social ou o nome do cliente PJ")
+                    elif len(documento) == 11:
+                        tipo, cnpj, cpf = "PF", None, formatar_cpf(documento)
+                        if not validar_cpf(documento):
+                            raise ValueError("CPF inválido")
+                        if not nome:
+                            raise ValueError("Nome é obrigatório")
+                    else:
+                        raise ValueError("Informe um CPF (11 dígitos) ou CNPJ (14 dígitos)")
+                    if documento in vistos:
+                        raise ValueError("Documento repetido no próprio arquivo")
+                    vistos.add(documento)
+                    celular = campo("celular", "telefone")
+                    if not celular:
+                        raise ValueError("Celular ou telefone é obrigatório")
 
-                limite = Decimal(limite_str) if limite_str.replace('.','',1).isdigit() else Decimal('0')
-                saldo = Decimal(saldo_str) if saldo_str.replace('.','',1).isdigit() else Decimal('0')
+                    if Cliente.query.filter(
+                        Cliente.estabelecimento_id == estabelecimento_id,
+                        (Cliente.cnpj == cnpj) if tipo == "PJ" else (Cliente.cpf == cpf),
+                    ).first():
+                        raise ValueError(f"{'CNPJ' if tipo == 'PJ' else 'CPF'} {cnpj or cpf} já cadastrado")
 
-                novo_cliente = Cliente(
-                    estabelecimento_id=estabelecimento_id,
-                    nome=nome,
-                    cpf=cpf_formatado,
-                    celular=celular_formatado,
-                    email=row.get('email', '').strip().lower(),
-                    limite_credito=limite,
-                    saldo_devedor=saldo,
-                    total_compras=0,
-                    valor_total_gasto=Decimal('0'),
-                    ativo=True
-                )
-                
-                db.session.add(novo_cliente)
-                db.session.flush() # para pegar o ID
-                
-                # Se tem saldo devedor (fiado antigo), gera o Contas a Receber
-                if saldo > 0:
-                    nova_conta = ContaReceber(
+                    limite = _decimal_br(campo("limite_credito"), "Limite de crédito")
+                    saldo = _decimal_br(campo("saldo_devedor"), "Saldo devedor")
+                    vencimento = _data_import(campo("vencimento_saldo", "vencimento"), "Data de vencimento")
+
+                    cliente = Cliente(
                         estabelecimento_id=estabelecimento_id,
-                        cliente_id=novo_cliente.id,
-                        descricao=f"Migração de Saldo Inicial - {nome}",
-                        valor_original=saldo,
-                        valor_atual=saldo,
-                        data_vencimento=date.today() + timedelta(days=30),
-                        data_emissao=date.today(),
-                        status='aberto'
+                        tipo_pessoa=tipo,
+                        nome=(nome or razao)[:150],
+                        cpf=cpf,
+                        cnpj=cnpj,
+                        razao_social=razao[:150] or None,
+                        inscricao_estadual=campo("inscricao_estadual", "ie")[:20] or None,
+                        contato_nome=campo("contato_nome", "contato")[:100] or None,
+                        celular=formatar_telefone(celular),
+                        telefone=formatar_telefone(campo("telefone")) if campo("telefone") else None,
+                        email=campo("email").lower() or None,
+                        limite_credito=limite,
+                        saldo_devedor=saldo,
+                        # O banco exige endereço; ausente na planilha, fica vazio para completar depois.
+                        cep=campo("cep"), logradouro=campo("logradouro"), numero=campo("numero"),
+                        complemento=campo("complemento"), bairro=campo("bairro"), cidade=campo("cidade"),
+                        estado=campo("estado", "uf").upper()[:2],
+                        total_compras=0, valor_total_gasto=Decimal("0"), ativo=True,
                     )
-                    db.session.add(nova_conta)
-                
-                success_count += 1
-                
-                if success_count % 50 == 0:
-                    db.session.commit()
-                    
-            except Exception as row_err:
-                db.session.rollback()
-                errors.append(f"Linha {row_idx}: Erro inesperado - {str(row_err)}")
-                error_count += 1
-                
+                    db.session.add(cliente)
+                    db.session.flush()
+                    if saldo > 0:
+                        hoje = date.today()
+                        db.session.add(ContaReceber(
+                            estabelecimento_id=estabelecimento_id, cliente_id=cliente.id,
+                            numero_documento=(campo("documento_saldo") or f"SALDO-INICIAL-{cliente.id}")[:50],
+                            tipo_documento="saldo_inicial",
+                            valor_original=saldo, valor_atual=saldo, valor_recebido=Decimal("0"),
+                            data_emissao=hoje, data_vencimento=vencimento or hoje + timedelta(days=30),
+                            status="aberto",
+                            observacoes=f"Saldo inicial importado - {cliente.nome}",
+                        ))
+                        db.session.flush()
+                        recalcular_credito(cliente)
+                importados += 1
+            except Exception as erro_linha:
+                detalhe = str(erro_linha.orig) if hasattr(erro_linha, "orig") else str(erro_linha)
+                erros.append(f"Linha {numero}: {detalhe[:200]}")
+
         db.session.commit()
-        
-        # Log Audit
-        from app.models import Auditoria
         Auditoria.registrar(
             estabelecimento_id=estabelecimento_id,
             tipo_evento="cliente_importado",
-            descricao=f"Importação de {success_count} clientes via CSV",
+            descricao=f"Importação de {importados} clientes via CSV ({len(erros)} linhas com erro)",
             valor=Decimal('0'),
-            detalhes={"sucesso": success_count, "erros": error_count, "metodo": "import_bulk"}
+            detalhes={"sucesso": importados, "erros": len(erros), "metodo": "import_bulk"}
         )
-        
+        db.session.commit()
+        sucesso = importados > 0 or not erros
         return jsonify({
-            "success": True,
-            "message": f"Importação concluída: {success_count} importados, {error_count} erros.",
-            "total_importados": success_count,
-            "total_erros": error_count,
-            "erros": errors[:10]
-        })
-        
+            "success": sucesso,
+            "message": f"Importação concluída: {importados} importados, {len(erros)} com erro.",
+            "total_importados": importados,
+            "total_erros": len(erros),
+            "erros": erros[:50],
+        }), (200 if sucesso else 422)
+
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erro na importação de clientes: {str(e)}")
-        return jsonify({"success": False, "message": f"Erro interno na importação: {str(e)}"}), 500
+        return jsonify({"success": False, "message": "Erro interno na importação"}), 500

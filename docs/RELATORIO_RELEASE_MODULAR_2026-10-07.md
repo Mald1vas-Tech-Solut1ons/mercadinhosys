@@ -71,3 +71,7 @@ Os 7.194 artefatos locais de cache/runtime foram excluídos do escopo Git e mant
 A instalação usa dados simulados, VM OCI Micro com 1 GB de RAM, PostgreSQL 15, Redis 7, Gunicorn com 1 worker/4 threads e Caddy HTTPS. Não foi homologada para carga empresarial, alta disponibilidade ou recuperação após perda da VM. Manter backup externo e dimensionar infraestrutura antes da entrada de dados reais.
 
 Os **7 aceites pendentes** documentados no backlog são: recebimento parcial, totais SFA inconsistentes, estoque na entrega, lotes SFA, CMP fracionário, lotes vencidos e CMV histórico. Não tratar esta release como aprovação de migração empresarial. Fiscal real, cobranças externas, SMTP e importação/desembaraço precisam de homologação específica. As correções financeiras e de fornecedores desta release estão verificadas nos cenários acima.
+
+## Correção posterior do smoke e de fornecedores
+
+O smoke inicial aceitou fallback e não comprovou métricas nem o escopo solicitado por query string. A correção e a nova publicação efetivamente verificadas estão em [incidente fornecedores](INCIDENTE_SENTRY_FORNECEDORES_2026-10-07.md). As afirmações anteriores sobre resposta HTTP válida não equivalem a aprovação do caminho principal.

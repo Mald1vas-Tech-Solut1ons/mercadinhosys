@@ -114,3 +114,7 @@ A restauração do primeiro dump foi testada em banco temporário por `verify-ba
 Saúde, PostgreSQL, HTTPS, CORS, login SUPERADMIN, `/super-admin/health`, login da primeira loja e produtos autenticados: verificados. Login no navegador e dashboard: confirmados. Dump e restauração: verificados.
 
 A Micro tem 1 GB e não foi submetida a teste amplo de carga. A instalação funcional usa dados simulados; fiscal real, pagamentos e e-mail não estão certificados por esses testes. Trocar o endpoint do site não cancela automaticamente um plano ou faturamento Render.
+
+## Correção de fornecedores e monitoramento
+
+Backend atualizado para revisão `e6b306c2adb493b6d3fcecba07c4b940d0750691`; frontend permanece na revisão `6d95713cf189f798aa98eb7f1fd64fa584a30683` porque não houve alteração de interface. Ver [incidente e evidências](../../docs/INCIDENTE_SENTRY_FORNECEDORES_2026-10-07.md).

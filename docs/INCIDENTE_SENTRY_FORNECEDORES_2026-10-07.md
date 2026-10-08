@@ -38,3 +38,14 @@ CI PostgreSQL e publicação desta correção serão registrados abaixo após a 
 O primeiro ensaio da correção interrompeu a publicação ao receber HTTP 500 em `/fornecedores/<id>/pedidos`. O relacionamento `PedidoCompra.itens` é uma lista ORM; `.count()` sem argumento era inválido. O teste anterior não tinha pedidos e não executava a serialização. Agora a contagem usa `len`, relações de itens/funcionário são carregadas em lote e existem casos positivos com pedido de R$ 40 e dois itens nos modos global, espelho e tenant. O smoke compara pedidos, valores e quantidade de itens com SQL independente e salva logs privados do container antes de removê-lo. A versão defeituosa permaneceu fora do deploy.
 
 O detalhe do fornecedor também omitia títulos com status `parcial`, embora ainda tivessem saldo devedor. O saldo desses títulos agora compõe `total_contas_abertas` e `valor_total_devido`, com regressões de R$ 40 menos R$ 10 pagos = R$ 30 devidos nos três modos de acesso. Não foi alterado o histórico ou saldo armazenado; foi corrigida sua apresentação.
+
+## Publicação efetiva — 2026-10-07T23:10:04-03:00
+
+- `0bc1c85fd8b3`: fix(fornecedores): serializar pedidos preenchidos e mostrar saldos parciais.
+- `e6b306c2adb4`: fix(devops): validar pedidos preenchidos e preservar diagnosticos do ensaio.
+
+CI completo aprovado: https://github.com/Mald1vas-Tech-Solut1ons/mercadinhosys/actions/runs/37715828015. Resumos reais: ["2026-10-08T02:03:52.1604099Z ===== 287 passed, 11 skipped, 7 xfailed, 835 warnings in 61.10s (0:01:01) ======", "2026-10-08T02:05:51.7973816Z ================= 88 passed, 358 warnings in 117.38s (0:01:57) ================="]. Foram aprovados 61 testes locais de fornecedores/monitoramento/contratos/isolamento, mais 4 casos do dossiê e 10 casos adicionais de pedidos/saldos/contratos.
+
+Revisão OCI ativa `e6b306c2adb493b6d3fcecba07c4b940d0750691`, imagem `sha256:91ecc5fb8819497ae05f775df005f3d9afab6c99bd952214208fce1ab999ddb4`. Ensaio em clone, smoke estrito local e público aprovados; contagens preservadas `{"estabelecimentos": 5, "funcionarios": 37, "produtos": 133, "vendas": 2834, "contas_pagar": 114}`. Backup validado em `/home/ubuntu/mercadinhosys-releases/e6b306c2adb4/database-before.dump`.
+
+Rollback da imagem: `python3 /home/ubuntu/mercadinhosys-releases/e6b306c2adb4/infra/oracle/release.py rollback --release e6b306c2adb4`. O comando verifica saúde/login da imagem anterior e preserva banco/volumes.

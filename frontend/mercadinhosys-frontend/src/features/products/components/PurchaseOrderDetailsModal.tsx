@@ -241,7 +241,7 @@ const PurchaseOrderDetailsModal: React.FC<PurchaseOrderDetailsModalProps> = ({
                     >
                         Fechar
                     </button>
-                    {pedido.status === 'pendente' && onReceiveClick && (
+                    {(pedido.status === 'pendente' || pedido.status === 'parcial') && onReceiveClick && (
                         <button
                             onClick={() => {
                                 onClose();

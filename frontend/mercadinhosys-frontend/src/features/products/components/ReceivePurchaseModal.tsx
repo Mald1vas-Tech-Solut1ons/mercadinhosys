@@ -17,6 +17,9 @@ interface ItemRecebimento {
   item_id: number;
   produto_nome: string;
   quantidade_solicitada: number;
+  quantidade_ja_recebida: number;
+  quantidade_pendente: number;
+  controlar_validade: boolean;
   quantidade_recebida: number;
   quantidade_avariada: number;
   quantidade_faltante: number;
@@ -70,29 +73,37 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
       const detalhes = await purchaseOrderService.obterPedido(pedido.id);
 
 
-      // Inicializar itens de recebimento
+      // Inicializar itens de recebimento: só o saldo pendente de cada item, para
+      // que a segunda carga de um pedido parcial confira apenas o que falta.
       if (detalhes.itens) {
-        // Calcular data de validade padrão (1 ano a partir de hoje)
-        const dataValidadePadrao = new Date();
-        dataValidadePadrao.setFullYear(dataValidadePadrao.getFullYear() + 1);
-
-        const itens = detalhes.itens.map((item, index) => ({
-          item_id: item.id!,
-          produto_nome: item.produto_nome,
-          quantidade_solicitada: item.quantidade_solicitada,
-          quantidade_recebida: 0, // Inicia zerado, o usuário vai conferir
-          quantidade_avariada: 0,
-          quantidade_faltante: 0,
-          quantidade_bonificada: 0,
-          preco_unitario: item.preco_unitario,
-          data_fabricacao: '',
-          data_validade: dataValidadePadrao.toISOString().split('T')[0],
-          numero_lote: `LOTE-${detalhes.numero_pedido}-${index + 1}`,
-          conferido: false,
-          expanded: false,
-          imagem_url: item.produto?.imagem_url,
-          codigo_barras: item.produto?.codigo_barras
-        }));
+        const itens = detalhes.itens
+          .map((item, index) => {
+            const solicitada = Number(item.quantidade_solicitada) || 0;
+            const jaRecebida = Number(item.quantidade_recebida) || 0;
+            const pendente = Math.max(0, solicitada - jaRecebida - (Number(item.quantidade_faltante) || 0));
+            return {
+              item_id: item.id!,
+              produto_nome: item.produto_nome,
+              quantidade_solicitada: solicitada,
+              quantidade_ja_recebida: jaRecebida,
+              quantidade_pendente: pendente,
+              // Validade real é obrigatória para perecível; nunca pré-preenchida.
+              controlar_validade: Boolean(item.produto?.controlar_validade),
+              quantidade_recebida: 0, // Inicia zerado, o usuário vai conferir
+              quantidade_avariada: 0,
+              quantidade_faltante: 0,
+              quantidade_bonificada: 0,
+              preco_unitario: Number(item.preco_unitario) || 0,
+              data_fabricacao: '',
+              data_validade: '',
+              numero_lote: `LOTE-${detalhes.numero_pedido}-${index + 1}`,
+              conferido: false,
+              expanded: false,
+              imagem_url: item.produto?.imagem_url,
+              codigo_barras: item.produto?.codigo_barras
+            };
+          })
+          .filter(item => item.quantidade_pendente > 0);
         setItensRecebimento(itens);
       }
 
@@ -161,7 +172,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
     const item = novosItens[index];
     item.conferido = !item.conferido;
     if (item.conferido && item.quantidade_recebida === 0) {
-      item.quantidade_recebida = item.quantidade_solicitada;
+      item.quantidade_recebida = item.quantidade_pendente;
     } else if (!item.conferido) {
       item.quantidade_recebida = 0;
     }
@@ -178,7 +189,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
     const novosItens = itensRecebimento.map(item => ({
       ...item,
       conferido: true,
-      quantidade_recebida: item.quantidade_solicitada
+      quantidade_recebida: item.quantidade_pendente
     }));
     setItensRecebimento(novosItens);
   };
@@ -218,10 +229,21 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const itensComRecebimento = itensRecebimento.filter(item => item.quantidade_recebida > 0);
+    const itensComRecebimento = itensRecebimento.filter(
+      item => item.quantidade_recebida > 0 || item.quantidade_faltante > 0 || item.quantidade_bonificada > 0
+    );
 
     if (itensComRecebimento.length === 0) {
       showToast.error('Informe a quantidade recebida para pelo menos um item');
+      return;
+    }
+
+    const semValidade = itensComRecebimento.find(item =>
+      item.controlar_validade && !item.data_validade &&
+      item.quantidade_recebida - item.quantidade_avariada + item.quantidade_bonificada > 0
+    );
+    if (semValidade) {
+      showToast.error(`Informe a validade do lote de ${semValidade.produto_nome}`);
       return;
     }
 
@@ -247,19 +269,20 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
           quantidade_faltante: item.quantidade_faltante, // NOVO
           quantidade_bonificada: item.quantidade_bonificada, // NOVO
           data_fabricacao: item.data_fabricacao || undefined, 
-          data_validade: item.data_validade,  
-          numero_lote: item.numero_lote       
+          data_validade: item.data_validade || undefined,
+          numero_lote: item.numero_lote
         }))
       };
 
-      await purchaseOrderService.receberPedido(dadosRecebimento);
+      const resposta = await purchaseOrderService.receberPedido(dadosRecebimento);
 
       // Feedback visual detalhado
       const totalRecebido = itensComRecebimento.reduce((sum, item) => sum + item.quantidade_recebida, 0);
       const totalValor = calcularTotalRecebido();
+      const parcial = resposta.pedido?.status === 'parcial';
 
       showToast.success(
-        `✅ Pedido Recebido!\n📦 ${totalRecebido} unidades\n💰 R$ ${totalValor.toFixed(2)}\n📊 Estoque Ajustado${formData.gerar_boleto ? '\n📄 Boleto Gerado' : ''}`
+        `✅ ${parcial ? 'Recebimento parcial registrado' : 'Pedido Recebido!'}\n📦 ${totalRecebido} unidades\n💰 R$ ${totalValor.toFixed(2)}\n📊 Estoque Ajustado${parcial ? '\n⏳ Saldo segue pendente no pedido' : ''}`
       );
 
       // Aguardar um pouco para o usuário ver o feedback
@@ -402,6 +425,12 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                   )}
                                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                                     <span>Sol: <b className="text-gray-700 dark:text-gray-300">{item.quantidade_solicitada}</b></span>
+                                    {item.quantidade_ja_recebida > 0 && (
+                                      <span>Já recebido: <b className="text-gray-700 dark:text-gray-300">{item.quantidade_ja_recebida}</b></span>
+                                    )}
+                                    {item.quantidade_pendente !== item.quantidade_solicitada && (
+                                      <span>Pendente: <b className="text-blue-700 dark:text-blue-300">{item.quantidade_pendente}</b></span>
+                                    )}
                                     <span>Preço: {formatCurrency(item.preco_unitario)}</span>
                                     {item.conferido && (
                                       <span className="text-green-600 dark:text-green-400 font-medium flex items-center gap-1">
@@ -431,9 +460,10 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                     <input
                                       type="number"
                                       min="0"
-                                      max={item.quantidade_solicitada}
+                                      step="any"
+                                      max={item.quantidade_pendente}
                                       value={item.quantidade_recebida}
-                                      onChange={(e) => handleQuantidadeChange(index, parseInt(e.target.value) || 0)}
+                                      onChange={(e) => handleQuantidadeChange(index, parseFloat(e.target.value) || 0)}
                                       className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
                                     />
                                   </div>
@@ -447,9 +477,12 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                     />
                                   </div>
                                   <div className="col-span-2 sm:col-span-1">
-                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Validade</label>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                      {item.controlar_validade ? 'Validade *' : 'Validade (opcional)'}
+                                    </label>
                                     <input
                                       type="date"
+                                      required={item.controlar_validade && item.quantidade_recebida > 0}
                                       value={item.data_validade}
                                       onChange={(e) => handleDataValidadeChange(index, e.target.value)}
                                       className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
@@ -481,8 +514,9 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                         <input
                                           type="number"
                                           min="0"
+                                          step="any"
                                           value={item.quantidade_avariada}
-                                          onChange={(e) => handleQuantidadeAvariadaChange(index, parseInt(e.target.value) || 0)}
+                                          onChange={(e) => handleQuantidadeAvariadaChange(index, parseFloat(e.target.value) || 0)}
                                           className="w-full px-2 py-1.5 text-sm border border-amber-300 dark:border-amber-600/50 rounded-lg focus:ring-2 focus:ring-amber-500 dark:bg-amber-900/10 dark:text-white placeholder-amber-200 dark:placeholder-amber-800/50"
                                           placeholder="Ex: 2"
                                         />
@@ -492,8 +526,9 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                         <input
                                           type="number"
                                           min="0"
+                                          step="any"
                                           value={item.quantidade_faltante}
-                                          onChange={(e) => handleQuantidadeFaltanteChange(index, parseInt(e.target.value) || 0)}
+                                          onChange={(e) => handleQuantidadeFaltanteChange(index, parseFloat(e.target.value) || 0)}
                                           className="w-full px-2 py-1.5 text-sm border border-red-300 dark:border-red-600/50 rounded-lg focus:ring-2 focus:ring-red-500 dark:bg-red-900/10 dark:text-white placeholder-red-200 dark:placeholder-red-800/50"
                                           placeholder="Ex: 1"
                                         />
@@ -503,8 +538,9 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                         <input
                                           type="number"
                                           min="0"
+                                          step="any"
                                           value={item.quantidade_bonificada}
-                                          onChange={(e) => handleQuantidadeBonificadaChange(index, parseInt(e.target.value) || 0)}
+                                          onChange={(e) => handleQuantidadeBonificadaChange(index, parseFloat(e.target.value) || 0)}
                                           className="w-full px-2 py-1.5 text-sm border border-blue-300 dark:border-blue-600/50 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-blue-900/10 dark:text-white placeholder-blue-200 dark:placeholder-blue-800/50"
                                           placeholder="Ex: 5"
                                         />
@@ -512,10 +548,10 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                                     </div>
                                   </div>
                                 </div>
-                                {item.quantidade_recebida !== item.quantidade_solicitada && item.quantidade_recebida > 0 && (
+                                {item.quantidade_recebida + item.quantidade_faltante < item.quantidade_pendente && item.quantidade_recebida > 0 && (
                                   <div className="mt-2.5 flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg">
                                     <AlertCircle className="w-4 h-4" />
-                                    Quantidade recebida diferente da solicitada
+                                    Recebimento parcial: o restante continua pendente no pedido
                                   </div>
                                 )}
                               </div>
@@ -665,7 +701,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || itensRecebimento.every(item => !item.conferido || item.quantidade_recebida === 0)}
+                  disabled={loading || itensRecebimento.every(item => item.quantidade_recebida === 0 && item.quantidade_faltante === 0 && item.quantidade_bonificada === 0)}
                   className="px-4 sm:px-6 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                 >
                   {loading ? (

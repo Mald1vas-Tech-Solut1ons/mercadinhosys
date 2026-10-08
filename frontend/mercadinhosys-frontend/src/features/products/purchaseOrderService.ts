@@ -7,7 +7,7 @@ export interface PedidoCompra {
   fornecedor_id: number;
   fornecedor_nome?: string;
   funcionario_nome?: string;
-  status: 'pendente' | 'recebido' | 'cancelado';
+  status: 'pendente' | 'parcial' | 'recebido' | 'cancelado' | 'devolvido';
   data_pedido: string;
   data_previsao_entrega?: string;
   horario_entrega?: string;
@@ -48,6 +48,7 @@ export interface PedidoCompraItem {
   produto_nome: string;
   quantidade_solicitada: number;
   quantidade_recebida: number;
+  quantidade_faltante?: number;
   preco_unitario: number;
   desconto_percentual: number;
   total_item: number;
@@ -56,6 +57,7 @@ export interface PedidoCompraItem {
   produto?: {
     codigo_barras?: string;
     imagem_url?: string;
+    controlar_validade?: boolean;
   };
 }
 

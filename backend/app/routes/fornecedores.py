@@ -1485,19 +1485,12 @@ def sincronizar_metricas_fornecedor(fornecedor_id):
             return
 
         # Calcular total de compras
-        pedidos = PedidoCompra.query.filter_by(
-            fornecedor_id=fornecedor_id,
-            estabelecimento_id=fornecedor.estabelecimento_id,
-            status="concluido",
+        # Recebimento parcial também é compra efetivada com o fornecedor.
+        pedidos = PedidoCompra.query.filter(
+            PedidoCompra.fornecedor_id == fornecedor_id,
+            PedidoCompra.estabelecimento_id == fornecedor.estabelecimento_id,
+            PedidoCompra.status.in_(["concluido", "recebido", "parcial"]),
         ).all()
-        
-        # fallback caso haja pedidos com status recebido em vez de concluido
-        pedidos_recebidos = PedidoCompra.query.filter_by(
-            fornecedor_id=fornecedor_id,
-            estabelecimento_id=fornecedor.estabelecimento_id,
-            status="recebido",
-        ).all()
-        pedidos = pedidos + pedidos_recebidos
 
         total_compras = len(pedidos)
         valor_total = sum(float(p.total) for p in pedidos)
@@ -1506,6 +1499,7 @@ def sincronizar_metricas_fornecedor(fornecedor_id):
         if valor_total == 0:
             movs = db.session.query(func.sum(MovimentacaoEstoque.valor_total)).join(Produto).filter(
                 MovimentacaoEstoque.tipo == 'entrada',
+                MovimentacaoEstoque.venda_id.is_(None),  # estorno de venda não é compra
                 Produto.fornecedor_id == fornecedor_id,
                 MovimentacaoEstoque.estabelecimento_id == fornecedor.estabelecimento_id
             ).scalar()
@@ -1528,7 +1522,7 @@ def sincronizar_metricas_fornecedor(fornecedor_id):
         for p in pedidos:
             # Pontualidade
             data_receb = p.data_recebimento
-            if not data_receb and p.status in ['concluido', 'recebido']:
+            if not data_receb and p.status in ['concluido', 'recebido', 'parcial']:
                 data_receb = p.data_pedido.date() if p.data_pedido else None
                 
             data_prev = p.data_previsao_entrega
@@ -1660,7 +1654,7 @@ def get_inteligencia(id):
         pedidos = PedidoCompra.query.filter(
             PedidoCompra.fornecedor_id == id,
             PedidoCompra.estabelecimento_id == estabelecimento_id,
-            PedidoCompra.status.in_(["concluido", "recebido"])
+            PedidoCompra.status.in_(["concluido", "recebido", "parcial"])
         ).order_by(PedidoCompra.data_recebimento.desc()).limit(10).all()
         
         timeline = []
@@ -1669,7 +1663,7 @@ def get_inteligencia(id):
         if pedidos:
             for p in pedidos:
                 data_receb = p.data_recebimento
-                if not data_receb and p.status in ['concluido', 'recebido']:
+                if not data_receb and p.status in ['concluido', 'recebido', 'parcial']:
                     data_receb = p.data_pedido.date() if p.data_pedido else None
                     
                 data_prev = p.data_previsao_entrega

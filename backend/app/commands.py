@@ -87,8 +87,8 @@ def register_commands(app):
             click.echo(f"{'[DRY-RUN] ' if not apply else ''}Pedidos SEM itens encontrados: {len(orfaos)}")
             removidos, contas_removidas, preservados = 0, 0, 0
             for p in orfaos:
-                if str(p.status).lower() == "recebido":
-                    click.echo(f"  - {p.numero_pedido}: PRESERVADO (status=recebido)")
+                if str(p.status).lower() in ("recebido", "parcial"):
+                    click.echo(f"  - {p.numero_pedido}: PRESERVADO (status={p.status})")
                     preservados += 1
                     continue
                 click.echo(f"  - {p.numero_pedido} (loja {p.estabelecimento_id}, total {p.total}) -> remover")

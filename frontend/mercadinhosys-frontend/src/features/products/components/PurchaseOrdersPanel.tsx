@@ -86,12 +86,14 @@ const PurchaseOrdersPanel: React.FC<PurchaseOrdersPanelProps> = ({
   const getStatusBadge = (status: string) => {
     const styles = {
       pendente: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
+      parcial: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
       recebido: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
       cancelado: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
     };
 
     const icons = {
       pendente: Clock,
+      parcial: Clock,
       recebido: CheckCircle,
       cancelado: AlertCircle
     };
@@ -189,6 +191,7 @@ const PurchaseOrdersPanel: React.FC<PurchaseOrdersPanelProps> = ({
                 >
                   <option value="">Todos</option>
                   <option value="pendente">Pendente</option>
+                  <option value="parcial">Parcial</option>
                   <option value="recebido">Recebido</option>
                   <option value="cancelado">Cancelado</option>
                 </select>
@@ -321,7 +324,7 @@ const PurchaseOrdersPanel: React.FC<PurchaseOrdersPanelProps> = ({
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                      {pedido.status === 'pendente' && (
+                      {(pedido.status === 'pendente' || pedido.status === 'parcial') && (
                         <button
                           onClick={() => handleReceivePedido(pedido)}
                           className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 transition-colors text-sm font-medium"

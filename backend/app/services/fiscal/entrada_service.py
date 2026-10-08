@@ -176,6 +176,8 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
                 ncm=it.get("ncm"),
                 cfop_padrao=it.get("cfop") or "5102",
                 cest=it.get("cest"),
+                # A NF-e não informa validade; o operador liga o controle para perecíveis.
+                controlar_validade=False,
             )
             db.session.add(prod)
             db.session.flush()
@@ -184,7 +186,7 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
         else:
             # Recalcula custo médio ponderado e registra no histórico de preços
             prod.recalcular_preco_custo_ponderado(
-                quantidade_entrada=int(qtd), custo_unitario_entrada=custo_unit,
+                quantidade_entrada=qtd, custo_unitario_entrada=custo_unit,
                 registrar_historico=True, funcionario_id=funcionario_id,
                 motivo=f"Entrada NF-e {parsed['numero']}",
             )

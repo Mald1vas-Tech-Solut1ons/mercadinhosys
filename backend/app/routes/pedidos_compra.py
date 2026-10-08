@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity
 from datetime import datetime, date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +13,8 @@ from app.models import (
     ContaPagar, ContaPagarBaixa, MovimentacaoEstoque, Despesa, ProdutoLote
 )
 from app.decorators.decorator_jwt import funcionario_required
+from app.services.estoque_service import quantidade_valida
+from app.utils.sale_validation import number
 
 pedidos_compra_bp = Blueprint('pedidos_compra', __name__)
 
@@ -211,11 +213,14 @@ def criar_pedido():
             if not produto:
                 return jsonify({'error': f'Produto ID {item_data["produto_id"]} não encontrado'}), 404
             
-            quantidade = int(item_data['quantidade'])
-            preco_unitario = Decimal(str(item_data.get('preco_unitario', produto.preco_custo)))
-            desconto = Decimal(str(item_data.get('desconto_percentual', 0)))
-            
-            total_item = quantidade * preco_unitario * (1 - desconto / 100)
+            # Fração preservada (kg, litro); preço e desconto validados antes de virar obrigação.
+            quantidade = quantidade_valida(item_data.get('quantidade'))
+            preco_unitario = number(item_data.get('preco_unitario', produto.preco_custo), 'Preço unitário')
+            desconto = number(item_data.get('desconto_percentual', 0), 'Desconto do item')
+            if desconto > 100:
+                raise ValueError('Desconto do item acima de 100%')
+
+            total_item = (quantidade * preco_unitario * (1 - desconto / 100)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             
             item = PedidoCompraItem(
                 pedido_id=pedido.id,
@@ -234,8 +239,10 @@ def criar_pedido():
             subtotal += total_item
         
         # Calcular totais
-        desconto_pedido = Decimal(str(data.get('desconto', 0)))
-        frete = Decimal(str(data.get('frete', 0)))
+        desconto_pedido = number(data.get('desconto', 0), 'Desconto do pedido')
+        frete = number(data.get('frete', 0), 'Frete')
+        if desconto_pedido > subtotal:
+            raise ValueError('Desconto maior que o valor dos itens')
         total = subtotal - desconto_pedido + frete
         
         pedido.subtotal = subtotal
@@ -267,7 +274,10 @@ def criar_pedido():
             'message': 'Pedido criado com sucesso',
             'pedido': pedido.to_dict()
         }), 201
-        
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -315,77 +325,155 @@ def obter_pedido(pedido_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+CENT = Decimal('0.01')
+
+
+def _qtd_recebimento(valor, rotulo):
+    """Quantidade não negativa e finita (kg/litro aceitam fração)."""
+    try:
+        quantidade = Decimal(str(valor if valor not in (None, '') else 0))
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError(f'{rotulo} inválida') from None
+    if not quantidade.is_finite() or quantidade < 0 or quantidade > Decimal('9999999'):
+        raise ValueError(f'{rotulo} inválida')
+    return quantidade.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+
+
+def _preco_liquido(item):
+    """Preço unitário já com o desconto do item, como gravado na emissão do pedido."""
+    solicitada = Decimal(str(item.quantidade_solicitada or 0))
+    if solicitada > 0:
+        return Decimal(str(item.total_item or 0)) / solicitada
+    return Decimal(str(item.preco_unitario or 0))
+
+
+def _valor_devido(pedido):
+    """Obrigação com o fornecedor: total do pedido (com frete e desconto) menos o
+    valor líquido do que veio faltando ou avariado."""
+    abatimento = sum(((Decimal(str(i.quantidade_faltante or 0)) + Decimal(str(i.quantidade_avariada or 0)))
+                      * _preco_liquido(i) for i in pedido.itens), Decimal('0'))
+    devido = (Decimal(str(pedido.total or 0)) - abatimento).quantize(CENT, rounding=ROUND_HALF_UP)
+    return devido if devido > 0 else Decimal('0')
+
+
+def _ajustar_conta_pagar(conta, devido):
+    """Recalcula o título preservando o que já foi pago."""
+    if conta.status == 'cancelado':
+        return
+    pago = Decimal(str(conta.valor_pago or 0))
+    conta.valor_original = devido
+    conta.valor_atual = max(Decimal('0'), devido - pago)
+    if pago > devido:
+        conta.observacoes = f"{conta.observacoes or ''} | Crédito com fornecedor: R$ {pago - devido:.2f}".strip(' |')
+    if conta.valor_atual > 0:
+        conta.status = 'parcial' if pago > 0 else 'aberto'
+    else:
+        conta.status = 'pago' if pago > 0 else 'cancelado'
+
+
+def _numero_lote_livre(estab_id, base):
+    """Número de lote único na loja; recebimentos seguintes do mesmo item ganham sufixo."""
+    numero, seq = base[:50], 2
+    while ProdutoLote.query.filter_by(estabelecimento_id=estab_id, numero_lote=numero).first():
+        sufixo = f'-{seq}'
+        numero = base[:50 - len(sufixo)] + sufixo
+        seq += 1
+    return numero
+
+
 @pedidos_compra_bp.route('/pedidos-compra/receber', methods=['POST'])
 @funcionario_required
 def receber_pedido_compra():
-    """Confirma o recebimento de um pedido e atualiza estoque com sistema de lotes"""
+    """Registra um recebimento (total ou parcial) acumulando no pedido.
+
+    Cada recebimento cria lote e movimento; o pedido fica ``parcial`` até todos
+    os itens estarem recebidos ou declarados em falta. O título do fornecedor
+    passa a valer o total do pedido menos faltas e avarias, preservando baixas.
+    """
     try:
         user = get_current_user()
         if not user:
             return jsonify({'error': 'Usuário não encontrado'}), 404
         from app.utils.query_helpers import get_authorized_establishment_id
         estab_id = get_authorized_establishment_id()
-        
-        data = request.get_json()
+
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Dados não fornecidos'}), 400
         pedido_id = data.get('pedido_id')
-        
+
+        # Trava o pedido: dois recebimentos simultâneos não somam a mesma carga.
         pedido = PedidoCompra.query.filter_by(
             id=pedido_id,
             estabelecimento_id=estab_id
-        ).first()
-        
+        ).populate_existing().with_for_update().first()
+
         if not pedido:
             return jsonify({'error': 'Pedido não encontrado'}), 404
-        
-        if pedido.status != 'pendente':
+
+        if pedido.status not in ('pendente', 'parcial'):
             return jsonify({'error': 'Pedido já foi processado'}), 400
-        
-        # Processar recebimento dos itens
+
         itens_recebidos = data.get('itens', [])
-        total_recebido = Decimal('0')
-        
+        if not isinstance(itens_recebidos, list) or not itens_recebidos:
+            return jsonify({'error': 'Informe os itens recebidos'}), 400
+        itens_pedido = {item.id: item for item in pedido.itens}
+        fator_rateio = Decimal('1')
+        if Decimal(str(pedido.subtotal or 0)) > 0:
+            # Frete e desconto do pedido entram no custo proporcionalmente ao valor.
+            fator_rateio = Decimal(str(pedido.total or 0)) / Decimal(str(pedido.subtotal))
+        movimentou = False
+
         for item_data in itens_recebidos:
-            item = PedidoCompraItem.query.filter_by(
-                id=item_data['item_id'],
-                pedido_id=pedido.id
-            ).first()
-            
+            if not isinstance(item_data, dict):
+                raise ValueError('Item de recebimento inválido')
+            item = itens_pedido.get(int(item_data.get('item_id') or 0))
             if not item:
-                continue
-            
-            quantidade_recebida = int(item_data.get('quantidade_recebida', 0))
-            quantidade_avariada = int(item_data.get('quantidade_avariada', 0))
-            quantidade_faltante = int(item_data.get('quantidade_faltante', 0))
-            quantidade_bonificada = int(item_data.get('quantidade_bonificada', 0))
+                raise ValueError(f"Item {item_data.get('item_id')} não pertence ao pedido")
 
-            if quantidade_recebida <= 0 and quantidade_bonificada <= 0:
+            quantidade_recebida = _qtd_recebimento(item_data.get('quantidade_recebida'), 'Quantidade recebida')
+            quantidade_avariada = _qtd_recebimento(item_data.get('quantidade_avariada'), 'Quantidade avariada')
+            quantidade_faltante = _qtd_recebimento(item_data.get('quantidade_faltante'), 'Quantidade faltante')
+            quantidade_bonificada = _qtd_recebimento(item_data.get('quantidade_bonificada'), 'Quantidade bonificada')
+            if quantidade_recebida + quantidade_faltante + quantidade_bonificada == 0:
                 continue
-            
-            # Atualizar item
-            item.quantidade_recebida = quantidade_recebida
-            item.quantidade_avariada = quantidade_avariada
-            item.quantidade_faltante = quantidade_faltante
-            item.quantidade_bonificada = quantidade_bonificada
-            item.status = 'recebido' if (quantidade_recebida + quantidade_faltante) >= item.quantidade_solicitada else 'parcial'
-            
-            # Atualizar estoque do produto (apenas com a quantidade boa: recebida + bonificada - avariada)
-            quantidade_para_estoque = max(0, quantidade_recebida + quantidade_bonificada - quantidade_avariada)
+            if quantidade_avariada > quantidade_recebida:
+                raise ValueError(f'Avaria maior que o recebido em {item.produto_nome}')
+            saldo_item = (Decimal(str(item.quantidade_solicitada or 0)) - Decimal(str(item.quantidade_recebida or 0))
+                          - Decimal(str(item.quantidade_faltante or 0)))
+            if quantidade_recebida + quantidade_faltante > saldo_item:
+                raise ValueError(f'{item.produto_nome}: recebido + falta excede o saldo pendente ({saldo_item:f})')
 
+            item.quantidade_recebida = Decimal(str(item.quantidade_recebida or 0)) + quantidade_recebida
+            item.quantidade_avariada = Decimal(str(item.quantidade_avariada or 0)) + quantidade_avariada
+            item.quantidade_faltante = Decimal(str(item.quantidade_faltante or 0)) + quantidade_faltante
+            item.quantidade_bonificada = Decimal(str(item.quantidade_bonificada or 0)) + quantidade_bonificada
+            concluido = item.quantidade_recebida + item.quantidade_faltante >= Decimal(str(item.quantidade_solicitada))
+            item.status = 'recebido' if concluido else 'parcial'
+            movimentou = True
+
+            # Estoque recebe só o que é vendável: recebido - avariado + bonificado.
+            quantidade_para_estoque = quantidade_recebida - quantidade_avariada + quantidade_bonificada
             produto = item.produto
             if produto and quantidade_para_estoque > 0:
-                # Obter data de validade e fabricação do item (se fornecidas)
                 data_validade = None
                 data_fabricacao = None
                 if item_data.get('data_validade'):
-                    from datetime import datetime as dt
-                    data_validade = dt.strptime(item_data['data_validade'], '%Y-%m-%d').date()
+                    data_validade = datetime.strptime(str(item_data['data_validade'])[:10], '%Y-%m-%d').date()
                 if item_data.get('data_fabricacao'):
-                    from datetime import datetime as dt
-                    data_fabricacao = dt.strptime(item_data['data_fabricacao'], '%Y-%m-%d').date()
-                
-                # Criar lote para este recebimento
-                numero_lote = item_data.get('numero_lote') or f"LOTE-{pedido.numero_pedido}-{item.id}"
-                
+                    data_fabricacao = datetime.strptime(str(item_data['data_fabricacao'])[:10], '%Y-%m-%d').date()
+                if data_validade is None:
+                    if produto.controlar_validade:
+                        raise ValueError(f'Informe a validade do lote de {produto.nome}')
+                    # Sem controle de validade a data não restringe a venda.
+                    data_validade = date.today() + timedelta(days=365)
+
+                numero_lote = _numero_lote_livre(
+                    estab_id, str(item_data.get('numero_lote') or f"LOTE-{pedido.numero_pedido}-{item.id}"))
+                # Bonificação dilui o custo; avaria não entra no estoque nem é paga.
+                custo_entrada = ((quantidade_recebida - quantidade_avariada) * _preco_liquido(item) * fator_rateio
+                                 / quantidade_para_estoque).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+
                 lote = ProdutoLote(
                     estabelecimento_id=estab_id,
                     produto_id=produto.id,
@@ -395,62 +483,57 @@ def receber_pedido_compra():
                     quantidade=quantidade_para_estoque,
                     quantidade_inicial=quantidade_para_estoque,
                     data_fabricacao=data_fabricacao,
-                    data_validade=data_validade or (date.today() + timedelta(days=365)),  # Padrão: 1 ano
+                    data_validade=data_validade,
                     data_entrada=date.today(),
-                    preco_custo_unitario=item.preco_unitario,
+                    preco_custo_unitario=custo_entrada,
                     ativo=True,
                 )
-                
                 db.session.add(lote)
-                
-                # Recalcular preço de custo médio ponderado ANTES de atualizar o estoque
-                if hasattr(produto, 'recalcular_preco_custo_ponderado'):
-                    try:
-                        produto.recalcular_preco_custo_ponderado(
-                            quantidade_entrada=quantidade_para_estoque,
-                            custo_unitario_entrada=item.preco_unitario,
-                            funcionario_id=user.id,
-                            motivo=f'Recebimento pedido {pedido.numero_pedido}'
-                        )
-                    except Exception as ex:
-                        from flask import current_app
-                        current_app.logger.warning(
-                            f"recalcular_preco_custo_ponderado ignorado para produto {produto.id}: {ex}"
-                        )
 
-                # Movimentar estoque (atualiza produto.quantidade e cria MovimentacaoEstoque)
+                # Custo médio ponderado ANTES de somar a entrada ao saldo.
+                produto.recalcular_preco_custo_ponderado(
+                    quantidade_entrada=quantidade_para_estoque,
+                    custo_unitario_entrada=custo_entrada,
+                    funcionario_id=user.id,
+                    motivo=f'Recebimento pedido {pedido.numero_pedido}'
+                )
+
                 motivo_movimentacao = f'Recebimento pedido {pedido.numero_pedido}. Lote: {numero_lote}'
                 if quantidade_avariada > 0 or quantidade_bonificada > 0:
-                    motivo_movimentacao += f' (Avarias: {quantidade_avariada}, Bônus: {quantidade_bonificada})'
+                    motivo_movimentacao += f' (Avarias: {quantidade_avariada:f}, Bônus: {quantidade_bonificada:f})'
 
+                db.session.flush()
                 movimentacao = produto.movimentar_estoque(
                     quantidade=quantidade_para_estoque,
                     tipo='entrada',
-                    motivo=motivo_movimentacao,
+                    motivo=motivo_movimentacao[:100],
                     usuario_id=user.id
                 )
                 movimentacao.pedido_compra_id = pedido.id
+                movimentacao.lote_id = lote.id
+                movimentacao.custo_unitario = custo_entrada
+                movimentacao.valor_total = (custo_entrada * quantidade_para_estoque).quantize(CENT, rounding=ROUND_HALF_UP)
                 db.session.add(movimentacao)
-            
-            total_recebido += item.preco_unitario * quantidade_recebida
-        
-        # Atualizar pedido
-        pedido.data_recebimento = date.today()
-        pedido.status = 'recebido'
-        pedido.numero_nota_fiscal = data.get('numero_nota_fiscal', '')
-        pedido.serie_nota_fiscal = data.get('serie_nota_fiscal', '')
 
-        # Conta a pagar: usar a criada na emissão do pedido ou criar se recebimento pedir boleto
-        conta_existente = getattr(pedido, 'conta_pagar', None) or (
-            ContaPagar.query.filter_by(pedido_compra_id=pedido.id, estabelecimento_id=estab_id).first()
-        )
+        if not movimentou:
+            return jsonify({'error': 'Nenhuma quantidade informada para receber'}), 400
+
+        concluido = all(item.status == 'recebido' for item in pedido.itens)
+        pedido.status = 'recebido' if concluido else 'parcial'
+        pedido.data_recebimento = date.today()
+        if data.get('numero_nota_fiscal'):
+            pedido.numero_nota_fiscal = data['numero_nota_fiscal']
+        if data.get('serie_nota_fiscal'):
+            pedido.serie_nota_fiscal = data['serie_nota_fiscal']
+
+        devido = _valor_devido(pedido)
+        conta_existente = ContaPagar.query.filter_by(pedido_compra_id=pedido.id, estabelecimento_id=estab_id)\
+            .populate_existing().with_for_update().first()
         if conta_existente:
-            # Atualizar valor com o total realmente recebido (pode diferir do pedido)
-            conta_existente.valor_original = total_recebido
-            conta_existente.valor_atual = total_recebido
+            _ajustar_conta_pagar(conta_existente, devido)
             if data.get('numero_documento'):
                 conta_existente.numero_documento = data.get('numero_documento')
-        elif data.get('gerar_boleto', False):
+        elif data.get('gerar_boleto', False) and devido > 0:
             data_vencimento_str = data.get('data_vencimento')
             if not data_vencimento_str:
                 dias_prazo = 30
@@ -469,8 +552,8 @@ def receber_pedido_compra():
                 pedido_compra_id=pedido.id,
                 numero_documento=data.get('numero_documento', f'BOL-{pedido.numero_pedido}'),
                 tipo_documento='boleto',
-                valor_original=total_recebido,
-                valor_atual=total_recebido,
+                valor_original=devido,
+                valor_atual=devido,
                 data_emissao=date.today(),
                 data_vencimento=data_vencimento,
                 status='aberto',
@@ -479,15 +562,19 @@ def receber_pedido_compra():
             db.session.add(conta_pagar)
 
         db.session.commit()
-        
+
         return jsonify({
-            'message': 'Pedido recebido com sucesso',
+            'message': 'Pedido recebido com sucesso' if concluido else 'Recebimento parcial registrado',
             'pedido': pedido.to_dict()
         })
-        
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error('Falha ao receber pedido de compra: %s', e)
+        return jsonify({'error': 'Não foi possível registrar o recebimento'}), 500
 
 @pedidos_compra_bp.route('/pedidos-compra/<int:pedido_id>/devolver', methods=['POST'])
 @funcionario_required

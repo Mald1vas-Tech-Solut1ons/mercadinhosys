@@ -1,71 +1,120 @@
-# Parecer do CEO — migrar a distribuidora/importadora para o MercadinhoSys
+# Análise do CEO — migrar a distribuidora/importadora para o MercadinhoSys
 
-Data: 08/10/2026. Perspectiva: direção de uma distribuidora/importadora com vários tipos de produtos, hoje atendida por um ERP de mercado (SAP, TOTVS ou similar). Complementa a [auditoria de 07/10](AUDITORIA_MIGRACAO_ERP_DISTRIBUIDORA_2026-10-07.md) e o [registro de execução](EXECUCAO_SPRINTS_DISTRIBUIDORA.md).
+Data: 08/10/2026. Perspectiva: direção de uma distribuidora/importadora com vários tipos de produtos, hoje num ERP de mercado (SAP, TOTVS ou similar), analisando o sistema de ponta a ponta pelos quatro pilares: **ERP** (caixa e cérebro financeiro), **HCM** (pessoas), **SCM** (logística e estoque) e **CX** (marketing, vendas e service), com peso maior em CX.
 
-## Decisão
+## Como foi feita
 
-**Migrar a operação comercial (compra, estoque, venda, força de vendas, entrega e financeiro operacional): viável como piloto, hoje.** **Substituir o ERP inteiro: ainda não.** O sistema não tem contabilidade, NF-e de saída, depósitos, devolução, atendimento pós-venda nem importação. Esses blocos continuam no ERP atual até serem construídos e provados.
+Leitura do código: modelos (67 classes), rotas (37 módulos; `produtos.py` tem 5.195 linhas), serviços de RH, fiscal, RFM e financeiro, camada de dados do dashboard e as telas de clientes, SFA e recebimento. Cada achado abaixo diz se foi **reproduzido** (rodei o cenário) ou **lido** (visto no código, não executado). Não houve teste de carga, dados reais da empresa nem homologação fiscal.
 
-O que mudou desde o parecer anterior: a principal razão de não migrar era dinheiro e estoque divergirem conforme o canal de venda. Isso foi corrigido e está provado por testes (ver abaixo). Não é mais a razão de bloqueio.
+## Veredito
 
-## Como verifiquei
+**Operação comercial (compra, estoque, venda, força de vendas, entrega): viável como piloto agora**, depois das correções de 08/10 (estoque, lote, custo e dinheiro iguais em todos os canais). **Substituir o ERP inteiro: não.** E há um bloqueio anterior ao piloto: **hoje o cliente não consegue trazer a própria base**, porque a importação de clientes falha em 100% das linhas e o cadastro só aceita CPF.
 
-Leitura do código e execução de testes locais (SQLite) e do CI com PostgreSQL 15 real; busca por capacidades no backend (`models`, `routes`, `services`). "Não existe" significa ausência nessas buscas, não prova de que nenhuma integração externa exista. Não houve teste de carga, dados reais da empresa nem homologação fiscal.
+## ERP
 
-## Pilar por pilar
+| Área | Situação | Evidência |
+|---|---|---|
+| Venda → estoque → custo | **Pronto.** PDV, venda direta, SFA e entrega baixam o mesmo saldo e lote e gravam custo | `services/estoque_service.py`; 35 testes |
+| Compras | **Pronto, com ressalvas.** Recebimento em cargas, falta/avaria/bonificação/frete. Falta vincular o XML ao pedido e devolução parcial ao fornecedor (só existe devolução total, `pedidos_compra.py:581`) | testes |
+| CMV | **Três fórmulas diferentes.** Duas consultas somam `custo_unitario × qtd` sem tratar custo vazio (a venda some do CMV e o lucro infla): `data_layer.py:152`, `:699`. O DRE usa `COALESCE` com o custo **atual** do produto, que reescreve o passado: `:1770` | lido |
+| DRE | Só receita − CMV − despesas = "lucro líquido" (`despesas.py:1174`). **Sem impostos sobre venda, sem devoluções, sem receita líquida** | lido |
+| Fluxo de caixa | A "entrada esperada" é a venda média diária × 7 (`despesas.py:1124`). Para venda a prazo (30/60 dias) isso está errado; **não existe fluxo projetado com contas a receber nem aging** | lido |
+| Contas a receber | Baixa por título só pelo fiado, em `float`, sem juros, multa ou desconto; todo recebimento vira "suprimento" do caixa do operador (`clientes.py:1198`). Sem baixa por boleto, Pix ou conciliação bancária | lido |
+| Fiscal | NFC-e modelo 65 fixo, "Venda ao consumidor", PIS/COFINS `49` fixos, **sem destinatário** (não sai CPF/CNPJ do cliente), data com `-03:00` fixo (Manaus é -04:00), numeração lida sem trava (`emissao_service.py:143,161,166,192,246`). XML de entrada (modelo 55) funciona. **NF-e de saída não existe** | lido |
+| Contabilidade | Plano de contas, centro de custo, livro e fechamento de período: **não existem** (busca no código sem resultado) | lido |
 
-### ERP — o caixa e o cérebro financeiro
+## HCM
 
-| Área | Funciona hoje (verificado) | Falta | Veredito |
+Funciona: ponto com foto, justificativas com aprovação, banco de horas, benefícios, holerite com memória de cálculo, rescisão (simular, gerar, cancelar), provisões trabalhistas.
+
+| Problema | Evidência |
+|---|---|
+| **Dois INSS no mesmo módulo.** O holerite usa a tabela padrão de **2024** (`models.py:747`, IRRF em `:753`); a rescisão usa outra tabela, fixa e em `float`, com valores de **2025** (`rh_calculator_service.py:359`). Não reverifiquei as tabelas oficiais de 2026 | lido |
+| IRRF sem dependentes ("dependentes: 0, não rastreado ainda", `rh_calculator_service.py:269`) | lido |
+| Vale-transporte desconta 6% do salário sem limitar ao valor do benefício (`:282`) | lido |
+| Sem férias (gozo e pagamento), sem fechamento imutável de folha, sem eSocial, sem recrutamento | busca sem resultado |
+| **Rota de teste em produção** que permite ao administrador apagar os registros de ponto do dia, com as fotos (`ponto.py:1075`); o próprio comentário diz que deveria ser removida | lido |
+
+Veredito: **apoio operacional**. A folha oficial continua no sistema de folha atual.
+
+## SCM
+
+Funciona: fornecedor, pedido, recebimento, lote com validade (FEFO), custo médio, giro, curva ABC, entregas, frota e motoristas, catálogo de produtos por EAN.
+
+| Problema | Evidência |
+|---|---|
+| **Uma unidade e um código de barras por produto.** Sem fator de conversão caixa × unidade, sem EAN de embalagem (`models.py:1056,1064`) | lido |
+| Sem depósitos, transferência entre filiais, inventário por contagem, reserva e backorder | busca sem resultado |
+| Ajuste manual de estoque exige só um motivo; sem aprovação em dupla nem trilha de contagem (`produtos.py:2229`) | lido |
+| Nota do fornecedor: parte de 80 pontos, e **um único pedido no prazo já a mantém em 80 e chega a ~95 com prazo de 30 dias e 5% de desconto**, sem significado estatístico; é gravada dentro de um GET (`fornecedores.py:1604`). Ignora falta e avaria, que agora estão registradas | lido |
+| Status de entrega aceita qualquer valor; combustível a R$ 5,80 fixo | lido |
+
+Veredito: **serve a operação de um depósito**; multi-depósito ainda não.
+
+## CX — marketing, vendas e service
+
+### Marketing
+
+- **Quatro classificações de cliente diferentes**: `rfm_service.py` (Campeões, Leais, …), `Cliente.calcular_rfm` (VIP, Premium, Final de Semana, Caçador de Promoções, …, `models.py:862`), `analise_rfm_clientes` (`relatorios.py:120`) e a classificação por valor gasto (`clientes.py:128`, faixas fixas de R$ 1.000, 5.000 e 10.000). As faixas do RFM são de varejo (R$ 50, 200, 500, 1.000).
+- A mensagem de IA é escrita para "um mercadinho de bairro" (prompt fixo em `clientes.py`). Para B2B o tom e o conteúdo estão errados.
+- **Campanha não existe como processo:** o "envio" é abrir o WhatsApp cliente a cliente ou copiar até 20 mensagens (`CustomersPage.tsx`). Nada registra enviado, entregue, respondido ou convertido, e não há campo de consentimento de contato (LGPD).
+
+### Vendas
+
+Funciona: força de vendas offline, tabela de preço por cliente, preço mínimo, rota, meta, positivação, aprovação do gerente, limite de crédito.
+
+| Problema | Prova |
+|---|---|
+| **Importação de clientes por CSV falha em todas as linhas** (0 de 3), mesmo sem saldo: o `cep` e o endereço são obrigatórios no banco e a rotina não os preenche. Ela ainda responde `success: true`. Se isso fosse corrigido, as linhas com saldo falhariam porque `ContaReceber` não aceita o campo `descricao` (`clientes.py:2330`) | **reproduzido** |
+| Cadastro só PF: `cpf` obrigatório e único; sem CNPJ, razão social ou inscrição estadual | lido |
+| **Cliente com título vencido há 90 dias comprou fiado e a venda foi aprovada.** O crédito só compara limite com saldo (`checkout_locking.py:61`) | **reproduzido** |
+| **O score de crédito nunca é calculado.** `score_credito` vale 500 para todos e nenhuma rotina grava o campo (`models.py:845`); resultado: todo devedor aparece "risco médio" e a sugestão de limite é sempre zero | lido (busca confirma) |
+| Pedido **à vista** da força de vendas é recusado se o cliente tem limite R$ 0 ("Limite excedido") | **reproduzido** |
+| A meta do vendedor conta **todo pedido não cancelado, inclusive pendente de aprovação**, e o mês é calculado em UTC (`sfa.py:313,286`) | lido |
+| Sem comissão de vendedor (só existe para motorista) e sem promessa de disponibilidade e prazo | busca sem resultado |
+
+### Service (pós-venda)
+
+Existe só rastreamento de entrega e cancelamento integral de venda. **Não existem** chamado, devolução parcial de venda, troca, garantia, reembolso ou SLA. Para uma distribuidora, a reclamação por avaria é parte do contrato com o cliente.
+
+## Risco de segurança financeira (precisa de prova em PostgreSQL)
+
+O recebimento de fiado converte o valor com `float()` e não rejeita `NaN` (`clientes.py:1226`). No teste local (SQLite) o `NaN` foi barrado por acaso, por uma coluna `NOT NULL` no caixa, e a operação deu erro 500 sem alterar títulos. O PostgreSQL aceita `NaN` em numérico; pela lógica do código, os títulos do cliente seriam marcados como pagos. **Não reproduzi** por não haver PostgreSQL nesta máquina. É a mesma classe de falha que FIN-01 corrigiu nos boletos de fornecedor.
+
+## Lista de defeitos novos
+
+| ID | Defeito | Prioridade | Prova |
 |---|---|---|---|
-| Venda → estoque → custo | PDV, venda direta, força de vendas e entrega baixam o mesmo saldo e o mesmo lote; custo do momento fica no item; cancelamento devolve exatamente o que saiu | Reserva de estoque para pedido futuro | **Pronto para piloto** |
-| Compras | Recebimento em várias cargas; falta e avaria reduzem o boleto; frete e bonificação entram no custo; fração (kg) preservada | Vínculo da nota XML com o pedido (hoje as duas entradas podem duplicar estoque e título) | **Pronto, com a ressalva do XML** |
-| Contas a pagar/receber | Baixa parcial e sucessiva; valor inválido recusado; repetição e concorrência protegidas em PostgreSQL | Conciliação com banco e adquirente | Parcial |
-| Fiscal | Importa XML de entrada (modelo 55); emite NFC-e (modelo 65) por gateway | **NF-e de saída modelo 55**, eventos, matriz tributária por operação | **Bloqueia distribuição B2B** |
-| Contabilidade | DRE e fluxo de caixa gerenciais | Plano de contas, centro de custo, livro, fechamento de período: **não existem** | **Bloqueia substituição total** |
+| D-01 | Importação de clientes falha em 100% das linhas e diz sucesso | **P0 (migração)** | reproduzido |
+| D-02 | Recebimento de fiado sem validação de valor finito, em `float` | **P0 (dinheiro)** | lido; validar em PG |
+| D-03 | Inadimplente compra fiado; vencimento nunca bloqueia | P1 | reproduzido |
+| D-04 | Score de crédito nunca calculado | P1 | lido |
+| D-05 | SFA à vista exige limite de crédito | P1 | reproduzido |
+| D-06 | CMV em três fórmulas; DRE com custo atual | P1 | lido |
+| D-07 | DRE sem impostos e devoluções | P1 | lido |
+| D-08 | INSS/IRRF inconsistentes entre holerite e rescisão | P1 | lido |
+| D-09 | Rota de teste apaga ponto em produção | P1 | lido |
+| D-10 | NFC-e: data fixa -03:00, sem destinatário | P1 | lido |
+| D-11 | Meta SFA conta pendentes e usa UTC | P2 | lido |
+| D-12 | Fluxo de caixa usa venda média como entrada | P2 | lido |
+| D-13 | Nota do fornecedor com n=1, gravada em GET | P2 | lido |
+| D-14 | Vale-transporte sem teto legal | P2 | lido |
 
-### HCM — pessoas
+## Roteiro para migrar (substitui o anterior)
 
-Funciona: cadastro, ponto, justificativas, banco de horas, benefícios, holerite, rescisão, provisões.
-Falta: as faixas de INSS e IRRF padrão do código são as de 2024 (comentário no `models.py` diz "2024/2025"); são editáveis por loja, mas ninguém garante que estejam atualizadas, e a regra de 2026 citada no parecer anterior não está implementada. Não há fechamento imutável da folha nem eventos do eSocial.
-Veredito: **apoio operacional**. Folha oficial continua no sistema de folha atual ou em um provedor.
+| Etapa | Entrega | Por quê nesta ordem |
+|---|---|---|
+| 1 — Trazer a base | D-01, D-02; cliente PJ (CNPJ, IE, endereços de cobrança e entrega); importação de títulos em aberto por documento e vencimento | Sem isso o piloto nem começa |
+| 2 — Crédito e cobrança de verdade | Score por pontualidade (aging), bloqueio por vencido, à vista sem limite (D-03, D-04, D-05), baixa por título com juros e desconto | É o dinheiro a receber da distribuidora |
+| 3 — Pós-venda | Chamado, devolução parcial por lote, troca, reembolso | Foco de CX; hoje não existe |
+| 4 — CX comercial | Segmentação B2B (carteira, frequência de pedido, curva de clientes), campanha rastreada com consentimento, comissão de vendedor | Hoje o marketing é manual e de varejo |
+| 5 — Números confiáveis | CMV único, DRE com impostos, fluxo projetado com contas a receber (D-06, D-07, D-12) | Decisão do CEO sai desses números |
+| 6 — Fiscal e pessoas | NF-e modelo 55; tabelas e regras de folha (D-08, D-09, D-10, D-14) | Depende do regime tributário e de especialista |
+| 7 — Escala | Depósitos, transferência, inventário, conversão caixa × unidade; plano de contas | Só pesa com mais de um depósito |
 
-### SCM — logística e estoque
+## Decisões que só o dono pode tomar
 
-Funciona: fornecedores, pedido de compra, recebimento, lotes com validade (FEFO), custo médio, giro e curva ABC, entregas, frota, motoristas.
-Falta, com busca confirmando ausência: **depósitos/endereços, transferência entre filiais, inventário com contagem, reserva, backorder, devolução parcial ao fornecedor** (só existe devolução total do pedido).
-Veredito: **serve uma operação de um depósito**. Distribuidora com mais de um depósito ainda não.
-
-### CX — experiência do cliente (foco principal)
-
-| Frente | Funciona hoje | Falta | Veredito |
-|---|---|---|---|
-| **Marketing** | Segmentação RFM, histórico de compras, mensagem sugerida por IA, abertura do WhatsApp | Campanha enviada, entregue, respondida e medida; preferência de contato; o envio hoje é manual | Bom começo, só assistido |
-| **Vendas** | Força de vendas offline, tabela de preço por cliente, preço mínimo, rota, meta, aprovação do gerente, limite de crédito, pedido que baixa estoque e gera título | **Cliente PJ (CNPJ, razão social, IE)**: o cadastro só aceita CPF; comissão de vendedor (só existe para motorista); promessa de disponibilidade e prazo; alçada de desconto por perfil no pedido B2B (o PDV tem; a força de vendas só tem o preço mínimo) | **Parcial; CNPJ é o primeiro bloqueio** |
-| **Service** | Rastreamento de entrega e cancelamento de venda | **Chamado, devolução parcial, troca, garantia, reembolso, SLA**: não existem | **Ausente** |
-
-Hoje o sistema vende bem, mas não atende o cliente depois da venda. Para um distribuidor, o atendimento pós-venda (reclamação de avaria, devolução, troca) é parte do contrato com o cliente.
-
-### Comércio exterior
-
-Não existe: invoice, moeda e câmbio, embarque, desembaraço, custo de nacionalização. Importar um XML nacional não é gerir uma importação. **Ausente.**
-
-## O que foi provado e o que não foi
-
-Provado (CI PostgreSQL e testes locais): integridade de estoque, custo, lote e dinheiro entre canais; recebimento parcial; baixas financeiras; isolamento entre lojas; resposta válida da listagem de fornecedores.
-Não provado: carga de um distribuidor real; fiscal real; recuperação de desastre (backup fica na mesma VM); folha oficial; qualquer processo listado como ausente.
-
-## Roteiro para migrar, por prioridade
-
-| # | Entrega | Por quê nesta ordem | Aceite |
-|---|---|---|---|
-| 1 | **Cliente PJ** (CNPJ, razão social, IE, contato, endereços de cobrança e entrega) | Sem CNPJ a distribuidora não cadastra os próprios clientes; destrava crédito e NF-e | Empresa cadastrada por CNPJ; clientes antigos preservados; busca e PDV mostram o documento certo |
-| 2 | **Pós-venda**: chamado, devolução parcial com lote, troca e reembolso | É o foco de CX e hoje não existe | Reclamação por avaria resolvida com efeito correto em estoque, financeiro e cliente |
-| 3 | **Pedido B2B**: reserva, separação, expedição, entrega parcial, comissão de vendedor | Hoje a aprovação já vira venda, sem disponibilidade prometida | Duas vendedoras disputando a última unidade: só uma é atendida |
-| 4 | **NF-e de saída (modelo 55)** com o gateway fiscal | Necessária para vender a empresas; depende do cadastro PJ | Nota autorizada em homologação com a matriz tributária do cliente |
-| 5 | **Depósitos, transferência e inventário** | Só importa com mais de um depósito | Transferência e contagem reconciliam saldo por lote |
-| 6 | **Conciliação, plano de contas, importação, backup externo** | Substituição total e continuidade | Fechamento mensal reconciliado; restauração ensaiada |
-
-## Recomendação comercial
-
-Vender agora como **complemento** ao ERP que o cliente já tem: força de vendas, pedidos, estoque e CRM, com o fiscal e a contabilidade ficando no sistema atual. A substituição total vem depois de 1 a 4 provados com dados reais do cliente.
+1. **Regime tributário da empresa** (Simples, Presumido ou Real): define a matriz da NF-e e o DRE.
+2. **Quantos depósitos e filiais** haverá no piloto.
+3. **Como a distribuidora cobra** (boleto, Pix, cartão) e se há comissão de vendedor.
+4. **Quem mantém folha e contabilidade** durante a coexistência: sistema atual ou este.

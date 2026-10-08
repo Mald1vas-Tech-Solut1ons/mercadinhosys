@@ -510,6 +510,8 @@ class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     alertas_email = db.Column(db.Boolean, default=False)
     alertas_whatsapp = db.Column(db.Boolean, default=False)
     horas_extras_percentual = db.Column(db.Numeric(5, 2), default=50.00)
+    # Alíquota efetiva de impostos sobre vendas (ex.: DAS do Simples) para o DRE; vazio = não configurada.
+    aliquota_impostos_venda = db.Column(db.Numeric(5, 2), nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     __table_args__ = (db.UniqueConstraint("estabelecimento_id", name="uq_configuracao_estab"),)
@@ -538,6 +540,7 @@ class Funcionario(db.Model, MultiTenantMixin, UserMixin, SoftDeleteMixin, Serial
     data_demissao = db.Column(db.Date)
     salario_base = db.Column(db.Numeric(19, 4), default=0)
     salario = db.Column(db.Numeric(10, 2))
+    numero_dependentes = db.Column(db.Integer, nullable=False, default=0, server_default="0")  # dedução do IRRF
     observacoes = db.Column(db.Text)
     permissoes_json = db.Column(db.Text)
     username = db.Column(db.String(50), nullable=False)
@@ -821,7 +824,13 @@ class Cliente(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     id = db.Column(db.Integer, primary_key=True)
     estabelecimento_id = TenantID()
     nome = db.Column(db.String(150), nullable=False)
-    cpf = db.Column(db.String(14), nullable=False)
+    # Identidade fiscal: PF usa cpf; PJ usa cnpj, razão social e inscrição estadual.
+    tipo_pessoa = db.Column(db.String(2), nullable=False, default="PF", server_default="PF")
+    cpf = db.Column(db.String(14), nullable=True)
+    cnpj = db.Column(db.String(18))
+    razao_social = db.Column(db.String(150))
+    inscricao_estadual = db.Column(db.String(20))
+    contato_nome = db.Column(db.String(100))
     rg = db.Column(db.String(20))
     data_nascimento = db.Column(db.Date)
     telefone = db.Column(db.String(30))
@@ -847,7 +856,24 @@ class Cliente(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     risco_inadimplencia = db.Column(db.String(20), default="BAIXO") # BAIXO, MEDIO, ALTO
     atraso_medio_dias = db.Column(db.Float, default=0.0)
 
-    __table_args__ = (db.Index("ix_cliente_cpf", "cpf"), db.Index("ix_cliente_nome", "nome"), db.UniqueConstraint("estabelecimento_id", "cpf", name="uq_cliente_estab_cpf"))
+    __table_args__ = (db.Index("ix_cliente_cpf", "cpf"), db.Index("ix_cliente_cnpj", "cnpj"), db.Index("ix_cliente_nome", "nome"),
+                      db.UniqueConstraint("estabelecimento_id", "cpf", name="uq_cliente_estab_cpf"),
+                      db.UniqueConstraint("estabelecimento_id", "cnpj", name="uq_cliente_estab_cnpj"))
+
+    @property
+    def documento(self) -> str:
+        """CNPJ para pessoa jurídica, CPF para pessoa física."""
+        return (self.cnpj if self.tipo_pessoa == "PJ" else self.cpf) or ""
+
+    @property
+    def nome_exibicao(self) -> str:
+        """PJ aparece pela razão social quando o nome fantasia estiver vazio."""
+        return self.nome or self.razao_social or ""
+
+    def to_dict(self, include_relationships: bool = False, depth: int = 0) -> Dict:
+        data = super().to_dict(include_relationships=include_relationships, depth=depth)
+        data["documento"] = self.documento
+        return data
 
     @staticmethod
     def segmentar_rfm(recency_score: int, frequency_score: int, monetary_score: int) -> str:

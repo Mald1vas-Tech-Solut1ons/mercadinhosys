@@ -62,6 +62,8 @@ class MetricsCalculator:
         AC 2.2: Profit calculations account for product costs
         """
         from app.models import db, Venda, VendaItem
+        from app.models import Produto
+        from app.utils.custo import custo_efetivo
         
         if start_date.tzinfo is None:
             start_date = start_date.replace(tzinfo=timezone.utc)
@@ -71,9 +73,11 @@ class MetricsCalculator:
         end_date = end_date.replace(hour=23, minute=59, second=59)
         
         query = db.session.query(
-            func.sum(VendaItem.custo_unitario * VendaItem.quantidade)
+            func.sum(custo_efetivo() * VendaItem.quantidade)
         ).join(
             Venda, Venda.id == VendaItem.venda_id
+        ).outerjoin(
+            Produto, Produto.id == VendaItem.produto_id
         ).filter(
             Venda.estabelecimento_id == establishment_id,
             Venda.data_venda >= start_date,

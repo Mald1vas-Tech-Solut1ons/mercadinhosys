@@ -1120,8 +1120,25 @@ def resumo_financeiro():
         else:
             indice_comprometimento = 100.0 if total_obrigacoes > 0 else 0.0
 
+        # Contas a receber: o que a empresa tem para entrar (prazo de 30/60 dias não é caixa de hoje).
+        from sqlalchemy import and_, case as sa_case, func as sa_func
+        from app.models import ContaReceber, Configuracao
+        _ate_7d, _ate_30d = hoje + timedelta(days=7), hoje + timedelta(days=30)
+        _valor = ContaReceber.valor_atual
+        _receber = db.session.query(
+            sa_func.coalesce(sa_func.sum(_valor), 0),
+            sa_func.coalesce(sa_func.sum(sa_case((ContaReceber.data_vencimento < hoje, _valor), else_=0)), 0),
+            sa_func.coalesce(sa_func.sum(sa_case((and_(ContaReceber.data_vencimento >= hoje, ContaReceber.data_vencimento <= _ate_7d), _valor), else_=0)), 0),
+            sa_func.coalesce(sa_func.sum(sa_case((and_(ContaReceber.data_vencimento >= hoje, ContaReceber.data_vencimento <= _ate_30d), _valor), else_=0)), 0),
+        ).filter(ContaReceber.status == 'aberto', ContaReceber.valor_atual > 0)
+        if str(estabelecimento_id).lower() != 'all':
+            _receber = _receber.filter(ContaReceber.estabelecimento_id == estabelecimento_id)
+        receber_total, receber_vencido, receber_7d, receber_30d = (float(v or 0) for v in _receber.one())
+
         # 2. Pressão de Caixa (7 dias): obrigações dos próximos 7 dias vs entrada esperada no mesmo horizonte.
-        entrada_esperada_7d = venda_media_diaria * 7
+        # Entrada esperada = vendas recebidas no ato (média diária) + títulos a receber que vencem na semana.
+        venda_a_vista_diaria = vendas.get("total_recebido", 0.0) / dias_periodo if dias_periodo > 0 else 0
+        entrada_esperada_7d = venda_a_vista_diaria * 7 + receber_7d
         if entrada_esperada_7d > 0:
             pressao_caixa = obrigacoes_7d / entrada_esperada_7d * 100
         else:
@@ -1161,6 +1178,14 @@ def resumo_financeiro():
         entradas_reais = vendas.get("total_recebido", 0.0) + caixa_pdv['suprimentos']
         saidas_reais = cp['pago_periodo'] + despesas_caixa + caixa_pdv['sangrias']
 
+        # DRE: receita bruta − impostos sobre vendas = receita líquida; − CMV = lucro bruto.
+        _config = (Configuracao.query.filter_by(estabelecimento_id=estabelecimento_id).first()
+                   if str(estabelecimento_id).lower() != 'all' else None)
+        aliquota_impostos = float(_config.aliquota_impostos_venda) if _config and _config.aliquota_impostos_venda is not None else None
+        impostos_venda = receita_bruta * (aliquota_impostos or 0.0) / 100.0
+        receita_liquida = receita_bruta - impostos_venda
+        lucro_bruto = receita_liquida - vendas.get("cogs", 0.0)
+
         return jsonify({
             "success": True,
             "periodo": {
@@ -1172,13 +1197,25 @@ def resumo_financeiro():
             # custo_folha_total — a folha aparecia DUAS vezes no total e no
             # lucro líquido. Agora: operacionais (sem espelhos) + pessoal, uma vez.
             "dre_consolidado": {
-                "receita_bruta": vendas.get("revenue", 0.0),
+                "receita_bruta": receita_bruta,
+                "impostos_sobre_vendas": impostos_venda,
+                "receita_liquida": receita_liquida,
                 "custo_mercadoria": vendas.get("cogs", 0.0),
-                "lucro_bruto": vendas.get("gross_profit", 0.0),
+                "lucro_bruto": lucro_bruto,
                 "despesas_pessoal": custo_folha_total,
                 "despesas_operacionais": despesas_operacionais,
                 "total_despesas": despesas_operacionais + custo_folha_total,
-                "lucro_liquido": vendas.get("gross_profit", 0.0) - despesas_operacionais - custo_folha_total
+                "lucro_liquido": lucro_bruto - despesas_operacionais - custo_folha_total,
+                "impostos_configurados": aliquota_impostos is not None,
+                "aliquota_impostos_venda": aliquota_impostos,
+                "aviso": None if aliquota_impostos is not None else
+                         "Alíquota de impostos sobre vendas não configurada: o lucro está antes dos impostos.",
+            },
+            "contas_receber": {
+                "total_aberto": receber_total,
+                "vencido": receber_vencido,
+                "vence_7_dias": receber_7d,
+                "vence_30_dias": receber_30d,
             },
             "indicadores_gestao": {
                 "indice_comprometimento": indice_comprometimento,
@@ -1186,6 +1223,7 @@ def resumo_financeiro():
                 "pressao_caixa_7d": pressao_caixa,
                 "venda_media_diaria": venda_media_diaria,
                 "entrada_esperada_7d": entrada_esperada_7d,
+                "venda_a_vista_media_diaria": venda_a_vista_diaria,
                 "vence_hoje_valor": cp['vence_hoje_valor'],
                 "obrigacoes_hoje": obrigacoes_hoje,
                 "obrigacoes_7d": obrigacoes_7d,

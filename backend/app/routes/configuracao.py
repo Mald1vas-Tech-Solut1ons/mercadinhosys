@@ -91,7 +91,7 @@ def atualizar_configuracoes():
             "estoque_minimo_padrao", "exibir_preco_tela", "mostrar_foto_produto_pdv", "permitir_venda_sem_estoque",
             "desconto_maximo_percentual", "desconto_maximo_funcionario", "arredondamento_valores",
             "tempo_sessao_minutos", "tentativas_senha_bloqueio", "alertas_email", "alertas_whatsapp",
-            "motivos_estorno"
+            "motivos_estorno", "aliquota_impostos_venda"
         ]
 
         # 1. Verifica se já existe configuração para este estabelecimento
@@ -108,6 +108,18 @@ def atualizar_configuracoes():
                 val = data[field]
                 if field in ("formas_pagamento", "motivos_estorno") and isinstance(val, list):
                     val = json.dumps(val, ensure_ascii=False)
+                if field == "aliquota_impostos_venda":
+                    if val in (None, ""):
+                        val = None
+                    else:
+                        from decimal import Decimal, InvalidOperation
+                        try:
+                            numero = Decimal(str(val).replace(",", "."))
+                            if not numero.is_finite() or numero < 0 or numero > 100:
+                                raise ValueError
+                        except (InvalidOperation, ValueError):
+                            return jsonify({"success": False, "error": "Alíquota de impostos deve estar entre 0 e 100"}), 400
+                        val = float(numero)
                 # logo_url é VARCHAR(500) e a logo é gerenciada pelo endpoint
                 # dedicado (/logo). Um data-URI base64 aqui estoura a coluna e
                 # derruba o save inteiro — ignora valores longos por segurança.

@@ -14,6 +14,7 @@ FEATURES IMPLEMENTADAS:
 
 from flask import Blueprint, request, jsonify, send_file, current_app
 from app import db
+from app.utils.custo import custo_efetivo
 from app.models import (
     Venda,
     Produto,
@@ -299,7 +300,7 @@ def relatorio_rentabilidade_abc(estabelecimento_id: int, days: int = 30, data_in
 
     # Query otimizada: usa custo_unitario da venda SE existir, senão usa preco_custo atual (fallback)
     lucro_real_expr = func.sum(
-        (VendaItem.preco_unitario - func.coalesce(VendaItem.custo_unitario, Produto.preco_custo, 0)) * VendaItem.quantidade
+        (VendaItem.preco_unitario - custo_efetivo()) * VendaItem.quantidade
     ).label('lucro_real_total')
     
     # Query otimizada: faturamento por produto

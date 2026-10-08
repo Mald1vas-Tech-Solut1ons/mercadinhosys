@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 from sqlalchemy import func, desc, extract, case, and_, or_
 from decimal import Decimal, ROUND_HALF_UP
+from app.utils.custo import custo_efetivo
 from app.models import (
     Venda, VendaItem, Produto, Cliente,
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
@@ -149,8 +150,10 @@ class DataLayer:
             # Query CMV (Custo)
             query_cogs = db.session.query(
                 func.date(Venda.data_venda).label('data'),
-                func.sum(VendaItem.custo_unitario * VendaItem.quantidade).label('cogs')
-            ).join(VendaItem, Venda.id == VendaItem.venda_id).filter(
+                func.sum(custo_efetivo() * VendaItem.quantidade).label('cogs')
+            ).join(VendaItem, Venda.id == VendaItem.venda_id).outerjoin(
+                Produto, Produto.id == VendaItem.produto_id
+            ).filter(
                 func.date(Venda.data_venda) >= start_date,
                 Venda.status == 'finalizada'
             )
@@ -696,8 +699,10 @@ class DataLayer:
                 hour_extract.label('hora'),
                 func.count(func.distinct(Venda.id)).label('qtd'),
                 func.sum(VendaItem.total_item).label('total'),
-                func.sum(VendaItem.quantidade * VendaItem.custo_unitario).label('cogs')
-            ).join(VendaItem, VendaItem.venda_id == Venda.id).filter(
+                func.sum(VendaItem.quantidade * custo_efetivo()).label('cogs')
+            ).join(VendaItem, VendaItem.venda_id == Venda.id).outerjoin(
+                Produto, Produto.id == VendaItem.produto_id
+            ).filter(
                 Venda.data_venda >= start_date,
                 Venda.status == 'finalizada'
             )
@@ -1765,11 +1770,9 @@ class DataLayer:
 
             # 3. CMV (Cost of Goods Sold)
             # Use COALESCE to fall back to produtos.preco_custo when custo_unitario is NULL
-            from app.models import Produto
             from sqlalchemy import case as sa_case
-            custo_efetivo = func.coalesce(VendaItem.custo_unitario, Produto.preco_custo, 0)
             q_cogs = db.session.query(
-                func.sum(custo_efetivo * VendaItem.quantidade)
+                func.sum(custo_efetivo() * VendaItem.quantidade)
             ).join(
                 Venda, Venda.id == VendaItem.venda_id
             ).outerjoin(
@@ -1835,15 +1838,30 @@ class DataLayer:
                 if isinstance(sales_data, dict):
                     result["vendas"].update(sales_data)
                 
-                # Adicionar total recebido (Cash Flow)
-                q_total_rec = db.session.query(func.sum(Venda.valor_recebido)).filter(
+                # Total recebido no ato da venda (Cash Flow). Só pagamentos aprovados que
+                # entram em caixa: fiado é a receber (entra quando o cliente paga) e
+                # o troco devolvido ao cliente não é entrada. Antes somava Venda.valor_recebido,
+                # que inclui o fiado e o excedente pago em dinheiro.
+                from app.models import Pagamento
+                q_pagamentos = db.session.query(func.sum(Pagamento.valor)).join(
+                    Venda, Venda.id == Pagamento.venda_id
+                ).filter(
                     Venda.data_venda >= start_dt,
                     Venda.data_venda <= end_dt,
-                    Venda.status != 'cancelada'
+                    Venda.status != 'cancelada',
+                    Pagamento.status == 'aprovado',
+                    func.lower(Pagamento.forma_pagamento) != 'fiado',
                 )
-                if estabelecimento_id != 'all': q_total_rec = q_total_rec.filter(Venda.estabelecimento_id == estabelecimento_id)
-                total_recebido = q_total_rec.scalar() or 0.0
-                result["vendas"]["total_recebido"] = float(total_recebido)
+                q_troco = db.session.query(func.sum(Venda.troco)).filter(
+                    Venda.data_venda >= start_dt,
+                    Venda.data_venda <= end_dt,
+                    Venda.status != 'cancelada',
+                )
+                if estabelecimento_id != 'all':
+                    q_pagamentos = q_pagamentos.filter(Venda.estabelecimento_id == estabelecimento_id)
+                    q_troco = q_troco.filter(Venda.estabelecimento_id == estabelecimento_id)
+                total_recebido = float(q_pagamentos.scalar() or 0) - float(q_troco.scalar() or 0)
+                result["vendas"]["total_recebido"] = max(0.0, total_recebido)
 
                 # ── MovimentacaoCaixa do PDV (sangrias e suprimentos) ─────────
                 try:

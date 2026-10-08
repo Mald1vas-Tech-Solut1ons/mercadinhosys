@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 import pytest
 from flask_jwt_extended import create_access_token
 
-from app.models import CategoriaProduto, Estabelecimento, Fornecedor, Funcionario, Produto, TenantQuery
+from app.models import CategoriaProduto, ContaPagar, Estabelecimento, Fornecedor, Funcionario, PedidoCompra, PedidoCompraItem, Produto, TenantQuery
 
 
 @pytest.fixture
@@ -210,3 +210,46 @@ def test_global_supplier_statistics_exclude_soft_deleted_rows(client, session, s
     assert body["success"] is True
     assert body["estatisticas"]["total"] == 1
     assert sum(body["estatisticas"]["por_estado"].values()) == 1
+
+
+@pytest.mark.parametrize("mode", ["global", "mirror", "tenant"])
+def test_supplier_orders_with_items_return_complete_response(client, session, supplier_global_context, mode):
+    supplier, _, global_headers, tenant_headers = supplier_global_context
+    actor = session.query(Funcionario).filter_by(is_super_admin=False).first()
+    product = session.query(Produto).filter_by(fornecedor_id=supplier.id, ativo=True, deleted_at=None).first()
+    order = PedidoCompra(estabelecimento_id=supplier.estabelecimento_id, fornecedor_id=supplier.id,
+                         funcionario_id=actor.id, numero_pedido="SUP-ORDER-ITEMS", subtotal=40, total=40)
+    session.add(order)
+    session.flush()
+    for quantity in (10, 30):
+        session.add(PedidoCompraItem(estabelecimento_id=supplier.estabelecimento_id, pedido_id=order.id,
+                    produto_id=product.id, produto_nome=product.nome, quantidade_solicitada=quantity,
+                    preco_unitario=1, total_item=quantity))
+    session.commit()
+    headers = dict(tenant_headers if mode == "tenant" else global_headers)
+    if mode == "mirror":
+        headers["X-Establishment-ID"] = str(supplier.estabelecimento_id)
+    response = client.get(f"/api/fornecedores/{supplier.id}/pedidos", headers=headers)
+    assert response.status_code == 200, response.get_json()
+    body = response.get_json()
+    assert body["total"] == 1
+    assert body["pedidos"][0]["id"] == order.id
+    assert body["pedidos"][0]["quantidade_itens"] == 2
+    assert body["pedidos"][0]["total"] == 40
+    assert body["pedidos"][0]["funcionario"] == actor.nome
+
+
+@pytest.mark.parametrize("mode", ["global", "mirror", "tenant"])
+def test_supplier_detail_keeps_partial_payment_balance_visible(client, session, supplier_global_context, mode):
+    supplier, _, global_headers, tenant_headers = supplier_global_context
+    session.add(ContaPagar(estabelecimento_id=supplier.estabelecimento_id, fornecedor_id=supplier.id,
+                          numero_documento="SUP-PARTIAL", valor_original=40, valor_pago=10, valor_atual=30,
+                          data_emissao=date.today(), data_vencimento=date.today(), status="parcial"))
+    session.commit()
+    headers = dict(tenant_headers if mode == "tenant" else global_headers)
+    if mode == "mirror":
+        headers["X-Establishment-ID"] = str(supplier.estabelecimento_id)
+    response = client.get(f"/api/fornecedores/{supplier.id}", headers=headers)
+    assert response.status_code == 200
+    assert response.get_json()["metricas"]["total_contas_abertas"] == 1
+    assert response.get_json()["metricas"]["valor_total_devido"] == 30

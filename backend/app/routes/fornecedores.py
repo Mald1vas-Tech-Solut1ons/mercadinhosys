@@ -311,8 +311,7 @@ def obter_fornecedor(id):
         contas_pagar = ContaPagar.query.filter_by(
             fornecedor_id=id,
             estabelecimento_id=estabelecimento_id,
-            status="aberto",
-        ).all()
+        ).filter(ContaPagar.status.in_(["aberto", "parcial"])).all()
 
         produtos = Produto.query.filter_by(
             fornecedor_id=id,
@@ -907,6 +906,8 @@ def listar_pedidos_fornecedor(id):
         if status:
             query = query.filter_by(status=status)
 
+        from sqlalchemy.orm import selectinload
+        query = query.options(selectinload(PedidoCompra.itens), selectinload(PedidoCompra.funcionario))
         query = query.order_by(PedidoCompra.data_pedido.desc())
 
         # Paginação
@@ -928,7 +929,7 @@ def listar_pedidos_fornecedor(id):
                     ),
                     "status": pedido.status,
                     "total": float(pedido.total),
-                    "quantidade_itens": pedido.itens.count(),
+                    "quantidade_itens": len(pedido.itens),
                     "funcionario": (
                         pedido.funcionario.nome if pedido.funcionario else None
                     ),

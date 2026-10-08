@@ -1,0 +1,7 @@
+# Cliente PostgreSQL e encaminhamento local para o túnel SSH supervisionado.
+# DB_CLIENT_BASE deve identificar a mesma imagem PostgreSQL do banco de origem.
+ARG DB_CLIENT_BASE=postgres:15-alpine
+FROM ${DB_CLIENT_BASE}
+RUN apk add --no-cache socat
+ENTRYPOINT ["/bin/sh", "-ec"]
+CMD ["exec socat TCP-LISTEN:5432,reuseaddr,fork TCP:${PGHOST}:${PGPORT}"]

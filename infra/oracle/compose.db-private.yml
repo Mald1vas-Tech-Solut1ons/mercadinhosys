@@ -1,0 +1,27 @@
+# Apenas na VM privada. O PostgreSQL escuta no loopback do host.
+services:
+  postgres:
+    image: ${DB_SERVER_IMAGE:?Configure a imagem PostgreSQL validada}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mercadinhosys
+      POSTGRES_USER: mercadinho_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD}
+    command: [postgres, -c, shared_buffers=64MB, -c, work_mem=2MB, -c, max_connections=25]
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U mercadinho_user -d mercadinhosys"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 448m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  postgres_data:

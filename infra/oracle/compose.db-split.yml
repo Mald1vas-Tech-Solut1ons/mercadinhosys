@@ -1,0 +1,19 @@
+# Override na VM da API, depois do compose.demo.yml. Requer Compose >= 2.24.
+# Mantém o alias postgres e os clientes pg_dump/psql para os scripts operacionais.
+services:
+  postgres:
+    image: mercadinhosys-db-forwarder:15
+    entrypoint: [/bin/sh, -ec]
+    command: ["exec socat TCP-LISTEN:5432,reuseaddr,fork TCP:$${PGHOST}:$${PGPORT}"]
+    environment:
+      PGHOST: ${DB_TUNNEL_HOST:?Configure o gateway da rede Docker da API}
+      PGPORT: "15432"
+      PGPASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD}
+      PGCONNECT_TIMEOUT: "5"
+    volumes: !reset []
+    mem_limit: 48m
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U mercadinho_user -d mercadinhosys"]
+      interval: 10s
+      timeout: 5s
+      retries: 6

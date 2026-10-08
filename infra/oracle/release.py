@@ -136,9 +136,12 @@ def smoke(base, database='mercadinhosys', strict=True):
 
 def compose(override, *command):
     folder = LIVE / 'infra/oracle'
+    split = folder / 'compose.db-split.yml'
+    # A presença do marcador confirma o corte para o PostgreSQL privado.
+    database_args = ['-f', str(split)] if (folder / '.db-split-active').is_file() else []
     return docker('compose', '-p', 'oracle', '--project-directory', str(folder),
                   '--env-file', str(folder / '.env.demo'), '-f', str(folder / 'compose.demo.yml'),
-                  '-f', str(folder / 'compose.https.yml'), '-f', str(override), *command)
+                  '-f', str(folder / 'compose.https.yml'), *database_args, '-f', str(override), *command)
 
 
 def override(name, image):

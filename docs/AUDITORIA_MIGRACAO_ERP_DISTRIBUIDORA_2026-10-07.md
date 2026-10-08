@@ -4,6 +4,20 @@ Data: 07/10/2026. Sistema avaliado: MercadinhoSys, estado local do workspace, in
 
 Complemento posterior no mesmo dia: [plano CTO/Scrum para um responsável humano com IA](PLANO_CTO_SCRUM_DISTRIBUIDORA_2026-10-07.md) e [evidências ao vivo de infraestrutura e motores matemáticos](ANEXO_CTO_INFRA_E_MATEMATICA_2026-10-07.md). O complemento confirma Oracle/Vercel, compara arquivos publicados e reproduz mais duas falhas analíticas; não certifica toda a operação publicada nem substitui os limites dos testes descritos abaixo.
 
+## Atualização de 08/10/2026 — bloqueios transacionais corrigidos
+
+As nove provas ERP-01 a ERP-09 passam sem `xfail` (ERP-02/03 já haviam sido corrigidas em `6759444`/`de6721f`). A correção criou uma regra única de estoque (`backend/app/services/estoque_service.py`) usada por PDV, venda direta, faturamento SFA e venda com entrega:
+
+- **Saldo vendável:** lote vencido de produto com controle de validade fica em quarentena e não é vendido; o descarte consome primeiro o vencido.
+- **Custo histórico:** todo item de venda grava `custo_unitario` (custo médio no instante da saída); o movimento de estoque guarda custo e rastro de lotes.
+- **Estorno:** cancelamento devolve exatamente o que o razão de movimentos registrou, agregado e lotes, uma única vez. Venda-entrega legada (que nunca baixou) não infla estoque.
+- **SFA:** total recalculado no servidor; piso de preço igual ao do app (tabela do cliente ou 10% sobre o preço de venda); aprovação trava pedido, cliente e produtos.
+- **Venda com entrega:** mesmas validações do PDV (totais, preço, crédito, fiado com título); dinheiro exige caixa aberto do operador e só o dinheiro soma na gaveta.
+- **Compras:** recebimento acumulativo até fechar o pedido (`parcial` → `recebido`); falta e avaria reduzem o título preservando baixas; bonificação dilui custo; frete/desconto do pedido entram no custo por rateio de valor; produto com controle de validade exige a validade real do lote.
+- **Frações:** quantidades em Decimal no pedido de compra, recebimento, XML, cadastro e cupom; custo médio com 4 casas.
+
+Provas: `test_erp_migration_audit.py` (9), `test_erp_integridade_canais.py` (22) e `test_postgres_erp_concurrency.py` (3, concorrência real; rodam no job PostgreSQL do CI). Continuam abertos: PF/PJ e CNPJ no cliente (B2B-01), reserva/separação/expedição (PED-01), depósitos (WMS-01), NF-e modelo 55 (FIS-01), conciliação (TES-01), importação (IMP-01), pós-venda (CX-01), vínculo XML × pedido de compra e validade opcional no modelo de lote.
+
 ## Decisão executiva
 
 **Não aprovar a substituição integral do ERP atual neste estado.** Existe uma base aproveitável de gestão comercial de varejo, com PDV, compras, lotes, financeiro gerencial, RH, CRM analítico e entrega. A cobertura de telas é ampla, mas a consistência entre os canais e a cobertura dos processos de distribuição/importação ainda não sustentam a migração da operação central.

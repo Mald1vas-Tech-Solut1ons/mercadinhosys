@@ -4,6 +4,7 @@ Execute no host Oracle: python3 release.py stage|deploy|rollback --release SHA12
 Não roda seed, não restaura o banco operacional e não imprime credenciais.
 """
 import argparse
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,13 @@ LIVE = Path('/home/ubuntu/mercadinhosys')
 ROOT = Path('/home/ubuntu/mercadinhosys-releases') / args.release
 if not ROOT.is_dir() or not (ROOT / 'backend').is_dir():
     raise SystemExit('Pacote da release não encontrado')
+# Carrega contratos puros do pacote Git sem importar Flask no host de operação.
+_spec = importlib.util.spec_from_file_location('release_contracts', ROOT / 'backend/app/utils/release_smoke_contracts.py')
+_contracts = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_contracts)
+require_success = _contracts.require_success
+validate_products = _contracts.validate_products
+validate_suppliers = _contracts.validate_suppliers
 IMAGE = 'mercadinhosys-backend:' + args.release
 LOG = ROOT / (args.action + '.log')
 PG = 'oracle-postgres-1'
@@ -63,8 +71,10 @@ def save(name, value):
     (ROOT / name).write_text(json.dumps(value, indent=2), encoding='utf-8')
 
 
-def request(base, path, payload=None, token=None):
+def request(base, path, payload=None, token=None, scope=None):
     headers = {'Origin': 'https://mercadinhosys.vercel.app'}
+    if scope is not None:
+        headers['X-Establishment-ID'] = str(scope)
     if payload is not None:
         headers['Content-Type'] = 'application/json'
     if token:
@@ -74,7 +84,7 @@ def request(base, path, payload=None, token=None):
         return json.load(response)
 
 
-def smoke(base):
+def smoke(base, database='mercadinhosys', strict=True):
     deadline = time.monotonic() + 150
     while True:
         try:
@@ -91,12 +101,33 @@ def smoke(base):
     if not login.get('success') or not login.get('access_token'):
         raise RuntimeError('Login administrativo falhou')
     token = login['access_token']
-    paths = ['/super-admin/health', '/fornecedores/?estabelecimento_id=2', '/produtos/?estabelecimento_id=2', '/produtos/?estabelecimento_id=2&busca=agua']
-    for path in paths:
-        body = request(base, path, token=token)
-        if isinstance(body, dict) and body.get('success') is False:
-            raise RuntimeError('Smoke autenticado falhou: ' + path)
-    print(json.dumps({'smoke_ok': True, 'paths': ['/health', '/auth/login', *paths]}), flush=True)
+    if not strict:
+        print(json.dumps({'smoke_ok': True, 'level': 'health-login'}), flush=True)
+        return
+    # Metadados e contagens, sem conteúdo pessoal. SQL não é copiado para os logs.
+    sql = "SELECT COALESCE(json_agg(json_build_object('id',f.id,'estabelecimento_id',f.estabelecimento_id,'produtos_ativos',(SELECT count(*) FROM produtos p WHERE p.fornecedor_id=f.id AND p.estabelecimento_id=f.estabelecimento_id AND p.ativo=true AND p.deleted_at IS NULL))), '[]'::json) FROM fornecedores f WHERE f.deleted_at IS NULL"
+    expected_all = json.loads(docker('exec', PG, 'psql', '-U', USER, '-d', database, '-tAc', sql))
+    checked = []
+    for tenant in [None, 2, 3]:
+        expected = expected_all if tenant is None else [r for r in expected_all if r['estabelecimento_id'] == tenant]
+        listing = request(base, '/fornecedores/?por_pagina=200', token=token, scope=tenant)
+        validate_suppliers(listing, expected)
+        checked.append({'path': '/fornecedores/', 'scope': tenant or 'all', 'total': len(expected)})
+        stats = request(base, '/fornecedores/estatisticas', token=token, scope=tenant)
+        require_success(stats)
+        if stats.get('estatisticas', {}).get('total') != len(expected):
+            raise RuntimeError('Estatísticas de fornecedores divergiram do escopo')
+        if expected:
+            first = expected[0]
+            detail = request(base, '/fornecedores/' + str(first['id']), token=token, scope=tenant)
+            require_success(detail)
+            if detail.get('fornecedor', {}).get('estabelecimento_id') != first['estabelecimento_id'] or detail.get('metricas', {}).get('total_produtos') != first['produtos_ativos']:
+                raise RuntimeError('Detalhe de fornecedor divergiu do banco')
+            require_success(request(base, '/fornecedores/' + str(first['id']) + '/pedidos', token=token, scope=tenant))
+        for path in ['/produtos/', '/produtos/?busca=agua']:
+            validate_products(request(base, path, token=token, scope=tenant), tenant)
+    print(json.dumps({'smoke_ok': True, 'level': 'contracts-scope-db', 'supplier_scopes': checked,
+                      'checks': ['health', 'login', 'suppliers', 'statistics', 'detail', 'orders', 'products', 'search']}), flush=True)
 
 
 def compose(override, *command):
@@ -108,7 +139,11 @@ def compose(override, *command):
 
 def override(name, image):
     path = ROOT / name
-    path.write_text('services:\n  backend:\n    image: ' + image + '\n', encoding='utf-8')
+    config = 'services:\n  backend:\n    image: ' + image + '\n'
+    if image == IMAGE:
+        revision = info(IMAGE)['Config'].get('Labels', {}).get('org.opencontainers.image.revision', args.release)
+        config += '    environment:\n      SENTRY_ENVIRONMENT: production\n      SENTRY_RELEASE: ' + revision + '\n'
+    path.write_text(config, encoding='utf-8')
     return path
 
 
@@ -127,6 +162,7 @@ def stage():
                     'SECRET_KEY': secrets.token_hex(32), 'JWT_SECRET_KEY': secrets.token_hex(32),
                     'DB_POOL_SIZE': '2', 'DB_MAX_OVERFLOW': '1', 'REDIS_URL': '',
                     'SYNC_ENABLED': 'false', 'SYNC_AUTO_PUSH': 'false', 'SENTRY_DSN': '',
+                    'SENTRY_ENVIRONMENT': 'release-stage', 'SENTRY_RELEASE': args.release,
                     'OPENBLAS_NUM_THREADS': '1', 'OMP_NUM_THREADS': '1',
                     'CORS_ORIGINS': 'https://mercadinhosys.vercel.app'}
         env_path.write_text(''.join(k + '=' + v + '\n' for k, v in settings.items()), encoding='utf-8')
@@ -171,7 +207,7 @@ def stage():
         run('gunicorn', 'run:app', '--bind', '0.0.0.0:5000', '--workers', '1', '--threads', '4',
             '--timeout', '120', '--worker-tmp-dir', '/dev/shm', detach=True)
         stage_started = True
-        smoke('http://127.0.0.1:5002/api')
+        smoke('http://127.0.0.1:5002/api', database=databases[1])
         result = {'release': args.release, 'image': IMAGE, 'stage_passed': True,
                   'postgres_tests': summary, 'migration_preserved_counts': after,
                   'production_image_at_stage': info('oracle-backend-1')['Image']}
@@ -232,7 +268,7 @@ def deploy():
         print(json.dumps(result), flush=True)
     except Exception:
         compose(old, 'up', '-d', '--no-deps', '--no-build', 'backend')
-        smoke('http://127.0.0.1:5000/api')
+        smoke('http://127.0.0.1:5000/api', strict=False)
         raise RuntimeError('Smoke falhou; imagem anterior restaurada; migration aditiva mantida') from None
 
 
@@ -243,5 +279,5 @@ elif args.action == 'deploy':
 else:
     result = json.loads((ROOT / 'rollback.json').read_text())
     compose(override('rollback-image.yml', result['previous_image']), 'up', '-d', '--no-deps', '--no-build', 'backend')
-    smoke('http://127.0.0.1:5000/api')
+    smoke('http://127.0.0.1:5000/api', strict=False)
     print('ROLLBACK_OK: imagem anterior; banco/volumes preservados')

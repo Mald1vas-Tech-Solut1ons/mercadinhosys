@@ -10,6 +10,20 @@ on:
     branches: [ main, master ]
 
 jobs:
+  oracle-db-split:
+    name: Oracle Private Database Cutover Safety
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify rollback and write preservation
+        run: python -m unittest discover -s infra/oracle -p test_db_split.py -v
+      - name: Verify Compose and PostgreSQL forwarding backup restore
+        run: python infra/oracle/verify-db-split-ci.py
+
   backend-tests:
     name: Backend Pytest & Multi-Tenant Audit
     timeout-minutes: 15

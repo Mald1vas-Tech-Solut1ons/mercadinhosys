@@ -76,7 +76,7 @@ const ClienteSelect: React.FC<ClienteSelectProps> = ({ cliente, onClienteSelecio
                                 </h4>
                                 <div className="flex items-center space-x-2 mt-1">
                                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                                        CPF: {cliente.cpf || 'N/A'} • Total Gasto: R$ {(cliente.valor_total_gasto || 0).toFixed(2)}
+                                        {cliente.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: {cliente.documento || cliente.cpf || cliente.cnpj || 'N/A'} • Total Gasto: R$ {(cliente.valor_total_gasto || 0).toFixed(2)}
                                     </p>
                                     {cliente.saldo_devedor && cliente.saldo_devedor > 0 ? (
                                         <span className="px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] font-bold rounded-full">
@@ -145,7 +145,7 @@ const ClienteSelect: React.FC<ClienteSelectProps> = ({ cliente, onClienteSelecio
                                                 {cliente.nome}
                                             </h4>
                                             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                                                {cliente.cpf || 'CPF não informado'} • {cliente.telefone || cliente.celular || 'Sem contato'}
+                                                {cliente.documento || cliente.cpf || cliente.cnpj || 'Documento não informado'} • {cliente.telefone || cliente.celular || 'Sem contato'}
                                             </p>
                                         </div>
                                         <div className="text-right flex flex-col items-end">

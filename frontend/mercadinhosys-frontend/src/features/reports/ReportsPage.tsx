@@ -641,7 +641,7 @@ const ReportsPage: React.FC = () => {
                     'Ped. Pendentes': item.metricas?.pedidos_pendentes ?? 0,
                     'Ped. Concluídos': item.metricas?.pedidos_concluidos ?? 0,
                     'Taxa Conclusão (%)': item.metricas?.taxa_conclusao ?? 0,
-                    'OTD (%)': item.metricas?.taxa_otd ?? 100,
+                    'OTD (%)': item.metricas?.taxa_otd ?? null, // null = sem entrega avaliada (não é 100%)
                     'Atraso Médio (dias)': item.metricas?.media_atraso ?? 0,
                     'Score': item.fornecedor?.score ?? 0,
                     'Entrega (dias)': item.metricas?.media_entrega_dias ?? item.metricas?.media_tempo_entrega ?? 0,
@@ -671,7 +671,7 @@ const ReportsPage: React.FC = () => {
                     const ultimaCompra = item.comportamento?.ultima_compra || item.metricas?.ultima_compra || item.ultima_compra;
                     return {
                         'Cliente': item.cliente?.nome || item.nome || 'N/A',
-                        'CPF': item.cliente?.cpf || item.cpf || 'N/A',
+                        'CPF': item.cliente?.documento || item.cliente?.cpf || item.cpf || 'N/A',
                         'Total Compras': item.metricas?.total_vendas ?? item.total_compras ?? 0,
                         'Valor Total (R$)': item.metricas?.valor_total_gasto ?? item.metricas?.valor_total ?? item.valor_total ?? 0,
                         'Ticket Médio (R$)': item.metricas?.ticket_medio ?? item.ticket_medio ?? 0,
@@ -1483,7 +1483,7 @@ const ReportsPage: React.FC = () => {
                                     Score: {topFornecedor['Score']?.toFixed(1) || 0}
                                 </span>
                                 <span className="text-[10px] text-gray-600 dark:text-gray-400">
-                                    OTD: <span className="font-medium text-gray-800 dark:text-gray-200">{topFornecedor['OTD (%)']?.toFixed(1) || 0}%</span>
+                                    OTD: <span className="font-medium text-gray-800 dark:text-gray-200">{topFornecedor['OTD (%)'] == null ? '—' : `${topFornecedor['OTD (%)'].toFixed(1)}%`}</span>
                                 </span>
                             </div>
                         </div>
@@ -1532,7 +1532,7 @@ const ReportsPage: React.FC = () => {
                     {
                         key: 'OTD (%)', label: 'OTD', align: 'right', render: (v) => (
                             <span className={`font-bold ${v >= 90 ? 'text-green-600 dark:text-green-400' : v >= 75 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
-                                {v?.toFixed(1)}%
+                                {v == null ? '—' : `${v.toFixed(1)}%`}
                             </span>
                         )
                     },

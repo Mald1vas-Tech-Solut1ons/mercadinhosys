@@ -1,3 +1,4 @@
+import { documentoDe } from './inputMasks';
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, CircularProgress, IconButton, Table, TableBody, TableCell, TableHead, TableRow, TableContainer, Paper, Typography } from '@mui/material';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
@@ -15,6 +16,13 @@ interface CustomerDetailsModalProps {
   onDelete: (cliente: any) => void;
   rfmData?: any;
 }
+
+const InfoRow = ({ label, value, valueClassName = '' }: { label: string; value: React.ReactNode; valueClassName?: string }) => (
+  <div className="flex flex-col sm:flex-row sm:items-center py-2.5 border-b border-slate-100 dark:border-slate-800/60 last:border-0 gap-1 sm:gap-4">
+    <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-40 shrink-0">{label}</span>
+    <span className={`text-sm font-medium text-slate-900 dark:text-slate-100 ${valueClassName}`}>{value}</span>
+  </div>
+);
 
 const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ open, cliente, loading, onClose, onEdit, onDelete, rfmData }) => {
 
@@ -34,13 +42,6 @@ const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ open, clien
         setProdutos([]);
     }
   }, [open, cliente]);
-
-  const InfoRow = ({ label, value, valueClassName = '' }: { label: string; value: React.ReactNode; valueClassName?: string }) => (
-    <div className="flex flex-col sm:flex-row sm:items-center py-2.5 border-b border-slate-100 dark:border-slate-800/60 last:border-0 gap-1 sm:gap-4">
-      <span className="text-xs sm:text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-40 shrink-0">{label}</span>
-      <span className={`text-sm font-medium text-slate-900 dark:text-slate-100 ${valueClassName}`}>{value}</span>
-    </div>
-  );
 
   const getRfmCustomer = () => {
     if (!cliente || !rfmData || !rfmData.customers) return null;
@@ -110,8 +111,11 @@ const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ open, clien
                     )}
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-1">
-                    <InfoRow label="Nome" value={cliente.nome || '-'} />
-                    <InfoRow label="CPF" value={cliente.cpf || '-'} />
+                    {cliente.tipo_pessoa === 'PJ' && <InfoRow label="Razão social" value={cliente.razao_social || '-'} />}
+                    <InfoRow label={cliente.tipo_pessoa === 'PJ' ? 'Nome fantasia' : 'Nome'} value={cliente.nome || '-'} />
+                    <InfoRow label={cliente.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'} value={documentoDe(cliente) || '-'} />
+                    {cliente.tipo_pessoa === 'PJ' && <InfoRow label="Inscrição estadual" value={cliente.inscricao_estadual || '-'} />}
+                    {cliente.tipo_pessoa === 'PJ' && <InfoRow label="Contato" value={cliente.contato_nome || '-'} />}
                     <InfoRow label="Telefone" value={cliente.celular || cliente.telefone || '-'} />
                     <InfoRow label="Email" value={cliente.email || '-'} />
                     <InfoRow label="Data Cadastro" value={cliente.data_cadastro ? new Date(cliente.data_cadastro).toLocaleDateString('pt-BR') : '-'} />

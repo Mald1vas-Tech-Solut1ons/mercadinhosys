@@ -113,8 +113,19 @@ export interface ResumoFinanceiro {
         saldo: number;
         interpretacao?: string;
     };
+    contas_receber?: {
+        total_aberto: number;
+        vencido: number;
+        vence_7_dias: number;
+        vence_30_dias: number;
+    };
     dre_consolidado: {
         receita_bruta: number;
+        impostos_sobre_vendas?: number;
+        receita_liquida?: number;
+        impostos_configurados?: boolean;
+        aliquota_impostos_venda?: number | null;
+        aviso?: string | null;
         custo_mercadoria: number;
         lucro_bruto: number;
         despesas_pessoal: number;

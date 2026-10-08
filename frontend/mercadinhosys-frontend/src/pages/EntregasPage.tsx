@@ -11,7 +11,9 @@ interface Entrega {
   status: 'pendente' | 'em_separacao' | 'em_transporte' | 'entregue' | 'cancelado';
   cliente: {
     nome: string;
-    cpf: string;
+    cpf?: string;
+    cnpj?: string;
+    documento?: string;
     telefone: string;
     endereco: string;
   };
@@ -123,7 +125,7 @@ const EntregasPage: React.FC = () => {
     const matchBusca = !busca ||
       entrega.numero_pedido.toLowerCase().includes(busca.toLowerCase()) ||
       entrega.cliente.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      entrega.cliente.cpf.includes(busca);
+      (entrega.cliente.documento || entrega.cliente.cpf || entrega.cliente.cnpj || '').includes(busca);
 
     const matchStatus = statusFiltro === 'todos' || entrega.status === statusFiltro;
 
@@ -247,7 +249,7 @@ const EntregasPage: React.FC = () => {
                             {entrega.cliente.nome}
                           </div>
                           <div className="text-xs text-gray-500">
-                            CPF: {entrega.cliente.cpf}
+                            {entrega.cliente.cnpj ? 'CNPJ' : 'CPF'}: {entrega.cliente.documento || entrega.cliente.cpf || entrega.cliente.cnpj || '-'}
                           </div>
                           <div className="text-xs text-gray-500 flex items-center">
                             <Phone className="w-3 h-3 mr-1" />

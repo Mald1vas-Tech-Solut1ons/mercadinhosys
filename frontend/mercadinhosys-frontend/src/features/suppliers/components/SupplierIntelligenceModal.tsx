@@ -11,6 +11,10 @@ interface SupplierIntelligenceModalProps {
 
 interface IntelligenceData {
   score_geral: number;
+  score_confiavel?: boolean;
+  amostra_entregas?: number;
+  fill_rate?: number | null;
+  taxa_avaria?: number | null;
   atraso_medio_dias: number;
   percentual_entregas_no_prazo: number;
   desconto_medio_percentual: number;
@@ -138,6 +142,11 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                   <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${getScoreBg(data.score_geral)}`}></span>
                   <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Classe {data.classificacao}</span>
                 </div>
+                {data.score_confiavel === false && (
+                  <p className="mt-3 text-center text-xs font-medium text-amber-600 dark:text-amber-400 z-10 max-w-60">
+                    Nota provisória: só {data.amostra_entregas ?? 0} entrega(s) avaliada(s). A classificação passa a valer com 3 ou mais.
+                  </p>
+                )}
               </div>
 
               {/* Grid de Métricas */}
@@ -150,7 +159,9 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                   <span className="text-2xl font-black text-gray-900 dark:text-white">
                     {data.percentual_entregas_no_prazo}%
                   </span>
-                  <span className="text-[10px] text-gray-500 font-medium">Entregas no prazo</span>
+                  <span className="text-[10px] text-gray-500 font-medium">
+                    Entregas no prazo{data.fill_rate != null ? ` · ${data.fill_rate}% do pedido aproveitado` : ''}
+                  </span>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">

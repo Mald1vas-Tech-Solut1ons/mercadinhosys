@@ -47,15 +47,31 @@ export default function SFAClienteForm() {
         e.preventDefault();
         try {
             setSubmitting(true);
-            // O backend deve auto-atribuir o vendedor baseado no current_user
-            await apiClient.post('/clientes', form);
+            // CPF (11 dígitos) ou CNPJ (14) pelo tamanho; o vendedor entra na própria carteira no backend.
+            const digitos = form.cpf_cnpj.replace(/\D/g, '');
+            const ehPJ = digitos.length === 14;
+            await apiClient.post('/clientes/', {
+                tipo_pessoa: ehPJ ? 'PJ' : 'PF',
+                nome: form.nome,
+                razao_social: ehPJ ? form.nome : undefined,
+                cpf: ehPJ ? undefined : digitos || undefined,
+                cnpj: ehPJ ? digitos : undefined,
+                celular: form.telefone,
+                cep: form.cep,
+                logradouro: form.endereco,
+                numero: form.numero,
+                bairro: form.bairro,
+                cidade: form.cidade,
+                estado: form.estado,
+            });
             setSuccess(true);
             showToast.success('Cliente cadastrado com sucesso!');
             setTimeout(() => {
                 navigate('/sfa/clientes');
             }, 2000);
-        } catch (error) {
-            showToast.error('Erro ao cadastrar cliente.');
+        } catch (error: any) {
+            const erros: string[] = error?.response?.data?.errors || [];
+            showToast.error(erros.length ? erros.join(' · ') : error?.response?.data?.message || 'Erro ao cadastrar cliente.');
             setSubmitting(false);
         }
     };

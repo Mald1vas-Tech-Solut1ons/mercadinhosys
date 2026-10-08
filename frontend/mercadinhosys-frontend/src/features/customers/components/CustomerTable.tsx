@@ -1,3 +1,4 @@
+import { documentoDe } from './inputMasks';
 import React from 'react';
 import { Cliente } from '../../../types';
 import { IconButton, Tooltip, Skeleton, Chip } from '@mui/material';
@@ -22,7 +23,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
             <th className="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Nome</th>
-            <th className="hidden sm:table-cell px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">CPF</th>
+            <th className="hidden sm:table-cell px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">CPF/CNPJ</th>
             <th className="hidden md:table-cell px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Telefone</th>
             <th className="hidden lg:table-cell px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Email</th>
             <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700 dark:text-gray-200">Fiado</th>
@@ -75,12 +76,12 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                           {cliente.nome}
                         </div>
                         <div className="text-xs text-gray-500 flex items-center mt-0.5">
-                          {cliente.cpf ? `CPF: ${cliente.cpf}` : 'Sem documento'}
+                          {documentoDe(cliente) ? `${cliente.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: ${documentoDe(cliente)}` : 'Sem documento'}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="hidden sm:table-cell px-4 py-2 whitespace-nowrap">{cliente.cpf || '-'}</td>
+                  <td className="hidden sm:table-cell px-4 py-2 whitespace-nowrap">{documentoDe(cliente) || '-'}</td>
                   <td className="hidden md:table-cell px-4 py-3 whitespace-nowrap">
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {cliente.celular || cliente.telefone || <span className="text-gray-400 font-normal italic">Não informado</span>}
@@ -232,7 +233,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                         {cliente.nome}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {cliente.celular || cliente.telefone || (cliente.cpf ? `CPF: ${cliente.cpf}` : 'Sem contato')}
+                        {cliente.celular || cliente.telefone || (documentoDe(cliente) ? `${cliente.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: ${documentoDe(cliente)}` : 'Sem contato')}
                       </div>
                     </div>
                   </div>

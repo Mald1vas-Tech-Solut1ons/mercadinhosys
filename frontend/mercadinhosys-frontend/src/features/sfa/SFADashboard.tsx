@@ -138,6 +138,9 @@ export default function SFADashboard() {
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Realizado</p>
                                 <p className="text-2xl font-black text-white">{formatCurrency(kpi.realizado.faturamento)}</p>
                                 <p className="text-xs text-slate-500 mt-1">Meta: {formatCurrency(kpi.meta.faturamento)}</p>
+                                {kpi.realizado.pipeline_pendente > 0 && (
+                                    <p className="text-xs text-amber-400 mt-1">+ {formatCurrency(kpi.realizado.pipeline_pendente)} aguardando aprovação</p>
+                                )}
                             </div>
                             
                             {/* Tendencia */}

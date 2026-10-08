@@ -792,6 +792,18 @@ const SettingsPage: React.FC = () => {
                                 <InputField label="CSC (Código de Segurança)" value={estab.fiscal_csc || ''} onChange={(e) => setEstab({ ...estab, fiscal_csc: e.target.value })} placeholder="Obtido na SEFAZ (NFC-e)" />
                                 <InputField label="ID do CSC (idToken)" value={estab.fiscal_csc_id || ''} onChange={(e) => setEstab({ ...estab, fiscal_csc_id: e.target.value })} placeholder="Ex: 000001" />
                             </div>
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                                <InputField
+                                    label="Alíquota efetiva de impostos sobre vendas (%)"
+                                    type="number"
+                                    value={config.aliquota_impostos_venda ?? ''}
+                                    onChange={(e) => setConfig({ ...config, aliquota_impostos_venda: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                    placeholder="Ex: 6,00 (Simples Nacional, faixa 1)"
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    Usada no DRE para separar receita bruta de receita líquida. Em branco, o lucro é mostrado antes dos impostos e o painel avisa. Confirme o percentual com a contabilidade.
+                                </p>
+                            </div>
                         </div>
                     )}
 

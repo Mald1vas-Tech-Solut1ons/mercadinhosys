@@ -17,8 +17,14 @@ export default function SFAClientes() {
     const loadClientes = async () => {
         try {
             setLoading(true);
-            const res = await apiClient.get('/clientes'); // Vendedor agora tem acesso à API de clientes
-            setClientes(res.data.clientes || []);
+            // A API pagina (50 por padrão): percorre todas as páginas da carteira do vendedor.
+            const todos: any[] = [];
+            for (let pagina = 1; pagina <= 50; pagina++) {
+                const res = await apiClient.get('/clientes/', { params: { pagina, por_pagina: 200, ativo: 'true' } });
+                todos.push(...(res.data.clientes || []));
+                if (pagina >= (res.data.total_paginas || 1)) break;
+            }
+            setClientes(todos);
         } catch (error) {
             console.error('Erro ao buscar clientes', error);
             showToast.error('Erro ao carregar carteira de clientes.');
@@ -31,9 +37,12 @@ export default function SFAClientes() {
         loadClientes();
     }, []);
 
-    const clientesFiltrados = clientes.filter(c => 
-        c.nome.toLowerCase().includes(busca.toLowerCase()) || 
-        (c.cpf_cnpj && c.cpf_cnpj.includes(busca))
+    const termo = busca.toLowerCase();
+    const termoDigitos = busca.replace(/\D/g, '');
+    const clientesFiltrados = clientes.filter(c =>
+        (c.nome || '').toLowerCase().includes(termo) ||
+        (c.razao_social || '').toLowerCase().includes(termo) ||
+        (termoDigitos.length >= 3 && String(c.documento || c.cpf_cnpj || '').replace(/\D/g, '').includes(termoDigitos))
     );
 
     return (
@@ -92,7 +101,7 @@ export default function SFAClientes() {
                                         <UserCircle className="w-8 h-8 text-slate-500 dark:text-slate-400" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="font-extrabold text-slate-900 dark:text-white text-lg truncate leading-tight tracking-tight">{cliente.nome}</h3>
+                                        <h3 className="font-extrabold text-slate-900 dark:text-white text-lg truncate leading-tight tracking-tight">{cliente.razao_social || cliente.nome}</h3>
                                         <p className="text-sm font-medium text-slate-500 truncate mt-1 flex items-center gap-1.5">
                                             <MapPin className="w-3.5 h-3.5" />
                                             {cliente.cidade ? `${cliente.cidade}/${cliente.estado}` : 'Endereço não informado'}

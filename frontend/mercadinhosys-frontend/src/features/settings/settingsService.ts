@@ -43,6 +43,7 @@ export interface Configuracao {
     permitir_venda_sem_estoque: boolean;
     desconto_maximo_percentual: number;
     desconto_maximo_funcionario: number;
+    aliquota_impostos_venda?: number | null; // % efetivo de impostos sobre vendas (DRE)
     arredondamento_valores: boolean;
     formas_pagamento: string[];
     motivos_estorno: string[];

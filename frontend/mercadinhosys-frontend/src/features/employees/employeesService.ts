@@ -11,6 +11,7 @@ export interface Funcionario {
     email: string;
     cargo: string;
     salario?: number;
+    numero_dependentes?: number; // dedução do IRRF no holerite
     data_admissao: string;
     data_demissao?: string;
     usuario: string;

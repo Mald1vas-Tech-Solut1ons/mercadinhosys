@@ -119,7 +119,13 @@ export interface Cliente {
     id: number;
     estabelecimento_id: number;
     nome: string;
+    tipo_pessoa?: 'PF' | 'PJ';
     cpf?: string;
+    cnpj?: string;
+    documento?: string; // CPF ou CNPJ já formatado, conforme o tipo de pessoa
+    razao_social?: string;
+    inscricao_estadual?: string;
+    contato_nome?: string;
     celular?: string;
     email?: string;
     endereco_completo?: string;

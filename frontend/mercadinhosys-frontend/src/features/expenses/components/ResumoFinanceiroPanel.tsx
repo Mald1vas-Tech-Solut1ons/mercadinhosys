@@ -267,6 +267,50 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
               </div>
             </div>
 
+            {/* Contas a receber e aviso do DRE */}
+            {(resumo.contas_receber || resumo.dre_consolidado.aviso) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {resumo.contas_receber && (
+                  <div className="relative p-6 rounded-4xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl">
+                        <ArrowUpRight className="w-5 h-5" />
+                      </div>
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Contas a Receber</span>
+                    </div>
+                    <div className="text-3xl font-black text-slate-900 dark:text-white mb-4 leading-none">
+                      {formatCurrency(resumo.contas_receber.total_aberto)}
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div className="bg-white/50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                        <p className="text-[10px] font-black text-rose-500 uppercase tracking-tighter mb-1">Vencido</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{formatCurrency(resumo.contas_receber.vencido)}</p>
+                      </div>
+                      <div className="bg-white/50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">Em 7 dias</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{formatCurrency(resumo.contas_receber.vence_7_dias)}</p>
+                      </div>
+                      <div className="bg-white/50 dark:bg-slate-900/50 p-3 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-tighter mb-1">Em 30 dias</p>
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{formatCurrency(resumo.contas_receber.vence_30_dias)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {resumo.dre_consolidado.aviso && (
+                  <div className="p-6 rounded-4xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-1">DRE antes dos impostos</p>
+                      <p className="text-sm text-amber-800 dark:text-amber-300 leading-snug">
+                        {resumo.dre_consolidado.aviso} Informe a alíquota em Configurações &rsaquo; Fiscal.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Business Insights KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
               {/* Insight: Comprometimento */}

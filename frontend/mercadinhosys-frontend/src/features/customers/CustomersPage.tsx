@@ -1,3 +1,4 @@
+import { documentoDe } from './components/inputMasks';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
@@ -489,6 +490,9 @@ const CustomersPage: React.FC = () => {
             return (
                 cliente.nome?.toLowerCase().includes(term) ||
                 cliente.cpf?.includes(term) ||
+                cliente.cnpj?.includes(term) ||
+                cliente.razao_social?.toLowerCase().includes(term) ||
+                (term.replace(/\D/g, '').length >= 3 && documentoDe(cliente).replace(/\D/g, '').includes(term.replace(/\D/g, ''))) ||
                 cliente.email?.toLowerCase().includes(term) ||
                 cliente.celular?.includes(term) ||
                 cliente.telefone?.includes(term)
@@ -802,7 +806,8 @@ const CustomersPage: React.FC = () => {
 
     const exportRows = filteredClientes.map((cliente) => ({
         Nome: cliente.nome || '',
-        CPF: cliente.cpf || '',
+        'Razão Social': cliente.razao_social || '',
+        'CPF/CNPJ': documentoDe(cliente),
         Telefone: cliente.celular || cliente.telefone || '',
         Email: cliente.email || '',
         Segmento: cliente.crmSegment,
@@ -817,7 +822,8 @@ const CustomersPage: React.FC = () => {
         const csvContent = [
             Object.keys(exportRows[0] || {
                 Nome: '',
-                CPF: '',
+                'Razão Social': '',
+                'CPF/CNPJ': '',
                 Telefone: '',
                 Email: '',
                 Segmento: '',

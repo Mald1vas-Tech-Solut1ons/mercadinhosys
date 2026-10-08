@@ -124,6 +124,7 @@ export default function EmployeesPage() {
         estado: "",
         cargo: "Atendente",
         salario: "",
+        numero_dependentes: "0",
         data_admissao: new Date().toISOString().split('T')[0],
         usuario: "",
         senha: "",
@@ -290,6 +291,7 @@ export default function EmployeesPage() {
             estado: "",
             cargo: "Atendente",
             salario: "",
+            numero_dependentes: "0",
             data_admissao: new Date().toISOString().split('T')[0],
             usuario: "",
             senha: "",
@@ -320,6 +322,7 @@ export default function EmployeesPage() {
             estado: funcionario.estado || "",
             cargo: funcionario.cargo,
             salario: funcionario.salario?.toString() || "",
+            numero_dependentes: String(funcionario.numero_dependentes ?? 0),
             data_admissao: funcionario.data_admissao,
             usuario: funcionario.usuario,
             senha: "",
@@ -353,6 +356,7 @@ export default function EmployeesPage() {
             const dados: Record<string, string | number | boolean> = {
                 ...formData,
                 salario: formData.salario ? parseFloat(formData.salario) : 0,
+                numero_dependentes: parseInt(formData.numero_dependentes || "0", 10) || 0,
             };
 
             const promise = modoEdicao && funcionarioSelecionado
@@ -1434,6 +1438,22 @@ export default function EmployeesPage() {
                                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
                                         required
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                                        Dependentes (IRRF)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="20"
+                                        step="1"
+                                        value={formData.numero_dependentes}
+                                        onChange={(e) => setFormData({ ...formData, numero_dependentes: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
+                                    />
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Cada dependente reduz a base do imposto de renda no holerite.</p>
                                 </div>
 
                                 <div>

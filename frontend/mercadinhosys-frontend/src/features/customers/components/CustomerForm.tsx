@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { maskCPF, maskPhone, maskCEP } from './inputMasks';
+import { maskCPF, maskCNPJ, maskPhone, maskCEP, somenteDigitos, validarCPF, validarCNPJ } from './inputMasks';
 import { buscarCep } from '../../../utils/cepUtils';
 import { Cliente } from '../../../types';
 import { apiClient } from '../../../api/apiClient';
 import {
-  Dialog, DialogContent, DialogActions, Button, TextField, Typography, Box, IconButton, CircularProgress
+  Dialog, DialogContent, DialogActions, Button, TextField, Typography, Box, IconButton, CircularProgress,
+  ToggleButton, ToggleButtonGroup
 } from '@mui/material';
 // Importação compatível com todos os ambientes MUI 5+
 import CloseIcon from '@mui/icons-material/Close';
@@ -34,43 +35,29 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
     setErrors({});
   }, [initialData?.id, open]); // Dependências mais específicas
 
-  // Validação de CPF
-  const validateCPF = (cpf: string): boolean => {
-    cpf = cpf.replace(/\D/g, '');
-    if (cpf.length !== 11) return false;
-    if (/^(\d)\1+$/.test(cpf)) return false;
+  const tipoPessoa: 'PF' | 'PJ' = form.tipo_pessoa === 'PJ' ? 'PJ' : 'PF';
+  const rotuloDocumento = tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF';
+  const campoDocumento = tipoPessoa === 'PJ' ? 'cnpj' : 'cpf';
 
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-      sum += parseInt(cpf.charAt(i)) * (10 - i);
-    }
-    let remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    if (remainder !== parseInt(cpf.charAt(9))) return false;
-
-    sum = 0;
-    for (let i = 0; i < 10; i++) {
-      sum += parseInt(cpf.charAt(i)) * (11 - i);
-    }
-    remainder = (sum * 10) % 11;
-    if (remainder === 10 || remainder === 11) remainder = 0;
-    return remainder === parseInt(cpf.charAt(10));
-  };
-
-  // Verificar se CPF já existe
-  const checkCPFDuplicate = async (cpf: string): Promise<boolean> => {
-    if (!cpf || cpf.length < 14) return false;
+  // Verificar se o documento (CPF ou CNPJ) já existe em outro cliente
+  const checkDocumentoDuplicate = async (documento: string): Promise<boolean> => {
+    const limpo = somenteDigitos(documento);
+    if (limpo.length !== 11 && limpo.length !== 14) return false;
     try {
-      const cleanCPF = cpf.replace(/\D/g, '');
-      const response = await apiClient.get('/clientes/', { params: { busca: cleanCPF } });
-      const data = response.data;
-      const existing = data.clientes?.find(
-        (c: Cliente) => (c.cpf || '').replace(/\D/g, '') === cleanCPF && c.id !== initialData?.id
+      const response = await apiClient.get('/clientes/', { params: { busca: limpo } });
+      const existing = response.data.clientes?.find(
+        (c: Cliente) => somenteDigitos(c.cpf) === limpo || somenteDigitos(c.cnpj) === limpo
       );
-      return !!existing;
+      return !!existing && existing.id !== initialData?.id;
     } catch {
       return false;
     }
+  };
+
+  const trocarTipo = (_: React.MouseEvent<HTMLElement>, novo: 'PF' | 'PJ' | null) => {
+    if (!novo) return;
+    setForm(prev => ({ ...prev, tipo_pessoa: novo }));
+    setErrors({});
   };
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +66,9 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
 
     if (name === 'cpf' && value.length <= 14) {
       value = maskCPF(value);
+    }
+    if (name === 'cnpj') {
+      value = maskCNPJ(value);
     }
     if (name === 'cep' && typeof value === 'string') {
       value = maskCEP(value);
@@ -115,16 +105,18 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
       setErrors({ ...errors, [name]: '' });
     }
 
-    // Validação em tempo real para CPF
-    if (name === 'cpf' && typeof value === 'string' && value.length === 14) {
-      if (!validateCPF(value)) {
-        setErrors({ ...errors, cpf: 'CPF inválido' });
+    // Validação em tempo real do documento (CPF ou CNPJ)
+    const tamanhoCompleto = name === 'cpf' ? 14 : name === 'cnpj' ? 18 : 0;
+    if (tamanhoCompleto && typeof value === 'string' && value.length === tamanhoCompleto) {
+      const rotulo = name === 'cpf' ? 'CPF' : 'CNPJ';
+      if (!(name === 'cpf' ? validarCPF(value) : validarCNPJ(value))) {
+        setErrors({ ...errors, [name]: `${rotulo} inválido` });
       } else {
         setCpfChecking(true);
-        const isDuplicate = await checkCPFDuplicate(value);
+        const isDuplicate = await checkDocumentoDuplicate(value);
         setCpfChecking(false);
         if (isDuplicate) {
-          setErrors({ ...errors, cpf: 'CPF já cadastrado para outro cliente' });
+          setErrors({ ...errors, [name]: `${rotulo} já cadastrado para outro cliente` });
         }
       }
     }
@@ -144,14 +136,16 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
     const newErrors: Record<string, string> = {};
 
     // Validações obrigatórias
-    if (!form.nome?.trim()) newErrors.nome = 'Nome é obrigatório';
-    if (!form.cpf?.trim()) newErrors.cpf = 'CPF é obrigatório';
-    if (!form.celular?.trim()) newErrors.celular = 'Telefone é obrigatório';
-
-    // Validação de CPF
-    if (form.cpf && !validateCPF(form.cpf)) {
-      newErrors.cpf = 'CPF inválido';
+    if (tipoPessoa === 'PJ') {
+      if (!form.razao_social?.trim()) newErrors.razao_social = 'Razão social é obrigatória';
+      if (!form.cnpj?.trim()) newErrors.cnpj = 'CNPJ é obrigatório';
+      else if (!validarCNPJ(form.cnpj)) newErrors.cnpj = 'CNPJ inválido';
+    } else {
+      if (!form.nome?.trim()) newErrors.nome = 'Nome é obrigatório';
+      if (!form.cpf?.trim()) newErrors.cpf = 'CPF é obrigatório';
+      else if (!validarCPF(form.cpf)) newErrors.cpf = 'CPF inválido';
     }
+    if (!form.celular?.trim()) newErrors.celular = 'Telefone é obrigatório';
 
     // Validação de email
     if (form.email) {
@@ -161,11 +155,12 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
       }
     }
 
-    // Verificar CPF duplicado se não há erro de validação
-    if (form.cpf && !newErrors.cpf) {
-      const isDuplicate = await checkCPFDuplicate(form.cpf);
+    // Verificar documento duplicado se não há erro de validação
+    const documentoInformado = form[campoDocumento];
+    if (documentoInformado && !newErrors[campoDocumento]) {
+      const isDuplicate = await checkDocumentoDuplicate(documentoInformado);
       if (isDuplicate) {
-        newErrors.cpf = 'CPF já cadastrado para outro cliente';
+        newErrors[campoDocumento] = `${rotuloDocumento} já cadastrado para outro cliente`;
       }
     }
 
@@ -173,10 +168,11 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
 
     if (Object.keys(newErrors).length === 0) {
       // Para edição, garantir que campos obrigatórios sejam enviados
-      const dataToSave = { ...form };
+      const dataToSave: Partial<Cliente> = { ...form, tipo_pessoa: tipoPessoa };
       if (initialData?.id) {
         // Na edição, garantir campos obrigatórios
-        const requiredFields = ['nome', 'cpf', 'celular'] as const;
+        const requiredFields: Array<'nome' | 'cpf' | 'cnpj' | 'razao_social' | 'celular'> =
+          tipoPessoa === 'PJ' ? ['cnpj', 'razao_social', 'celular'] : ['nome', 'cpf', 'celular'];
         for (const field of requiredFields) {
           if (!dataToSave[field] && initialData[field]) {
             dataToSave[field] = initialData[field];
@@ -185,7 +181,10 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
       }
 
       // Filtrar campos que não devem ser enviados na atualização
-      const camposNaoEnviar = ['id', 'saldo_devedor', 'total_compras', 'data_cadastro', 'ultima_compra', 'valor_total_gasto', 'endereco_completo'];
+      const camposNaoEnviar = ['id', 'saldo_devedor', 'total_compras', 'data_cadastro', 'ultima_compra', 'valor_total_gasto', 'endereco_completo', 'documento', 'nome_exibicao'];
+      // Cada tipo de pessoa envia só os próprios campos de identificação.
+      if (tipoPessoa === 'PJ') camposNaoEnviar.push('cpf', 'rg', 'data_nascimento');
+      else camposNaoEnviar.push('cnpj', 'razao_social', 'inscricao_estadual', 'contato_nome');
       const cleanData = Object.fromEntries(
         Object.entries(dataToSave).filter(([key, value]) =>
           value !== undefined &&
@@ -217,40 +216,134 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ open, onClose, onSave, init
       <form onSubmit={handleSubmit}>
         <DialogContent sx={{ pt: 0, pb: 1 }}>
           <Box display="flex" flexWrap="wrap" gap={2}>
-            <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
-              <TextField
-                label="Nome"
-                name="nome"
-                value={form.nome || ''}
-                onChange={handleChange}
-                required
+            <Box flex="1 1 100%">
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={tipoPessoa}
+                onChange={trocarTipo}
+                aria-label="Tipo de pessoa"
                 fullWidth
-                autoFocus
-                variant="outlined"
-                size="medium"
-                error={!!errors.nome}
-                helperText={errors.nome}
-                InputLabelProps={{ style: { color: '#bdbdbd' } }}
-              />
+              >
+                <ToggleButton value="PF">Pessoa física</ToggleButton>
+                <ToggleButton value="PJ">Pessoa jurídica (empresa)</ToggleButton>
+              </ToggleButtonGroup>
             </Box>
-            <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
-              <TextField
-                label="CPF"
-                name="cpf"
-                value={form.cpf || ''}
-                onChange={handleChange}
-                required
-                fullWidth
-                variant="outlined"
-                size="medium"
-                error={!!errors.cpf}
-                helperText={errors.cpf || (cpfChecking ? 'Verificando CPF...' : '')}
-                InputLabelProps={{ style: { color: '#bdbdbd' } }}
-                InputProps={{
-                  endAdornment: cpfChecking ? <CircularProgress size={16} /> : null,
-                }}
-              />
-            </Box>
+            {tipoPessoa === 'PJ' ? (
+              <>
+                <Box flex="1 1 100%" minWidth={220}>
+                  <TextField
+                    label="Razão social"
+                    name="razao_social"
+                    value={form.razao_social || ''}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    autoFocus
+                    variant="outlined"
+                    size="medium"
+                    error={!!errors.razao_social}
+                    helperText={errors.razao_social}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                  />
+                </Box>
+                <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
+                  <TextField
+                    label="Nome fantasia"
+                    name="nome"
+                    value={form.nome || ''}
+                    onChange={handleChange}
+                    fullWidth
+                    variant="outlined"
+                    size="medium"
+                    error={!!errors.nome}
+                    helperText={errors.nome}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                  />
+                </Box>
+                <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
+                  <TextField
+                    label="CNPJ"
+                    name="cnpj"
+                    value={form.cnpj || ''}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    variant="outlined"
+                    size="medium"
+                    error={!!errors.cnpj}
+                    helperText={errors.cnpj || (cpfChecking ? 'Verificando CNPJ...' : '')}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                    InputProps={{
+                      endAdornment: cpfChecking ? <CircularProgress size={16} /> : null,
+                    }}
+                  />
+                </Box>
+                <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
+                  <TextField
+                    label="Inscrição estadual"
+                    name="inscricao_estadual"
+                    value={form.inscricao_estadual || ''}
+                    onChange={handleChange}
+                    fullWidth
+                    variant="outlined"
+                    size="medium"
+                    inputProps={{ maxLength: 20 }}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                  />
+                </Box>
+                <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
+                  <TextField
+                    label="Contato (comprador)"
+                    name="contato_nome"
+                    value={form.contato_nome || ''}
+                    onChange={handleChange}
+                    fullWidth
+                    variant="outlined"
+                    size="medium"
+                    inputProps={{ maxLength: 100 }}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                  />
+                </Box>
+              </>
+            ) : (
+              <>
+                <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
+                  <TextField
+                    label="Nome"
+                    name="nome"
+                    value={form.nome || ''}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    autoFocus
+                    variant="outlined"
+                    size="medium"
+                    error={!!errors.nome}
+                    helperText={errors.nome}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                  />
+                </Box>
+                <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
+                  <TextField
+                    label="CPF"
+                    name="cpf"
+                    value={form.cpf || ''}
+                    onChange={handleChange}
+                    required
+                    fullWidth
+                    variant="outlined"
+                    size="medium"
+                    error={!!errors.cpf}
+                    helperText={errors.cpf || (cpfChecking ? 'Verificando CPF...' : '')}
+                    InputLabelProps={{ style: { color: '#bdbdbd' } }}
+                    InputProps={{
+                      endAdornment: cpfChecking ? <CircularProgress size={16} /> : null,
+                    }}
+                  />
+                </Box>
+              </>
+            )}
             <Box flex="1 1 220px" minWidth={220} maxWidth={400}>
               <TextField
                 label="Telefone"

@@ -111,6 +111,31 @@ def _validar_cadastro_fiscal_producao(venda: Venda, estab: Estabelecimento) -> N
         )
 
 
+def _data_emissao(venda: Venda, estab: Estabelecimento) -> str:
+    """Data/hora da venda no fuso real do emitente. O banco guarda UTC; antes o offset
+    era fixo em -03:00 (errado para AM, AC, RO, RR, MT e MS)."""
+    from datetime import timezone
+    from app.utils.timezone import fuso_da_uf
+    base = venda.data_venda or utcnow()
+    if base.tzinfo is None:
+        base = base.replace(tzinfo=timezone.utc)
+    return base.astimezone(fuso_da_uf(getattr(estab, "estado", None))).isoformat(timespec="seconds")
+
+
+def _destinatario(venda: Venda) -> Dict[str, Any]:
+    """Identifica o comprador na nota quando o cliente cadastrado tem CPF/CNPJ válido."""
+    from app.utils.validators import validar_cnpj, validar_cpf
+    cliente = getattr(venda, "cliente", None)
+    if not cliente:
+        return {}
+    digitos = re.sub(r"\D", "", cliente.documento or "")
+    if len(digitos) == 14 and validar_cnpj(digitos):
+        return {"cnpj_destinatario": digitos, "nome_destinatario": (cliente.razao_social or cliente.nome or "")[:60]}
+    if len(digitos) == 11 and validar_cpf(digitos):
+        return {"cpf_destinatario": digitos, "nome_destinatario": (cliente.nome or "")[:60]}
+    return {}
+
+
 def _build_payload(venda: Venda, estab: Estabelecimento, numero: int, serie: int) -> Dict[str, Any]:
     itens = []
     for i, item in enumerate(venda.itens, start=1):
@@ -163,9 +188,10 @@ def _build_payload(venda: Venda, estab: Estabelecimento, numero: int, serie: int
         "numero": numero,
         "cnpj_emitente": estab.cnpj,
         "natureza_operacao": "Venda ao consumidor",
-        "data_emissao": (venda.data_venda or utcnow()).strftime("%Y-%m-%dT%H:%M:%S-03:00"),
+        "data_emissao": _data_emissao(venda, estab),
         "presenca_comprador": "1",
         "modalidade_frete": "9",
+        **_destinatario(venda),
         "items": itens,
         "formas_pagamento": pagamentos,
         # Metadados usados pelo gateway simulado (prefixo _ é removido no envio real)

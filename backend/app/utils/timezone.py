@@ -62,3 +62,12 @@ def local_date_to_utc_naive(date_or_str, fim_do_dia=False):
         dt_local = dt_local.replace(hour=23, minute=59, second=59, microsecond=999999)
     aware_local = dt_local.replace(tzinfo=LOCAL_TZ)
     return aware_local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+# Fusos fixos por estado (sem horário de verão desde 2019). Os demais estados usam Brasília (-3).
+_OFFSET_POR_UF = {"AC": -5, "AM": -4, "RO": -4, "RR": -4, "MT": -4, "MS": -4}
+
+
+def fuso_da_uf(uf):
+    """Fuso da loja pelo estado: documentos fiscais levam o offset real do emitente."""
+    return timezone(timedelta(hours=_OFFSET_POR_UF.get((uf or "").strip().upper(), -3)))

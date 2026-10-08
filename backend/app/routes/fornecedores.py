@@ -1339,60 +1339,21 @@ def relatorio_analitico_fornecedores():
             total_pedidos = len(pedidos)
             valor_total = sum(float(p.total) for p in pedidos)
             pedidos_pendentes = len([p for p in pedidos if p.status == "pendente"])
-            pedidos_concluidos = len([p for p in pedidos if p.status == "concluido"])
+            pedidos_concluidos = len([p for p in pedidos if p.status in ("concluido", "recebido")])
 
-            # Média de tempo de entrega (apenas pedidos concluídos)
-            tempos_entrega = []
-            atrasos = []
-            entregas_no_prazo = 0
-            total_entregas_avaliadas = 0
-
-            for p in pedidos:
-                # Considerar entregas concluídas
-                if p.status == "concluido":
-                    # Garantir que temos objetos date (não datetime)
-                    data_pedido_date = p.data_pedido.date() if isinstance(p.data_pedido, datetime) else p.data_pedido
-                    
-                    # Data Efetiva (Recebimento)
-                    if p.data_recebimento:
-                        data_efetiva = p.data_recebimento.date() if isinstance(p.data_recebimento, datetime) else p.data_recebimento
-                    else:
-                        data_efetiva = data_pedido_date # Fallback
-
-                    if data_pedido_date:
-                        dias_reais = (data_efetiva - data_pedido_date).days
-                        tempos_entrega.append(dias_reais)
-                        
-                        # Cálculo de OTD (On-Time Delivery)
-                        prazo_prometido_date = None
-                        if p.data_previsao_entrega:
-                            prazo_prometido_date = p.data_previsao_entrega.date() if isinstance(p.data_previsao_entrega, datetime) else p.data_previsao_entrega
-                        else:
-                            # Fallback: data_pedido + prazo_padrao
-                            from datetime import timedelta
-                            prazo_padrao = fornecedor.prazo_entrega or 7
-                            prazo_prometido_date = data_pedido_date + timedelta(days=prazo_padrao)
-                        
-                        if prazo_prometido_date:
-                            total_entregas_avaliadas += 1
-                            if data_efetiva <= prazo_prometido_date:
-                                entregas_no_prazo += 1
-                            else:
-                                dias_atraso = (data_efetiva - prazo_prometido_date).days
-                                atrasos.append(dias_atraso)
-
-            media_entrega = (
-                sum(tempos_entrega) / len(tempos_entrega) if tempos_entrega else 0
-            )
-            
-            # Se não há entregas avaliadas, assumir 100% (Inocente até que se prove o contrário) ou Neutro
-            # Se o fornecedor tem pedidos mas nenhum concluído, talvez Score deva ser neutro (100)
-            if total_entregas_avaliadas > 0:
-                taxa_otd = (entregas_no_prazo / total_entregas_avaliadas * 100)
-            else:
-                taxa_otd = 100.0 # Sem histórico negativo
-
-            media_atraso = (sum(atrasos) / len(atrasos)) if atrasos else 0
+            # Pontualidade e atraso pelo mesmo critério da nota (services/fornecedor_score):
+            # só entra pedido com recebimento registrado, sem data inventada.
+            from app.services.fornecedor_score import avaliar_entregas, STATUS_ENCERRADOS
+            entregas = avaliar_entregas(pedidos, fornecedor.prazo_entrega)
+            tempos_entrega = [
+                ((p.data_recebimento.date() if isinstance(p.data_recebimento, datetime) else p.data_recebimento)
+                 - (p.data_pedido.date() if isinstance(p.data_pedido, datetime) else p.data_pedido)).days
+                for p in pedidos
+                if p.status in STATUS_ENCERRADOS and p.data_recebimento and p.data_pedido
+            ]
+            media_entrega = (sum(tempos_entrega) / len(tempos_entrega)) if tempos_entrega else None
+            taxa_otd = entregas["percentual_no_prazo"]  # None quando não há entrega avaliada
+            media_atraso = entregas["atraso_medio_dias"]
 
             # Produtos fornecidos e Variação de Preço (Simplificada)
             produtos = Produto.query.filter_by(
@@ -1403,11 +1364,10 @@ def relatorio_analitico_fornecedores():
 
             total_produtos = len(produtos)
             
-            # Cálculo de Score (0-100)
-            score = taxa_otd * 0.6 + (100 if media_atraso <= 0 else max(0, 100 - media_atraso * 10)) * 0.4
-            
-            if not pedidos:
-                score = 100.0
+            # Mesma nota do cadastro (services/fornecedor_score): uma fórmula só.
+            from app.services.fornecedor_score import calcular_metricas
+            metricas_score = calcular_metricas(fornecedor)
+            score = metricas_score["score"]
 
             # Adicionar ao relatório
             relatorio.append(
@@ -1418,7 +1378,9 @@ def relatorio_analitico_fornecedores():
                         "cnpj": fornecedor.cnpj,
                         "classificacao": fornecedor.classificacao,
                         "prazo_entrega_padrao": fornecedor.prazo_entrega,
-                        "score": round(score, 1)
+                        "score": round(score, 1),
+                        "score_confiavel": metricas_score["confiavel"],
+                        "amostra_entregas": metricas_score["entregas"]["amostra"],
                     },
                     "metricas": {
                         "total_pedidos": total_pedidos,
@@ -1476,165 +1438,19 @@ def relatorio_analitico_fornecedores():
 
 
 def sincronizar_metricas_fornecedor(fornecedor_id):
-    """Sincroniza métricas de um fornecedor (chamar após cada pedido)"""
+    """Recalcula e grava as métricas do fornecedor. Chamar após receber/devolver pedido de compra;
+    nunca de dentro de um GET (leitura não pode gravar)."""
+    from app.services.fornecedor_score import aplicar_metricas, calcular_metricas
     try:
-        from app.models import CondicaoPagamento, MovimentacaoEstoque, Produto
-        from datetime import timedelta
         fornecedor = Fornecedor.query.get(fornecedor_id)
         if not fornecedor:
             return
-
-        # Calcular total de compras
-        # Recebimento parcial também é compra efetivada com o fornecedor.
-        pedidos = PedidoCompra.query.filter(
-            PedidoCompra.fornecedor_id == fornecedor_id,
-            PedidoCompra.estabelecimento_id == fornecedor.estabelecimento_id,
-            PedidoCompra.status.in_(["concluido", "recebido", "parcial"]),
-        ).all()
-
-        total_compras = len(pedidos)
-        valor_total = sum(float(p.total) for p in pedidos)
-
-        # Se não há pedidos, fallback para MovimentacaoEstoque de entrada para calcular o valor_total_comprado real
-        if valor_total == 0:
-            movs = db.session.query(func.sum(MovimentacaoEstoque.valor_total)).join(Produto).filter(
-                MovimentacaoEstoque.tipo == 'entrada',
-                MovimentacaoEstoque.venda_id.is_(None),  # estorno de venda não é compra
-                Produto.fornecedor_id == fornecedor_id,
-                MovimentacaoEstoque.estabelecimento_id == fornecedor.estabelecimento_id
-            ).scalar()
-            valor_total = float(movs or 0.0)
-
-        # Atualizar básicos
-        fornecedor.total_compras = total_compras
-        fornecedor.valor_total_comprado = valor_total
-
-        import re
-        
-        # === CÁLCULO DE INTELIGÊNCIA ===
-        atraso_total_dias = 0
-        entregas_no_prazo = 0
-        pedidos_com_data = 0
-        
-        total_bruto_acumulado = 0.0
-        total_desconto_acumulado = 0.0
-
-        for p in pedidos:
-            # Pontualidade
-            data_receb = p.data_recebimento
-            if not data_receb and p.status in ['concluido', 'recebido', 'parcial']:
-                data_receb = p.data_pedido.date() if p.data_pedido else None
-                
-            data_prev = p.data_previsao_entrega
-            if not data_prev and p.data_pedido:
-                prazo = fornecedor.prazo_entrega or 7
-                data_prev = p.data_pedido.date() + timedelta(days=prazo)
-
-            if data_receb and data_prev:
-                pedidos_com_data += 1
-                diff = (data_receb - data_prev).days
-                if diff <= 0:
-                    entregas_no_prazo += 1
-                else:
-                    atraso_total_dias += diff
-                    
-            # Desconto Real (Itens + Global)
-            bruto_pedido = 0.0
-            desconto_itens = 0.0
-            if p.itens:
-                for item in p.itens:
-                    qtd = float(item.quantidade_solicitada or 0)
-                    preco = float(item.preco_unitario or 0)
-                    desc_perc = float(item.desconto_percentual or 0)
-                    
-                    bruto_item = qtd * preco
-                    valor_desc_item = bruto_item * (desc_perc / 100)
-                    
-                    bruto_pedido += bruto_item
-                    desconto_itens += valor_desc_item
-            
-            # Fallback se itens não estiverem detalhados
-            if bruto_pedido == 0:
-                bruto_pedido = float(p.subtotal or 0) + float(p.desconto or 0)
-                
-            total_bruto_acumulado += bruto_pedido
-            total_desconto_acumulado += desconto_itens + float(p.desconto or 0)
-
-        # Atualizar Métricas Inteligentes no Modelo
-        if pedidos_com_data > 0:
-            fornecedor.percentual_entregas_no_prazo = (entregas_no_prazo / pedidos_com_data) * 100
-            fornecedor.atraso_medio_dias = (atraso_total_dias / pedidos_com_data)
-        else:
-            # Padrões mais reais caso não existam dados de atraso: 100% no prazo
-            fornecedor.percentual_entregas_no_prazo = 100.0
-            fornecedor.atraso_medio_dias = 0.0
-            
-        if total_bruto_acumulado > 0:
-            fornecedor.desconto_medio_percentual = (total_desconto_acumulado / total_bruto_acumulado) * 100
-        else:
-            fornecedor.desconto_medio_percentual = 0.0
-            
-        # --- Prazo de Pagamento Máximo (Contas a Pagar) ---
-        maior_prazo = 0
-        from app.models import ContaPagar
-        boletos = ContaPagar.query.filter_by(fornecedor_id=fornecedor.id, estabelecimento_id=fornecedor.estabelecimento_id).all()
-        if boletos:
-            for boleto in boletos:
-                if boleto.data_emissao and boleto.data_vencimento:
-                    prazo_dias = (boleto.data_vencimento - boleto.data_emissao).days
-                    if prazo_dias > maior_prazo:
-                        maior_prazo = prazo_dias
-        
-        # Fallback para deduzir prazo da string de forma_pagamento se nenhum boleto deu prazo maior
-        if maior_prazo == 0:
-            forma = str(fornecedor.forma_pagamento or "")
-            nums = [int(n) for n in re.findall(r'\d+', forma)]
-            if nums:
-                maior_prazo = max(nums)
-                
-        fornecedor.prazo_pagamento_medio_dias = float(maior_prazo)
-
-        # Calcular Score Inteligente e Lógico (0-100)
-        # 1. Base neutra/boa: Começa com 80 pontos (presunção de inocência)
-        # 2. Bônus por prazo de pagamento (max +15 pts) -> 30 dias = +10, 60 dias = +15
-        # 3. Bônus por desconto (max +15 pts) -> 5% = +7.5 pts
-        # 4. Penalidade por atraso médio (cada dia perde 2 pontos, max -40 pts)
-        # 5. Penalidade se o fornecedor for inativo (sem volume financeiro algum)
-        
-        score = 80.0
-        
-        # Bônus Prazo (até +15 pontos se ele der prazo de até 60 dias)
-        score += min((fornecedor.prazo_pagamento_medio_dias / 60.0) * 15, 15)
-        
-        # Bônus Desconto (até +15 pontos)
-        score += min((fornecedor.desconto_medio_percentual / 10.0) * 15, 15)
-        
-        # Penalidade de atraso (até -40 pontos)
-        if fornecedor.atraso_medio_dias > 0:
-            score -= min(fornecedor.atraso_medio_dias * 2, 40)
-            
-        # Penalidade de inatividade (cai pra 50 se não vendeu nada nem teve movimentação)
-        if valor_total == 0:
-            score -= 30
-            
-        # Manter nos limites
-        fornecedor.score_geral = int(max(0, min(100, score)))
-
-        # Atualizar classificação baseada no valor total E pontuação
-        if fornecedor.score_geral >= 85 and valor_total > 50000:
-            fornecedor.classificacao = "PREMIUM"
-        elif fornecedor.score_geral >= 75:
-            fornecedor.classificacao = "A"
-        elif fornecedor.score_geral >= 50:
-            fornecedor.classificacao = "B"
-        else:
-            fornecedor.classificacao = "C"
-
+        aplicar_metricas(fornecedor, calcular_metricas(fornecedor))
         db.session.commit()
-
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Erro ao sincronizar métricas do fornecedor {fornecedor_id}: {str(e)}")
+
 
 @fornecedores_bp.route("/<int:id>/inteligencia", methods=["GET"])
 @funcionario_required
@@ -1647,8 +1463,10 @@ def get_inteligencia(id):
         fornecedor = _supplier_query(estabelecimento_id).filter_by(id=id).first_or_404()
         estabelecimento_id = fornecedor.estabelecimento_id
         
-        # Sincroniza em tempo real para garantir dados frescos
-        sincronizar_metricas_fornecedor(fornecedor.id)
+        # Cálculo em tempo real, sem gravar: GET não altera cadastro.
+        from app.services.fornecedor_score import calcular_metricas
+        metricas = calcular_metricas(fornecedor)
+        entregas = metricas["entregas"]
         
         # Busca últimos pedidos recebidos para a timeline
         pedidos = PedidoCompra.query.filter(
@@ -1703,12 +1521,17 @@ def get_inteligencia(id):
         return jsonify({
             "success": True,
             "inteligencia": {
-                "score_geral": fornecedor.score_geral,
-                "atraso_medio_dias": round(fornecedor.atraso_medio_dias, 1),
-                "percentual_entregas_no_prazo": round(fornecedor.percentual_entregas_no_prazo, 1),
-                "desconto_medio_percentual": round(fornecedor.desconto_medio_percentual, 1),
-                "prazo_pagamento_medio_dias": round(fornecedor.prazo_pagamento_medio_dias, 1),
-                "classificacao": fornecedor.classificacao
+                "score_geral": metricas["score"],
+                "score_confiavel": metricas["confiavel"],
+                "amostra_entregas": entregas["amostra"],
+                "componentes_score": metricas["componentes"],
+                "atraso_medio_dias": round(entregas["atraso_medio_dias"], 1),
+                "percentual_entregas_no_prazo": round(entregas["percentual_no_prazo"] if entregas["amostra"] else 100.0, 1),
+                "fill_rate": None if entregas["fill_rate"] is None else round(entregas["fill_rate"], 1),
+                "taxa_avaria": None if entregas["taxa_avaria"] is None else round(entregas["taxa_avaria"], 1),
+                "desconto_medio_percentual": round(metricas["desconto_medio_percentual"], 1),
+                "prazo_pagamento_medio_dias": round(metricas["prazo_pagamento_medio_dias"], 1),
+                "classificacao": metricas["classificacao"] or fornecedor.classificacao
             },
             "timeline": timeline
         }), 200

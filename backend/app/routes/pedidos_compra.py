@@ -14,6 +14,7 @@ from app.models import (
 )
 from app.decorators.decorator_jwt import funcionario_required
 from app.services.estoque_service import quantidade_valida
+from app.services.fornecedor_score import aplicar_metricas, calcular_metricas
 from app.utils.sale_validation import number
 
 pedidos_compra_bp = Blueprint('pedidos_compra', __name__)
@@ -25,6 +26,19 @@ def get_current_user():
     if not user:
         return None
     return user
+
+def _atualizar_score_fornecedor(fornecedor_id):
+    """Reflete o recebimento na nota do fornecedor. O recebimento já foi confirmado: falha aqui
+    só é registrada, não desfaz nem derruba a resposta."""
+    try:
+        fornecedor = Fornecedor.query.get(fornecedor_id)
+        if fornecedor:
+            aplicar_metricas(fornecedor, calcular_metricas(fornecedor))
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning('Não foi possível atualizar a nota do fornecedor %s: %s', fornecedor_id, e)
+
 
 @pedidos_compra_bp.route('/pedidos-compra/', methods=['GET'])
 @funcionario_required
@@ -562,6 +576,7 @@ def receber_pedido_compra():
             db.session.add(conta_pagar)
 
         db.session.commit()
+        _atualizar_score_fornecedor(pedido.fornecedor_id)
 
         return jsonify({
             'message': 'Pedido recebido com sucesso' if concluido else 'Recebimento parcial registrado',

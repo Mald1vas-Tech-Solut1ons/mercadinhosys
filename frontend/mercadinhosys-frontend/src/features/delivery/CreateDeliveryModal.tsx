@@ -131,7 +131,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}

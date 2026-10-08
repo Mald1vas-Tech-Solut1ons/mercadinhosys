@@ -305,7 +305,7 @@ const DeliveryList: React.FC = () => {
 
             {/* Modal de Despacho (quando clica em Despachar e não tem motorista) */}
             {despachoModalAberto && entregaParaDespacho && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-150 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-3xl shadow-2xl p-6">
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
                             Atribuir Motorista

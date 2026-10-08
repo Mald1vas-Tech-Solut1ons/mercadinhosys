@@ -347,7 +347,7 @@ const VendasInteligentesPage: React.FC = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+        <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header Inteligente */}
                 <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100">
@@ -712,7 +712,7 @@ const VendasInteligentesPage: React.FC = () => {
 
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Projeção Mensal</h3>
-                                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-200">
+                                    <div className="bg-linear-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-200">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <div className="text-center">
                                                 <h4 className="font-medium text-indigo-900 mb-2">Crescimento Projetado</h4>

@@ -166,6 +166,10 @@ def create_app(config_name=None):
 
     # Inicializa extensões
     db.init_app(app)
+    from app.utils.query_helpers import configure_sqlite_search
+    with app.app_context():
+        for engine in db.engines.values():
+            configure_sqlite_search(engine)
     migrate.init_app(app, db)
     jwt.init_app(app)
     from app.middleware.rate_limit import limiter
@@ -928,7 +932,7 @@ def create_app(config_name=None):
         except Exception as e:
             database_ok = False
             health["status"] = "unhealthy"
-            health["database"] = {"status": "error", "detail": str(e)}
+            health["database"] = {"status": "error"}
 
         # Cache Check
         try:
@@ -940,7 +944,7 @@ def create_app(config_name=None):
             if ping != 1 and health["status"] == "healthy":
                 health["status"] = "degraded"
         except Exception as e:
-            health["cache"] = {"status": "unreachable", "detail": str(e)}
+            health["cache"] = {"status": "unreachable"}
             if health["status"] == "healthy":
                 health["status"] = "degraded"
 
@@ -973,7 +977,7 @@ def create_app(config_name=None):
             readiness["checks"]["database"] = {"status": "ok"}
         except Exception as e:
             readiness["status"] = "not_ready"
-            readiness["checks"]["database"] = {"status": "error", "detail": str(e)}
+            readiness["checks"]["database"] = {"status": "error"}
             status_code = 503
 
         try:
@@ -986,7 +990,7 @@ def create_app(config_name=None):
                 status_code = 503
         except Exception as e:
             readiness["status"] = "not_ready"
-            readiness["checks"]["cache"] = {"status": "error", "detail": str(e)}
+            readiness["checks"]["cache"] = {"status": "error"}
             status_code = 503
 
         return jsonify(readiness), status_code
@@ -1073,8 +1077,42 @@ def create_app(config_name=None):
     from flask import send_from_directory, abort
 
     @app.route("/uploads/<path:filename>")
+    @app.route("/api/uploads/<path:filename>")
     def serve_uploads(filename):
         """Serve arquivos da pasta uploads (logos, etc)"""
+        from pathlib import PurePosixPath
+        if '\\' in filename or '..' in PurePosixPath(filename).parts:
+            abort(404)
+        # Documentos pessoais nunca são públicos. Logos legadas são públicas.
+        prefix = filename.split('/', 1)[0]
+        if prefix != 'logos':
+            from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity, get_jwt
+            from app.models import Funcionario, Motorista, Veiculo, JustificativaPonto
+            from app.decorators.rbac import nivel_do_role
+            verify_jwt_in_request()
+            try:
+                actor = db.session.get(Funcionario, int(get_jwt_identity()))
+            except (TypeError, ValueError):
+                abort(401)
+            if not actor or not actor.ativo or actor.deleted_at or (actor.status and actor.status.lower() != 'ativo'):
+                abort(401)
+            if not actor.is_super_admin and str(get_jwt().get('estabelecimento_id')) != str(actor.estabelecimento_id):
+                abort(403)
+            models = {'motoristas': (Motorista, 'cnh_documento_url'), 'veiculos': (Veiculo, 'crlv_documento_url'),
+                      'justificativas': (JustificativaPonto, 'documento_url')}
+            if prefix not in models:
+                abort(404)
+            if prefix in ('motoristas', 'veiculos') and not actor.is_super_admin and nivel_do_role(actor.role) not in (1, 2, 4, 5, 6):
+                abort(403)
+            model, column = models[prefix]
+            query = db.session.query(model).filter(getattr(model, column) == f'/uploads/{filename}')
+            if not actor.is_super_admin:
+                query = query.filter(model.estabelecimento_id == actor.estabelecimento_id)
+            document = query.first()
+            if not document:
+                abort(404)
+            if prefix == 'justificativas' and not actor.is_super_admin and document.funcionario_id != actor.id and nivel_do_role(actor.role) not in (1, 2, 3):
+                abort(403)
         # Tenta pegar do config
         upload_folder = app.config.get("UPLOAD_FOLDER")
         
@@ -1093,7 +1131,11 @@ def create_app(config_name=None):
         logger.info(f"Serving upload: '{filename}' from '{upload_folder}'")
         
         try:
-            return send_from_directory(upload_folder, filename)
+            response = send_from_directory(upload_folder, filename)
+            response.headers['Cache-Control'] = 'private, no-store'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['Content-Security-Policy'] = "sandbox"
+            return response
         except Exception as e:
             logger.error(f"Erro ao servir arquivo {filename}: {e}")
             abort(404)

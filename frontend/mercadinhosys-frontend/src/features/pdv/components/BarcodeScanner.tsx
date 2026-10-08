@@ -180,7 +180,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-9999 p-4">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90dvh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
@@ -283,7 +283,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
                                 <div className="relative">
                                     <div
                                         ref={scannerRef}
-                                        className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-[4/3] shadow-inner border-2 border-gray-100 dark:border-gray-700"
+                                        className="relative bg-gray-900 rounded-2xl overflow-hidden aspect-4/3 shadow-inner border-2 border-gray-100 dark:border-gray-700"
                                     >
                                         {isScanning && (
                                             <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">

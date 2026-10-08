@@ -390,13 +390,13 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                                 formattedValue: valorFormatado, isCurrency: metrica.formato === 'moeda',
                                 icon: Icone, theme: tema.modal,
                             })}
-                            className={`w-[200px] min-w-[200px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-slate-900 border ${tema.borda} rounded-xl shadow-lg p-4 sm:p-6 text-slate-200 cursor-pointer ${tema.hover} hover:bg-slate-800 transition-all duration-200 group flex-shrink-0`}
+                            className={`w-[200px] min-w-[200px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-slate-900 border ${tema.borda} rounded-xl shadow-lg p-4 sm:p-6 text-slate-200 cursor-pointer ${tema.hover} hover:bg-slate-800 transition-all duration-200 group shrink-0`}
                         >
                             <div className="flex items-center gap-3 mb-3">
                                 <Icone className={`w-8 h-8 ${tema.icone} opacity-80 group-hover:opacity-100 transition-opacity`} />
                                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400 leading-tight">{metrica.titulo}</p>
                             </div>
-                            <p className={`${metrica.formato === 'moeda' ? 'text-xl lg:text-xl xl:text-2xl break-words leading-none' : 'text-2xl md:text-3xl'} font-black ${tema.valor}`}
+                            <p className={`${metrica.formato === 'moeda' ? 'text-xl lg:text-xl xl:text-2xl wrap-break-word leading-none' : 'text-2xl md:text-3xl'} font-black ${tema.valor}`}
                                 title={valorFormatado}>
                                 {valorFormatado}
                             </p>
@@ -412,7 +412,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
             <div className="flex overflow-x-auto pb-6 -mx-4 px-4 sm:mx-0 sm:px-0 gap-4 sm:grid sm:grid-cols-1 lg:grid-cols-3 sm:p-6 snap-x snap-mandatory hide-scrollbar">
                 {/* Classificação ABC */}
                 {schemaHelpers.metricaPainelVisivel(schema, 'analise_abc') && (
-                <div className="w-[280px] min-w-[280px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 sm:p-6 flex-shrink-0">
+                <div className="w-[280px] min-w-[280px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 sm:p-6 shrink-0">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
                             <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-300" />
@@ -449,7 +449,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                 <div
-                                    className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
                                     style={{ width: `${percentualABC.A}%` }}
                                 />
                             </div>
@@ -470,7 +470,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                 <div
-                                    className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500"
                                     style={{ width: `${percentualABC.B}%` }}
                                 />
                             </div>
@@ -491,7 +491,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                 <div
-                                    className="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-500"
                                     style={{ width: `${percentualABC.C}%` }}
                                 />
                             </div>
@@ -505,7 +505,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
 
                 {/* Status de Giro */}
                 {schemaHelpers.metricaPainelVisivel(schema, 'analise_giro') && (
-                <div className="w-[280px] min-w-[280px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 sm:p-6 flex-shrink-0">
+                <div className="w-[280px] min-w-[280px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 sm:p-6 shrink-0">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
                             <Zap className="w-6 h-6 text-purple-600 dark:text-purple-300" />
@@ -562,7 +562,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                 <div
-                                    className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
                                     style={{ width: `${percentualGiro.rapido}%` }}
                                 />
                             </div>
@@ -586,7 +586,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                 <div
-                                    className="bg-gradient-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-yellow-500 to-yellow-600 h-3 rounded-full transition-all duration-500"
                                     style={{ width: `${percentualGiro.normal}%` }}
                                 />
                             </div>
@@ -610,7 +610,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             </div>
                             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                                 <div
-                                    className="bg-gradient-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-500"
+                                    className="bg-linear-to-r from-red-500 to-red-600 h-3 rounded-full transition-all duration-500"
                                     style={{ width: `${percentualGiro.lento}%` }}
                                 />
                             </div>
@@ -624,7 +624,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
 
                 {/* Monitor de Validade — some para segmentos sem validade (vestuário, construção, moto peças) */}
                 {schemaHelpers.metricaPainelVisivel(schema, 'analise_validade') && (
-                <div className="w-[280px] min-w-[280px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 sm:p-6 flex-shrink-0">
+                <div className="w-[280px] min-w-[280px] sm:min-w-0 sm:max-w-none snap-center sm:snap-align-none bg-white dark:bg-gray-800 rounded-xl shadow-lg p-5 sm:p-6 shrink-0">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
                             <Clock className="w-6 h-6 text-orange-600 dark:text-orange-300" />
@@ -726,7 +726,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
             {/* Top Produtos e Produtos Críticos */}
             <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 gap-4 sm:grid sm:grid-cols-1 lg:grid-cols-2 sm:p-6 snap-x snap-mandatory hide-scrollbar">
                 {/* Top 5 Produtos por Margem */}
-                <div className="min-w-[300px] sm:min-w-0 snap-start bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 flex-shrink-0">
+                <div className="min-w-[300px] sm:min-w-0 snap-start bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 shrink-0">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
                             <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-300" />
@@ -754,7 +754,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                                     className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                        <div className="shrink-0 w-8 h-8 bg-linear-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
                                             {index + 1}
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -766,7 +766,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="text-right flex-shrink-0">
+                                    <div className="text-right shrink-0">
                                         <p className="text-lg font-bold text-green-600 dark:text-green-400">
                                             {(produto as any).margem !== undefined && (produto as any).margem !== null 
                                                 ? `${Number((produto as any).margem).toFixed(1)}%` 
@@ -780,7 +780,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                 </div>
 
                 {/* Produtos Críticos */}
-                <div className="min-w-[300px] sm:min-w-0 snap-start bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 flex-shrink-0">
+                <div className="min-w-[300px] sm:min-w-0 snap-start bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 sm:p-6 shrink-0">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
                             <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-300" />
@@ -833,7 +833,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                                     className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                                        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />
                                         <div className="min-w-0 flex-1">
                                             <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                                                 {produto.nome}
@@ -843,7 +843,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="text-right flex-shrink-0">
+                                    <div className="text-right shrink-0">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${produto.estoque_status === 'esgotado'
                                             ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                                             : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
@@ -860,7 +860,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
 
             {/* Modal de Detalhes da Métrica */}
             {activeMetricModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90dvh] overflow-y-auto my-auto border border-gray-200 dark:border-gray-700 animate-in zoom-in-95 duration-200">
                         <div className={`p-4 sm:p-6 ${activeMetricModal.theme.header} text-white flex justify-between items-center`}>
                             <div className="flex items-center gap-4">

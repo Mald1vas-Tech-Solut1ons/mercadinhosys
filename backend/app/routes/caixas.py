@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.decorators.plan_guards import permission_required
 from app import db
 from app.models import Caixa, MovimentacaoCaixa, Estabelecimento, Funcionario, Auditoria
+from app.utils.sale_validation import number
 
 caixas_bp = Blueprint("caixas", __name__)
 
@@ -37,7 +38,10 @@ def abrir_caixa():
     try:
         user_id = int(get_jwt_identity())
         data = request.get_json()
-        saldo_inicial = float(data.get("saldo_inicial", 0.0))
+        try:
+            saldo_inicial = number((data or {}).get('saldo_inicial', 0), 'Saldo inicial')
+        except ValueError as error:
+            return jsonify({'success': False, 'error': str(error)}), 400
         observacoes = data.get("observacoes", "")
 
         funcionario = Funcionario.query.get(user_id)
@@ -114,13 +118,16 @@ def fechar_caixa():
         user_id = int(get_jwt_identity())
         data = request.get_json()
         # Valor que o operador contou no caixa
-        valor_informado = float(data.get("valor_informado", 0.0))
+        try:
+            valor_informado = float(number((data or {}).get('valor_informado', 0), 'Valor contado'))
+        except ValueError as error:
+            return jsonify({'success': False, 'error': str(error)}), 400
         observacoes_fechamento = data.get("observacoes", "")
 
         caixa = Caixa.query.filter_by(
             funcionario_id=user_id,
             status="aberto"
-        ).order_by(Caixa.data_abertura.desc()).first()
+        ).order_by(Caixa.data_abertura.desc()).populate_existing().with_for_update().first()
 
         if not caixa:
             return jsonify({"success": False, "error": "Nenhum caixa aberto encontrado"}), 404
@@ -140,9 +147,11 @@ def fechar_caixa():
         for m in movimentacoes:
             valor_mov = float(m.valor or 0)
             tipo_mov = m.tipo.lower()
-            if tipo_mov == "venda":
+            if tipo_mov in ('venda', 'estorno'):
+                if tipo_mov == 'estorno':
+                    valor_mov = -valor_mov
                 forma = str(m.forma_pagamento or "outros").lower()
-                totais_por_forma[forma]["quantidade"] += 1
+                totais_por_forma[forma]["quantidade"] += 1 if tipo_mov == 'venda' else -1
                 totais_por_forma[forma]["total"] += valor_mov
                 total_vendas += valor_mov
             elif tipo_mov == "sangria":
@@ -223,7 +232,10 @@ def registrar_movimentacao():
         user_id = int(get_jwt_identity())
         data = request.get_json()
         tipo = data.get("tipo") # "sangria" ou "suprimento"
-        valor = float(data.get("valor", 0.0))
+        try:
+            valor = float(number(data.get('valor', 0), 'Movimentação', positive=True))
+        except ValueError as error:
+            return jsonify({'success': False, 'error': str(error)}), 400
         descricao = data.get("descricao", "")
         observacoes = data.get("observacoes", "")
         forma_pagamento = data.get("forma_pagamento", "DINHEIRO")
@@ -237,7 +249,7 @@ def registrar_movimentacao():
         caixa = Caixa.query.filter_by(
             funcionario_id=user_id,
             status="aberto"
-        ).order_by(Caixa.data_abertura.desc()).first()
+        ).order_by(Caixa.data_abertura.desc()).populate_existing().with_for_update().first()
 
         if not caixa:
             return jsonify({"success": False, "error": "Nenhum caixa aberto encontrado"}), 404
@@ -376,9 +388,11 @@ def obter_resumo_caixa_atual():
             valor = float(m.valor or 0)
             tipo = m.tipo.lower()
             
-            if tipo == "venda":
+            if tipo in ('venda', 'estorno'):
+                if tipo == 'estorno':
+                    valor = -valor
                 forma = normalizar_forma(m.forma_pagamento)
-                totais_por_forma[forma]["quantidade"] += 1
+                totais_por_forma[forma]["quantidade"] += 1 if tipo == 'venda' else -1
                 totais_por_forma[forma]["total"] += valor
                 total_vendas += valor
             elif tipo == "sangria":

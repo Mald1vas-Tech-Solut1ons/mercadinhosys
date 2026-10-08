@@ -208,7 +208,7 @@ export default function BeneficiosRH() {
             <div className="flex items-center justify-end">
               <button 
                 onClick={() => setShowModalAtribuir(true)}
-                className="inline-flex items-center gap-2 px-6 py-4 w-full justify-center bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-purple-500/30 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-4 w-full justify-center bg-linear-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-2xl font-bold text-sm shadow-lg shadow-purple-500/30 transition-all"
               >
                 <Plus className="w-5 h-5" /> Atribuir Benefício
               </button>

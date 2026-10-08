@@ -414,7 +414,7 @@ const BoletosAVencerPanel: React.FC<BoletosAVencerPanelProps> = ({ className = '
 
       {/* Modal de Detalhes do Boleto */}
       {showDetailModal && selectedBoleto && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90dvh] overflow-y-auto my-auto">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
@@ -689,6 +689,7 @@ export interface ModalPagamentoBoletoProps {
 }
 
 export const ModalPagamentoBoleto: React.FC<ModalPagamentoBoletoProps> = ({ boleto, onClose, onPago }) => {
+  const [paymentKey] = useState(() => crypto.randomUUID());
   const [formaPagamento, setFormaPagamento] = useState('pix');
   const [valorPago, setValorPago] = useState(boleto.valor_atual.toString());
   const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
@@ -699,6 +700,7 @@ export const ModalPagamentoBoleto: React.FC<ModalPagamentoBoletoProps> = ({ bole
     setProcessando(true);
     try {
       await purchaseOrderService.pagarBoleto(boleto.id, {
+        idempotency_key: paymentKey,
         valor_pago: parseFloat(valorPago),
         data_pagamento: dataPagamento,
         forma_pagamento: formaPagamento,
@@ -714,7 +716,7 @@ export const ModalPagamentoBoleto: React.FC<ModalPagamentoBoletoProps> = ({ bole
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-lg w-full my-auto">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">

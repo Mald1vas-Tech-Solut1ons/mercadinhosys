@@ -11,11 +11,16 @@ from flask import request
 
 def get_identifier():
     """Identifica o usuário para rate limiting"""
-    # Tenta pegar o token JWT se existir
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        return auth_header.split(" ")[1][:20]  # Usa parte do token
-    # Senão usa o IP
+    # Cabeçalho não autenticado é controlado pelo atacante. Prefixos JWT são
+    # compartilhados e não identificam usuários; não usá-los como chave.
+    from flask_jwt_extended import verify_jwt_in_request, get_jwt
+    try:
+        verify_jwt_in_request(optional=True)
+        claims = get_jwt()
+        if claims and claims.get('sub'):
+            return f"user:{claims.get('estabelecimento_id')}:{claims['sub']}"
+    except Exception:
+        pass
     return get_remote_address()
 
 

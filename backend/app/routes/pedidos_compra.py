@@ -1,15 +1,16 @@
 # app/routes/pedidos_compra.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import (
     PedidoCompra, PedidoCompraItem, Produto, Fornecedor, Funcionario,
-    ContaPagar, MovimentacaoEstoque, Despesa, ProdutoLote
+    ContaPagar, ContaPagarBaixa, MovimentacaoEstoque, Despesa, ProdutoLote
 )
 from app.decorators.decorator_jwt import funcionario_required
 
@@ -696,7 +697,7 @@ def listar_lotes_disponiveis(produto_id):
 @pedidos_compra_bp.route('/boletos/<int:conta_id>/pagar', methods=['POST'])
 @funcionario_required
 def pagar_boleto(conta_id):
-    """Registra o pagamento de um boleto"""
+    """Baixa atômica; replay com a mesma chave retorna a resposta já gravada."""
     try:
         user = get_current_user()
         if not user:
@@ -704,28 +705,50 @@ def pagar_boleto(conta_id):
         from app.utils.query_helpers import get_authorized_establishment_id
         estab_id = get_authorized_establishment_id()
         
-        data = request.get_json()
-        
-        conta = ContaPagar.query.filter_by(
+        from app.utils.boleto_payment_validation import money, payment_request
+        data = request.get_json(silent=True)
+        key, fingerprint, valor_pago, data_pagamento, method = payment_request(
+            data, request.headers.get('Idempotency-Key'), conta_id)
+
+        conta = ContaPagar.query.populate_existing().with_for_update().filter_by(
             id=conta_id,
             estabelecimento_id=estab_id
         ).first()
         
         if not conta:
             return jsonify({'error': 'Boleto não encontrado'}), 404
+
+        if key:
+            previous = ContaPagarBaixa.query.filter_by(estabelecimento_id=estab_id, idempotency_key=key).first()
+            if previous:
+                if previous.conta_pagar_id != conta_id or previous.request_hash != fingerprint:
+                    return jsonify({'error': 'Chave de idempotência já usada em outro pagamento'}), 409
+                return jsonify(previous.resposta_json)
+
+        if conta.status not in ('aberto', 'parcial'):
+            return jsonify({'error': f'Boleto não pode ser pago no status atual: {conta.status}'}), 400
         
-        if conta.status != 'aberto':
-            return jsonify({'error': 'Boleto já foi pago'}), 400
-        
-        valor_pago = Decimal(str(data.get('valor_pago', conta.valor_atual)))
-        data_pagamento = datetime.strptime(data.get('data_pagamento', date.today().isoformat()), '%Y-%m-%d').date()
-        
-        # Atualizar conta
-        conta.valor_pago = valor_pago
-        conta.valor_atual = conta.valor_original - valor_pago
+        if valor_pago is None:
+            valor_pago = money(conta.valor_atual)
+
+        if valor_pago <= 0:
+            return jsonify({'error': 'Valor pago deve ser maior que zero'}), 400
+
+        if valor_pago > conta.valor_atual:
+            return jsonify({'error': 'Valor pago não pode ser maior que o saldo devedor atual'}), 400
+
+        # Atualizar conta acumulando o valor pago
+        novo_valor_pago = (conta.valor_pago or Decimal('0')) + valor_pago
+        conta.valor_pago = novo_valor_pago
+        conta.valor_atual = conta.valor_original - novo_valor_pago
         conta.data_pagamento = data_pagamento
-        conta.forma_pagamento = data.get('forma_pagamento', 'Transferência')
-        conta.status = 'pago' if conta.valor_atual <= 0 else 'parcial'
+        conta.forma_pagamento = method
+
+        if conta.valor_atual <= 0:
+            conta.status = 'pago'
+        else:
+            conta.status = 'parcial'
+
         conta.observacoes = data.get('observacoes', conta.observacoes)
         
         # Criar despesa correspondente
@@ -743,13 +766,26 @@ def pagar_boleto(conta_id):
         )
         
         db.session.add(despesa)
+        db.session.flush()
+        resposta = {'message': 'Pagamento registrado com sucesso', 'conta': conta.to_dict()}
+        baixa = ContaPagarBaixa(estabelecimento_id=estab_id, conta_pagar_id=conta.id,
+                               despesa_id=despesa.id, funcionario_id=user.id, valor=valor_pago,
+                               data_pagamento=data_pagamento, idempotency_key=key,
+                               request_hash=fingerprint, resposta_json=resposta)
+        db.session.add(baixa)
+        db.session.flush()
+        resposta = {**resposta, 'baixa_id': baixa.id}
+        baixa.resposta_json = resposta
         db.session.commit()
-        
-        return jsonify({
-            'message': 'Pagamento registrado com sucesso',
-            'conta': conta.to_dict()
-        })
-        
+        return jsonify(resposta)
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'Conflito no registro do pagamento; confira a chave de idempotência'}), 409
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error('Falha ao baixar boleto %s: %s', conta_id, type(e).__name__)
+        return jsonify({'error': 'Não foi possível registrar o pagamento'}), 500

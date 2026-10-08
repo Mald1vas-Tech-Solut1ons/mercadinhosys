@@ -22,7 +22,7 @@ interface PageHeaderProps {
  * - `min-w-0` + `truncate` no título impedem que textos longos empurrem o layout.
  *
  * As ações devem ser botões "crus"; o wrapper cuida do full-width no mobile via
- * `[&>*]:flex-1 sm:[&>*]:flex-none`, sem precisar tocar em cada botão.
+ * `*:flex-1 sm:*:flex-none`, sem precisar tocar em cada botão.
  */
 export const PageHeader: React.FC<PageHeaderProps> = ({
     title,
@@ -34,7 +34,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
     return (
         <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between ${className}`}>
             <div className="flex items-start gap-3 min-w-0">
-                {icon && <div className="flex-shrink-0">{icon}</div>}
+                {icon && <div className="shrink-0">{icon}</div>}
                 <div className="min-w-0">
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-white leading-tight truncate">
                         {title}
@@ -47,7 +47,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                 </div>
             </div>
             {actions && (
-                <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto flex-shrink-0 [&>*]:flex-1 sm:[&>*]:flex-none">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto shrink-0 *:flex-1 sm:*:flex-none">
                     {actions}
                 </div>
             )}

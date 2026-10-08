@@ -128,7 +128,7 @@ export const AnomalyDetailsModal: React.FC<AnomalyDetailsModalProps> = ({
         </div>
 
         {anomaly.impacto_estimado && (
-          <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 shadow-sm">
+          <div className="p-5 rounded-2xl bg-linear-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800 shadow-sm">
             <h4 className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-2">Impacto Financeiro Estimado</h4>
             <div className="flex items-baseline gap-2">
               <p className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums">

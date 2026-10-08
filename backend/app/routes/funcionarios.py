@@ -8,6 +8,7 @@ from sqlalchemy import or_, and_, func, case, true
 from flask_jwt_extended import get_jwt, jwt_required
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
+from app.decorators.rbac import admin_required as store_admin_required
 
 funcionarios_bp = Blueprint("funcionarios", __name__, url_prefix="/api/funcionarios")
 
@@ -1016,6 +1017,7 @@ def listar_niveis_acesso():
 
 
 @funcionarios_bp.route("/", methods=["POST"], strict_slashes=False)
+@store_admin_required
 @jwt_required()
 @permission_required('funcionarios')
 @quota_required('funcionario')
@@ -1209,6 +1211,17 @@ def atualizar_funcionario(id):
         if not data:
             return jsonify({"success": False, "error": "Nenhum dado fornecido"}), 400
 
+        # RH/gerente podem manter cadastro, mas não promover contas nem
+        # redefinir senha/PIN do administrador para assumir seu acesso.
+        from flask_jwt_extended import get_jwt_identity
+        from app.decorators.rbac import _get_nivel
+        actor = Funcionario.query.get(int(get_jwt_identity()))
+        sensitive = {'role', 'nivel_acesso', 'senha', 'pin_cancelamento', 'username', 'usuario', 'ativo'}
+        if not actor or (_get_nivel(actor) not in (0, 1) and (
+            sensitive.intersection(data) or _get_nivel(funcionario) < _get_nivel(actor)
+        )):
+            return jsonify({'success': False, 'error': 'Somente o administrador pode alterar acessos ou contas superiores'}), 403
+
         # Verificar CPF único (se estiver sendo alterado)
         if "cpf" in data and data["cpf"] != funcionario.cpf:
             existente = Funcionario.query.filter_by(
@@ -1347,6 +1360,7 @@ def atualizar_funcionario(id):
 
 
 @funcionarios_bp.route("/<int:id>", methods=["DELETE"])
+@store_admin_required
 @funcionario_required
 def excluir_funcionario(id):
     """Excluir (desativar) um funcionário"""

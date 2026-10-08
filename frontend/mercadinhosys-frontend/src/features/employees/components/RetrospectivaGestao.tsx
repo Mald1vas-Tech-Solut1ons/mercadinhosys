@@ -75,7 +75,7 @@ export default function RetrospectivaGestao() {
                 </div>
 
                 <button onClick={abrir} disabled={!funcionarioId}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-700 shadow-lg shadow-purple-500/20 disabled:opacity-50 hover:scale-[1.02] transition-transform">
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-black text-white bg-linear-to-r from-fuchsia-600 via-purple-600 to-indigo-700 shadow-lg shadow-purple-500/20 disabled:opacity-50 hover:scale-[1.02] transition-transform">
                     <PlayCircle className="w-5 h-5" /> Ver retrospectiva{funcSel ? ` de ${funcSel.nome.split(' ')[0]}` : ''}
                 </button>
             </div>

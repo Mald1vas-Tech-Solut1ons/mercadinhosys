@@ -1296,7 +1296,7 @@ const ReportsPage: React.FC = () => {
     const renderVendas = () => (
         <>
             <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="group bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="group bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-2xl p-4 border border-blue-100 dark:border-blue-800/50 shadow-sm hover:shadow-md transition-all">
                     <div className="flex justify-between items-start mb-2">
                         <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-lg text-blue-600 dark:text-blue-300">
                             <TrendingUp className="w-4 h-4" />
@@ -1309,7 +1309,7 @@ const ReportsPage: React.FC = () => {
                     <p className="text-xs text-blue-600 dark:text-blue-400 font-medium mt-1">Vendas Totais</p>
                 </div>
 
-                <div className="group bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="group bg-linear-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-800/50 shadow-sm hover:shadow-md transition-all">
                     <div className="flex justify-between items-start mb-2">
                         <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-lg text-emerald-600 dark:text-emerald-300">
                             <DollarSign className="w-4 h-4" />
@@ -1322,7 +1322,7 @@ const ReportsPage: React.FC = () => {
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">Faturamento Geral</p>
                 </div>
 
-                <div className="group bg-gradient-to-br from-rose-50 to-orange-50 dark:from-rose-900/20 dark:to-orange-900/20 rounded-2xl p-4 border border-rose-100 dark:border-rose-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="group bg-linear-to-br from-rose-50 to-orange-50 dark:from-rose-900/20 dark:to-orange-900/20 rounded-2xl p-4 border border-rose-100 dark:border-rose-800/50 shadow-sm hover:shadow-md transition-all">
                     <div className="flex justify-between items-start mb-2">
                         <div className="p-2 bg-rose-100 dark:bg-rose-800 rounded-lg text-rose-600 dark:text-rose-300">
                             <Trophy className="w-4 h-4" />
@@ -1335,7 +1335,7 @@ const ReportsPage: React.FC = () => {
                     <p className="text-xs text-rose-600 dark:text-rose-400 font-medium mt-1">Lucro Real Estimado</p>
                 </div>
 
-                <div className="group bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-2xl p-4 border border-purple-100 dark:border-purple-800/50 shadow-sm hover:shadow-md transition-all">
+                <div className="group bg-linear-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-2xl p-4 border border-purple-100 dark:border-purple-800/50 shadow-sm hover:shadow-md transition-all">
                     <div className="flex justify-between items-start mb-2">
                         <div className="p-2 bg-purple-100 dark:bg-purple-800 rounded-lg text-purple-600 dark:text-purple-300">
                             <Zap className="w-4 h-4" />
@@ -1472,7 +1472,7 @@ const ReportsPage: React.FC = () => {
                 {/* Visual Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Top Supplier */}
-                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800 flex items-center justify-between shadow-sm">
+                    <div className="bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 rounded-xl border border-green-100 dark:border-green-800 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-xs font-semibold text-green-600 dark:text-green-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                                 <Trophy className="w-3 h-3" /> Melhor Fornecedor
@@ -1493,7 +1493,7 @@ const ReportsPage: React.FC = () => {
                     </div>
 
                     {/* Attention Needed */}
-                    <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800 flex items-center justify-between shadow-sm">
+                    <div className="bg-linear-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 p-4 rounded-xl border border-red-100 dark:border-red-800 flex items-center justify-between shadow-sm">
                         <div>
                             <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                                 <AlertOctagon className="w-3 h-3" /> Atenção Necessária
@@ -1670,7 +1670,7 @@ const ReportsPage: React.FC = () => {
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 backdrop-blur-sm overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 backdrop-blur-sm overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90dvh] overflow-y-auto my-auto border border-gray-200 dark:border-gray-800 transition-colors duration-200">
                         <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex justify-between items-center z-10">
                             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{modalTitles[modalType || ''] || ''}</h2>
@@ -1701,7 +1701,7 @@ const ReportsPage: React.FC = () => {
             )}
 
             {/* Dica */}
-            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl p-6 flex items-start gap-4">
+            <div className="bg-linear-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800 rounded-xl p-6 flex items-start gap-4">
                 <div className="p-2 bg-white dark:bg-gray-800 rounded-full shadow-sm"><span className="text-xl">💡</span></div>
                 <div>
                     <h4 className="font-bold text-indigo-900 dark:text-indigo-300">Dica do Especialista</h4>

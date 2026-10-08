@@ -1,6 +1,8 @@
 import os
+import hashlib
+from sqlalchemy import text
 from flask import current_app
-from app.models import Estabelecimento, db
+from app.models import Estabelecimento, EfiWebhookEvent, db
 from datetime import datetime, timedelta, timezone
 from efipay import EfiPay
 from app.decorators.plan_guards import normalize_plan
@@ -135,33 +137,50 @@ class BillingService:
             if notification.get('code') != 200:
                 return False
 
+            changed_establishments = set()
             for event in notification.get('data', []):
                 if event.get('type') == 'charge':
                     status = event.get('status', {}).get('current')
                     charge_id = event.get('identifiers', {}).get('charge_id')
-                    
+                    if not charge_id or status not in ('paid', 'settled', 'canceled', 'unpaid'):
+                        continue
+                    normalized = 'paid' if status in ('paid', 'settled') else 'canceled'
+                    event_key = hashlib.sha256(f'efi:{charge_id}:{normalized}'.encode()).hexdigest()
+                    if db.engine.dialect.name == 'postgresql':
+                        lock_key = int.from_bytes(hashlib.sha256(f'efi:{charge_id}'.encode()).digest()[:8], 'big', signed=True)
+                        db.session.execute(text('SELECT pg_advisory_xact_lock(:key)'), {'key': lock_key})
+                    if db.session.get(EfiWebhookEvent, event_key):
+                        continue
                     if status == 'paid' or status == 'settled':
-                        self._handle_charge_paid(charge_id)
+                        establishment_id = self._handle_charge_paid(charge_id)
                     elif status == 'canceled' or status == 'unpaid':
-                        self._handle_charge_canceled(charge_id)
-
+                        establishment_id = self._handle_charge_canceled(charge_id)
+                    if establishment_id:
+                        db.session.add(EfiWebhookEvent(event_key=event_key, charge_id=str(charge_id), status=normalized))
+                        db.session.flush()
+                        changed_establishments.add(establishment_id)
+            db.session.commit()
+            from app import cache
+            for establishment_id in changed_establishments:
+                cache.delete(f'plano_status:{establishment_id}')
             return True
         except Exception as e:
-            current_app.logger.error(f"Erro ao processar webhook da Efí: {str(e)}")
+            db.session.rollback()
+            current_app.logger.error('Falha no webhook Efí: %s', type(e).__name__)
             raise e
 
     def _handle_charge_paid(self, charge_id):
-        estab = Estabelecimento.query.filter_by(gateway_subscription_id=str(charge_id)).first()
+        estab = Estabelecimento.query.filter_by(gateway_subscription_id=str(charge_id)).populate_existing().with_for_update().first()
         if estab:
             # Assinatura mensal, renova por 30 dias a partir de hoje
             estab.vencimento_assinatura = datetime.now(timezone.utc) + timedelta(days=30)
             estab.plano_status = 'ativo'
-            db.session.commit()
             current_app.logger.info(f"Estabelecimento {estab.id} ativado via webhook Efí.")
+            return estab.id
 
     def _handle_charge_canceled(self, charge_id):
-        estab = Estabelecimento.query.filter_by(gateway_subscription_id=str(charge_id)).first()
+        estab = Estabelecimento.query.filter_by(gateway_subscription_id=str(charge_id)).populate_existing().with_for_update().first()
         if estab:
             estab.plano_status = 'cancelado'
-            db.session.commit()
             current_app.logger.info(f"Estabelecimento {estab.id} cancelado via webhook Efí.")
+            return estab.id

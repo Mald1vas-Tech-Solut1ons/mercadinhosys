@@ -79,7 +79,7 @@ export const ProdutoLentoModal: React.FC<ProdutoLentoModalProps> = ({
             ))}
           </div>
           <div className="mt-6 p-4 bg-white dark:bg-gray-800 rounded-xl border border-rose-200 dark:border-rose-900 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900 flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 rounded-full bg-rose-100 dark:bg-rose-900 flex items-center justify-center shrink-0">
               <Clock className="w-6 h-6 text-rose-600" />
             </div>
             <p className="text-sm font-bold text-gray-700 dark:text-gray-300">
@@ -176,7 +176,7 @@ export const ProdutoLentoModal: React.FC<ProdutoLentoModalProps> = ({
               { t: 'Focus ABC', d: 'Concentrar 80% do capital no topo da Curva A.' }
             ].map((tip, i) => (
               <div key={i} className="flex gap-3">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-1.5 flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-1.5 shrink-0"></div>
                 <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
                   <strong className="text-emerald-900 dark:text-emerald-400">{tip.t}:</strong> {tip.d}
                 </p>

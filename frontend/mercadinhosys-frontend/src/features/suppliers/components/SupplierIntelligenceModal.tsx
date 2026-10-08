@@ -76,11 +76,11 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-gray-900/60 backdrop-blur-sm sm:p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm sm:p-4">
       <div className="bg-gray-50 dark:bg-gray-900 w-full h-full sm:h-auto sm:max-h-[90dvh] sm:max-w-md sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header Premium */}
-        <div className="relative bg-gradient-to-br from-indigo-600 via-blue-700 to-indigo-900 px-6 py-8 text-white flex-shrink-0">
+        <div className="relative bg-linear-to-br from-indigo-600 via-blue-700 to-indigo-900 px-6 py-8 text-white shrink-0">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
           <button 
             onClick={onClose}
@@ -196,7 +196,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                 
                 <div className="p-5">
                   {timeline.length > 0 ? (
-                    <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-200 dark:before:via-gray-700 before:to-transparent">
+                    <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-linear-to-b before:from-transparent before:via-gray-200 dark:before:via-gray-700 before:to-transparent">
                       {timeline.map((item) => (
                         <div key={item.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
                           <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-gray-800 shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10 ${item.no_prazo ? 'bg-emerald-500' : 'bg-rose-500'}`}>

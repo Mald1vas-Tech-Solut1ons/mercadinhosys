@@ -318,7 +318,7 @@ export default function EspelhoPonto() {
                   </div>
 
                   {expandedDays[registro.data] && (
-                    <div className="mt-6 ml-[3.25rem] grid grid-cols-2 md:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-200">
+                    <div className="mt-6 ml-13 grid grid-cols-2 md:grid-cols-4 gap-4 animate-in slide-in-from-top-2 duration-200">
                       <div className="p-4 bg-white dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-700/50">
                         <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider">Entrada</p>
                         <p className="text-xl font-black text-gray-900 dark:text-white mt-1">{registro.entrada || '---'}</p>

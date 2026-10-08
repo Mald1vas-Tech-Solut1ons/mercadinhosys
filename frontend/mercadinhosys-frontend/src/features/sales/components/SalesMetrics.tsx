@@ -28,7 +28,7 @@ export default function SalesMetrics({
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {/* Total Vendido */}
-            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg shadow-md border border-green-200">
+            <div className="bg-linear-to-br from-green-50 to-green-100 p-4 rounded-lg shadow-md border border-green-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-green-700 font-medium">Total Vendido</div>
                     <span className="text-2xl">💰</span>
@@ -42,7 +42,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Quantidade de Vendas */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg shadow-md border border-blue-200">
+            <div className="bg-linear-to-br from-blue-50 to-blue-100 p-4 rounded-lg shadow-md border border-blue-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-blue-700 font-medium">Qtd. Vendas</div>
                     <span className="text-2xl">📊</span>
@@ -54,7 +54,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Ticket Médio */}
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg shadow-md border border-purple-200">
+            <div className="bg-linear-to-br from-purple-50 to-purple-100 p-4 rounded-lg shadow-md border border-purple-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-purple-700 font-medium">Ticket Médio</div>
                     <span className="text-2xl">🎯</span>
@@ -66,7 +66,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Descontos Totais */}
-            <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg shadow-md border border-red-200">
+            <div className="bg-linear-to-br from-red-50 to-red-100 p-4 rounded-lg shadow-md border border-red-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-red-700 font-medium">Descontos</div>
                     <span className="text-2xl">🏷️</span>
@@ -78,7 +78,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Meta do Mês */}
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg shadow-md border border-yellow-200">
+            <div className="bg-linear-to-br from-yellow-50 to-yellow-100 p-4 rounded-lg shadow-md border border-yellow-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-yellow-700 font-medium">Meta do Mês</div>
                     <span className="text-2xl">🎖️</span>
@@ -100,7 +100,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Vendas Canceladas */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 rounded-lg shadow-md border border-gray-200">
+            <div className="bg-linear-to-br from-gray-50 to-gray-100 p-4 rounded-lg shadow-md border border-gray-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-gray-700 font-medium">Canceladas</div>
                     <span className="text-2xl">❌</span>
@@ -112,7 +112,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Crescimento */}
-            <div className={`bg-gradient-to-br ${crescimento >= 0 ? "from-teal-50 to-teal-100 border-teal-200" : "from-orange-50 to-orange-100 border-orange-200"} p-4 rounded-lg shadow-md border`}>
+            <div className={`bg-linear-to-br ${crescimento >= 0 ? "from-teal-50 to-teal-100 border-teal-200" : "from-orange-50 to-orange-100 border-orange-200"} p-4 rounded-lg shadow-md border`}>
                 <div className="flex justify-between items-start mb-2">
                     <div className={`text-sm font-medium ${crescimento >= 0 ? "text-teal-700" : "text-orange-700"}`}>
                         Crescimento
@@ -128,7 +128,7 @@ export default function SalesMetrics({
             </div>
 
             {/* Vendas Hoje */}
-            <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-lg shadow-md border border-indigo-200">
+            <div className="bg-linear-to-br from-indigo-50 to-indigo-100 p-4 rounded-lg shadow-md border border-indigo-200">
                 <div className="flex justify-between items-start mb-2">
                     <div className="text-sm text-indigo-700 font-medium">Vendas Hoje</div>
                     <span className="text-2xl">📅</span>

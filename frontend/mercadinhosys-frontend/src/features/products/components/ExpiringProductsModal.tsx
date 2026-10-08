@@ -176,10 +176,10 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-300" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-100 p-4 animate-in fade-in duration-300" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90dvh] flex flex-col overflow-hidden border border-gray-100 dark:border-gray-700">
                 {/* Header */}
-                <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+                <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between bg-linear-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
                     <div className="flex items-center gap-4">
                         <div className={`p-3 rounded-xl ${timeframe === 'vencidos' ? 'bg-red-100 text-red-600' : timeframe === '15' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
                             {timeframe === 'vencidos' ? <AlertTriangle className="w-6 h-6" /> : <Calendar className="w-6 h-6" />}
@@ -247,7 +247,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                         <div className="space-y-3">
                             {/* Cabeçalho de tabela — só no desktop. No mobile cada linha vira
                                 um card com rótulos, evitando colunas espremidas/sobrepostas. */}
-                            <div className="hidden sm:grid grid-cols-[repeat(14,minmax(0,1fr))] gap-3 px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b dark:border-gray-700">
+                            <div className="hidden sm:grid grid-cols-14 gap-3 px-4 py-2 text-xs font-bold text-gray-400 uppercase tracking-wider border-b dark:border-gray-700">
                                 <div className="col-span-3">Produto / Lote</div>
                                 <div className="col-span-2">Validade</div>
                                 <div className="col-span-2 text-right">Custo</div>
@@ -269,7 +269,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                                 const diasRestantes = diasRestantesDe(dataValidade);
 
                                 return (
-                                    <div key={key} className="flex flex-col gap-3 sm:grid sm:grid-cols-[repeat(14,minmax(0,1fr))] sm:gap-3 sm:items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600">
+                                    <div key={key} className="flex flex-col gap-3 sm:grid sm:grid-cols-14 sm:gap-3 sm:items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600">
                                         {/* Produto / Lote */}
                                         <div className="sm:col-span-3 min-w-0">
                                             <p className="font-bold text-gray-900 dark:text-white truncate">{p.nome}</p>

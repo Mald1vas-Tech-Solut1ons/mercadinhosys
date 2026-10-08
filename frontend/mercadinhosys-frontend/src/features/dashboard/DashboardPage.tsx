@@ -139,14 +139,14 @@ export default function DashboardPageV2() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 whitespace-nowrap snap-start flex-shrink-0 transition-all
+                className={`flex items-center gap-2 whitespace-nowrap snap-start shrink-0 transition-all
                   rounded-full px-4 py-2 text-sm font-semibold md:rounded-none md:px-1 md:py-0 md:pb-2 md:border-b-2 ${
                   isActive
                     ? 'bg-blue-500/15 text-blue-400 md:bg-transparent md:border-blue-500'
                     : 'bg-white dark:bg-slate-800/60 text-gray-500 dark:text-slate-400 md:bg-transparent md:border-transparent hover:text-gray-700 dark:hover:text-slate-200'
                 }`}
               >
-                <Icon size={18} className="flex-shrink-0" />
+                <Icon size={18} className="shrink-0" />
                 {tab.label}
               </button>
             )

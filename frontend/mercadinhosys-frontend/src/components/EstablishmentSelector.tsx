@@ -108,8 +108,8 @@ const EstablishmentSelector: React.FC<EstablishmentSelectorProps> = ({
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-[1300]" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-[1301] overflow-hidden">
+          <div className="fixed inset-0 z-1300" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-1301 overflow-hidden">
             <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Modo Auditoria Master</span>
             </div>

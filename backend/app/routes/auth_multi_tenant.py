@@ -16,12 +16,15 @@ from app.middleware.multi_tenant import tenant_manager
 from app import db
 from app.models import Funcionario, Estabelecimento
 from app.middleware.rate_limit import limiter
+from flask_limiter.util import get_remote_address
 
 auth_bp = Blueprint('auth_multi_tenant', __name__)
 
 def get_main_connection():
     """Obtém conexão com banco principal de autenticação"""
     main_url = os.getenv('MAIN_DATABASE_URL')
+    if not main_url:
+        return None
     return psycopg2.connect(main_url)
 
 def normalize_plan_name(p):
@@ -33,122 +36,38 @@ def normalize_plan_name(p):
 
 @auth_bp.route('/bootstrap', methods=['POST'])
 def bootstrap_admin():
-    """
-    Endpoint de emergência para inicializar o sistema.
-    Cria o primeiro estabelecimento e o administrador se o banco estiver vazio.
-    """
-    from werkzeug.security import generate_password_hash
-    from decimal import Decimal
-    
-    try:
-        data = request.get_json() or {}
-        identifier = (data.get("email") or data.get("username") or data.get("identifier") or "").strip()
-        senha = (data.get("senha") or data.get("password") or "").strip()
+    """Provisionamento privilegiado é exclusivo da CLI."""
+    return jsonify({'success': False, 'error': 'Endpoint desativado. Use a CLI de provisionamento.'}), 410
 
-        if not identifier or not senha:
-            return jsonify({
-                "success": False,
-                "error": "Email/Username e senha são obrigatórios",
-                "code": "CREDENTIALS_REQUIRED"
-            }), 400
-
-        # Bloqueio de segurança: Só permite se não houver NENHUM usuário
-        if Funcionario.query.first() is not None:
-            return jsonify({
-                "success": False,
-                "error": "Bootstrap indisponível: o sistema já possui usuários",
-                "code": "BOOTSTRAP_DISABLED"
-            }), 409
-
-        # Determinar email e username
-        if "@" in identifier:
-            email = identifier.lower()
-            username = identifier.split("@", 1)[0]
-        else:
-            username = identifier
-            email = f"{username}@mercadinhosys.com"
-
-        # Tenta pegar primeiro estabelecimento ou cria um Mock de bootstrap
-        estabelecimento = Estabelecimento.query.first()
-        if estabelecimento is None:
-            estabelecimento = Estabelecimento(
-                nome_fantasia="Sistema Central",
-                razao_social="MercadinhoSys Bootstrap",
-                cnpj=None,
-                email="suporte@mercadinhosys.com",
-                telefone="(00) 0000-0000",
-                ativo=True,
-                data_abertura=datetime.now(timezone.utc).date()
-            )
-            db.session.add(estabelecimento)
-            db.session.flush()
-
-        admin = Funcionario(
-            estabelecimento_id=estabelecimento.id,
-            nome="Administrador do Sistema",
-            username=username,
-            senha=generate_password_hash(senha),
-            email=email,
-            cpf="000.000.000-00",
-            cargo="Super Admin",
-            role="ADMIN",
-            is_super_admin=True,
-            ativo=True,
-            status="ativo",
-            data_admissao=datetime.now(timezone.utc).date(),
-            permissoes_json='{"pdv":true,"estoque":true,"compras":true,"financeiro":true,"configuracoes":true,"relatorios":true}'
-        )
-        db.session.add(admin)
-        db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": "Sistema inicializado com sucesso. Faça login com as credenciais fornecidas.",
-            "data": {"username": admin.username, "email": admin.email}
-        }), 201
-
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Erro no bootstrap multitenant: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": "Erro interno ao inicializar sistema",
-            "message": str(e)
-        }), 500
 
 def _auditar_login(estabelecimento_id, usuario_id, username, contexto):
-    """Registra um evento de login na auditoria do tenant (para o monitor do super admin).
-    Nunca quebra o login: falhas são apenas logadas. Super admin / 'all' não geram log de tenant."""
+    """Falhas de auditoria não interrompem autenticação."""
     try:
-        if not estabelecimento_id or str(estabelecimento_id).lower() == "all":
+        if not estabelecimento_id or str(estabelecimento_id).lower() == 'all':
             return
         from app.models import Auditoria
-        Auditoria.registrar(
-            estabelecimento_id=int(estabelecimento_id),
-            tipo_evento="login",
-            descricao=f"Login realizado por {username}",
-            usuario_id=usuario_id,
-            detalhes={"contexto": contexto},
-        )
+        Auditoria.registrar(estabelecimento_id=int(estabelecimento_id), tipo_evento='login',
+                           descricao=f'Login realizado por {username}', usuario_id=usuario_id,
+                           detalhes={'contexto': contexto})
         db.session.commit()
-    except Exception as e:
-        try:
-            db.session.rollback()
-        except Exception:
-            pass
-        current_app.logger.warning(f"[AUDIT] Falha ao registrar login de {username}: {e}")
+    except Exception as error:
+        db.session.rollback()
+        current_app.logger.warning('[AUDIT] Falha ao registrar login: %s', error)
 
 
 @auth_bp.route('/login', methods=['POST'])
-@limiter.limit("5 per minute", error_message="Muitas tentativas de login. Aguarde um minuto.")
+@limiter.limit("5 per minute", key_func=get_remote_address, error_message="Muitas tentativas de login. Aguarde um minuto.")
 def login():
     """Login multi-tenant - autentica global e redireciona para tenant"""
     try:
         data = request.get_json(silent=True) or {}
         
         # Captura flexível com validação obrigatória
-        username = (data.get('identifier') or data.get('username') or data.get('email')).strip()
-        senha = (data.get('senha') or data.get('password')).strip()
+        username = data.get('identifier') or data.get('username') or data.get('email') or ''
+        senha = data.get('senha') or data.get('password') or ''
+        if not isinstance(username, str) or not isinstance(senha, str):
+            return jsonify({'success': False, 'error': 'Credenciais inválidas'}), 400
+        username = username.strip()
         
         if not username or not senha:
             return jsonify({
@@ -192,6 +111,9 @@ def login():
 
             if funcionario_local and funcionario_local.check_password(senha):
                 estab = funcionario_local.estabelecimento
+                from app.utils.auth_utils import is_user_active
+                if not is_user_active(funcionario_local.status) or not estab or not estab.ativo:
+                    return jsonify({'success': False, 'error': 'Conta inativa'}), 401
                 is_super = bool(funcionario_local.is_super_admin)
                 
                 additional_claims = {
@@ -249,7 +171,7 @@ def login():
         # Criar token JWT com informações do tenant (Isolamento de Elite)
         additional_claims = {
             'role': "ADMIN" if is_super else role,
-            'status': str(user_data[8] or "ativo"),
+            'status': 'ativo',
             'is_super_admin': is_super,
             'estabelecimento_id': "all" if bool(is_super_db) else estabelecimento_id,
             'estabelecimento_nome': estabelecimento_nome,
@@ -319,13 +241,21 @@ def refresh():
     try:
         current_user = get_jwt_identity()
         claims = get_jwt()
+        from app.utils.auth_utils import is_user_active
+        user = Funcionario.query.get(int(current_user))
+        if not user or not user.ativo or not is_user_active(user.status):
+            return jsonify({'success': False, 'error': 'Conta inativa ou inexistente'}), 401
+        if user.estabelecimento_id != claims.get('estabelecimento_id') and not (
+            user.is_super_admin and claims.get('estabelecimento_id') == 'all'
+        ):
+            return jsonify({'success': False, 'error': 'Contexto de acesso inválido'}), 401
 
         # Extrair claims do token atual para manter persistência de contexto
         # IMPORTANTE: Manter exatamente os mesmos campos do /login
         additional_claims = {
-            'role': claims.get('role'),
-            'status': claims.get('status') or 'ativo',
-            'is_super_admin': claims.get('is_super_admin'),
+            'role': user.role,
+            'status': user.status or 'ativo',
+            'is_super_admin': bool(user.is_super_admin),
             'estabelecimento_id': claims.get('estabelecimento_id'),
             'estabelecimento_nome': claims.get('estabelecimento_nome'),
             'database_name': claims.get('database_name'),

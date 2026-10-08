@@ -295,7 +295,7 @@ const StrategicFiltersPanel: React.FC<StrategicFiltersPanelProps> = ({
                 {/* Resumo Financeiro */}
                 <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 rounded-lg p-4">
+                        <div className="bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-300" />
                                 <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
@@ -310,7 +310,7 @@ const StrategicFiltersPanel: React.FC<StrategicFiltersPanelProps> = ({
                             </p>
                         </div>
 
-                        <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800 rounded-lg p-4">
+                        <div className="bg-linear-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-300" />
                                 <p className="text-sm font-semibold text-green-700 dark:text-green-300">
@@ -325,7 +325,7 @@ const StrategicFiltersPanel: React.FC<StrategicFiltersPanelProps> = ({
                             </p>
                         </div>
 
-                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800 rounded-lg p-4">
+                        <div className="bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <Package className="w-5 h-5 text-purple-600 dark:text-purple-300" />
                                 <p className="text-sm font-semibold text-purple-700 dark:text-purple-300">
@@ -340,7 +340,7 @@ const StrategicFiltersPanel: React.FC<StrategicFiltersPanelProps> = ({
                             </p>
                         </div>
 
-                        <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900 dark:to-red-800 rounded-lg p-4">
+                        <div className="bg-linear-to-br from-red-50 to-red-100 dark:from-red-900 dark:to-red-800 rounded-lg p-4">
                             <div className="flex items-center gap-2 mb-2">
                                 <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-300" />
                                 <p className="text-sm font-semibold text-red-700 dark:text-red-300">

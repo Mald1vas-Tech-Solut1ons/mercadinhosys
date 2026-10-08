@@ -4,7 +4,7 @@ import traceback
 import unicodedata
 from flask import request
 from flask_jwt_extended import get_jwt
-from sqlalchemy import func, extract, text
+from sqlalchemy import func, extract, text, event
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,26 @@ def _strip_accents(s: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+def _sqlite_search_connection(connection, _record):
+    connection.create_function('mercadinho_fold', 1,
+                               lambda value: _strip_accents(value).lower() if value is not None else None,
+                               deterministic=True)
+
+
+def configure_sqlite_search(engine):
+    """Registra folding Unicode por conexão, antes de o pool abrir conexões."""
+    if engine.dialect.name == 'sqlite' and not event.contains(engine, 'connect', _sqlite_search_connection):
+        event.listen(engine, 'connect', _sqlite_search_connection)
+
+
 def _fold_accents_sql(column):
-    """Expressão SQL que retorna a coluna em minúsculas e sem acentos, usando
-    apenas lower()+replace() — portável (Postgres e SQLite), sem extensão."""
+    """Evita cinquenta REPLACE aninhados, que excedem o parser SQLite Linux."""
+    dialect = _get_db().engine.dialect.name
+    if dialect == 'sqlite':
+        return func.mercadinho_fold(column)
+    if dialect == 'postgresql':
+        return func.translate(func.lower(column), ''.join(a for a, _ in _ACCENT_PAIRS),
+                              ''.join(b for _, b in _ACCENT_PAIRS))
     expr = func.lower(column)
     for acento, base in _ACCENT_PAIRS:
         expr = func.replace(expr, acento, base)
@@ -56,8 +73,8 @@ def _get_db():
 def ilike_unaccent(column, search_term):
     """
     Busca case-insensitive E accent-insensitive, PORTÁVEL e robusta:
-    'agua' encontra 'Água', 'acai' encontra 'Açaí'. A coluna é dobrada (lower +
-    sem acento) em SQL; o termo é normalizado em Python. Não usa a extensão
+    'agua' encontra 'Água', 'acai' encontra 'Açaí'. A coluna é dobrada por função
+    SQLite/translate PostgreSQL; o termo é normalizado em Python. Não usa a extensão
     unaccent (evita 'function unaccent does not exist' no Neon → 500 na busca).
     """
     termo_norm = _strip_accents(search_term).lower()
@@ -114,6 +131,26 @@ def get_estabelecimento_safe(estab_id):
     try:
         if not estab_id or str(estab_id).lower() == 'all': return None
         db = _get_db()
+        # Schema atual: uma única ida ao banco, sem carregar segredos fiscais.
+        # Schema legado: mantém o fallback por coluna abaixo.
+        try:
+            with db.session.begin_nested():
+                row = db.session.execute(text("""
+                    SELECT id, nome_fantasia, razao_social, cnpj, telefone, email, ativo,
+                           plano, plano_status, vencimento_assinatura, cep, logradouro,
+                           numero, bairro, cidade, estado, pais
+                    FROM estabelecimentos WHERE id = :eid
+                """), {"eid": estab_id}).mappings().first()
+            if row is None:
+                return None
+            result = dict(row)
+            result['plano'] = result['plano'] or 'Gratuito'
+            result['plano_status'] = result['plano_status'] or 'experimental'
+            result['cep'] = result['cep'] or '00000-000'
+            result['pais'] = result['pais'] or 'Brasil'
+            return result
+        except Exception:
+            pass
         # Colunas core garantidas
         with db.session.begin_nested():
             row = db.session.execute(
@@ -320,17 +357,36 @@ def get_funcionario_safe(func_id):
     Blindagem de Elite: Aceita func_id como ID (int/str) ou Username.
     """
     try:
+        from flask import has_request_context, request
+        user = getattr(request, 'current_user', None) if has_request_context() else None
+        if user and str(func_id) in (str(user.id), user.username):
+            import json
+            permissions_json = getattr(user, 'permissoes_json', None)
+            defaults = {'pdv': True, 'estoque': True, 'compras': False, 'financeiro': False, 'configuracoes': False}
+            try:
+                permissions = json.loads(permissions_json) if permissions_json else defaults
+            except (TypeError, ValueError):
+                permissions = defaults
+            return {'id': user.id, 'nome': user.nome, 'email': user.email, 'login': user.username,
+                    'username': user.username, 'estabelecimento_id': user.estabelecimento_id, 'cargo': user.cargo,
+                    'is_super_admin': user.is_super_admin, 'role': user.role, 'ativo': user.ativo,
+                    'permissoes_json': permissions_json, 'permissoes': permissions,
+                    'salario': getattr(user, 'salario', None), 'data_demissao': getattr(user, 'data_demissao', None),
+                    'foto_url': getattr(user, 'foto_url', None)}
         if not func_id: return None
         
         # Tentativa 1: Por ID (Assume que func_id pode ser um ID numérico)
         row = None
         db = _get_db()
+        from app.models import _tenant_atual
+        tenant = _tenant_atual()
+        scope = ' AND estabelecimento_id = :tenant' if tenant is not None else ''
         try:
             # Força cast para int se for puramente numérico para evitar erros de tipo no Postgres
             if str(func_id).isdigit():
                 row = db.session.execute(
-                    text("SELECT id, nome, email, username, estabelecimento_id, cargo, is_super_admin FROM funcionarios WHERE id = :fid"),
-                    {"fid": int(func_id)}
+                    text("SELECT id, nome, email, username, estabelecimento_id, cargo, is_super_admin FROM funcionarios WHERE id = :fid AND deleted_at IS NULL" + scope),
+                    {"fid": int(func_id), "tenant": tenant}
                 ).fetchone()
         except Exception:
             row = None
@@ -338,8 +394,8 @@ def get_funcionario_safe(func_id):
         # Tentativa 2: Por Username (Se a primeira falhou ou func_id é string literal)
         if not row:
             row = db.session.execute(
-                text("SELECT id, nome, email, username, estabelecimento_id, cargo, is_super_admin FROM funcionarios WHERE username = :funame"),
-                {"funame": str(func_id)}
+                text("SELECT id, nome, email, username, estabelecimento_id, cargo, is_super_admin FROM funcionarios WHERE username = :funame AND deleted_at IS NULL" + scope),
+                {"funame": str(func_id), "tenant": tenant}
             ).fetchone()
 
         if not row:
@@ -367,7 +423,7 @@ def get_funcionario_safe(func_id):
                 with db.session.begin_nested():
                     r = db.session.execute(
                         text(f"SELECT {target_col} FROM funcionarios WHERE id = :fid"),
-                        {"fid": func_id}
+                        {"fid": row[0]}
                     ).fetchone()
                     return r[0] if r and r[0] is not None else default
             except:
@@ -402,9 +458,12 @@ def get_produto_safe(prod_id):
     try:
         if not prod_id: return None
         db = _get_db()
+        from app.models import _tenant_atual
+        tenant = _tenant_atual()
+        tenant_filter = ' AND estabelecimento_id = :tenant' if tenant is not None else ''
         row = db.session.execute(
-            text("SELECT id, nome, preco_venda, preco_custo, quantidade, ativo, estabelecimento_id FROM produtos WHERE id = :pid"),
-            {"pid": prod_id}
+            text('SELECT id, nome, preco_venda, preco_custo, quantidade, ativo, estabelecimento_id FROM produtos WHERE id = :pid AND deleted_at IS NULL' + tenant_filter),
+            {'pid': prod_id, 'tenant': tenant}
         ).fetchone()
 
         if not row: return None

@@ -67,7 +67,7 @@ export default function ImportDataModal({ isOpen, onClose, onSuccess, title, end
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden my-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b">
@@ -111,7 +111,7 @@ export default function ImportDataModal({ isOpen, onClose, onSuccess, title, end
 
                             {error && (
                                 <div className="flex items-start gap-2 bg-red-50 text-red-700 p-3 rounded-lg text-sm">
-                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                    <AlertCircle className="w-5 h-5 shrink-0" />
                                     <p>{error}</p>
                                 </div>
                             )}

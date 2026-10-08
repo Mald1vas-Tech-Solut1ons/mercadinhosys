@@ -221,8 +221,8 @@ const SegmentSettings = () => {
                                     <p className="text-[11px] text-gray-400 uppercase tracking-wide">{campo.grupo}{campo.unidade ? ` · ${campo.unidade}` : ''}</p>
                                 </div>
                                 {oculto
-                                    ? <EyeOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                    : <Eye className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                                    ? <EyeOff className="w-4 h-4 text-gray-400 shrink-0" />
+                                    : <Eye className="w-4 h-4 text-emerald-500 shrink-0" />}
                             </button>
                         );
                     })}
@@ -255,8 +255,8 @@ const SegmentSettings = () => {
                                     <p className="text-[11px] text-gray-400 uppercase tracking-wide">{metrica.escopo_ui === 'card' ? 'Card' : 'Painel analítico'}</p>
                                 </div>
                                 {oculta
-                                    ? <EyeOff className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                                    : <Eye className="w-4 h-4 text-blue-500 flex-shrink-0" />}
+                                    ? <EyeOff className="w-4 h-4 text-gray-400 shrink-0" />
+                                    : <Eye className="w-4 h-4 text-blue-500 shrink-0" />}
                             </button>
                         );
                     })}

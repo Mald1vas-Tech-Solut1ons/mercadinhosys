@@ -67,7 +67,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
 
                   <td className="px-4 py-3 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold shadow-sm">
+                      <div className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold shadow-sm">
                         {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : '?'}
                       </div>
                       <div className="ml-3">
@@ -224,7 +224,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold shadow-sm">
+                    <div className="shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold shadow-sm">
                       {cliente.nome ? cliente.nome.charAt(0).toUpperCase() : '?'}
                     </div>
                     <div>

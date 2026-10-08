@@ -21,7 +21,8 @@ _cache: dict[tuple[str, int, bool], tuple[float, dict]] = {}
 def obter_contexto(especialista: str, estabelecimento_id: int, is_manager: bool, builder_func) -> dict:
     """Busca o contexto do cache, ou recalcula se expirado."""
     try:
-        key = (especialista, int(estabelecimento_id), is_manager)
+        tenant = 'all' if estabelecimento_id == 'all' and is_manager else int(estabelecimento_id)
+        key = (especialista, tenant, is_manager)
     except (TypeError, ValueError):
         return {}
 
@@ -38,9 +39,14 @@ def obter_contexto(especialista: str, estabelecimento_id: int, is_manager: bool,
     except Exception as e:
         import traceback
         traceback.print_exc()
-        novo_contexto = {"aviso": "Alguns dados não puderam ser carregados neste momento. Foque em dicas genéricas de gestão e ignore a ausência de métricas exatas."}
+        novo_contexto = {"aviso": "Dados indisponíveis. Não invente métricas ou conclusões sobre a loja."}
         
     with _lock:
+        expired = [k for k, entry in _cache.items() if now - entry[0] >= _TTL_SEGUNDOS]
+        for k in expired:
+            del _cache[k]
+        if len(_cache) >= 256:
+            del _cache[min(_cache, key=lambda k: _cache[k][0])]
         _cache[key] = (now, novo_contexto)
         
     return novo_contexto

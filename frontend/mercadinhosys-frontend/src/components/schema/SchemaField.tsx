@@ -137,7 +137,7 @@ const SchemaField: React.FC<SchemaFieldProps> = ({ campo, value, onChange, input
                                     value={customValue}
                                     onChange={e => setCustomValue(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
-                                    className={`${ic} !py-2 text-sm`}
+                                    className={`${ic} py-2! text-sm`}
                                     placeholder="Adicionar outro..."
                                 />
                                 <button

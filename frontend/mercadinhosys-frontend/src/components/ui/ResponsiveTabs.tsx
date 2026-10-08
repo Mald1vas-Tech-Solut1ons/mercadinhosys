@@ -57,7 +57,7 @@ const ResponsiveTabs: React.FC<ResponsiveTabsProps> = ({
             }`}
           >
             <div className="flex items-center gap-1 sm:gap-2">
-              {tab.icon && <span className="flex-shrink-0">{tab.icon}</span>}
+              {tab.icon && <span className="shrink-0">{tab.icon}</span>}
               <span>{tab.label}</span>
               {tab.badge !== undefined && (
                 <span className="ml-1 px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">

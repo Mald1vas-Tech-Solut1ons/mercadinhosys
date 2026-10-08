@@ -1,3 +1,4 @@
+import { ProtectedDocumentLink } from '@/components/common/ProtectedDocumentLink';
 import React, { useState, useEffect } from 'react';
 import {
     Users,
@@ -250,10 +251,10 @@ const DriverManagement: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-1">
                                         {m.cnh_documento_url && (
-                                            <a href={m.cnh_documento_url} target="_blank" rel="noopener noreferrer"
+                                            <ProtectedDocumentLink url={m.cnh_documento_url}
                                                 className="p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-xl text-gray-400 transition-colors" title="Ver documento da CNH">
                                                 <FileText className="w-5 h-5" />
-                                            </a>
+                                            </ProtectedDocumentLink>
                                         )}
                                         <button onClick={() => abrirEdicaoMotorista(m)}
                                             className="p-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl text-indigo-500 transition-colors" title="Editar / anexar CNH">
@@ -311,10 +312,10 @@ const DriverManagement: React.FC = () => {
                                     </div>
                                     <div className="flex items-center gap-1">
                                         {v.crlv_documento_url && (
-                                            <a href={v.crlv_documento_url} target="_blank" rel="noopener noreferrer"
+                                            <ProtectedDocumentLink url={v.crlv_documento_url}
                                                 className="p-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-xl text-gray-400 transition-colors" title="Ver documento do CRLV">
                                                 <FileText className="w-5 h-5" />
-                                            </a>
+                                            </ProtectedDocumentLink>
                                         )}
                                         <button onClick={() => setChecklistVeiculo(v)}
                                             className="p-2 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-xl text-emerald-600 transition-colors" title="Fazer checklist de saída">
@@ -343,7 +344,7 @@ const DriverManagement: React.FC = () => {
             {/* Modais com AnimatePresence */}
             <AnimatePresence>
                 {isMotoristaModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                    <div className="fixed inset-0 z-100 flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={fecharModalMotorista}
@@ -455,7 +456,7 @@ const DriverManagement: React.FC = () => {
                 )}
 
                 {isVeiculoModalOpen && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                    <div className="fixed inset-0 z-100 flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={fecharModalVeiculo}
@@ -567,7 +568,7 @@ const DriverManagement: React.FC = () => {
             <ConformidadeModal open={conformidadeAberta} onClose={() => setConformidadeAberta(false)} />
 
             {/* Banner Informativo */}
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-[2rem] border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-8 mt-12 overflow-hidden relative">
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-4xl border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-8 mt-12 overflow-hidden relative">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
                 <div className="space-y-4 relative z-10">
                     <div className="flex items-center gap-2 text-indigo-600 font-black text-xs uppercase tracking-[0.2em]">

@@ -183,7 +183,7 @@ const PedidoCardMobile = ({
           )}
           <div className="px-3.5 pb-3.5 flex flex-col gap-2">
             {pedido.status === 'pendente' && (
-              <button onClick={onReceive} className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:opacity-80 transition-opacity">
+              <button onClick={onReceive} className="w-full py-2.5 bg-linear-to-r from-emerald-600 to-green-600 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 active:opacity-80 transition-opacity">
                 <CheckCircle className="w-4 h-4 shrink-0" />
                 Confirmar Recebimento
               </button>
@@ -379,7 +379,7 @@ const PurchasesPage: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl lg:text-3xl font-black text-gray-900 dark:text-white flex items-center gap-2 sm:gap-3 tour-compras-visao">
-              <div className="p-1.5 sm:p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md shrink-0">
+              <div className="p-1.5 sm:p-2 bg-linear-to-br from-blue-600 to-indigo-600 rounded-xl shadow-md shrink-0">
                 <ShoppingBag className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
               </div>
               <span className="truncate">Compras & Doca</span>
@@ -399,7 +399,7 @@ const PurchasesPage: React.FC = () => {
             </button>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-md text-sm active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 px-3 sm:px-5 py-2 sm:py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-md text-sm active:scale-95 transition-transform"
             >
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Novo Pedido</span>

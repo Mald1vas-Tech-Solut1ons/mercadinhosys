@@ -220,7 +220,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
     const filteredCusts = allCustomers.filter(c => c.nome?.toLowerCase().includes(custSearch?.toLowerCase() || ''));
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-950/80 backdrop-blur-md" />
 
             <motion.div
@@ -229,7 +229,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                 className="relative w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] border border-white/10"
             >
                 {/* Header Profissional */}
-                <div className="p-8 bg-gradient-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
+                <div className="p-8 bg-linear-to-r from-blue-600 to-indigo-700 text-white flex items-center justify-between shrink-0">
                     <div>
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-white/10 rounded-xl backdrop-blur-sm">
@@ -303,7 +303,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                             type="button"
                                             onClick={() => setScannerAberto(true)}
                                             title="Escanear código de barras"
-                                            className="p-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow flex-shrink-0"
+                                            className="p-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl shadow shrink-0"
                                         >
                                             <Camera className="w-5 h-5" />
                                         </button>
@@ -340,7 +340,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                                         está cadastrado — sem fallback COSMOS aqui, só orienta. */}
                                                     {filteredProds.length === 0 && (
                                                         <div className="p-4 flex items-center gap-2 text-sm text-gray-500">
-                                                            <Barcode className="w-4 h-4 flex-shrink-0" />
+                                                            <Barcode className="w-4 h-4 shrink-0" />
                                                             <span>Nenhum produto encontrado. Cadastre o produto em Produtos antes de vendê-lo.</span>
                                                         </div>
                                                     )}
@@ -397,7 +397,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                         </label>
                                     </div>
                                     {!pagamentoNaEntrega ? (
-                                        <div className="bg-white dark:bg-gray-800 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-700">
+                                        <div className="bg-white dark:bg-gray-800 p-6 rounded-4xl border border-gray-100 dark:border-gray-700">
                                             <MultiPaymentManager
                                                 totalVenda={calculateTotal()}
                                                 formasDisponiveis={formasDisponiveis}
@@ -410,7 +410,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                             />
                                         </div>
                                     ) : (
-                                        <div className="bg-orange-50 dark:bg-orange-900/10 p-6 rounded-[2rem] border border-orange-200 dark:border-orange-800/30 flex items-center justify-center">
+                                        <div className="bg-orange-50 dark:bg-orange-900/10 p-6 rounded-4xl border border-orange-200 dark:border-orange-800/30 flex items-center justify-center">
                                             <p className="text-sm font-bold text-orange-600 dark:text-orange-400 text-center">
                                                 O motorista fará a cobrança no momento da entrega.
                                             </p>
@@ -526,7 +526,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                     <button
                                         disabled={cart.length === 0}
                                         onClick={() => setStep(2)}
-                                        className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[2rem] font-bold shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
+                                        className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-4xl font-bold shadow-xl shadow-blue-500/30 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
                                     >
                                         Próximo Passo <ChevronRight className="w-5 h-5" />
                                     </button>
@@ -536,7 +536,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                         <button
                                             disabled={loading}
                                             onClick={handleSubmit}
-                                            className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] font-bold shadow-xl shadow-indigo-500/30 flex items-center justify-center gap-3 transition-all active:scale-95"
+                                            className="flex-1 py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-4xl font-bold shadow-xl shadow-indigo-500/30 flex items-center justify-center gap-3 transition-all active:scale-95"
                                         >
                                             {loading ? 'Processando...' : 'Finalizar Venda'} <Truck className="w-5 h-5" />
                                         </button>

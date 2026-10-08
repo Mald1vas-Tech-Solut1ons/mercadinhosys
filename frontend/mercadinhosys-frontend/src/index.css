@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   /* Cores primárias dinâmicas - serão sobrescritas pelo ConfigContext */
@@ -146,13 +146,13 @@ body {
 
 /* Animação de fade in */
 @keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(10px); 
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -205,28 +205,28 @@ body {
 /* ========================================
    MERCADINHOSYS CUSTOM ANIMATIONS
    ======================================== */
-@keyframes msys-pop { 
-  0% { transform: scale(.3); opacity: 0; } 
-  60% { transform: scale(1.08); opacity: 1; } 
-  100% { transform: scale(1); opacity: 1; } 
+@keyframes msys-pop {
+  0% { transform: scale(.3); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-@keyframes msys-rise { 
-  from { opacity: 0; transform: translateY(14px); } 
-  to { opacity: 1; transform: translateY(0); } 
+@keyframes msys-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes msys-twinkle { 
-  0%, 100% { opacity: 0; transform: rotate(45deg) scale(.4); } 
-  50% { opacity: 1; transform: rotate(45deg) scale(1); } 
+@keyframes msys-twinkle {
+  0%, 100% { opacity: 0; transform: rotate(45deg) scale(.4); }
+  50% { opacity: 1; transform: rotate(45deg) scale(1); }
 }
 
-@keyframes msys-fill { 
-  from { width: 0; } 
-  to { width: 100%; } 
+@keyframes msys-fill {
+  from { width: 0; }
+  to { width: 100%; }
 }
 
 .animate-msys-pop { animation: msys-pop 0.7s cubic-bezier(.2,1.4,.4,1) both; }
 .animate-msys-rise { animation: msys-rise 0.6s ease-out both; }
 .animate-msys-twinkle { animation: msys-twinkle 1.6s ease-in-out infinite; }
-.animate-msys-fill { animation: msys-fill 1.4s ease-in-out both; }
+.animate-msys-fill { animation: msys-fill 1.4s ease-in-out both; }

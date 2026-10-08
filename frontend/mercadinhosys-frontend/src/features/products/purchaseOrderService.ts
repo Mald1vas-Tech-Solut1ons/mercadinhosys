@@ -201,6 +201,7 @@ class PurchaseOrderService {
   }
 
   async pagarBoleto(id: number, data: {
+    idempotency_key?: string;
     valor_pago: number;
     data_pagamento?: string;
     forma_pagamento?: string;

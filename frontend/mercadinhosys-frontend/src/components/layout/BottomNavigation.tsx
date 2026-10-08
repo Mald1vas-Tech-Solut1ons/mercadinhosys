@@ -99,7 +99,7 @@ const BottomNavigation: React.FC = () => {
             {menuOpen && (
                 <>
                     <div 
-                        className="md:hidden fixed inset-0 bg-black/60 z-[35] backdrop-blur-sm transition-opacity"
+                        className="md:hidden fixed inset-0 bg-black/60 z-35 backdrop-blur-sm transition-opacity"
                         onClick={() => setMenuOpen(false)}
                     />
                     <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-40 p-5 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-full duration-300 ease-out">

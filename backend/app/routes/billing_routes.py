@@ -2,12 +2,12 @@ import os
 from flask import Blueprint, request, jsonify, redirect, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Estabelecimento, Funcionario, db
-from app.services.billing_service import BillingService
 from app.decorators.plan_guards import normalize_plan
 
 billing_bp = Blueprint('billing_bp', __name__, url_prefix='/api/billing')
 
 def _get_billing_service():
+    from app.services.billing_service import BillingService
     return BillingService()
 
 @billing_bp.route('/checkout', methods=['POST'])
@@ -97,19 +97,22 @@ def webhook():
     """
     try:
         data = request.form.to_dict() or request.get_json() or {}
+        if not isinstance(data, dict):
+            return jsonify({'error': 'Notificação inválida'}), 400
         notification_token = data.get('notification')
 
-        if not notification_token:
+        if not isinstance(notification_token, str) or not notification_token.strip() or len(notification_token) > 512:
             return jsonify({"error": "Token de notificação não fornecido"}), 400
 
         billing_svc = _get_billing_service()
-        billing_svc.handle_webhook(notification_token)
+        if not billing_svc.handle_webhook(notification_token):
+            return jsonify({'success': False, 'error': 'Notificação não confirmada pelo provedor'}), 502
 
         return jsonify({"success": True}), 200
     except Exception as e:
         current_app.logger.error(f"Erro no webhook: {str(e)}")
-        # Return 200 anyway so Efí stops retrying
-        return jsonify({"success": False, "error": str(e)}), 200
+        # Falha temporária precisa permitir retry; jamais confirmar evento perdido.
+        return jsonify({'success': False, 'error': 'Falha temporária ao confirmar notificação'}), 503
 
 @billing_bp.route('/portal', methods=['POST'])
 @jwt_required()

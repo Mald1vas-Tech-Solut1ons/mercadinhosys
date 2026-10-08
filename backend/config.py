@@ -178,7 +178,7 @@ class TestingConfig(Config):
     # No logging needed as these are intentionally fixed for testing
     SECRET_KEY = "test-fixed-secret-key-for-reproducibility"
     JWT_SECRET_KEY = "test-fixed-jwt-key-for-reproducibility"
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_DATABASE_URI = os.environ.get('AUDIT_DATABASE_URL', 'sqlite:///:memory:')
     WTF_CSRF_ENABLED = False
     DEBUG = True
 

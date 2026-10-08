@@ -76,7 +76,7 @@ const AccountSettings: React.FC = () => {
                     </div>
                     <div>
                         <label className={labelCls}><Mail className="inline w-3.5 h-3.5 mr-1" />E-mail</label>
-                        <input className={`${inputCls} ${email ? (isValidEmail(email) ? '!border-green-500 focus:ring-green-500 focus:!border-green-500' : '!border-red-500 focus:ring-red-500 focus:!border-red-500') : ''}`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
+                        <input className={`${inputCls} ${email ? (isValidEmail(email) ? 'border-green-500! focus:ring-green-500 focus:border-green-500!' : 'border-red-500! focus:ring-red-500 focus:border-red-500!') : ''}`} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" />
                     </div>
                 </div>
                 <div className="flex justify-end">
@@ -107,7 +107,7 @@ const AccountSettings: React.FC = () => {
                     </div>
                     <div>
                         <label className={labelCls}>Nova senha</label>
-                        <input className={`${inputCls} ${novaSenha ? (checkPasswordStrength(novaSenha) === 'weak' ? '!border-red-500 focus:!border-red-500' : checkPasswordStrength(novaSenha) === 'medium' ? '!border-yellow-500 focus:!border-yellow-500' : '!border-green-500 focus:!border-green-500') : ''}`} type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" placeholder="mín. 6 caracteres" />
+                        <input className={`${inputCls} ${novaSenha ? (checkPasswordStrength(novaSenha) === 'weak' ? 'border-red-500! focus:border-red-500!' : checkPasswordStrength(novaSenha) === 'medium' ? 'border-yellow-500! focus:border-yellow-500!' : 'border-green-500! focus:border-green-500!') : ''}`} type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" placeholder="mín. 6 caracteres" />
                         {novaSenha && (
                             <div className="mt-2 flex items-center gap-2">
                                 <div className={`flex-1 h-1.5 rounded-full transition-colors ${checkPasswordStrength(novaSenha) === 'weak' ? 'bg-red-500' : checkPasswordStrength(novaSenha) === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`} />

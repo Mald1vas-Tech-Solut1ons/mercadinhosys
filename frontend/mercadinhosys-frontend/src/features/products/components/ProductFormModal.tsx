@@ -385,7 +385,7 @@ const ProductFormModal = ({
                 {/* Banner cadastro inteligente — só p/ produto físico com código de barras */}
                 {!editMode && !ehServico && visivel('codigo_barras') && (
                     <button type="button" onClick={() => setShowScanner(true)}
-                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl shadow-md hover:shadow-xl transition-all group relative overflow-hidden">
+                        className="w-full flex items-center justify-between p-4 bg-linear-to-r from-blue-600 to-indigo-700 text-white rounded-2xl shadow-md hover:shadow-xl transition-all group relative overflow-hidden">
                         <div className="flex items-center gap-4 z-10">
                             <div className="p-3 bg-white/20 rounded-xl backdrop-blur-md">
                                 <Camera className="w-6 h-6" />

@@ -89,9 +89,9 @@ const SupplierHistoryModal = ({ fornecedor, onClose }: SupplierHistoryModalProps
     };
 
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[130] p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-130 p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90dvh] flex flex-col overflow-hidden">
-                <div className="p-6 bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center justify-between">
+                <div className="p-6 bg-linear-to-r from-blue-600 to-indigo-700 flex items-center justify-between">
                     <div>
                         <h2 className="text-2xl font-black text-white flex items-center gap-2">
                             <Clock className="w-6 h-6" /> Dossiê: {fornecedor.nome_fantasia || fornecedor.razao_social}

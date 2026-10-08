@@ -1,5 +1,8 @@
 name: MercadinhoSys CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main, master, release/* ]
@@ -9,13 +12,14 @@ on:
 jobs:
   backend-tests:
     name: Backend Pytest & Multi-Tenant Audit
+    timeout-minutes: 15
     runs-on: ubuntu-latest
 
     services:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_DB: mercadinho_test
+          POSTGRES_DB: audit_security_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgrespassword
         ports:
@@ -45,11 +49,20 @@ jobs:
       - name: Run Pytest Test Suite
         env:
           FLASK_ENV: testing
-          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/mercadinho_test
+          AUDIT_DATABASE_URL: 'sqlite:///:memory:'
           JWT_SECRET_KEY: ci_test_jwt_secret_key_12345
-          SKIP_DB_SETUP: "false"
+          SKIP_DB_SETUP: "true"
         run: |
           pytest backend/tests --cov=backend/app --cov-report=term-missing
+
+      - name: PostgreSQL Checkout Concurrency and Tenant Audit
+        env:
+          FLASK_ENV: testing
+          AUDIT_DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/audit_security_ci
+          JWT_SECRET_KEY: ci_test_jwt_secret_key_12345
+          SKIP_DB_SETUP: "true"
+        run: |
+          pytest backend/tests/test_postgres_checkout_concurrency.py backend/tests/test_finance_postgres_concurrency.py backend/tests/test_finance_release.py backend/tests/test_devops_finance_review.py backend/tests/test_tenant_isolation.py backend/tests/test_routes_multi_tenant_guard.py backend/tests/test_fornecedores_listing_response.py backend/tests/test_fin01_boleto_payments.py -q
 
   frontend-build:
     name: Frontend TypeScript & Vite Build

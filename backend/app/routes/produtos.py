@@ -570,7 +570,7 @@ def catalogo_listar():
     """Lista/pesquisa o catálogo mestre (para importação em massa)."""
     busca = (request.args.get("busca") or "").strip()
     categoria = request.args.get("categoria")
-    pagina = request.args.get("pagina", 1, type=int)
+    pagina = max(1, request.args.get("pagina", 1, type=int))
     por_pagina = min(request.args.get("por_pagina", 50, type=int), 200)
 
     query = CatalogoMestre.query.filter_by(status="encontrado")
@@ -786,8 +786,8 @@ def listar_produtos():
             return jsonify({"error": "Estabelecimento não identificado"}), 400
 
         # Parâmetros de paginação
-        pagina = request.args.get("pagina", 1, type=int)
-        por_pagina = request.args.get("por_pagina", 50, type=int)
+        pagina = max(1, request.args.get("pagina", 1, type=int))
+        por_pagina = max(1, min(request.args.get("por_pagina", 50, type=int), 200))
         
         # Parâmetros de filtro
         # O frontend envia "ativos" (productsService); aceita também "ativo"
@@ -811,13 +811,12 @@ def listar_produtos():
         include_metrics = request.args.get("metrics", "false").lower() == "true"
         filtro_alerta = request.args.get("alerta")
 
-        # Para evitar N+1 com DB remoto (Neon/Aiven) que causava ~9s de lentidão,
-        # usamos subqueryload. selectinload/joinedload causaram crash no .count()
-        # da paginação em produção. subqueryload é o mais seguro para 1-to-N com limits.
+        # Eager loading só é aplicado DEPOIS de count(). Lotes são buscados
+        # pelos IDs da página, sem repetir filtros e ordenação do catálogo inteiro.
         opts = [
             joinedload(Produto.categoria),
             joinedload(Produto.fornecedor),
-            subqueryload(Produto.lotes)
+            selectinload(Produto.lotes)
         ]
         
         _precisa_lotes = (
@@ -2890,8 +2889,8 @@ def listar_produtos_estoque():
         # + commit) foi removido — era um dos maiores gargalos do sistema.
         # A classificação agora vem do cache (app/utils/abc_cache.py).
 
-        pagina = request.args.get("pagina", 1, type=int)
-        por_pagina = request.args.get("por_pagina", 50, type=int)
+        pagina = max(1, request.args.get("pagina", 1, type=int))
+        por_pagina = max(1, min(request.args.get("por_pagina", 50, type=int), 200))
         ativos = request.args.get("ativos", None, type=str)
         categoria = request.args.get("categoria", None, type=str)
         estoque_status = request.args.get("estoque_status", None, type=str)
@@ -3080,8 +3079,8 @@ def listar_produtos_estoque():
         try:
             from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
             estabelecimento_id = get_authorized_establishment_id()
-            pagina = request.args.get("pagina", 1, type=int)
-            por_pagina = request.args.get("por_pagina", 50, type=int)
+            pagina = max(1, request.args.get("pagina", 1, type=int))
+            por_pagina = max(1, min(request.args.get("por_pagina", 50, type=int), 200))
             ordenar_por = request.args.get("ordenar_por", "nome", type=str)
             direcao = request.args.get("direcao", "asc", type=str)
             order_clause = "nome" if ordenar_por not in {"preco_venda", "quantidade"} else ordenar_por

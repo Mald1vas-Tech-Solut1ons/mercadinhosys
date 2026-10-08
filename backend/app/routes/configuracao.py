@@ -319,7 +319,7 @@ def update_estabelecimento():
         if set_clauses:
             sql = f"UPDATE estabelecimentos SET {', '.join(set_clauses)} WHERE id = :eid"
             current_app.logger.info(f"📊 [DATABASE] Executando Update Estabelecimento ID {estabelecimento_id}")
-            current_app.logger.info(f"📊 [PAYLOAD] {params}")
+            current_app.logger.info('Campos atualizados: %s', sorted(key for key in params if key != 'eid'))
             db.session.execute(text(sql), params)
             db.session.commit()
             current_app.logger.info(f"✅ [SUCCESS] Dados persistidos no banco.")
@@ -545,7 +545,16 @@ def upload_logo():
         # Converte para Base64 para salvar no banco
         import base64
         file_content = file.read()
-        mime_type = file.content_type or "image/png"
+        from PIL import Image, UnidentifiedImageError
+        from io import BytesIO
+        try:
+            with Image.open(BytesIO(file_content)) as image:
+                if image.format not in {'PNG', 'JPEG', 'GIF', 'WEBP'} or image.width * image.height > 16000000:
+                    raise ValueError('Imagem inválida ou resolução excessiva')
+                mime_type = Image.MIME[image.format]
+                image.verify()
+        except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+            return jsonify({'success': False, 'error': 'Conteúdo de imagem inválido ou resolução excessiva'}), 400
         base64_data = f"data:{mime_type};base64,{base64.b64encode(file_content).decode()}"
 
         from sqlalchemy import text

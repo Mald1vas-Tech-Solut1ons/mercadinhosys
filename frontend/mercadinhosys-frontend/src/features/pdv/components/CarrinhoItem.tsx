@@ -95,7 +95,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                         <button
                             type="button"
                             onClick={() => setZoomAberto(true)}
-                            className="relative w-14 h-14 flex-shrink-0"
+                            className="relative w-14 h-14 shrink-0"
                             title="Ampliar foto"
                         >
                             <img
@@ -110,7 +110,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                             </span>
                         </button>
                     ) : (
-                        <div className="w-8 h-8 flex-shrink-0 bg-red-600 dark:bg-red-700 rounded-lg text-white font-black flex items-center justify-center text-sm shadow-sm tabular-nums">
+                        <div className="w-8 h-8 shrink-0 bg-red-600 dark:bg-red-700 rounded-lg text-white font-black flex items-center justify-center text-sm shadow-sm tabular-nums">
                             {quantidade}
                         </div>
                     )}
@@ -177,7 +177,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                     </div>
 
                     {/* Total (canto superior direito) */}
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-right shrink-0">
                         <p className="text-base sm:text-lg font-black text-red-600 dark:text-red-400 tabular-nums tracking-tight leading-none">
                             {formatCurrency(total)}
                         </p>
@@ -216,13 +216,13 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                                 <Plus className="w-4 h-4" />
                             </button>
                         </div>
-                        <span className="text-[10px] font-black text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg uppercase tracking-widest flex-shrink-0">
+                        <span className="text-[10px] font-black text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg uppercase tracking-widest shrink-0">
                             {produto.unidade_medida || 'UN'}
                         </span>
                     </div>
 
                     {/* Botões de ação */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <button
                             onClick={() => { setMostrarDesconto(!mostrarDesconto); setValorDesconto(''); }}
                             title="Desconto neste item"

@@ -241,12 +241,12 @@ const KpiCard = ({
     icon: React.ReactNode;
     onClick?: () => void;
 }) => (
-    <Card 
+    <Card
         onClick={onClick}
-        sx={{ 
-            height: '100%', 
-            border: '1px solid', 
-            borderColor: 'divider', 
+        sx={{
+            height: '100%',
+            border: '1px solid',
+            borderColor: 'divider',
             bgcolor: 'background.paper',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
             cursor: onClick ? 'pointer' : 'default',
@@ -476,7 +476,7 @@ const CustomersPage: React.FC = () => {
             } else if (segmentFilter !== 'todos' && cliente.crmSegment !== segmentFilter) {
                 return false;
             }
-            
+
             if (birthdayFilter) {
                 const dn = (cliente as any).data_nascimento;
                 if (!dn) return false;
@@ -918,7 +918,7 @@ const CustomersPage: React.FC = () => {
 
     return (
         <div className="mx-auto max-w-7xl space-y-6 p-4">
-            <section className="rounded-3xl border border-slate-200 bg-gradient-to-r from-slate-950 via-blue-950 to-slate-900 p-6 text-white shadow-xl">
+            <section className="rounded-3xl border border-slate-200 bg-linear-to-r from-slate-950 via-blue-950 to-slate-900 p-6 text-white shadow-xl">
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                         <Typography variant="h4" sx={{ fontWeight: 800 }} className="tour-clientes-upload">Clientes</Typography>
@@ -955,12 +955,12 @@ const CustomersPage: React.FC = () => {
 
             <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 snap-x snap-mandatory hide-scrollbar">
                 <div className="min-w-[260px] sm:min-w-0 snap-start">
-                    <KpiCard 
-                        title="Base Ativa" 
-                        value={dashboard.total} 
-                        subtitle="Clientes gerenciados no CRM" 
-                        color="#2563eb" 
-                        icon={<AutoGraphIcon />} 
+                    <KpiCard
+                        title="Base Ativa"
+                        value={dashboard.total}
+                        subtitle="Clientes gerenciados no CRM"
+                        color="#2563eb"
+                        icon={<AutoGraphIcon />}
                         onClick={() => {
                             setStatusFilter('ativos');
                             setActiveTab('portfolio');
@@ -968,12 +968,12 @@ const CustomersPage: React.FC = () => {
                     />
                 </div>
                 <div className="min-w-[260px] sm:min-w-0 snap-start">
-                    <KpiCard 
-                        title="Aniversariantes" 
-                        value={crmStats.aniversariantes} 
-                        subtitle="Neste mês — envie um WhatsApp" 
-                        color="#db2777" 
-                        icon={<CakeIcon />} 
+                    <KpiCard
+                        title="Aniversariantes"
+                        value={crmStats.aniversariantes}
+                        subtitle="Neste mês — envie um WhatsApp"
+                        color="#db2777"
+                        icon={<CakeIcon />}
                         onClick={() => {
                             setBirthdayFilter(true);
                             setActiveTab('portfolio');
@@ -981,12 +981,12 @@ const CustomersPage: React.FC = () => {
                     />
                 </div>
                 <div className="min-w-[260px] sm:min-w-0 snap-start">
-                    <KpiCard 
-                        title="Clientes Em Risco" 
-                        value={crmStats.inRisk} 
-                        subtitle="Exigem contato de retencao" 
-                        color="#ea580c" 
-                        icon={<AutorenewIcon />} 
+                    <KpiCard
+                        title="Clientes Em Risco"
+                        value={crmStats.inRisk}
+                        subtitle="Exigem contato de retencao"
+                        color="#ea580c"
+                        icon={<AutorenewIcon />}
                         onClick={() => {
                             setSegmentFilter('Em Risco');
                             setActiveTab('portfolio');
@@ -994,25 +994,25 @@ const CustomersPage: React.FC = () => {
                     />
                 </div>
                 <div className="min-w-[260px] sm:min-w-0 snap-start">
-                    <KpiCard 
-                        title="Clientes Inativos" 
-                        value={crmStats.inactive} 
-                        subtitle="Fila de reativacao comercial" 
-                        color="#dc2626" 
+                    <KpiCard
+                        title="Clientes Inativos"
+                        value={crmStats.inactive}
+                        subtitle="Fila de reativacao comercial"
+                        color="#dc2626"
                         icon={<WarningAmberIcon />}
                         onClick={() => {
                             setStatusFilter('inativos');
                             setActiveTab('portfolio');
-                        }} 
+                        }}
                     />
                 </div>
                 <div className="min-w-[260px] sm:min-w-0 snap-start">
-                    <KpiCard 
-                        title="VIP & Fidelidade" 
-                        value={crmStats.vip} 
-                        subtitle="Carteira de alto valor" 
-                        color="#7c3aed" 
-                        icon={<StarIcon />} 
+                    <KpiCard
+                        title="VIP & Fidelidade"
+                        value={crmStats.vip}
+                        subtitle="Carteira de alto valor"
+                        color="#7c3aed"
+                        icon={<StarIcon />}
                         onClick={() => {
                             setSegmentFilter('VIP');
                             setActiveTab('portfolio');
@@ -1053,9 +1053,9 @@ const CustomersPage: React.FC = () => {
 
             {activeTab === 'overview' && (
                 <div className="space-y-6">
-                    <CustomerDashboard 
-                        {...dashboard} 
-                        rfmData={rfmData} 
+                    <CustomerDashboard
+                        {...dashboard}
+                        rfmData={rfmData}
                         onSegmentClick={(segment) => {
                             setSegmentFilter(segment as SegmentFilter);
                             setActiveTab('portfolio');
@@ -1274,8 +1274,8 @@ const CustomersPage: React.FC = () => {
                                             key={campaign.key}
                                             onClick={() => setSelectedCampaign(campaign.key)}
                                             className={`group relative rounded-3xl border-2 p-5 text-left transition-all duration-300 ease-out overflow-hidden ${
-                                                active 
-                                                    ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-900/10 dark:border-blue-500 shadow-lg shadow-blue-500/20 scale-[1.02]' 
+                                                active
+                                                    ? 'border-blue-500 bg-linear-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-900/10 dark:border-blue-500 shadow-lg shadow-blue-500/20 scale-[1.02]'
                                                     : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-md hover:-translate-y-0.5'
                                             }`}
                                         >
@@ -1331,8 +1331,8 @@ const CustomersPage: React.FC = () => {
                                                     size="small"
                                                     label={cliente.hasDebt ? formatCurrency(Number(cliente.saldo_devedor || 0)) : formatCurrency(Number(cliente.valor_total_gasto || 0))}
                                                     className={`font-extrabold border shadow-sm ${
-                                                        cliente.hasDebt 
-                                                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800/50' 
+                                                        cliente.hasDebt
+                                                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-800/50'
                                                             : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/50'
                                                     }`}
                                                 />
@@ -1347,7 +1347,7 @@ const CustomersPage: React.FC = () => {
                     <Card className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl shadow-slate-200/50 dark:shadow-none overflow-hidden relative">
                         {/* Decorative background gradient */}
                         <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                        
+
                         <CardContent className="p-8 relative">
                             <Box className="flex items-center gap-3 mb-6">
                                 <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 rounded-xl">
@@ -1378,7 +1378,7 @@ const CustomersPage: React.FC = () => {
                                                     {selectedCampaignCustomer.celular || selectedCampaignCustomer.telefone || 'Sem telefone'}
                                                 </Typography>
                                             </div>
-                                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
+                                            <div className="w-10 h-10 rounded-full bg-linear-to-tr from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-md shadow-blue-500/20">
                                                 {selectedCampaignCustomer.nome.charAt(0).toUpperCase()}
                                             </div>
                                         </div>
@@ -1460,7 +1460,7 @@ const CustomersPage: React.FC = () => {
                                     </Box>
 
                                     {/* Helper Tip */}
-                                    <Box className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-800/30 mt-2 flex items-start gap-3">
+                                    <Box className="p-4 rounded-2xl bg-linear-to-r from-blue-50/80 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10 border border-blue-100 dark:border-blue-800/30 mt-2 flex items-start gap-3">
                                         <div className="mt-0.5"><InsightsIcon className="text-blue-500" fontSize="small" /></div>
                                         <div>
                                             <Typography variant="subtitle2" className="text-blue-800 dark:text-blue-300 font-bold">
@@ -1511,7 +1511,7 @@ const CustomersPage: React.FC = () => {
 
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                         <Chip label={`${filteredClientes.length} clientes na carteira`} className="bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200 font-bold" />
-                        
+
                         {statusFilter !== 'todos' && (
                             <Chip label={`Status: ${statusFilter}`} onDelete={() => setStatusFilter('todos')} color="primary" variant="outlined" />
                         )}

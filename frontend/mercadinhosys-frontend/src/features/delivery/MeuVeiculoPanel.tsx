@@ -54,7 +54,7 @@ export const MeuVeiculoPanel: React.FC<MeuVeiculoPanelProps> = ({ veiculoId, kmA
             {/* Cabecalho e Total */}
             <motion.div 
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-br from-blue-800 to-indigo-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden"
+                className="bg-linear-to-br from-blue-800 to-indigo-900 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden"
             >
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                     <Wrench className="w-24 h-24 transform rotate-12" />

@@ -125,16 +125,12 @@ class TenantQuery(_BaseQuery):
             return None
 
     def _apply_filters(self):
-        # Não reaplicar critério se a query já foi fatiada (limit/offset). O
-        # paginate() injeta limit/offset e depois chama all()/count() nas fatias;
-        # adicionar .filter() após o limit quebra (erro do SQLAlchemy). O filtro
-        # de tenant já foi aplicado na query-base antes do fatiamento.
-        if getattr(self, "_limit_clause", None) is not None or getattr(self, "_offset_clause", None) is not None:
-            return self
         model = self._model()
         if model is None:
             return self
-        q = self
+        # SQL posiciona WHERE antes de LIMIT/OFFSET. Desabilitar esta assertion
+        # permite aplicar a fronteira de tenant também em consultas já fatiadas.
+        q = self.enable_assertions(False)
         if hasattr(model, "estabelecimento_id"):
             tid = _tenant_atual()
             if tid is not None:
@@ -183,6 +179,12 @@ class TenantQuery(_BaseQuery):
 
     def paginate(self, *args, **kwargs):
         return super(TenantQuery, self._apply_filters()).paginate(*args, **kwargs)
+
+    def update(self, *args, **kwargs):
+        return super(TenantQuery, self._apply_filters()).update(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        return super(TenantQuery, self._apply_filters()).delete(*args, **kwargs)
 
 
 # query_class=TenantQuery ativa a rede de segurança de isolamento em Model.query.
@@ -270,6 +272,15 @@ class SerializableMixin:
                             rel_list.append(o.to_dict())
                     result[rel.key] = rel_list
         return result
+
+class EfiWebhookEvent(db.Model):
+    """Eventos confirmados pela Efí; chave persistente impede reprocessamento."""
+    __tablename__ = 'efi_webhook_events'
+    event_key = db.Column(db.String(64), primary_key=True)
+    charge_id = db.Column(db.String(50), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False)
+    received_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
 
 class EnderecoMixin:
     cep = db.Column(db.String(9), nullable=False)
@@ -1289,7 +1300,7 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         except: return "Sem Vendas"
 
     def get_lotes_disponiveis(self):
-        return ProdutoLote.query.filter_by(produto_id=self.id, ativo=True).filter(ProdutoLote.quantidade > 0).order_by(ProdutoLote.data_validade.asc()).all()
+        return ProdutoLote.query.filter_by(produto_id=self.id, estabelecimento_id=self.estabelecimento_id, ativo=True).filter(ProdutoLote.quantidade > 0).order_by(ProdutoLote.data_validade.asc(), ProdutoLote.id.asc()).with_for_update().all()
 
     def consumir_estoque_fifo(self, quantidade) -> List[Dict]:
         consumidos = []
@@ -1815,6 +1826,23 @@ class ContaPagar(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     fornecedor = db.relationship("Fornecedor", backref=db.backref("contas_pagar", lazy=True))
     pedido_compra = db.relationship("PedidoCompra", backref=db.backref("conta_pagar", uselist=False))
     __table_args__ = (db.Index("ix_conta_pagar_vencimento", "data_vencimento"), db.Index("ix_conta_pagar_status", "status"))
+
+class ContaPagarBaixa(db.Model, MultiTenantMixin):
+    """Histórico das novas baixas; chave opcional mantém clientes legados compatíveis."""
+    __tablename__ = 'contas_pagar_baixas'
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    conta_pagar_id = db.Column(db.Integer, db.ForeignKey('contas_pagar.id'), nullable=False, index=True)
+    despesa_id = db.Column(db.Integer, db.ForeignKey('despesas.id'), nullable=False, unique=True)
+    funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False)
+    valor = db.Column(db.Numeric(19, 4), nullable=False)
+    data_pagamento = db.Column(db.Date, nullable=False)
+    idempotency_key = db.Column(db.String(128))
+    request_hash = db.Column(db.String(64), nullable=False)
+    resposta_json = db.Column(db.JSON, nullable=False)
+    criado_em = db.Column(db.DateTime, nullable=False, default=utcnow)
+    __table_args__ = (db.UniqueConstraint('estabelecimento_id', 'idempotency_key', name='uq_baixa_tenant_key'),)
+
 
 class ContaReceber(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     __tablename__ = "contas_receber"

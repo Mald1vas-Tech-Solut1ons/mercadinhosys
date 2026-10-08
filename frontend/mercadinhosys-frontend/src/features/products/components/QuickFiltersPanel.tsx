@@ -183,7 +183,7 @@ const QuickFiltersPanel: React.FC<QuickFiltersPanelProps> = ({
                             key={filter.id}
                             onClick={() => onFilterChange(isActive ? null : filter.id)}
                             className={`
-                                p-3 rounded-lg transition-all duration-200 text-left min-w-[150px] sm:min-w-0 snap-start flex-shrink-0
+                                p-3 rounded-lg transition-all duration-200 text-left min-w-[150px] sm:min-w-0 snap-start shrink-0
                                 ${isActive ? colors.active : `${colors.bg} ${colors.text} ${colors.hover}`}
                                 ${filter.pulse && !isActive ? 'animate-pulse' : ''}
                             `}

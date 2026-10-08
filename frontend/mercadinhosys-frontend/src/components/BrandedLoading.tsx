@@ -8,7 +8,7 @@ interface BrandedLoadingProps {
 
 const BrandedLoading: React.FC<BrandedLoadingProps> = ({ message = 'Carregando inteligência...', fullScreen = false }) => {
     const containerClasses = fullScreen 
-        ? "fixed inset-0 z-[9999] bg-slate-950 flex flex-col items-center justify-center"
+        ? "fixed inset-0 z-9999 bg-slate-950 flex flex-col items-center justify-center"
         : "w-full h-full min-h-[400px] flex flex-col items-center justify-center bg-slate-950 rounded-2xl";
 
     return (

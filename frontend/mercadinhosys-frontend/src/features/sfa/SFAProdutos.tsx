@@ -93,7 +93,7 @@ export default function SFAProdutos() {
                                                 <div className="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1 tracking-wider uppercase">{produto.categoria || 'Sem categoria'}</div>
                                                 <h3 className="font-extrabold text-slate-900 dark:text-white text-base leading-tight">{produto.nome}</h3>
                                             </div>
-                                            <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center flex-shrink-0 text-slate-400 border border-slate-200 dark:border-slate-700">
+                                            <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center shrink-0 text-slate-400 border border-slate-200 dark:border-slate-700">
                                                 <Boxes className="w-6 h-6" />
                                             </div>
                                         </div>

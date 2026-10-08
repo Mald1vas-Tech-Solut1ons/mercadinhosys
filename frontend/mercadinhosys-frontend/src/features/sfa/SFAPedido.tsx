@@ -172,7 +172,7 @@ export default function SFAPedido() {
                                     </div>
                                     <p className="text-[10px] text-slate-400 mt-0.5">Mínimo: R$ {getPrecoMinimo(p).toFixed(2)}</p>
                                 </div>
-                                <Button size="sm" onClick={() => addToCart(p)} className="rounded-full w-10 h-10 p-0 flex-shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 dark:text-blue-300">
+                                <Button size="sm" onClick={() => addToCart(p)} className="rounded-full w-10 h-10 p-0 shrink-0 bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/40 dark:hover:bg-blue-800/60 dark:text-blue-300">
                                     <Plus className="w-5 h-5" />
                                 </Button>
                             </CardContent>

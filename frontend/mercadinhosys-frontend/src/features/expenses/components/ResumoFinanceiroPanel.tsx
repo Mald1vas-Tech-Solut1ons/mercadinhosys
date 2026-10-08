@@ -146,8 +146,8 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
         >
           <div className="flex items-center gap-6">
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-tr from-blue-600 to-emerald-500 blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
-              <div className="relative p-5 bg-gradient-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-200 rounded-2xl shadow-xl transform group-hover:scale-105 transition-transform">
+              <div className="absolute inset-0 bg-linear-to-tr from-blue-600 to-emerald-500 blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
+              <div className="relative p-5 bg-linear-to-br from-slate-900 to-slate-800 dark:from-white dark:to-slate-200 rounded-2xl shadow-xl transform group-hover:scale-105 transition-transform">
                 <Wallet className="w-8 h-8 text-white dark:text-slate-900" />
               </div>
             </div>
@@ -192,7 +192,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
 
               {/* Card 1: A Pagar */}
-              <div className="relative p-6 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden group">
+              <div className="relative p-6 rounded-4xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden group">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-rose-500/10 text-rose-500 rounded-xl">
                     <ArrowDownRight className="w-5 h-5" />
@@ -220,7 +220,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
               </div>
 
               {/* Card 2: Despesas Mês */}
-              <div className="relative p-6 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden group">
+              <div className="relative p-6 rounded-4xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-200/50 dark:border-slate-700/50 overflow-hidden group">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl">
                     <BadgeDollarSign className="w-5 h-5" />
@@ -243,7 +243,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
               </div>
 
               {/* Card 3: Fluxo de Caixa */}
-              <div className="relative p-6 rounded-[2rem] bg-slate-900 dark:bg-white border border-slate-800 dark:border-slate-200 overflow-hidden group">
+              <div className="relative p-6 rounded-4xl bg-slate-900 dark:bg-white border border-slate-800 dark:border-slate-200 overflow-hidden group">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 blur-[60px] rounded-full" />
                 <div className="flex items-center justify-between mb-6">
                   <div className="p-2 bg-emerald-500 text-white dark:text-white rounded-xl">
@@ -270,7 +270,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
             {/* Business Insights KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
               {/* Insight: Comprometimento */}
-              <div className="group relative p-8 rounded-[2.5rem] bg-gradient-to-br from-slate-900 to-slate-800 text-white overflow-hidden shadow-2xl">
+              <div className="group relative p-8 rounded-[2.5rem] bg-linear-to-br from-slate-900 to-slate-800 text-white overflow-hidden shadow-2xl">
                 <div className="absolute -top-10 -left-10 w-40 h-40 bg-blue-500/20 blur-[80px] rounded-full" />
                 <div className="absolute bottom-0 right-0 p-8 opacity-5">
                   <BarChart3 className="w-32 h-32" />
@@ -288,7 +288,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
 
                 <div className="relative h-3 bg-white/10 rounded-full mb-8 overflow-hidden backdrop-blur-sm border border-white/5">
                   <div
-                    className={`h-full transition-all duration-1000 shadow-[0_0_15px_rgba(59,130,246,0.5)] ${resumo.indicadores_gestao.indice_comprometimento > 80 ? 'bg-rose-500' : 'bg-gradient-to-r from-blue-600 to-cyan-400'}`}
+                    className={`h-full transition-all duration-1000 shadow-[0_0_15px_rgba(59,130,246,0.5)] ${resumo.indicadores_gestao.indice_comprometimento > 80 ? 'bg-rose-500' : 'bg-linear-to-r from-blue-600 to-cyan-400'}`}
                     style={{ width: `${Math.min(100, resumo.indicadores_gestao.indice_comprometimento)}%` }}
                   />
                 </div>
@@ -349,14 +349,14 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
             return (
               <div
                 key={idx}
-                className={`backdrop-blur-md ${style.bg} ${style.border} border rounded-[2rem] p-6 flex flex-col gap-4 shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-default relative overflow-hidden`}
+                className={`backdrop-blur-md ${style.bg} ${style.border} border rounded-4xl p-6 flex flex-col gap-4 shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-default relative overflow-hidden`}
               >
                 <div className={`absolute top-0 right-0 w-2 h-full ${style.accent}`} />
                 <div className="flex items-center justify-between">
                   <div className={`p-3 rounded-2xl ${style.bg}`}>
                     <Icon className={`w-5 h-5 ${style.icon}`} />
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.1em] ${style.accent} text-white`}>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${style.accent} text-white`}>
                     {alerta.severidade}
                   </span>
                 </div>

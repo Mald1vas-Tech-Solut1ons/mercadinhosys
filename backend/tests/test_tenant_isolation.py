@@ -15,7 +15,7 @@ from decimal import Decimal
 from flask import g
 
 from app import db
-from app.models import Estabelecimento, Produto, CategoriaProduto
+from app.models import Estabelecimento, Produto, CategoriaProduto, Funcionario
 
 
 import random as _random
@@ -176,9 +176,12 @@ def test_before_request_permite_token_valido(client, session):
 # faturamento) de todos os tenants. Depois: admin de loja vê só a própria;
 # super admin (nível SaaS) continua vendo todas.
 # ---------------------------------------------------------------------------
-def test_listar_estabelecimentos_admin_loja_ve_so_a_propria(client, dois_tenants):
+def test_listar_estabelecimentos_admin_loja_ve_so_a_propria(client, dois_tenants, session):
     from flask_jwt_extended import create_access_token
     a, b = dois_tenants
+    user = session.query(Funcionario).first()
+    user.estabelecimento_id = a.id
+    session.commit()
     token = create_access_token(
         identity="1",
         additional_claims={"estabelecimento_id": a.id, "role": "admin", "is_super_admin": False},
@@ -193,9 +196,12 @@ def test_listar_estabelecimentos_admin_loja_ve_so_a_propria(client, dois_tenants
     )
 
 
-def test_listar_estabelecimentos_super_admin_ve_todas(client, dois_tenants):
+def test_listar_estabelecimentos_super_admin_ve_todas(client, dois_tenants, session):
     from flask_jwt_extended import create_access_token
     a, b = dois_tenants
+    user = session.query(Funcionario).first()
+    user.is_super_admin = True
+    session.commit()
     token = create_access_token(
         identity="1",
         additional_claims={"role": "admin", "is_super_admin": True},
@@ -259,6 +265,10 @@ def test_super_admin_espelho_permite_leitura(client, session):
     from flask_jwt_extended import create_access_token
     from app.models import Estabelecimento
     estab = session.query(Estabelecimento).first()
+    from app.models import Funcionario
+    admin = session.query(Funcionario).first()
+    admin.is_super_admin = True
+    session.commit()
     token = create_access_token(identity="1", additional_claims={"is_super_admin": True})
     resp = client.get(
         "/api/produtos/",

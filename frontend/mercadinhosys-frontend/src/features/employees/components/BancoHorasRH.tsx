@@ -103,7 +103,7 @@ export default function BancoHorasRH() {
 
       {/* KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-blue-50 dark:bg-blue-500/10 rounded-2xl">
               <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -114,7 +114,7 @@ export default function BancoHorasRH() {
             </div>
           </div>
         </div>
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl">
               <TrendingUp className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
@@ -125,7 +125,7 @@ export default function BancoHorasRH() {
             </div>
           </div>
         </div>
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
           <div className="flex items-center gap-4">
             <div className="p-4 bg-rose-50 dark:bg-rose-500/10 rounded-2xl">
               <TrendingDown className="w-6 h-6 text-rose-600 dark:text-rose-400" />
@@ -136,7 +136,7 @@ export default function BancoHorasRH() {
             </div>
           </div>
         </div>
-        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6">
           <div className="flex items-center gap-4">
             <div className={`p-4 rounded-2xl ${saldoGeral >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-rose-50 dark:bg-rose-500/10'}`}>
               <Clock className={`w-6 h-6 ${saldoGeral >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} />
@@ -155,7 +155,7 @@ export default function BancoHorasRH() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Filtros Container */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 sticky top-6">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 sticky top-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
                 <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -195,7 +195,7 @@ export default function BancoHorasRH() {
         </div>
 
         {/* Tabela */}
-        <div className="lg:col-span-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 overflow-hidden relative">
+        <div className="lg:col-span-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 overflow-hidden relative">
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">

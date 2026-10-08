@@ -1,14 +1,14 @@
 import time
 from flask import Blueprint, jsonify, request, current_app
-from flask_jwt_extended import get_jwt
+from flask_jwt_extended import get_jwt, get_jwt_identity
 from app import db
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import plan_required
 from app.utils.query_helpers import get_authorized_establishment_id
 from app.services.consultor.quota import verificar_quota_consultor, verificar_quota_insight
-from app.services.consultor.contextos import obter_contexto
 from app.utils.llm_client import gerar_resposta, llm_disponivel
-from app.models import ConsultorInteracao
+from app.models import ConsultorInteracao, Funcionario
+from app.services.consultor.rag import recuperar_evidencias, mensagens_rag
 
 # Importando os builders
 from app.services.consultor.contextos import financeiro, vendas, estoque, rh, compras, geral, clientes, auditoria
@@ -39,9 +39,29 @@ SYSTEM_PROMPTS = {
     "geral": "Você é o Consultor M-IA Master do MercadinhoSys. REGRAS CRÍTICAS: 1. NUNCA seja enfadonho ou repetitivo. 2. PROIBIDO usar clichês de IA (ex: 'Além disso', 'É importante notar que', 'Em resumo'). 3. Fale como um parceiro de negócios informal e humano. 4. Vá DIRETO aos números cruciais e dê no máximo 3 insights rápidos e práticos em tópicos curtos."
 }
 
-def formatar_contexto_para_prompt(context_dict: dict) -> str:
-    import json
-    return json.dumps(context_dict, indent=2, ensure_ascii=False)
+def _pode_consultar(role, especialista):
+    if role in ('admin', 'gerente'):
+        return True
+    if role == 'rh':
+        return especialista == 'rh'
+    return role in ('caixa', 'estoque', 'estoquista', 'repositor', 'operador', 'funcionario', 'vendedor') and especialista in ('estoque', 'vendas')
+
+
+def _tenant_registro(tenant):
+    if tenant != 'all':
+        return tenant
+    # A visão global não é uma chave estrangeira. Usa a loja do usuário
+    # autenticado para quota e auditoria, sem depender do claim de impersonação.
+    return db.session.execute(db.select(Funcionario.estabelecimento_id).where(
+        Funcionario.id == int(get_jwt_identity())
+    )).scalar_one()
+
+
+def _recuperar(especialista, tenant, is_manager, pergunta):
+    try:
+        return recuperar_evidencias(especialista, tenant, is_manager, BUILDERS, pergunta)
+    except ValueError:
+        return {'fontes': []}
 
 
 @consultor_bp.route("/chat", methods=["POST"], strict_slashes=False)
@@ -56,15 +76,17 @@ def chat_consultor():
     if not estabelecimento_id:
         return jsonify({"success": False, "error": "Estabelecimento inválido."}), 400
 
-    if not verificar_quota_consultor(estabelecimento_id):
+    claims = get_jwt()
+    registro_est_id = _tenant_registro(estabelecimento_id)
+    if not verificar_quota_consultor(registro_est_id):
         return jsonify({"success": False, "error": "Limite diário de interações no chat excedido. Faça upgrade do seu plano."}), 429
 
     dados = request.get_json() or {}
     especialista = dados.get("especialista", "geral")
     mensagem = dados.get("mensagem")
-    provider_solicitado = dados.get("provider", "gemini")
+    provider_solicitado = 'deepseek'
 
-    if not mensagem:
+    if not isinstance(mensagem, str) or not mensagem.strip() or len(mensagem) > 4000:
         return jsonify({"success": False, "error": "Mensagem é obrigatória."}), 400
 
     if especialista not in BUILDERS:
@@ -76,9 +98,8 @@ def chat_consultor():
     role = str(claims.get('role', 'caixa')).lower()
     
     # Validação de Perfil (RBAC base)
-    allowed_roles = ['admin', 'gerente', 'caixa', 'estoquista', 'funcionario']
     
-    if role not in allowed_roles:
+    if not _pode_consultar(role, especialista):
         return jsonify({"error": "Acesso negado: Perfil não autorizado"}), 403
 
     # Define se é gestor
@@ -97,18 +118,13 @@ def chat_consultor():
     start_time = time.time()
     
     # 1. Obter contexto cacheado (passando is_manager para o cache e builder)
-    context_data = obter_contexto(especialista, estabelecimento_id, is_manager, BUILDERS[especialista])
+    context_data = _recuperar(especialista, estabelecimento_id, is_manager, mensagem)
+    if not context_data['fontes']:
+        return jsonify({'success': False, 'error': 'Não foi possível recuperar dados confiáveis da loja.'}), 503
     
     # 2. Montar prompt
     sys_prompt = SYSTEM_PROMPTS[especialista]
-    context_str = formatar_contexto_para_prompt(context_data)
-    
-    full_system_prompt = f"{sys_prompt}\n\nCONTEXTO EXATO (NÃO INVENTE DADOS):\n{context_str}"
-    
-    mensagens = [
-        {"role": "system", "content": full_system_prompt},
-        {"role": "user", "content": str(mensagem)}
-    ]
+    mensagens = mensagens_rag(sys_prompt, context_data, mensagem)
     
     # 3. Chamar LLM
     resposta_texto = gerar_resposta(mensagens, provider=provider_solicitado)
@@ -123,7 +139,7 @@ def chat_consultor():
     funcionario_id = getattr(request, 'funcionario_id', None) 
     
     interacao = ConsultorInteracao(
-        estabelecimento_id=estabelecimento_id,
+        estabelecimento_id=registro_est_id,
         funcionario_id=funcionario_id,
         especialista=especialista,
         pergunta=str(mensagem),
@@ -138,7 +154,8 @@ def chat_consultor():
         "success": True,
         "resposta": resposta_texto,
         "interacao_id": interacao.id,
-        "duracao_ms": duracao_ms
+        "duracao_ms": duracao_ms,
+        "fontes": [s['fonte'] for s in context_data['fontes']], "provider": 'deepseek'
     }), 200
 
 
@@ -157,12 +174,20 @@ def gerar_insights():
 
     dados = request.get_json() or {}
     especialista = dados.get("especialista", "geral")
-    provider_solicitado = dados.get("provider", "gemini")
+    provider_solicitado = 'deepseek'
 
-    if not verificar_quota_insight(estabelecimento_id):
+    claims = get_jwt()
+    registro_est_id = _tenant_registro(estabelecimento_id)
+    role = str(claims.get('role', 'caixa')).lower()
+    is_manager = role in ['admin', 'gerente']
+    if especialista not in BUILDERS:
+        return jsonify({'success': False, 'error': 'Especialista desconhecido.'}), 400
+    if not _pode_consultar(role, especialista):
+        return jsonify({'success': False, 'error': 'Acesso negado para este especialista.'}), 403
+    if not verificar_quota_insight(registro_est_id):
         # Tenta buscar a última resposta gerada
         ultima = ConsultorInteracao.query.filter_by(
-            estabelecimento_id=estabelecimento_id, 
+            estabelecimento_id=registro_est_id,
             especialista=f"insight_{especialista}"
         ).order_by(ConsultorInteracao.created_at.desc()).first()
         
@@ -175,38 +200,20 @@ def gerar_insights():
             
         return jsonify({"success": False, "error": "Limite diário de atualizações de insight excedido."}), 429
 
-    if especialista not in BUILDERS:
-        return jsonify({"success": False, "error": "Especialista desconhecido."}), 400
-
-    # Extrai claims para obter is_manager
-    claims = get_jwt()
-    role = str(claims.get('role', 'caixa')).lower()
-    is_manager = role in ['admin', 'gerente']
-
     start_time = time.time()
     
     # 1. Obter contexto cacheado
-    context_data = obter_contexto(especialista, estabelecimento_id, is_manager, BUILDERS[especialista])
+    context_data = _recuperar(especialista, estabelecimento_id, is_manager, '')
+    if not context_data['fontes']:
+        return jsonify({'success': True, 'insights': None, 'aviso': 'Dados indisponíveis para análise.'}), 200
     
     # 2. Montar prompt para insight estruturado
     sys_prompt = SYSTEM_PROMPTS[especialista]
-    context_str = formatar_contexto_para_prompt(context_data)
+    mensagens = mensagens_rag(sys_prompt, context_data,
+        'Gere 3 tópicos curtos: destaque, risco e ação recomendada. Cite as fontes e os períodos. '
+        'Se não houver um destaque positivo, diga isso. Não invente números.')
     
-    full_system_prompt = (
-        f"{sys_prompt}\n\nCONTEXTO ATUAL:\n{context_str}\n\n"
-        "Com base nos dados acima, forneça exatamente 3 bullet points curtos focados no essencial:\n"
-        "1. O que está bom ou em destaque positivo.\n"
-        "2. Ponto de atenção (onde a loja está perdendo dinheiro ou correndo risco).\n"
-        "3. Ação imediata recomendada.\n"
-        "Seja direto e prático. Use no máximo 2 frases por ponto."
-    )
-    
-    mensagens = [
-        {"role": "system", "content": full_system_prompt},
-        {"role": "user", "content": "Gere os insights agora."}
-    ]
-    
-    resposta_texto = gerar_resposta(mensagens, provider=provider_solicitado)
+    resposta_texto = gerar_resposta(mensagens, provider=provider_solicitado, max_tokens=512)
     duracao_ms = int((time.time() - start_time) * 1000)
     
     if not resposta_texto:
@@ -215,7 +222,7 @@ def gerar_insights():
     # Registro de auditoria do insight gerado (Marcamos especialista como insight_...)
     funcionario_id = getattr(request, 'funcionario_id', None)
     interacao = ConsultorInteracao(
-        estabelecimento_id=estabelecimento_id,
+        estabelecimento_id=registro_est_id,
         funcionario_id=funcionario_id,
         especialista=f"insight_{especialista}",
         pergunta="Gere os insights agora.",
@@ -229,5 +236,6 @@ def gerar_insights():
     return jsonify({
         "success": True,
         "insights": resposta_texto,
-        "duracao_ms": duracao_ms
+        "duracao_ms": duracao_ms,
+        "fontes": [s['fonte'] for s in context_data['fontes']], "provider": 'deepseek'
     }), 200

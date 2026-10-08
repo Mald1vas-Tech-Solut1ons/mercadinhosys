@@ -42,7 +42,7 @@ const PinDialog = ({ open, title = 'Autorização necessária', description, onS
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">

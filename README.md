@@ -35,10 +35,16 @@
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat-square&logo=sqlite&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
-![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=white)
+![Oracle](https://img.shields.io/badge/Oracle_OCI-F80000?style=flat-square&logo=oracle&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
 
 </div>
+
+## Hospedagem atual
+
+Frontend na Vercel; API e PostgreSQL na Oracle OCI. Consulte
+[instalação, seed, acessos e backup](infra/oracle/DEMO.md) e
+[Consultor M-IA com RAG](infra/oracle/IA-RAG.md).
 
 ---
 

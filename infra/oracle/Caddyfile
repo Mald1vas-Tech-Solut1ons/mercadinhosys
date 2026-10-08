@@ -1,0 +1,9 @@
+mercadinhosys-api.144.22.151.18.sslip.io {
+    encode gzip
+    handle /api/* {
+        reverse_proxy backend:5000
+    }
+    handle {
+        respond "MercadinhoSys API" 200
+    }
+}

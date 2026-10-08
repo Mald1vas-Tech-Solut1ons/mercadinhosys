@@ -548,7 +548,7 @@ const SuppliersPage: React.FC = () => {
                 {/* Total de Fornecedores */}
                 <div
                     onClick={() => handleCardClick('all')}
-                    className={`bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterStatus === 'all' ? 'ring-4 ring-blue-300 ring-offset-2' : ''
+                    className={`bg-linear-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterStatus === 'all' ? 'ring-4 ring-blue-300 ring-offset-2' : ''
                         }`}
                 >
                     <div className="flex items-center justify-between mb-2">
@@ -567,7 +567,7 @@ const SuppliersPage: React.FC = () => {
                 {/* Fornecedores Ativos */}
                 <div
                     onClick={() => handleCardClick('active')}
-                    className={`bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterStatus === 'active' ? 'ring-4 ring-green-300 ring-offset-2' : ''
+                    className={`bg-linear-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterStatus === 'active' ? 'ring-4 ring-green-300 ring-offset-2' : ''
                         }`}
                 >
                     <div className="flex items-center justify-between mb-2">
@@ -588,7 +588,7 @@ const SuppliersPage: React.FC = () => {
                 {/* Fornecedores Inativos */}
                 <div
                     onClick={() => handleCardClick('inactive')}
-                    className={`bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterStatus === 'inactive' ? 'ring-4 ring-red-300 ring-offset-2' : ''
+                    className={`bg-linear-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterStatus === 'inactive' ? 'ring-4 ring-red-300 ring-offset-2' : ''
                         } ${stats.inativos > 0 ? 'animate-pulse' : ''}`}
                 >
                     <div className="flex items-center justify-between mb-2">
@@ -609,7 +609,7 @@ const SuppliersPage: React.FC = () => {
                 {/* Fornecedores Com Produtos */}
                 <div
                     onClick={() => handleCardClick('com_produtos')}
-                    className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterProdutos === 'com' ? 'ring-4 ring-purple-300 ring-offset-2' : ''
+                    className={`bg-linear-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white cursor-pointer hover:shadow-2xl hover:scale-105 transition-all duration-200 ${filterProdutos === 'com' ? 'ring-4 ring-purple-300 ring-offset-2' : ''
                         }`}
                 >
                     <div className="flex items-center justify-between mb-2">
@@ -632,7 +632,7 @@ const SuppliersPage: React.FC = () => {
 
                 {/* Top Fornecedor */}
                 <div
-                    className="bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl shadow-lg p-6 text-white"
+                    className="bg-linear-to-br from-yellow-500 to-orange-600 rounded-xl shadow-lg p-6 text-white"
                 >
                     <div className="flex items-center justify-between mb-2">
                         <TrendingUp className="w-8 h-8 opacity-80" />
@@ -687,7 +687,7 @@ const SuppliersPage: React.FC = () => {
                         >
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                                         <Truck className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
@@ -866,7 +866,7 @@ const SuppliersPage: React.FC = () => {
 
             {/* Modal de Cadastro/Edição */}
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -1070,9 +1070,9 @@ const SuppliersPage: React.FC = () => {
 
             {/* Modal de Produtos do Fornecedor */}
             {showProdutosModal && fornecedorSelecionado && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90dvh] overflow-hidden flex flex-col">
-                        <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 flex items-center justify-between">
+                        <div className="sticky top-0 bg-linear-to-r from-blue-500 to-blue-600 px-6 py-4 flex items-center justify-between">
                             <div>
                                 <h2 className="text-2xl font-bold text-white">
                                     Produtos de {fornecedorSelecionado.nome}

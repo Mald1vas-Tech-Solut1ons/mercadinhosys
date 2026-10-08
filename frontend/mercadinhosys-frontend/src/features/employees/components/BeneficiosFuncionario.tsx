@@ -121,7 +121,7 @@ export default function BeneficiosFuncionario() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Filtros */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 sticky top-6">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 sticky top-6">
             <div className="space-y-5">
               <div>
                 <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Funcionário</label>
@@ -153,7 +153,7 @@ export default function BeneficiosFuncionario() {
         </div>
 
         {/* Lista de Benefícios */}
-        <div className="lg:col-span-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 overflow-hidden relative">
+        <div className="lg:col-span-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 overflow-hidden relative">
           {loading ? (
             <div className="flex justify-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -231,7 +231,7 @@ export default function BeneficiosFuncionario() {
 
       {/* Modal */}
       {modalAberto && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-gray-100 dark:border-gray-700 animate-in fade-in zoom-in-95 duration-200">
             <div className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-800 px-6 py-5">
               <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Novo Benefício</h2>

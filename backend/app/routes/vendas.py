@@ -772,7 +772,7 @@ def criar_venda():
             )
             return jsonify({"error": "Estabelecimento inválido no token de autenticação."}), 401
         data = request.get_json()
-        if not data or not data.get("items"):
+        if not isinstance(data, dict) or not data.get("items"):
             return jsonify({"error": "Dados inválidos ou carrinho vazio"}), 400
 
         try:
@@ -800,11 +800,33 @@ def criar_venda():
             valor_recebido = float(data.get("cashReceived", total))
             pagamentos_data = [{"forma": forma, "valor": valor_recebido}]
 
-        total_pago = sum(float(p.get("valor", 0)) for p in pagamentos_data)
+        from app.utils.sale_validation import validate_sale
+        try:
+            subtotal, desconto, total = validate_sale(data, pagamentos_data)
+        except ValueError as error:
+            return jsonify({"error": str(error)}), 400
+        total_pago = sum(Decimal(str(p['valor'])) for p in pagamentos_data)
+        from app.utils.checkout_locking import lock_checkout, validate_credit
+        try:
+            locked_client = lock_checkout(estabelecimento_id, claims.get('sub'), data['items'], cliente_id, data.get('offline_uuid'))
+            if data.get('offline_uuid'):
+                previous = Venda.query.filter_by(estabelecimento_id=estabelecimento_id, offline_uuid=data['offline_uuid']).first()
+                if previous:
+                    return jsonify({'success': True, 'idempotente': True, 'venda': previous.to_dict()}), 200
+            validate_credit(locked_client, pagamentos_data)
+            from app.utils.checkout_locking import validate_pricing
+            validate_pricing(request.current_user, data['items'], desconto, estabelecimento_id)
+        except (ValueError, TypeError) as error:
+            db.session.rollback()
+            return jsonify({'error': str(error)}), 400
         if total_pago < total:
             return jsonify({"error": f"Valor total pago (R$ {total_pago:.2f}) é menor que o total da venda (R$ {total:.2f})"}), 400
 
         tem_restrito = any((p.get("forma_pagamento") or p.get("forma")) in ["fiado", "vale_alimentacao", "vale_refeicao"] for p in pagamentos_data)
+        if cliente_id and not Cliente.query.filter_by(id=cliente_id, estabelecimento_id=estabelecimento_id).first():
+            return jsonify({"error": "Cliente não encontrado neste estabelecimento"}), 404
+        if any(p['forma'] == 'fiado' for p in pagamentos_data) and not cliente_id:
+            return jsonify({"error": "Vendas no fiado exigem um cliente cadastrado"}), 400
         is_saas_admin = claims.get("is_super_admin", False)
         
         # O Admin logado acessa tudo na fase de teste
@@ -848,7 +870,7 @@ def criar_venda():
                 estabelecimento_id=estabelecimento_id,
                 codigo=codigo_venda,
                 cliente_id=cliente_id,
-                funcionario_id=data.get("funcionario_id", claims.get("sub", 1)),
+                funcionario_id=claims["sub"],
                 caixa_id=caixa_aberto.id if caixa_aberto else None,
                 subtotal=subtotal,
                 desconto=desconto,
@@ -875,6 +897,8 @@ def criar_venda():
                 produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=nova_venda.estabelecimento_id).with_for_update().first()
                 if not produto:
                     raise Exception(f"Produto {produto_id} não encontrado neste estabelecimento")
+                if not produto.ativo or produto.deleted_at is not None:
+                    raise Exception("Produto inativo")
                 
                 if float(produto.quantidade or 0) < quantidade:
                     raise Exception(f"Estoque insuficiente para {produto.nome}")
@@ -899,7 +923,8 @@ def criar_venda():
 
                 # Atualizar Produto
                 qtd_anterior = float(produto.quantidade or 0)
-                produto.quantidade = qtd_anterior - quantidade
+                from app.utils.checkout_locking import consume_lots
+                lot_trace = consume_lots(produto, quantidade)
                 produto.quantidade_vendida = float(produto.quantidade_vendida or 0) + quantidade
                 produto.total_vendido = float(produto.total_vendido or 0) + total_item
                 produto.ultima_venda = datetime.now(timezone.utc)
@@ -913,15 +938,17 @@ def criar_venda():
                     quantidade_anterior=qtd_anterior,
                     quantidade_atual=float(produto.quantidade),
                     motivo=f"Venda #{nova_venda.codigo}",
+                    observacoes=lot_trace,
                     venda_id=nova_venda.id,
                     funcionario_id=nova_venda.funcionario_id,
                 )
                 db.session.add(mov_estoque)
 
             # 3. Processar Pagamentos (Multi-Tender)
+            troco_pendente = max(0, total_pago - total)
             for pgto in pagamentos_data:
                 forma = (pgto.get("forma_pagamento") or pgto.get("forma") or "dinheiro").lower()
-                valor_p = float(pgto.get("valor") or 0)
+                valor_p = Decimal(str(pgto['valor']))
                 
                 pagamento = Pagamento(
                     venda_id=nova_venda.id,
@@ -939,7 +966,7 @@ def criar_venda():
                 db.session.add(pagamento)
 
                 # Fluxo de Caixa Centralizado
-                if caixa_aberto:
+                if caixa_aberto and forma != "fiado":
                     mov_caixa = MovimentacaoCaixa(
                         caixa_id=caixa_aberto.id,
                         estabelecimento_id=nova_venda.estabelecimento_id,
@@ -953,7 +980,11 @@ def criar_venda():
                     
                     # O saldo_atual da GAVETA física só contabiliza dinheiro
                     if forma == "dinheiro":
-                        caixa_aberto.saldo_atual = float(caixa_aberto.saldo_atual or 0) + valor_p
+                        abatimento = min(valor_p, troco_pendente)
+                        valor_liquido = valor_p - abatimento
+                        troco_pendente -= abatimento
+                        mov_caixa.valor = valor_liquido
+                        caixa_aberto.saldo_atual = Decimal(str(caixa_aberto.saldo_atual or 0)) + valor_liquido
 
                 # Lógica de Fiado (Contas a Receber)
                 if forma == "fiado" and nova_venda.cliente_id:
@@ -978,7 +1009,7 @@ def criar_venda():
                     )
                     db.session.add(conta)
                     if hasattr(nova_venda.cliente, 'saldo_devedor'):
-                        nova_venda.cliente.saldo_devedor = float(nova_venda.cliente.saldo_devedor or 0) + valor_p
+                        nova_venda.cliente.saldo_devedor = Decimal(str(nova_venda.cliente.saldo_devedor or 0)) + valor_p
 
             db.session.commit()
             return jsonify({
@@ -1164,12 +1195,12 @@ def cancelar_venda(venda_id):
         estabelecimento_id = get_authorized_establishment_id()
         data = request.get_json() or {}
         motivo = data.get("motivo", "Cancelamento solicitado pelo usuário")
-        funcionario_id = data.get("funcionario_id", 1)
+        funcionario_id = get_jwt().get('sub')
 
         query = Venda.query.filter_by(id=venda_id)
         if str(estabelecimento_id).lower() != 'all':
             query = query.filter_by(estabelecimento_id=estabelecimento_id)
-        venda = query.options(db.joinedload(Venda.itens)).first_or_404()
+        venda = query.populate_existing().with_for_update().first_or_404()
         if venda.status == "cancelada":
             return jsonify({"error": "Esta venda já está cancelada"}), 400
 
@@ -1187,9 +1218,10 @@ def cancelar_venda(venda_id):
             candidatos = Funcionario.query.filter(
                 Funcionario.estabelecimento_id == estabelecimento_id,
                 Funcionario.pin_cancelamento.isnot(None),
-                Funcionario.nivel_acesso <= 2,
+                Funcionario.ativo == True,
             ).all()
-            autorizador = next((f for f in candidatos if f.check_pin(pin_cancelamento)), None)
+            from app.decorators.rbac import nivel_do_role
+            autorizador = next((f for f in candidatos if nivel_do_role(f.role) <= 2 and f.check_pin(pin_cancelamento)), None)
             if not autorizador:
                 return jsonify({"error": "PIN inválido ou sem permissão para cancelar"}), 403
         elif senha_admin:
@@ -1201,11 +1233,16 @@ def cancelar_venda(venda_id):
                 autorizador = Funcionario.query.filter_by(id=claims.get("sub"), estabelecimento_id=estabelecimento_id).first()
             if not autorizador or not check_password_hash(autorizador.senha or "", senha_admin):
                 return jsonify({"error": "Senha do administrador incorreta"}), 403
-            if (autorizador.nivel_acesso or 99) > 2:
+            from app.decorators.rbac import nivel_do_role
+            if nivel_do_role(autorizador.role) > 2:
                 return jsonify({"error": "Usuário sem permissão para cancelar vendas"}), 403
         else:
             # Sem credencial válida o cancelamento é bloqueado (fecha o furo de segurança).
             return jsonify({"error": "Autorização obrigatória: informe o PIN de cancelamento"}), 403
+
+        from app.utils.auth_utils import is_user_active
+        if not autorizador.ativo or autorizador.deleted_at is not None or not is_user_active(autorizador.status):
+            return jsonify({'error': 'Autorizador inativo'}), 403
 
         # Permitir cancelamento de vendas até 7 dias atrás
         dias_venda = (datetime.now() - venda.created_at.replace(tzinfo=None)).days if venda.created_at else 0
@@ -1214,11 +1251,15 @@ def cancelar_venda(venda_id):
 
         db.session.begin_nested()
         try:
+            from app.utils.checkout_locking import lock_checkout, restore_lots
+            lock_checkout(venda.estabelecimento_id, venda.funcionario_id,
+                          [{'productId': item.produto_id} for item in venda.itens], venda.cliente_id)
             for item in venda.itens:
                 produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estabelecimento_id).first()
                 if produto:
                     qtd_anterior = float(produto.quantidade or 0)
                     produto.quantidade = qtd_anterior + float(item.quantidade)
+                    restore_lots(venda.id, produto)
                     # Reverter denormalizações do produto — sem isso, giro/curva
                     # ABC/ranking de mais vendidos ficavam inflados por vendas
                     # que na verdade foram desfeitas.
@@ -1260,12 +1301,21 @@ def cancelar_venda(venda_id):
             for pag in Pagamento.query.filter_by(venda_id=venda.id).all():
                 pag.status = "estornado"
 
-            conta = ContaReceber.query.filter_by(venda_id=venda.id, status="aberto").first()
-            if conta:
+            from app.models import Caixa, MovimentacaoCaixa
+            for original in MovimentacaoCaixa.query.filter_by(venda_id=venda.id, tipo='venda').all():
+                cashbox = Caixa.query.filter_by(id=original.caixa_id, estabelecimento_id=venda.estabelecimento_id).with_for_update().first()
+                db.session.add(MovimentacaoCaixa(estabelecimento_id=venda.estabelecimento_id, caixa_id=original.caixa_id,
+                    venda_id=venda.id, tipo='estorno', forma_pagamento=original.forma_pagamento, valor=original.valor,
+                    descricao=f'Estorno da venda {venda.codigo}'))
+                if cashbox and original.forma_pagamento == 'dinheiro':
+                    cashbox.saldo_atual = Decimal(str(cashbox.saldo_atual or 0)) - Decimal(str(original.valor))
+
+            contas = ContaReceber.query.filter_by(venda_id=venda.id, status="aberto").with_for_update().all()
+            for conta in contas:
                 conta.status = "cancelado"
                 if cliente:
                     cliente.saldo_devedor = max(
-                        0, float(cliente.saldo_devedor or 0) - float(conta.valor_atual or 0)
+                        Decimal(0), Decimal(str(cliente.saldo_devedor or 0)) - Decimal(str(conta.valor_atual or 0))
                     )
 
             venda.status = "cancelada"

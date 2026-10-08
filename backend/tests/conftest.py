@@ -2,13 +2,25 @@ import pytest
 import os
 import random
 import string
+from urllib.parse import urlparse
 from datetime import date
 from decimal import Decimal
 
 # Patch environment BEFORE anything else
-os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+audit_database = os.environ.get('AUDIT_DATABASE_URL', 'sqlite:///:memory:')
+if audit_database != 'sqlite:///:memory:':
+    parsed_audit = urlparse(audit_database)
+    if parsed_audit.scheme != 'postgresql' or not parsed_audit.path.startswith('/audit_security_'):
+        raise RuntimeError('Testes destrutivos exigem banco PostgreSQL audit_security_* isolado')
+os.environ["DATABASE_URL"] = audit_database
 os.environ["AIVEN_DATABASE_URL"] = ""
 os.environ["POSTGRES_URL"] = ""
+os.environ["DATABASE_URL_TARGET"] = ""
+os.environ["DB_PRIMARY"] = ""
+os.environ["MAIN_DATABASE_URL"] = ""
+os.environ["MULTI_TENANT_MODE"] = "false"
+os.environ["REDIS_URL"] = os.environ.get('AUDIT_REDIS_URL', '')
+os.environ["SYNC_ENABLED"] = "false"
 os.environ["FLASK_ENV"] = "simulation" # Bypass CNPJ/CPF strict validation
 os.environ["SKIP_DB_SETUP"] = "true"
 
@@ -23,7 +35,7 @@ def app():
     app = create_app('testing')
     app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "SQLALCHEMY_DATABASE_URI": audit_database,
         "SQLALCHEMY_TRACK_MODIFICATIONS": False,
         "JWT_SECRET_KEY": "industrial-secret-test"
     })
@@ -40,6 +52,11 @@ def client(app):
 @pytest.fixture(scope='function')
 def session(app):
     with app.app_context():
+        # O app context de sessão conserva g entre testes; nunca reutilizar o
+        # tenant/claims definidos por um request ou teste anterior.
+        from flask import g
+        for key in list(g):
+            g.pop(key, None)
         # Complete clean state
         from app import cache
         cache.clear()
@@ -93,3 +110,6 @@ def session(app):
 
         db.session.commit()
         yield db.session
+        db.session.remove()
+        for key in list(g):
+            g.pop(key, None)

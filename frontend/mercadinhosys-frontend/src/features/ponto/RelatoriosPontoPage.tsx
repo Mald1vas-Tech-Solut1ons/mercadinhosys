@@ -102,7 +102,7 @@ const RelatoriosPontoPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-6">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-50 p-4 md:p-6">
       {/* HEADER */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3 mb-2">
@@ -204,22 +204,22 @@ const RelatoriosPontoPage: React.FC = () => {
         <div id="relatorio-container" className="space-y-6">
           {/* KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white">
+            <div className="bg-linear-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white">
               <p className="text-sm opacity-90 font-semibold">Taxa de Presença</p>
               <p className="text-4xl font-bold mt-1">94%</p>
               <p className="text-sm mt-2 opacity-90">28 de 30 dias</p>
             </div>
-            <div className="bg-gradient-to-br from-red-500 to-orange-600 rounded-2xl p-6 text-white">
+            <div className="bg-linear-to-br from-red-500 to-orange-600 rounded-2xl p-6 text-white">
               <p className="text-sm opacity-90 font-semibold">Total de Atrasos</p>
               <p className="text-4xl font-bold mt-1">2</p>
               <p className="text-sm mt-2 opacity-90">15 minutos no total</p>
             </div>
-            <div className="bg-gradient-to-br from-blue-500 to-cyan-600 rounded-2xl p-6 text-white">
+            <div className="bg-linear-to-br from-blue-500 to-cyan-600 rounded-2xl p-6 text-white">
               <p className="text-sm opacity-90 font-semibold">Funcionários Ativos</p>
               <p className="text-4xl font-bold mt-1">3</p>
               <p className="text-sm mt-2 opacity-90">Registrados no sistema</p>
             </div>
-            <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white">
+            <div className="bg-linear-to-br from-purple-500 to-pink-600 rounded-2xl p-6 text-white">
               <p className="text-sm opacity-90 font-semibold">Registros Totais</p>
               <p className="text-4xl font-bold mt-1">84</p>
               <p className="text-sm mt-2 opacity-90">No período</p>
@@ -286,7 +286,7 @@ const RelatoriosPontoPage: React.FC = () => {
         <div id="relatorio-container" className="space-y-6">
           <div className="bg-white rounded-2xl shadow-xl p-6">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-16 h-16 bg-linear-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
                 {funcionarios.find(f => f.id === funcionarioSelecionado)?.nome[0]}
               </div>
               <div>

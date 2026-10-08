@@ -182,7 +182,7 @@ const DownloadPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 py-12 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
@@ -236,7 +236,7 @@ const DownloadPage: React.FC = () => {
               <div className="space-y-3 mb-6">
                 {plano.features.map((feature, index) => (
                   <div key={index} className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
                     <span className="text-gray-700">{feature}</span>
                   </div>
                 ))}

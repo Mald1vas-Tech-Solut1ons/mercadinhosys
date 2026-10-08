@@ -172,7 +172,7 @@ export default function PontoHistoricoRH() {
         </button>
       </div>
 
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 lg:p-8">
+      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 p-6 lg:p-8">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 rounded-lg">
             <Filter className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -253,7 +253,7 @@ export default function PontoHistoricoRH() {
         </div>
       </div>
 
-      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-[2rem] shadow-sm border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
+      <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-4xl shadow-sm border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="text-center">

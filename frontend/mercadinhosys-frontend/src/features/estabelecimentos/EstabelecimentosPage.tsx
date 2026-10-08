@@ -78,11 +78,11 @@ const EstabelecimentoCard: React.FC<{
     <div className="relative group rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700/60 bg-white dark:bg-gray-800/60 backdrop-blur-sm shadow-md hover:shadow-xl hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300">
         {/* Header com gradiente */}
         <div className={`px-5 pt-5 pb-4 ${est.ativo
-            ? 'bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-500'
-            : 'bg-gradient-to-r from-gray-500 to-gray-600'}`}>
+            ? 'bg-linear-to-r from-blue-600 via-blue-500 to-indigo-500'
+            : 'bg-linear-to-r from-gray-500 to-gray-600'}`}>
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
+                    <div className="w-11 h-11 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center shrink-0">
                         <Store size={20} className="text-white" />
                     </div>
                     <div>
@@ -128,29 +128,29 @@ const EstabelecimentoCard: React.FC<{
         {/* Informações de contato e endereço */}
         <div className="px-5 pb-5 space-y-2 border-t border-gray-100 dark:border-gray-700/50 pt-4">
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+                <MapPin size={13} className="text-gray-400 shrink-0" />
                 <span className="truncate">{est.logradouro}, {est.numero} — {est.bairro}, {est.cidade}/{est.estado}</span>
             </div>
             {est.telefone && (
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Phone size={13} className="text-gray-400 flex-shrink-0" />
+                    <Phone size={13} className="text-gray-400 shrink-0" />
                     <span>{est.telefone}</span>
                 </div>
             )}
             {est.email && (
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Mail size={13} className="text-gray-400 flex-shrink-0" />
+                    <Mail size={13} className="text-gray-400 shrink-0" />
                     <span className="truncate">{est.email}</span>
                 </div>
             )}
             {est.cnpj && (
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                    <Building2 size={13} className="text-gray-400 flex-shrink-0" />
+                    <Building2 size={13} className="text-gray-400 shrink-0" />
                     <span>CNPJ: {est.cnpj}</span>
                 </div>
             )}
             <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                <Calendar size={13} className="text-gray-400 flex-shrink-0" />
+                <Calendar size={13} className="text-gray-400 shrink-0" />
                 <span>
                     Abertura: {formatDate(est.data_abertura)}
                     {est.ultima_venda && ` · Última venda: ${formatDate(est.ultima_venda)}`}
@@ -292,15 +292,15 @@ const EstabelecimentosPage: React.FC = () => {
             {/* Sumário */}
             {!loading && !error && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20">
+                    <div className="p-4 rounded-2xl bg-linear-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/20">
                         <p className="text-blue-100 text-xs font-medium uppercase tracking-wider">Total de Unidades</p>
                         <p className="text-3xl font-bold mt-1">{estabelecimentos.length}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-green-600/20">
+                    <div className="p-4 rounded-2xl bg-linear-to-br from-emerald-500 to-green-600 text-white shadow-lg shadow-green-600/20">
                         <p className="text-green-100 text-xs font-medium uppercase tracking-wider">Unidades Ativas</p>
                         <p className="text-3xl font-bold mt-1">{ativos}</p>
                     </div>
-                    <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-600 to-violet-600 text-white shadow-lg shadow-purple-600/20">
+                    <div className="p-4 rounded-2xl bg-linear-to-br from-purple-600 to-violet-600 text-white shadow-lg shadow-purple-600/20">
                         <p className="text-purple-100 text-xs font-medium uppercase tracking-wider">Faturamento Consolidado</p>
                         <p className="text-2xl font-bold mt-1">{formatCurrency(faturamentoTotal)}</p>
                     </div>
@@ -318,7 +318,7 @@ const EstabelecimentosPage: React.FC = () => {
             {/* Erro */}
             {error && !loading && (
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400">
-                    <AlertCircle size={18} className="flex-shrink-0" />
+                    <AlertCircle size={18} className="shrink-0" />
                     <p className="text-sm font-medium">{error}</p>
                 </div>
             )}

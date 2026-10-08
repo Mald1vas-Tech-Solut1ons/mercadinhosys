@@ -169,7 +169,7 @@ const TourExecutivo: React.FC = () => {
     const currentStep = steps[stepIndex];
 
     return (
-        <div className="fixed inset-0 z-[10000] pointer-events-none">
+        <div className="fixed inset-0 z-10000 pointer-events-none">
             {/* Overlay escuro */}
             <div className="absolute inset-0 bg-black/60 pointer-events-auto" onClick={handleClose} />
             

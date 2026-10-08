@@ -66,7 +66,7 @@ export default function SFAClientes() {
 
             <Button 
                 onClick={() => navigate('/sfa/clientes/novo')}
-                className="w-full h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg shadow-lg shadow-blue-500/25 mb-8 transform transition hover:-translate-y-0.5"
+                className="w-full h-14 rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-lg shadow-lg shadow-blue-500/25 mb-8 transform transition hover:-translate-y-0.5"
             >
                 <UserPlus className="w-5 h-5 mr-2" />
                 Novo Cliente na Rota
@@ -88,7 +88,7 @@ export default function SFAClientes() {
                         <Card key={cliente.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-slate-200/60 dark:border-slate-800/60 rounded-3xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-lg cursor-pointer" onClick={() => navigate('/sfa/pedido', { state: { cliente } })}>
                             <CardContent className="p-0">
                                 <div className="p-5 flex items-start gap-4">
-                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center flex-shrink-0 shadow-inner">
+                                    <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center shrink-0 shadow-inner">
                                         <UserCircle className="w-8 h-8 text-slate-500 dark:text-slate-400" />
                                     </div>
                                     <div className="flex-1 min-w-0">

@@ -1,3 +1,4 @@
+import { ProtectedDocumentLink } from '@/components/common/ProtectedDocumentLink';
 import { useState, useEffect } from 'react';
 import { Clock, FileText, Upload, CheckCircle2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertCircle, Paperclip, Download, Sparkles } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
@@ -184,9 +185,9 @@ export default function MeuRH() {
             {/* Retrospectiva (Wrapped) — destaque premium */}
             <button
                 onClick={() => setWrappedAberto(true)}
-                className="group relative w-full overflow-hidden rounded-2xl p-[2px] bg-gradient-to-r from-fuchsia-500 via-purple-500 to-indigo-500 shadow-lg shadow-purple-500/20 text-left"
+                className="group relative w-full overflow-hidden rounded-2xl p-[2px] bg-linear-to-r from-fuchsia-500 via-purple-500 to-indigo-500 shadow-lg shadow-purple-500/20 text-left"
             >
-                <div className="rounded-2xl bg-gradient-to-r from-fuchsia-600 via-purple-600 to-indigo-700 px-6 py-5 flex items-center justify-between">
+                <div className="rounded-2xl bg-linear-to-r from-fuchsia-600 via-purple-600 to-indigo-700 px-6 py-5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="p-3 rounded-2xl bg-white/20 backdrop-blur text-white group-hover:scale-110 transition-transform">
                             <Sparkles className="w-6 h-6" />
@@ -382,9 +383,9 @@ export default function MeuRH() {
                                     <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{j.tipo === 'atraso' ? 'Atraso' : 'Ausência'} — {new Date(j.data).toLocaleDateString('pt-BR')}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">{j.motivo}</p>
                                     {j.documento_url && (
-                                        <a href={j.documento_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                                        <ProtectedDocumentLink url={j.documento_url} className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
                                             <Download className="w-3.5 h-3.5" /> Ver anexo
-                                        </a>
+                                        </ProtectedDocumentLink>
                                     )}
                                 </div>
                                 <span className={`px-2.5 py-1 text-xs font-bold rounded-md whitespace-nowrap ${j.status === 'pendente' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400' : j.status === 'aprovado' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'}`}>

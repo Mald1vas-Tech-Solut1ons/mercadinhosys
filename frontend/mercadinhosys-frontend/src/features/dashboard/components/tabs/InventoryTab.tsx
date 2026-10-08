@@ -138,7 +138,7 @@ export default function InventoryTab({ data }: InventoryTabProps) {
         {/* Header ABC */}
         <div className="p-6 border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/90 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-             <div className="p-3 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/20">
+             <div className="p-3 bg-linear-to-br from-indigo-400 to-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/20">
                <ChartBar className="w-6 h-6 text-gray-900 dark:text-white" />
              </div>
              <div>

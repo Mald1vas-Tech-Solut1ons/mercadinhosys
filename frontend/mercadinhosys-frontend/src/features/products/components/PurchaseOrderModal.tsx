@@ -294,10 +294,10 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-0 sm:p-4">
-      <div className="bg-white dark:bg-gray-800 sm:rounded-xl shadow-2xl w-full max-w-6xl h-full sm:h-auto max-h-[100dvh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-200 p-0 sm:p-4">
+      <div className="bg-white dark:bg-gray-800 sm:rounded-xl shadow-2xl w-full max-w-6xl h-full sm:h-auto max-h-dvh sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 shrink-0" style={{ paddingTop: 'max(1.5rem, env(safe-area-inset-top))' }}>
           <div className="flex items-center gap-3">
             <Package className="w-6 h-6 text-blue-600" />
             <h2 className="text-xl font-bold text-gray-800 dark:text-white">
@@ -420,7 +420,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                   type="button"
                   onClick={() => setScannerAberto(true)}
                   title="Escanear código de barras"
-                  className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow flex-shrink-0"
+                  className="p-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow shrink-0"
                 >
                   <Camera className="w-5 h-5" />
                 </button>
@@ -467,7 +467,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
               {eanNaoEncontrado && (
                 <div className="mt-2 p-3 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <Barcode className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                    <Barcode className="w-5 h-5 text-amber-600 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
                         EAN {eanNaoEncontrado} não está no seu catálogo
@@ -481,7 +481,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                     type="button"
                     onClick={() => cadastrarViaCosmos(eanNaoEncontrado)}
                     disabled={buscandoCosmos}
-                    className="flex-shrink-0 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold flex items-center gap-2 disabled:opacity-60"
+                    className="shrink-0 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-bold flex items-center gap-2 disabled:opacity-60"
                   >
                     {buscandoCosmos ? <Loader2 className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
                     {buscandoCosmos ? 'Consultando...' : 'Buscar na COSMOS'}
@@ -625,7 +625,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
           </div>
 
           {/* Footer — não encolhe e respeita a safe-area p/ os botões nunca ficarem sob a barra */}
-          <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0" style={{ paddingBottom: 'max(1.5rem, calc(1rem + env(safe-area-inset-bottom)))' }}>
+          <div className="flex justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700 shrink-0" style={{ paddingBottom: 'max(1.5rem, calc(1rem + env(safe-area-inset-bottom)))' }}>
             <button
               type="button"
               onClick={handleClose}

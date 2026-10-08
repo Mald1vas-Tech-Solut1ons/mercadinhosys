@@ -1,3 +1,4 @@
+import { ProtectedDocumentLink } from '@/components/common/ProtectedDocumentLink';
 import { useState, useEffect } from 'react';
 import { Upload, Download, AlertCircle, CheckCircle, Clock, Filter, ThumbsUp, ThumbsDown, X } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
@@ -272,10 +273,10 @@ export default function JustificativasRH() {
                       <td className="px-5 py-4 text-gray-600 dark:text-gray-400 max-w-xs truncate" title={j.motivo}>{j.motivo}</td>
                       <td className="px-5 py-4">
                         {j.documento_url ? (
-                          <a href={j.documento_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-md font-bold text-xs uppercase tracking-wider transition-colors">
+                          <ProtectedDocumentLink url={j.documento_url} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-md font-bold text-xs uppercase tracking-wider transition-colors">
                             <Download className="w-3.5 h-3.5" />
                             Abrir
-                          </a>
+                          </ProtectedDocumentLink>
                         ) : (
                           <span className="text-gray-400 dark:text-gray-600 italic text-xs">Sem anexo</span>
                         )}
@@ -328,7 +329,7 @@ export default function JustificativasRH() {
       {/* Modal */}
       {/* Modal Nova Justificativa */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
             <div className="p-6 border-b border-gray-100 dark:border-gray-700/80 flex items-center justify-between">
               <h3 className="text-xl font-black text-gray-900 dark:text-white">Nova Justificativa</h3>
@@ -417,7 +418,7 @@ export default function JustificativasRH() {
       )}
       {/* Modal Responder Justificativa */}
       {modalRespostaAberto && justificativaSelecionada && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
             <div className={`p-6 border-b flex items-center justify-between ${acaoResposta === 'aprovar' ? 'bg-emerald-50/50 dark:bg-emerald-500/5 border-emerald-100 dark:border-emerald-500/10' : 'bg-rose-50/50 dark:bg-rose-500/5 border-rose-100 dark:border-rose-500/10'}`}>
               <h3 className={`text-lg font-black ${acaoResposta === 'aprovar' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>

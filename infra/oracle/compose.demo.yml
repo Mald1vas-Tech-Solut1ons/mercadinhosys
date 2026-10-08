@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mercadinhosys
+      POSTGRES_USER: mercadinho_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Configure DB_PASSWORD}
+    command: [postgres, -c, shared_buffers=64MB, -c, work_mem=2MB, -c, max_connections=25]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U mercadinho_user -d mercadinhosys"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [redis-server, --maxmemory, 24mb, --maxmemory-policy, noeviction]
+    mem_limit: 64m
+    logging: *logging
+
+  backend:
+    build:
+      context: ../../backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: [gunicorn, run:app, --bind, "0.0.0.0:5000", --workers, "1", --threads, "4", --timeout, "120", --max-requests, "300", --max-requests-jitter, "60", --worker-tmp-dir, /dev/shm, --access-logfile, "-", --error-logfile, "-"]
+    environment:
+      FLASK_APP: run:app
+      FLASK_ENV: production
+      FLASK_DEBUG: "0"
+      SKIP_DB_SETUP: "true"
+      SKIP_SCHEMA_SYNC: "true"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      DATABASE_URL: postgresql://mercadinho_user:${DB_PASSWORD:?Configure DB_PASSWORD}@postgres:5432/mercadinhosys?sslmode=disable
+      SECRET_KEY: ${SECRET_KEY:?Configure SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Configure JWT_SECRET_KEY}
+      DEEPSEEK_API: ${DEEPSEEK_API:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+      DEEPSEEK_MAX_TOKENS: ${DEEPSEEK_MAX_TOKENS:-1024}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      EFI_CLIENT_ID_HOMOL: ${EFI_CLIENT_ID_HOMOL:-}
+      EFI_CLIENT_SECRET_HOMOL: ${EFI_CLIENT_SECRET_HOMOL:-}
+      EFI_CLIENT_ID_PROD: ${EFI_CLIENT_ID_PROD:-}
+      EFI_CLIENT_SECRET_PROD: ${EFI_CLIENT_SECRET_PROD:-}
+      EFI_CERT_HOMOL: /app/certs/homologacao.p12
+      EFI_CERT_PROD: /app/certs/producao.p12
+      EFI_PIX_KEY: ${EFI_PIX_KEY:-}
+      EFI_ENV: ${EFI_ENV:-sandbox}
+      BACKEND_URL: https://mercadinhosys-api.144.22.151.18.sslip.io
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:?Configure CORS_ORIGINS}
+      DB_POOL_SIZE: "2"
+      DB_MAX_OVERFLOW: "1"
+      SYNC_ENABLED: "false"
+      SYNC_AUTO_PUSH: "false"
+      RATELIMIT_STORAGE_URI: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      HYBRID_MODE: online
+    volumes:
+      - uploads:/app/uploads
+      - instance:/app/instance
+      - backups:/app/backups
+      - ./certs:/app/certs:ro
+    ports:
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    mem_limit: 512m
+    logging: *logging
+
+volumes:
+  postgres_data:
+  uploads:
+  instance:
+  backups:

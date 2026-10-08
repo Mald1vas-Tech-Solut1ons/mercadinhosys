@@ -164,19 +164,19 @@ const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ open, clien
                 <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4">Resumo Estatístico</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 
-                    <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl p-6 text-center flex flex-col justify-center shadow-sm">
+                    <div className="bg-linear-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl p-6 text-center flex flex-col justify-center shadow-sm">
                         <span className="text-3xl lg:text-4xl font-black text-indigo-600 dark:text-indigo-400 mb-2 truncate">{cliente.total_compras ?? 0}</span>
                         <span className="text-[10px] sm:text-xs font-bold text-indigo-900/60 dark:text-indigo-200/60 uppercase tracking-widest">Total Compras</span>
                     </div>
 
-                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl p-6 text-center flex flex-col justify-center shadow-sm overflow-hidden">
+                    <div className="bg-linear-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-2xl p-6 text-center flex flex-col justify-center shadow-sm overflow-hidden">
                         <span className="text-xl sm:text-lg md:text-xl lg:text-3xl font-black text-emerald-600 dark:text-emerald-400 mb-2 truncate tracking-tight">
                             R$ {cliente.valor_total_gasto ? Number(cliente.valor_total_gasto).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'}
                         </span>
                         <span className="text-[10px] sm:text-xs font-bold text-emerald-900/60 dark:text-emerald-200/60 uppercase tracking-widest truncate">Valor Gasto</span>
                     </div>
 
-                    <div className={`bg-gradient-to-br border rounded-2xl p-6 text-center flex flex-col justify-center shadow-sm overflow-hidden ${
+                    <div className={`bg-linear-to-br border rounded-2xl p-6 text-center flex flex-col justify-center shadow-sm overflow-hidden ${
                         (cliente.saldo_devedor ?? 0) > 0 
                             ? 'from-rose-50 to-red-50 dark:from-rose-900/20 dark:to-red-900/20 border-rose-200 dark:border-rose-800/50' 
                             : 'from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border-emerald-200 dark:border-emerald-800/50'

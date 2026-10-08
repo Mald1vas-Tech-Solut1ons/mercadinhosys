@@ -93,7 +93,7 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
         : '—';
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90dvh]">
 
                 {/* Header do modal */}
@@ -253,7 +253,7 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
                 {/* Footer com botões — sempre visível (mesmo em erro/carregando) para que o
                     usuário nunca fique preso na tela do comprovante em conexões instáveis. */}
                 <div
-                    className="px-4 py-3 border-t border-slate-100 flex gap-2 flex-shrink-0"
+                    className="px-4 py-3 border-t border-slate-100 flex gap-2 shrink-0"
                     style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
                 >
                     <button

@@ -712,7 +712,7 @@ const ProductsPage: React.FC = () => {
       />
 
       {showStockModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-200 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-bold">Ajustar Estoque</h3>
@@ -843,7 +843,7 @@ const ProductsPage: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 p-4 border-t dark:border-gray-700 flex-shrink-0" style={{ paddingBottom: 'max(1rem, calc(0.5rem + env(safe-area-inset-bottom)))' }}>
+            <div className="flex justify-end gap-2 p-4 border-t dark:border-gray-700 shrink-0" style={{ paddingBottom: 'max(1rem, calc(0.5rem + env(safe-area-inset-bottom)))' }}>
               <button onClick={() => setShowStockModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
               <button onClick={handleStockAdjust} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Confirmar</button>
             </div>
@@ -852,7 +852,7 @@ const ProductsPage: React.FC = () => {
       )}
 
       {showDiscardModal && selectedProduct && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-150 p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
           <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between p-6 border-b dark:border-slate-800 bg-rose-50/50 dark:bg-rose-900/10">
               <div className="flex items-center gap-3">
@@ -955,7 +955,7 @@ const ProductsPage: React.FC = () => {
       )}
 
       {showMarkupCalculator && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-200 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-bold flex items-center gap-2"><Calculator className="w-5 h-5" />Calculadora de Markup</h3>

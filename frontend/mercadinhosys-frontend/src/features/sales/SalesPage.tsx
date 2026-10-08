@@ -78,7 +78,7 @@ function Kpi({ titulo, valor, sub, Icon, cor }: { titulo: string; valor: string;
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400 leading-tight">{titulo}</p>
             </div>
             <div>
-                <p className="text-xl lg:text-xl xl:text-3xl font-black text-slate-900 dark:text-white tabular-nums break-words leading-none">{valor}</p>
+                <p className="text-xl lg:text-xl xl:text-3xl font-black text-slate-900 dark:text-white tabular-nums wrap-break-word leading-none">{valor}</p>
                 {sub && <p className="mt-2 text-xs font-medium text-slate-500">{sub}</p>}
             </div>
         </div>
@@ -95,7 +95,7 @@ function InsightCard({ Icon, cor, titulo, valor, desc }: { Icon: React.ElementTy
                 <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 leading-tight">{titulo}</p>
             </div>
             <div>
-                <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white break-words leading-tight">{valor}</p>
+                <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white wrap-break-word leading-tight">{valor}</p>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">{desc}</p>
             </div>
         </div>
@@ -567,7 +567,7 @@ export default function SalesPage() {
 
             {/* Modal detalhe */}
             {detalhe && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && setDetalhe(null)}>
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && setDetalhe(null)}>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
                             <div><h3 className="font-black text-slate-900 dark:text-white">Venda {detalhe.codigo}</h3><p className="text-xs text-slate-500 flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDateTime(detalhe.data_venda || detalhe.created_at)}</p></div>
@@ -600,7 +600,7 @@ export default function SalesPage() {
 
             {/* Modal cancelar/estornar */}
             {cancelar && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && !cancelando && setCancelar(null)}>
+                <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && !cancelando && setCancelar(null)}>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden my-auto">
                         <div className="flex items-start gap-3 px-6 pt-6">
                             <div className="w-11 h-11 rounded-xl bg-error-50 text-error-600 dark:bg-error-900/20 flex items-center justify-center shrink-0"><AlertTriangle className="w-6 h-6" /></div>

@@ -21,12 +21,12 @@ const MirrorReadOnlyBanner: React.FC = () => {
     return (
         <div className="flex items-center justify-between gap-3 px-4 py-2 bg-amber-500 text-amber-950 text-xs sm:text-sm font-semibold shadow-sm">
             <span className="flex items-center gap-2 min-w-0">
-                <Eye className="w-4 h-4 flex-shrink-0" />
+                <Eye className="w-4 h-4 shrink-0" />
                 <span className="truncate">Modo espelho (super admin) — visualizando a loja #{selectedTenantId} em <b>somente leitura</b>.</span>
             </span>
             <button
                 onClick={() => { setSelectedTenantId('all'); window.location.reload(); }}
-                className="flex-shrink-0 px-3 py-1 rounded-lg bg-amber-950/90 text-amber-50 hover:bg-amber-950 transition-colors"
+                className="shrink-0 px-3 py-1 rounded-lg bg-amber-950/90 text-amber-50 hover:bg-amber-950 transition-colors"
             >
                 Sair do espelho
             </button>

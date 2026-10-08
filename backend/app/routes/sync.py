@@ -9,6 +9,7 @@ from datetime import datetime
 import json
 from flask_jwt_extended import get_jwt_identity, get_jwt
 from app.decorators.decorator_jwt import gerente_ou_admin_required
+from app.decorators.rbac import super_admin_required
 from app.models import (
     db,
     Estabelecimento,
@@ -63,7 +64,7 @@ def _upsert(session, model, data, pk_field="id"):
 
 
 @sync_bp.route("/api/sync/replicar", methods=["POST"])
-@gerente_ou_admin_required
+@super_admin_required
 def replicar_para_neon():
     """
     Sincroniza local -> Aiven usando o motor BULK (force_sync): execute_values

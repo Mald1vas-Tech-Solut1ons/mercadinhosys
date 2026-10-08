@@ -116,7 +116,7 @@ const HoleriteModal = ({ isOpen, onClose, holerite }: HoleriteModalProps) => {
                 {/* Cabeçalho */}
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b-2 border-gray-200 dark:border-gray-800 pb-5 gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center font-black text-3xl text-white shadow-lg">MS</div>
+                        <div className="w-16 h-16 bg-linear-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center font-black text-3xl text-white shadow-lg">MS</div>
                         <div>
                             <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-none">{estabelecimento?.razao_social || 'MercadinhoSys'}</h2>
                             <p className="text-xs text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest mt-1">Contracheque · {periodo}</p>

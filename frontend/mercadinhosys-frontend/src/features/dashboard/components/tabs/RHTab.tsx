@@ -1,3 +1,4 @@
+import { ProtectedDocumentLink } from '@/components/common/ProtectedDocumentLink';
 import { useState } from 'react';
 import { Users, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/formatters';
@@ -141,12 +142,11 @@ export default function RHTab({ data, onRefresh }: RHTabProps) {
                         <td className="p-4 text-gray-500 dark:text-slate-400">{new Date(just.data).toLocaleDateString('pt-BR')}</td>
                         <td className="p-4 text-center flex items-center justify-center gap-2">
                           {just.documento_url && (
-                            <button 
-                              onClick={() => window.open(`http://localhost:5000${just.documento_url}`, '_blank')}
+                            <ProtectedDocumentLink url={just.documento_url}
                               className="px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 rounded-md transition-colors font-semibold text-xs"
                             >
                               Ver Documento
-                            </button>
+                            </ProtectedDocumentLink>
                           )}
                           <button 
                             onClick={() => handleApprove(just.id)}

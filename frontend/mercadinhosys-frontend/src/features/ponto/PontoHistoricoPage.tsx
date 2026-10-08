@@ -170,7 +170,7 @@ const PontoHistoricoPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4 md:p-6">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-50 p-4 md:p-6">
       {/* HEADER */}
       <div className="mb-8">
         <button
@@ -409,9 +409,9 @@ const PontoHistoricoPage: React.FC = () => {
 
       {/* MODAL */}
       {registroSelecionado && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-[100] flex items-center justify-center p-2 sm:p-4 overflow-y-auto" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-100 flex items-center justify-center p-2 sm:p-4 overflow-y-auto" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden my-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-white">
+            <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-white">
               <div className="flex-1">
                 <h3 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
                   <User className="w-5 sm:w-6 h-5 sm:h-6" />
@@ -423,7 +423,7 @@ const PontoHistoricoPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setRegistroSelecionado(null)}
-                className="flex-shrink-0 p-2 hover:bg-white/20 rounded-lg transition ml-2"
+                className="shrink-0 p-2 hover:bg-white/20 rounded-lg transition ml-2"
               >
                 <X className="w-5 sm:w-6 h-5 sm:h-6" />
               </button>
@@ -547,7 +547,7 @@ const PontoHistoricoPage: React.FC = () => {
       {/* MODAL DE FOTO EXPANDIDA */}
       {fotoExpandida && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-[100] flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 bg-black bg-opacity-90 z-100 flex items-center justify-center p-2 sm:p-4"
           style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
           onClick={() => setFotoExpandida(null)}
         >

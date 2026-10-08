@@ -102,6 +102,19 @@ O recebimento de fiado converte o valor com `float()` e não rejeita `NaN` (`cli
 | D-13 | Nota do fornecedor com n=1, gravada em GET | P2 | lido |
 | D-14 | Vale-transporte sem teto legal | P2 | lido |
 
+## Resolução dos defeitos (atualizado em 08/10/2026)
+
+Todos os 14 foram corrigidos e cobertos por teste (detalhes e limites em `EXECUCAO_SPRINTS_DISTRIBUIDORA.md`). **D-02 não foi reproduzido em PostgreSQL**: a correção (Decimal, valor finito, travas) elimina a classe de falha, mas a prova em PostgreSQL fica para o CI.
+
+| ID | Estado |
+|---|---|
+| D-01 a D-14 | Corrigidos |
+| Busca de vendas cartesiana (vazamento entre lojas) | Achado novo, corrigido |
+| Vendedor com acesso à base inteira de clientes | Achado novo, corrigido (escopo de carteira) |
+| Cadastro de cliente pelo app do vendedor | Achado novo, corrigido |
+
+As etapas 1, 2 e 5 do roteiro abaixo estão entregues; a 6 está parcial (folha e NFC-e; falta NF-e modelo 55).
+
 ## Roteiro para migrar (substitui o anterior)
 
 | Etapa | Entrega | Por quê nesta ordem |

@@ -53,15 +53,10 @@ def create_app(config_name=None):
     load_dotenv()
     
     # 1. MONITORAMENTO (SENTRY)
-    # DSN do projeto. Pode ser sobrescrito pela env SENTRY_DSN (ideal: um projeto
-    # Python dedicado). Se a env não existir, usamos um fallback embutido que SÓ
-    # ativa em produção (Render) — assim o dev/local não envia erros de teste.
-    _FALLBACK_SENTRY_DSN = (
-        "https://322d96621010f0403946446be4460662"
-        "@o4511655329923072.ingest.us.sentry.io/4511655345192960"
-    )
-    _is_prod_env = config_name == "production" or bool(os.getenv("RENDER"))
-    sentry_dsn = os.getenv("SENTRY_DSN") or (_FALLBACK_SENTRY_DSN if _is_prod_env else None)
+    # DSN ausente preserva o destino de produção; DSN explicitamente vazio
+    # desativa envio, inclusive quando o ensaio usa configuração production.
+    from app.utils.sentry_config import resolve_sentry_dsn
+    sentry_dsn = resolve_sentry_dsn(config_name)
     if sentry_dsn and sentry_sdk and FlaskIntegration:
         # Sample rates configuráveis por env. 1.0 (100%) em produção é caro e
         # estoura a cota do plano gratuito — default conservador de 10%.

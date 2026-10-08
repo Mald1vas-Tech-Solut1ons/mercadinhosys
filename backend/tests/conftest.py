@@ -23,6 +23,8 @@ os.environ["REDIS_URL"] = os.environ.get('AUDIT_REDIS_URL', '')
 os.environ["SYNC_ENABLED"] = "false"
 os.environ["FLASK_ENV"] = "simulation" # Bypass CNPJ/CPF strict validation
 os.environ["SKIP_DB_SETUP"] = "true"
+os.environ["SENTRY_DSN"] = ""
+os.environ["SENTRY_ENVIRONMENT"] = "testing"
 
 from app import create_app, db
 from app.models import Estabelecimento, Funcionario, Configuracao

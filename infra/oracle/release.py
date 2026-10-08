@@ -197,7 +197,8 @@ def stage():
             summary = output.decode(errors='replace').strip().splitlines()[-1]
         print('POSTGRES_TESTS ' + summary, flush=True)
         dump = docker('exec', PG, 'pg_dump', '-U', USER, '--no-owner', '--no-acl', 'mercadinhosys')
-        docker('exec', '-i', PG, 'psql', '-U', USER, '-d', databases[1], '-v', 'ON_ERROR_STOP=1', data=dump)
+        docker('exec', '-i', PG, 'psql', '-U', USER, '-d', databases[1], '-v', 'ON_ERROR_STOP=1',
+               '--single-transaction', '-f', '-', data=dump)
         before = counts(databases[1])
         environment(databases[1])
         run('flask', 'db', 'upgrade')

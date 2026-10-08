@@ -32,3 +32,9 @@ Os sete aceites ERP pendentes da auditoria anterior continuam pendentes. Este do
 Correção inicial: 27 regressões de fornecedores aprovadas. Validação conjunta: **61 passed** (fornecedores, Sentry, contratos do smoke e isolamento). Testes adicionais cobrem o dossiê e negação de leitura entre lojas. Logs locais privados em `scratch/git-review/sentry-regression-*.log`.
 
 CI PostgreSQL e publicação desta correção serão registrados abaixo após a execução efetiva.
+
+## Defeito adicional bloqueado pelo ensaio com dados preenchidos
+
+O primeiro ensaio da correção interrompeu a publicação ao receber HTTP 500 em `/fornecedores/<id>/pedidos`. O relacionamento `PedidoCompra.itens` é uma lista ORM; `.count()` sem argumento era inválido. O teste anterior não tinha pedidos e não executava a serialização. Agora a contagem usa `len`, relações de itens/funcionário são carregadas em lote e existem casos positivos com pedido de R$ 40 e dois itens nos modos global, espelho e tenant. O smoke compara pedidos, valores e quantidade de itens com SQL independente e salva logs privados do container antes de removê-lo. A versão defeituosa permaneceu fora do deploy.
+
+O detalhe do fornecedor também omitia títulos com status `parcial`, embora ainda tivessem saldo devedor. O saldo desses títulos agora compõe `total_contas_abertas` e `valor_total_devido`, com regressões de R$ 40 menos R$ 10 pagos = R$ 30 devidos nos três modos de acesso. Não foi alterado o histórico ou saldo armazenado; foi corrigida sua apresentação.

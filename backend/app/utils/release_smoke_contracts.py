@@ -37,3 +37,23 @@ def validate_products(body, tenant=None):
             raise RuntimeError("Produto sem estabelecimento numérico")
         if tenant is not None and row["estabelecimento_id"] != tenant:
             raise RuntimeError("Produto de outro estabelecimento")
+
+
+def validate_orders(body, expected):
+    require_success(body)
+    rows = body.get("pedidos")
+    if not isinstance(rows, list) or type(body.get("total")) is not int or body["total"] != len(expected):
+        raise RuntimeError("Contrato ou total de pedidos divergiu do banco")
+    by_id = {row["id"]: row for row in expected}
+    seen = set()
+    for row in rows:
+        original = by_id.get(row.get("id")) if isinstance(row, dict) else None
+        if original is None or row["id"] in seen:
+            raise RuntimeError("Pedido fora do escopo ou duplicado")
+        if type(row.get("quantidade_itens")) is not int or row["quantidade_itens"] != original["quantidade_itens"]:
+            raise RuntimeError("Contagem de itens do pedido divergente")
+        if row.get("total") != original["total"]:
+            raise RuntimeError("Valor do pedido divergente")
+        seen.add(row["id"])
+    if len(rows) != min(20, len(expected)):
+        raise RuntimeError("Página de pedidos incompleta")

@@ -30,3 +30,15 @@ def test_valid_supplier_contract_passes():
 def test_cross_tenant_product_fails_smoke():
     with pytest.raises(RuntimeError):
         contracts.validate_products({"success": True, "produtos": [{"estabelecimento_id": 3}]}, tenant=2)
+
+
+@pytest.mark.parametrize("item_count", [None, True, 0])
+def test_invalid_order_item_count_fails_smoke(item_count):
+    row = {"id": 1, "quantidade_itens": 2, "total": 40}
+    with pytest.raises(RuntimeError):
+        contracts.validate_orders({"success": True, "total": 1, "pedidos": [{**row, "quantidade_itens": item_count}]}, [row])
+
+
+def test_valid_order_contract_passes():
+    row = {"id": 1, "quantidade_itens": 2, "total": 40}
+    contracts.validate_orders({"success": True, "total": 1, "pedidos": [row]}, [row])

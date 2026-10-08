@@ -36,6 +36,7 @@ _spec.loader.exec_module(_contracts)
 require_success = _contracts.require_success
 validate_products = _contracts.validate_products
 validate_suppliers = _contracts.validate_suppliers
+validate_orders = _contracts.validate_orders
 IMAGE = 'mercadinhosys-backend:' + args.release
 LOG = ROOT / (args.action + '.log')
 PG = 'oracle-postgres-1'
@@ -107,6 +108,8 @@ def smoke(base, database='mercadinhosys', strict=True):
     # Metadados e contagens, sem conteúdo pessoal. SQL não é copiado para os logs.
     sql = "SELECT COALESCE(json_agg(json_build_object('id',f.id,'estabelecimento_id',f.estabelecimento_id,'produtos_ativos',(SELECT count(*) FROM produtos p WHERE p.fornecedor_id=f.id AND p.estabelecimento_id=f.estabelecimento_id AND p.ativo=true AND p.deleted_at IS NULL))), '[]'::json) FROM fornecedores f WHERE f.deleted_at IS NULL"
     expected_all = json.loads(docker('exec', PG, 'psql', '-U', USER, '-d', database, '-tAc', sql))
+    order_sql = "SELECT COALESCE(json_agg(json_build_object('id',p.id,'fornecedor_id',p.fornecedor_id,'estabelecimento_id',p.estabelecimento_id,'total',p.total,'quantidade_itens',(SELECT count(*) FROM pedido_compra_itens i WHERE i.pedido_id=p.id))), '[]'::json) FROM pedidos_compra p"
+    expected_orders = json.loads(docker('exec', PG, 'psql', '-U', USER, '-d', database, '-tAc', order_sql))
     checked = []
     for tenant in [None, 2, 3]:
         expected = expected_all if tenant is None else [r for r in expected_all if r['estabelecimento_id'] == tenant]
@@ -123,7 +126,8 @@ def smoke(base, database='mercadinhosys', strict=True):
             require_success(detail)
             if detail.get('fornecedor', {}).get('estabelecimento_id') != first['estabelecimento_id'] or detail.get('metricas', {}).get('total_produtos') != first['produtos_ativos']:
                 raise RuntimeError('Detalhe de fornecedor divergiu do banco')
-            require_success(request(base, '/fornecedores/' + str(first['id']) + '/pedidos', token=token, scope=tenant))
+            orders = [r for r in expected_orders if r['fornecedor_id'] == first['id'] and r['estabelecimento_id'] == first['estabelecimento_id']]
+            validate_orders(request(base, '/fornecedores/' + str(first['id']) + '/pedidos', token=token, scope=tenant), orders)
         for path in ['/produtos/', '/produtos/?busca=agua']:
             validate_products(request(base, path, token=token, scope=tenant), tenant)
     print(json.dumps({'smoke_ok': True, 'level': 'contracts-scope-db', 'supplier_scopes': checked,
@@ -216,6 +220,10 @@ def stage():
         print(json.dumps(result), flush=True)
     finally:
         if stage_started:
+            try:
+                docker('logs', CONTAINER)
+            except RuntimeError:
+                pass
             docker('rm', '-f', CONTAINER)
         for database in created:
             docker('exec', PG, 'dropdb', '-U', USER, '--if-exists', database)

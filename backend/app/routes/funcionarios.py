@@ -19,6 +19,17 @@ funcionarios_bp = Blueprint("funcionarios", __name__, url_prefix="/api/funcionar
 # explicitamente (ver access_control.py: SELF_SERVICE_EXEMPT_PATHS).
 
 
+def _dependentes(valor) -> int:
+    """Número de dependentes para o IRRF: inteiro de 0 a 20."""
+    try:
+        numero = int(valor or 0)
+    except (TypeError, ValueError):
+        raise ValueError("Número de dependentes inválido")
+    if numero < 0 or numero > 20:
+        raise ValueError("Número de dependentes deve ficar entre 0 e 20")
+    return numero
+
+
 @funcionarios_bp.route("/me/holerite", methods=["GET"])
 @funcionario_required
 def meu_holerite():
@@ -262,6 +273,7 @@ def listar_funcionarios():
                 "email": f.email,
                 "cargo": f.cargo,
                 "salario": float(f.salario_base) if f.salario_base else None,
+                "numero_dependentes": int(f.numero_dependentes or 0),
                 "data_admissao": (
                     f.data_admissao.isoformat() if f.data_admissao else None
                 ),
@@ -950,6 +962,7 @@ def detalhes_funcionario(id):
             ),
             "cargo": funcionario.cargo,
             "salario": float(funcionario.salario_base) if funcionario.salario_base else None,
+            "numero_dependentes": int(funcionario.numero_dependentes or 0),
             "data_admissao": (
                 funcionario.data_admissao.isoformat()
                 if funcionario.data_admissao
@@ -1101,6 +1114,11 @@ def criar_funcionario():
             )
 
         # Criar funcionário
+        try:
+            dependentes = _dependentes(data.get("numero_dependentes"))
+        except ValueError as ve:
+            return jsonify({"success": False, "error": str(ve)}), 400
+
         novo_funcionario = Funcionario(
             estabelecimento_id=estabelecimento_id,
             nome=data["nome"],
@@ -1129,6 +1147,7 @@ def criar_funcionario():
             
             cargo=data.get("cargo", "Atendente"),
             salario_base=float(data.get("salario", 0)),
+            numero_dependentes=dependentes,
             data_admissao=(
                 datetime.strptime(data["data_admissao"], "%Y-%m-%d").date()
                 if data.get("data_admissao")
@@ -1310,6 +1329,12 @@ def atualizar_funcionario(id):
             if campo_req == "endereco" and isinstance(valor, str) and valor:
                 # Tenta colocar no logradouro se não tiver estrutura
                 funcionario.logradouro = valor
+
+        if "numero_dependentes" in data:
+            try:
+                funcionario.numero_dependentes = _dependentes(data["numero_dependentes"])
+            except ValueError as ve:
+                return jsonify({"success": False, "error": str(ve)}), 400
 
         # Manter nivel_acesso numérico sincronizado com o role
         if "role" in data or "nivel_acesso" in data:

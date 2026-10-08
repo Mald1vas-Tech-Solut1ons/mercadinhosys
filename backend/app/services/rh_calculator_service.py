@@ -33,6 +33,9 @@ def _D(v) -> Decimal:
     return Decimal(str(v if v is not None else 0))
 
 
+from app.services.tabelas_folha import calcular_irrf_mensal, parametros_folha  # noqa: E402
+
+
 def obter_config_folha(estabelecimento_id):
     """Retorna a ConfiguracaoFolha da loja, criando com defaults CLT se faltar.
     Fonte única dos parâmetros de folha — nada de valores fixos no cálculo."""
@@ -254,23 +257,30 @@ def calcular_holerite(funcionario, mes_referencia: str, config_folha=None) -> di
                   .filter(FuncionarioBeneficio.funcionario_id == funcionario.id,
                           FuncionarioBeneficio.ativo == True).all())
     tem_vt = False
+    valor_vt = Decimal(0)
     for fb in beneficios:
         nome = (fb.beneficio.nome if fb.beneficio else "Benefício")
         vencimentos.append({"descricao": nome, "referencia": "Benefício", "valor": _q2(fb.valor or 0)})
         if "transp" in nome.lower() or nome.strip().upper() in ("VT", "VALE TRANSPORTE"):
             tem_vt = True
+            valor_vt += _D(fb.valor or 0)
 
     # Descontos legais (base: salário + horas extras)
+    # Tabelas legais da competência (ou a personalizada da loja), as mesmas da rescisão.
+    parametros = parametros_folha(config_folha, mes_referencia)
     base_inss = salario + valor_he
-    inss = calcular_inss(base_inss, config_folha.inss_faixas)
-    descontos.append({"descricao": "INSS", "referencia": "tabela progressiva", "valor": _q2(inss)})
-    memoria.append(f"INSS: tabela progressiva sobre R${_q2(base_inss)} = R${_q2(inss)}")
+    inss = calcular_inss(base_inss, parametros["inss_faixas"])
+    descontos.append({"descricao": "INSS", "referencia": f"tabela {mes_referencia[:4]}", "valor": _q2(inss)})
+    memoria.append(f"INSS: tabela progressiva ({mes_referencia}) sobre R${_q2(base_inss)} = R${_q2(inss)}")
 
-    base_irrf = base_inss - inss  # dependentes: 0 (não rastreado ainda)
-    irrf = calcular_irrf(base_irrf, config_folha.irrf_faixas)
-    if irrf > 0:
-        descontos.append({"descricao": "IRRF", "referencia": "tabela progressiva", "valor": _q2(irrf)})
-        memoria.append(f"IRRF: sobre base R${_q2(base_irrf)} (após INSS) = R${_q2(irrf)}")
+    dependentes = int(getattr(funcionario, "numero_dependentes", 0) or 0)
+    ir = calcular_irrf_mensal(base_inss, inss, dependentes, parametros, calcular_irrf)
+    metodo = "desconto simplificado" if ir["usa_simplificado"] else f"INSS + {dependentes} dependente(s)"
+    memoria.append(f"IRRF: rendimento R${_q2(base_inss)} − dedução R${ir['deducao']} ({metodo}) = base R${ir['base']}; "
+                   f"tabela R${ir['imposto_tabela']}" + (f" − redução R${ir['reducao']}" if ir["reducao"] > 0 else "")
+                   + f" = R${ir['imposto']}")
+    if ir["imposto"] > 0:
+        descontos.append({"descricao": "IRRF", "referencia": "tabela progressiva", "valor": _q2(ir["imposto"])})
 
     if horas_atraso > 0:
         desc_atraso = horas_atraso * valor_hora
@@ -279,9 +289,10 @@ def calcular_holerite(funcionario, mes_referencia: str, config_folha=None) -> di
 
     pct_vt = _D(config_folha.desconto_vt_percentual)
     if tem_vt and pct_vt > 0:
-        desc_vt = salario * pct_vt / Decimal(100)
-        descontos.append({"descricao": f"Vale-transporte ({int(pct_vt)}%)", "referencia": "sobre salário", "valor": _q2(desc_vt)})
-        memoria.append(f"Desconto VT: {int(pct_vt)}% × R${_q2(salario)} = R${_q2(desc_vt)}")
+        # Teto legal: o desconto não passa do valor do próprio vale-transporte concedido.
+        desc_vt = min(salario * pct_vt / Decimal(100), valor_vt) if valor_vt > 0 else salario * pct_vt / Decimal(100)
+        descontos.append({"descricao": f"Vale-transporte ({int(pct_vt)}%)", "referencia": "sobre salário, limitado ao VT", "valor": _q2(desc_vt)})
+        memoria.append(f"Desconto VT: menor entre {int(pct_vt)}% × R${_q2(salario)} e o VT concedido (R${_q2(valor_vt)}) = R${_q2(desc_vt)}")
 
     total_venc = sum(_D(v["valor"]) for v in vencimentos)
     total_desc = sum(_D(d["valor"]) for d in descontos)
@@ -356,36 +367,6 @@ def _ultimo_aniversario(admissao: date, referencia: date) -> date:
     return max(aniv, admissao)
 
 
-def _calcular_inss(valor: Decimal) -> Decimal:
-    """Calcula o INSS pela tabela progressiva oficial da Previdência Social (2025/2026).
-    Faixa 1: até R$ 1.518,00 -> 7,5%
-    Faixa 2: R$ 1.518,01 até R$ 2.793,88 -> 9%
-    Faixa 3: R$ 2.793,89 até R$ 4.190,83 -> 12%
-    Faixa 4: R$ 4.190,84 até R$ 8.157,41 (Teto) -> 14%
-    """
-    v = float(valor)
-    if v <= 0:
-        return Decimal("0.00")
-    
-    teto = 8157.41
-    base = min(v, teto)
-    
-    inss = 0.0
-    if base > 4190.83:
-        inss += (base - 4190.83) * 0.14
-        base = 4190.83
-    if base > 2793.88:
-        inss += (base - 2793.88) * 0.12
-        base = 2793.88
-    if base > 1518.00:
-        inss += (base - 1518.00) * 0.09
-        base = 1518.00
-    if base > 0:
-        inss += base * 0.075
-
-    return Decimal(str(round(inss, 2)))
-
-
 def calcular_rescisao(funcionario, data_demissao: date, tipo_rescisao: str,
                       saldo_fgts=None, ferias_vencidas_dias: int = 0, config_folha=None,
                       aviso_cumprido: bool = False, descontos_adicionais=0.0) -> dict:
@@ -401,6 +382,7 @@ def calcular_rescisao(funcionario, data_demissao: date, tipo_rescisao: str,
 
     if config_folha is None:
         config_folha = obter_config_folha(funcionario.estabelecimento_id)
+    parametros = parametros_folha(config_folha, data_demissao.strftime("%Y-%m"))
     fgts_pct = _D(config_folha.fgts_percentual) / Decimal(100)
     multa_dispensa = _D(config_folha.multa_fgts_dispensa) / Decimal(100)
     multa_acordo = _D(config_folha.multa_fgts_acordo) / Decimal(100)
@@ -495,7 +477,7 @@ def calcular_rescisao(funcionario, data_demissao: date, tipo_rescisao: str,
     # ─── DESCONTOS LEGAIS E RETENÇÕES (CLT) ─────────────────────────────────
 
     # A) INSS sobre Saldo de Salário
-    inss_saldo = _calcular_inss(saldo_salario)
+    inss_saldo = calcular_inss(saldo_salario, parametros["inss_faixas"])
     if inss_saldo > Decimal("0.00"):
         descontos.append({"codigo": "INSS_SALARIO", "descricao": "INSS sobre saldo de salário",
                           "referencia": "Tabela progressiva", "valor": _q2(inss_saldo)})
@@ -503,7 +485,7 @@ def calcular_rescisao(funcionario, data_demissao: date, tipo_rescisao: str,
 
     # B) INSS sobre 13º Salário
     if valor_13 > Decimal("0.00"):
-        inss_13 = _calcular_inss(valor_13)
+        inss_13 = calcular_inss(valor_13, parametros["inss_faixas"])
         if inss_13 > Decimal("0.00"):
             descontos.append({"codigo": "INSS_DECIMO_TERCEIRO", "descricao": "INSS sobre 13º salário",
                               "referencia": "Tabela progressiva", "valor": _q2(inss_13)})

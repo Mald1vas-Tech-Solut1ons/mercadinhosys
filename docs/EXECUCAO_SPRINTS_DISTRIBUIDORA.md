@@ -33,7 +33,7 @@ Objetivo: impedir baixas inválidas, eliminar indicadores inventados e ter relea
 
 ## Sprint 2 — integridade de estoque, compras, venda e app do vendedor
 
-Objetivo: o mesmo saldo, custo e dinheiro em PDV, venda direta, SFA, entrega e compras. Estado geral: **implementado e testado localmente; aguardando CI PostgreSQL, ensaio em clone e publicação.**
+Objetivo: o mesmo saldo, custo e dinheiro em PDV, venda direta, SFA, entrega e compras. Estado geral: **backend publicado em produção em 08/10/2026; frontend pendente de publicação na Vercel** (ver "Publicação").
 
 | História | Comportamento anterior | Comportamento corrigido |
 |---|---|---|
@@ -51,6 +51,20 @@ Decisões de negócio tomadas na implementação (revisáveis pelo responsável)
 Testes: `test_erp_migration_audit.py` (9), `test_erp_integridade_canais.py` (22), `test_sfa_sync_custo_escala.py` (4), `test_postgres_erp_concurrency.py` (3, só PostgreSQL). Suíte local SQLite: **320 passed, 14 skipped** (skips = PostgreSQL). TypeScript: `tsc --noEmit` sem erros. Fluxo de recebimento parcial verificado no navegador com banco descartável.
 
 Limitações conhecidas: concorrência PostgreSQL não executada localmente (sem servidor/Docker); validade continua obrigatória no modelo de lote; XML de entrada ainda não se vincula ao pedido de compra.
+
+## Publicação da Sprint 2 (08/10/2026)
+
+| Item | Resultado |
+|---|---|
+| Git | Commits `228154f`, `2a4bbaf`, `6b90a47`, `bb1974b`; `origin/main` = `origin/master` = `bb1974b2423f`; PR #4 |
+| CI | Run 37729296897 aprovado: Frontend (tsc + Vite), Segurança do corte, Backend (SQLite + PostgreSQL 15) |
+| Ensaio | Clone do banco de produção: smoke autenticado nos escopos global, loja 2 e loja 3; contagens preservadas (5 estabelecimentos, 37 funcionários, 133 produtos, 2.834 vendas, 114 contas a pagar) |
+| Backend em produção | Imagem `mercadinhosys-backend:bb1974b2423f` (`sha256:49be5141…3607`), `healthy`; label de revisão confere; Alembic permanece em `f5d7b9c1e3a6` (sem migração) |
+| Backup | Dump validado em `/home/ubuntu/mercadinhosys-releases/bb1974b2423f/database-before.dump` (1,6 MB) |
+| Rollback | `python3 /home/ubuntu/mercadinhosys-releases/bb1974b2423f/infra/oracle/release.py rollback --release bb1974b2423f` (volta para `sha256:91ecc5fb…ddb4`, preserva banco) |
+| Frontend (Vercel) | **Não publicado.** O bundle no ar não contém o código novo. O projeto não tem repositório Git conectado (`linkedProjects` vazio), por isso nada publica ao dar push; o conector usado nesta sessão retorna 403 para deploy de produção |
+
+**Risco enquanto o frontend não é publicado:** a tela antiga de recebimento permite receber menos que o pedido; o pedido passa a `parcial` e a tela antiga só mostra o botão "Receber" para `pendente`. Até a publicação, não registrar recebimento parcial pela interface. O catálogo do vendedor (tela antiga) exibe custo R$ 0,00 porque o servidor passou a omitir o custo.
 
 ## Próximas histórias
 

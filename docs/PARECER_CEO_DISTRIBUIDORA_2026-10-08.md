@@ -32,7 +32,7 @@ Funciona: ponto com foto, justificativas com aprovação, banco de horas, benef�
 | **Dois INSS no mesmo módulo.** O holerite usa a tabela padrão de **2024** (`models.py:747`, IRRF em `:753`); a rescisão usa outra tabela, fixa e em `float`, com valores de **2025** (`rh_calculator_service.py:359`). Não reverifiquei as tabelas oficiais de 2026 | lido |
 | IRRF sem dependentes ("dependentes: 0, não rastreado ainda", `rh_calculator_service.py:269`) | lido |
 | Vale-transporte desconta 6% do salário sem limitar ao valor do benefício (`:282`) | lido |
-| Sem férias (gozo e pagamento), sem fechamento imutável de folha, sem eSocial, sem recrutamento | busca sem resultado |
+| **A "vida do funcionário" do prompt está pela metade.** Existe do cadastro à rescisão, mas **não existem**: contratação e admissão (documentos, exame), férias (programação, aviso, pagamento), plano de carreira e cargos e salários, avaliação de desempenho, treinamento, fechamento imutável de folha e eSocial | busca sem resultado |
 | **Rota de teste em produção** que permite ao administrador apagar os registros de ponto do dia, com as fotos (`ponto.py:1075`); o próprio comentário diz que deveria ser removida | lido |
 
 Veredito: **apoio operacional**. A folha oficial continua no sistema de folha atual.
@@ -48,6 +48,7 @@ Funciona: fornecedor, pedido, recebimento, lote com validade (FEFO), custo médi
 | Ajuste manual de estoque exige só um motivo; sem aprovação em dupla nem trilha de contagem (`produtos.py:2229`) | lido |
 | Nota do fornecedor: parte de 80 pontos, e **um único pedido no prazo já a mantém em 80 e chega a ~95 com prazo de 30 dias e 5% de desconto**, sem significado estatístico; é gravada dentro de um GET (`fornecedores.py:1604`). Ignora falta e avaria, que agora estão registradas | lido |
 | Status de entrega aceita qualquer valor; combustível a R$ 5,80 fixo | lido |
+| **Fabricação: não existe** (sem ficha técnica/lista de materiais, ordem de produção, kit ou fracionamento; "kit" é só um rótulo de unidade). Uma distribuidora que monta kits ou fraciona granel não tem como baixar os insumos e dar entrada no produto final | busca sem resultado |
 
 Veredito: **serve a operação de um depósito**; multi-depósito ainda não.
 
@@ -56,6 +57,7 @@ Veredito: **serve a operação de um depósito**; multi-depósito ainda não.
 ### Marketing
 
 - **Quatro classificações de cliente diferentes**: `rfm_service.py` (Campeões, Leais, …), `Cliente.calcular_rfm` (VIP, Premium, Final de Semana, Caçador de Promoções, …, `models.py:862`), `analise_rfm_clientes` (`relatorios.py:120`) e a classificação por valor gasto (`clientes.py:128`, faixas fixas de R$ 1.000, 5.000 e 10.000). As faixas do RFM são de varejo (R$ 50, 200, 500, 1.000).
+- **"Atrair o cliente" não tem ferramenta:** não existe portal ou catálogo online para o cliente B2B fazer o próprio pedido, nem cupom, programa de fidelidade, pontos ou cashback (o "cupom" do código é o recibo da venda). Toda venda depende do vendedor ou do balcão.
 - A mensagem de IA é escrita para "um mercadinho de bairro" (prompt fixo em `clientes.py`). Para B2B o tom e o conteúdo estão errados.
 - **Campanha não existe como processo:** o "envio" é abrir o WhatsApp cliente a cliente ou copiar até 20 mensagens (`CustomersPage.tsx`). Nada registra enviado, entregue, respondido ou convertido, e não há campo de consentimento de contato (LGPD).
 
@@ -75,7 +77,7 @@ Funciona: força de vendas offline, tabela de preço por cliente, preço mínimo
 
 ### Service (pós-venda)
 
-Existe só rastreamento de entrega e cancelamento integral de venda. **Não existem** chamado, devolução parcial de venda, troca, garantia, reembolso ou SLA. Para uma distribuidora, a reclamação por avaria é parte do contrato com o cliente.
+Existe só rastreamento de entrega e cancelamento integral de venda. **Não existem** chamado, devolução parcial de venda, troca, garantia, reembolso ou SLA. Também não há pesquisa de satisfação nem NPS, então o sistema não mede se o cliente ficou bem atendido. Para uma distribuidora, a reclamação por avaria é parte do contrato com o cliente.
 
 ## Risco de segurança financeira (precisa de prova em PostgreSQL)
 
@@ -111,6 +113,7 @@ O recebimento de fiado converte o valor com `float()` e não rejeita `NaN` (`cli
 | 5 — Números confiáveis | CMV único, DRE com impostos, fluxo projetado com contas a receber (D-06, D-07, D-12) | Decisão do CEO sai desses números |
 | 6 — Fiscal e pessoas | NF-e modelo 55; tabelas e regras de folha (D-08, D-09, D-10, D-14) | Depende do regime tributário e de especialista |
 | 7 — Escala | Depósitos, transferência, inventário, conversão caixa × unidade; plano de contas | Só pesa com mais de um depósito |
+| 8 — Ciclo completo do prompt | Portal do cliente B2B e fidelidade; pesquisa de satisfação; férias, admissão e carreira; kit e fracionamento | Fecha o que o prompt chama de ERP, HCM, SCM e CX completos |
 
 ## Decisões que só o dono pode tomar
 

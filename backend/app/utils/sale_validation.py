@@ -17,6 +17,12 @@ def number(value, label, positive=False):
 
 
 def validate_sale(data, payments, delivery_fee=0):
+    subtotal, discount, total = validate_totals(data, delivery_fee)
+    validate_payments(payments, total)
+    return subtotal, discount, total
+
+
+def validate_totals(data, delivery_fee=0):
     if not isinstance(data, dict) or not isinstance(data.get('items'), list) or not data['items']:
         raise ValueError('Carrinho inválido')
     if len(data['items']) > 1000:
@@ -42,6 +48,10 @@ def validate_sale(data, payments, delivery_fee=0):
         raise ValueError('Subtotal não corresponde aos itens')
     if discount > subtotal or abs(subtotal - discount + number(delivery_fee, 'Taxa de entrega') - total) > CENT:
         raise ValueError('Total não corresponde ao subtotal, desconto e entrega')
+    return subtotal, discount, total
+
+
+def validate_payments(payments, total):
     if not isinstance(payments, list) or not payments:
         raise ValueError('Pagamentos inválidos')
     paid = Decimal(0)
@@ -61,4 +71,4 @@ def validate_sale(data, payments, delivery_fee=0):
             cash += value
     if paid - total > cash:
         raise ValueError('Troco só pode sair do pagamento em dinheiro')
-    return subtotal, discount, total
+    return paid

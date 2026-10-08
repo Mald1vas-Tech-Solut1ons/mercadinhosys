@@ -4,7 +4,7 @@ from datetime import timezone
 # Todas as rotas originais mantidas e funcionais.
 
 from datetime import datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, Response, current_app
 from app import db
 from app.utils.timezone import fmt_local, local_date_to_utc_naive
@@ -864,7 +864,10 @@ def criar_venda():
 
         db.session.begin_nested()
         try:
-            caixa_aberto = Caixa.query.filter_by(estabelecimento_id=estabelecimento_id, status="aberto").order_by(Caixa.data_abertura.desc()).first()
+            # Dinheiro entra na gaveta de quem vendeu (o mesmo caixa travado no checkout),
+            # nunca no caixa aberto mais recente de outro operador.
+            caixa_aberto = Caixa.query.filter_by(estabelecimento_id=estabelecimento_id, funcionario_id=int(claims["sub"]),
+                                                 status="aberto").order_by(Caixa.data_abertura.desc()).first()
 
             nova_venda = Venda(
                 estabelecimento_id=estabelecimento_id,
@@ -884,65 +887,46 @@ def criar_venda():
             db.session.add(nova_venda)
             db.session.flush()
 
+            from app.services.estoque_service import registrar_saida
             for item_data in data["items"]:
                 # Extração robusta de campos (suporte a múltiplos padrões de frontend)
                 produto_id = item_data.get("id") or item_data.get("productId") or item_data.get("produto_id")
-                quantidade = float(item_data.get("quantity") or item_data.get("quantidade", 1))
-                preco_unitario = float(item_data.get("price") or item_data.get("preco_unitario", 0))
+                quantidade = Decimal(str(item_data.get("quantity") or item_data.get("quantidade", 1)))
+                preco_unitario = Decimal(str(item_data.get("price") or item_data.get("preco_unitario", 0)))
 
                 if not produto_id:
                     raise Exception("ID do produto não informado no item")
-                
+
                 # Lock pessimista para consistência ACID em concorrência
                 produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=nova_venda.estabelecimento_id).with_for_update().first()
                 if not produto:
                     raise Exception(f"Produto {produto_id} não encontrado neste estabelecimento")
                 if not produto.ativo or produto.deleted_at is not None:
                     raise Exception("Produto inativo")
-                
-                if float(produto.quantidade or 0) < quantidade:
-                    raise Exception(f"Estoque insuficiente para {produto.nome}")
 
-                total_item = preco_unitario * quantidade
-                current_app.logger.debug(f"DEBUG: Criando VendaItem - VendaID: {nova_venda.id}, EstabID: {estabelecimento_id}, ProdID: {produto_id}")
+                total_item = (preco_unitario * quantidade).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                _, custo_unitario = registrar_saida(
+                    produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
+                    motivo=f"Venda #{nova_venda.codigo}")
                 venda_item = VendaItem(
                     venda_id=nova_venda.id,
                     estabelecimento_id=estabelecimento_id, # Usar variável local garantida
                     produto_id=produto_id,
                     quantidade=quantidade,
                     preco_unitario=preco_unitario,
-                    desconto=float(item_data.get("desconto_item", 0.0)),
+                    desconto=Decimal("0"),
                     total_item=total_item,
                     produto_nome=produto.nome,
                     produto_codigo=produto.codigo_barras or produto.codigo_interno,
                     produto_unidade=produto.unidade_medida or "UN",
-                    custo_unitario=float(produto.preco_custo or 0),
-                    margem_lucro_real=(preco_unitario - float(produto.preco_custo or 0)) * quantidade
+                    custo_unitario=custo_unitario,
+                    margem_lucro_real=((preco_unitario - custo_unitario) * quantidade).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 )
                 db.session.add(venda_item)
 
-                # Atualizar Produto
-                qtd_anterior = float(produto.quantidade or 0)
-                from app.utils.checkout_locking import consume_lots
-                lot_trace = consume_lots(produto, quantidade)
-                produto.quantidade_vendida = float(produto.quantidade_vendida or 0) + quantidade
-                produto.total_vendido = float(produto.total_vendido or 0) + total_item
+                produto.quantidade_vendida = Decimal(str(produto.quantidade_vendida or 0)) + quantidade
+                produto.total_vendido = Decimal(str(produto.total_vendido or 0)) + total_item
                 produto.ultima_venda = datetime.now(timezone.utc)
-
-                # Movimentação Estética/Industrial
-                mov_estoque = MovimentacaoEstoque(
-                    estabelecimento_id=nova_venda.estabelecimento_id,
-                    produto_id=produto_id,
-                    tipo="saida",
-                    quantidade=quantidade,
-                    quantidade_anterior=qtd_anterior,
-                    quantidade_atual=float(produto.quantidade),
-                    motivo=f"Venda #{nova_venda.codigo}",
-                    observacoes=lot_trace,
-                    venda_id=nova_venda.id,
-                    funcionario_id=nova_venda.funcionario_id,
-                )
-                db.session.add(mov_estoque)
 
             # 3. Processar Pagamentos (Multi-Tender)
             troco_pendente = max(0, total_pago - total)
@@ -1251,37 +1235,29 @@ def cancelar_venda(venda_id):
 
         db.session.begin_nested()
         try:
-            from app.utils.checkout_locking import lock_checkout, restore_lots
+            from app.utils.checkout_locking import lock_checkout
+            from app.services.estoque_service import controla_estoque, estornar_saidas_venda
             lock_checkout(venda.estabelecimento_id, venda.funcionario_id,
                           [{'productId': item.produto_id} for item in venda.itens], venda.cliente_id)
+            # O razão de movimentos diz o que saiu. Vendas antigas sem movimento
+            # tiveram baixa sem rastro, exceto a venda-entrega legada, que nunca baixou.
+            legado = None if venda.tipo_venda == 'delivery' else [
+                (item.produto_id, item.quantidade) for item in venda.itens
+                if item.produto is not None and controla_estoque(item.produto)]
+            estornar_saidas_venda(venda, funcionario_id=funcionario_id,
+                                  motivo=f"Cancelamento da venda #{venda.codigo}", itens_sem_movimento=legado)
             for item in venda.itens:
                 produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estabelecimento_id).first()
                 if produto:
-                    qtd_anterior = float(produto.quantidade or 0)
-                    produto.quantidade = qtd_anterior + float(item.quantidade)
-                    restore_lots(venda.id, produto)
                     # Reverter denormalizações do produto — sem isso, giro/curva
                     # ABC/ranking de mais vendidos ficavam inflados por vendas
                     # que na verdade foram desfeitas.
                     produto.quantidade_vendida = max(
-                        0.0, float(produto.quantidade_vendida or 0) - float(item.quantidade)
+                        Decimal(0), Decimal(str(produto.quantidade_vendida or 0)) - Decimal(str(item.quantidade))
                     )
                     produto.total_vendido = max(
-                        0.0, float(produto.total_vendido or 0) - float(item.total_item or 0)
+                        Decimal(0), Decimal(str(produto.total_vendido or 0)) - Decimal(str(item.total_item or 0))
                     )
-                    mov = MovimentacaoEstoque(
-                        estabelecimento_id=estabelecimento_id,
-                        produto_id=item.produto_id,
-                        tipo="entrada",
-                        quantidade=float(item.quantidade),
-                        quantidade_anterior=qtd_anterior,
-                        quantidade_atual=float(produto.quantidade),
-                        motivo=f"Cancelamento da venda #{venda.codigo}",
-                        observacoes=f"Devolução por cancelamento. Motivo: {motivo}",
-                        venda_id=venda.id,
-                        funcionario_id=funcionario_id,
-                    )
-                    db.session.add(mov)
 
             # Reverter denormalizações do CLIENTE — sem isso, "melhor cliente"
             # e o histórico de gasto ficavam inflados com vendas desfeitas
@@ -1425,7 +1401,9 @@ def comprovante_venda(venda_id):
             "-" * 48
         ]
         for item in itens:
-            linhas.append(f"{item.produto_nome[:22]:<22} {int(item.quantidade):>4} {float(item.preco_unitario):>9.2f} {float(item.total_item):>9.2f}")
+            # 1,5 kg sai como 1.5, não como 1.
+            qtd = f"{Decimal(str(item.quantidade)).normalize():f}"
+            linhas.append(f"{item.produto_nome[:22]:<22} {qtd:>4} {float(item.preco_unitario):>9.2f} {float(item.total_item):>9.2f}")
         linhas.extend([
             "-" * 48,
             f"{'Subtotal:':<30} R$ {float(venda.subtotal):>10.2f}"

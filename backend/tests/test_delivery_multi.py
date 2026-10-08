@@ -2,7 +2,7 @@ import pytest
 from datetime import date
 from app.models import (
     db, Venda, Pagamento, Produto, Estabelecimento, Motorista,
-    Veiculo, Cliente, Entrega, CategoriaProduto, Funcionario
+    Veiculo, Cliente, Entrega, CategoriaProduto, Funcionario, Caixa
 )
 from flask_jwt_extended import create_access_token
 from decimal import Decimal
@@ -65,6 +65,10 @@ def test_venda_entrega_multi_pagamento_sucesso(client, session):
         estado="SP"
     )
     session.add(cust)
+    # Os R$ 20 em dinheiro entram na gaveta de quem vendeu.
+    caixa = Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="DELIVERY",
+                  saldo_inicial=0, saldo_atual=0, status="aberto")
+    session.add(caixa)
     session.commit()
 
     # Use the admin Funcionario's ID as JWT identity
@@ -114,3 +118,6 @@ def test_venda_entrega_multi_pagamento_sucesso(client, session):
     assert entrega is not None
     assert entrega.motorista_id == mot.id
     assert float(venda.total) == 50.00
+    session.expire_all()
+    assert session.get(Caixa, caixa.id).saldo_atual == Decimal("20")
+    assert session.get(Produto, prod.id).quantidade == 49

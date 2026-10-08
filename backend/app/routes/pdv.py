@@ -19,6 +19,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity, jwt_required, get_jwt
 from app.models import db, Produto, Venda, VendaItem, MovimentacaoEstoque, Configuracao, Funcionario, Cliente, Auditoria
 from app.decorators.decorator_jwt import funcionario_required
+from app.services.estoque_service import registrar_saida
 import pytz
 import uuid
 import random
@@ -154,14 +155,15 @@ def calcular_rfm_cliente(cliente_id: int, estabelecimento_id: int) -> dict:
 def to_decimal(value, precision=2):
     """Converte qualquer valor numérico para Decimal de forma segura com precisão variável"""
     quantize_str = '0.' + '0' * (precision - 1) + '1' if precision > 0 else '0'
+    zero = Decimal(0).quantize(Decimal(quantize_str))
     if value is None:
-        return Decimal(quantize_str)
+        return zero
     try:
         # Converter para string primeiro para evitar imprecisões de float
         d = Decimal(str(value))
         return d.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
     except (ValueError, TypeError, InvalidOperation):
-        return Decimal(quantize_str)
+        return zero
 
 
 def decimal_to_float(value):
@@ -825,6 +827,8 @@ def finalizar_venda():
                         categoria_id=categoria.id,
                         nome="Taxa de Entrega",
                         tipo="servico",
+                        tipo_item="servico",
+                        controlar_estoque=False,
                         unidade_medida="SV",
                         preco_venda=taxa_entrega,
                         preco_custo=0,
@@ -985,13 +989,16 @@ def finalizar_venda():
                     db.session.rollback()
                     return jsonify({'error': 'Produto inativo'}), 400
 
-                if to_decimal(produto.quantidade, precision=3) < quantidade:
-                    db.session.rollback()
-                    return jsonify({"error": f"Estoque insuficiente: {produto.nome}"}), 400
-
                 preco_unitario = to_decimal(item_data.get("price") or item_data.get("preco_unitario", produto.preco_venda))
                 total_item = to_decimal(preco_unitario * quantidade, precision=2)
-                margem_lucro_real = to_decimal((preco_unitario - to_decimal(produto.preco_custo or 0)) * quantidade, precision=2)
+
+                try:
+                    _, custo_unitario = registrar_saida(
+                        produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
+                        motivo=f"Venda PDV {nova_venda.codigo}", data=data_venda)
+                except ValueError as erro_estoque:
+                    db.session.rollback()
+                    return jsonify({"error": str(erro_estoque)}), 400
 
                 novo_item = VendaItem(
                     venda_id=nova_venda.id,
@@ -1003,13 +1010,10 @@ def finalizar_venda():
                     quantidade=quantidade,
                     preco_unitario=preco_unitario,
                     total_item=total_item,
-                    margem_lucro_real=margem_lucro_real
+                    custo_unitario=custo_unitario,
+                    margem_lucro_real=to_decimal((preco_unitario - custo_unitario) * quantidade, precision=2)
                 )
                 db.session.add(novo_item)
-
-                estoque_anterior = to_decimal(produto.quantidade, precision=3)
-                from app.utils.checkout_locking import consume_lots
-                lot_trace = consume_lots(produto, quantidade)
 
                 # Mantém os contadores denormalizados em sincronia com o ledger,
                 # para as telas de LISTAGEM (giro, mais vendidos) não ficarem zeradas.
@@ -1017,21 +1021,6 @@ def finalizar_venda():
                 produto.quantidade_vendida = to_decimal((produto.quantidade_vendida or 0) + quantidade, precision=3)
                 produto.total_vendido = to_decimal((produto.total_vendido or 0) + total_item, precision=2)
                 produto.ultima_venda = data_venda
-
-                mov = MovimentacaoEstoque(
-                    estabelecimento_id=nova_venda.estabelecimento_id,
-                    produto_id=produto.id,
-                    tipo="saida",
-                    quantidade=quantidade,
-                    quantidade_anterior=estoque_anterior,
-                    quantidade_atual=produto.quantidade,
-                    venda_id=nova_venda.id,
-                    funcionario_id=nova_venda.funcionario_id,
-                    created_at=data_venda,
-                    motivo=f"Venda PDV {nova_venda.codigo}",
-                    observacoes=lot_trace,
-                )
-                db.session.add(mov)
 
                 itens_formatados_para_resposta.append({
                     "nome": produto.nome,
@@ -1198,9 +1187,8 @@ def finalizar_venda():
         import traceback
         trace = traceback.format_exc()
         current_app.logger.error(f"ERRO FATAL PDV: {str(e)}\n{trace}")
-        with open('backend_finalizar_erro.txt', 'a', encoding='utf-8') as f:
-            f.write(f"\n--- ERRO FATAL ---\n{str(e)}\n{trace}\n")
-        return jsonify({"error": "Falha interna ao processar venda", "details": str(e), "trace": trace}), 500
+        # O traceback fica só no log do servidor; nunca volta ao cliente.
+        return jsonify({"error": "Falha interna ao processar venda"}), 500
 
 
 @pdv_bp.route("/vendas-hoje", methods=["GET"])

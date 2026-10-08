@@ -1118,37 +1118,39 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         return case((cls.quantidade <= 0, "esgotado"), (cls.quantidade <= cls.quantidade_minima, "critico"),
                     (cls.quantidade <= (cls.quantidade_minima * 1.5), "alerta"), else_="normal")
 
-    def movimentar_estoque(self, quantidade: int, tipo: str, motivo: str, usuario_id: int, venda_id: int = None):
+    def movimentar_estoque(self, quantidade, tipo: str, motivo: str, usuario_id: int, venda_id: int = None):
+        quantidade = Decimal(str(quantidade))
         if tipo == 'saida' and quantidade <= 0: raise ValueError("Quantidade de saída deve ser positiva")
-        qtd_anterior = self.quantidade
-        if tipo == 'entrada': self.quantidade += quantidade
+        qtd_anterior = Decimal(str(self.quantidade or 0))
+        if tipo == 'entrada': self.quantidade = qtd_anterior + quantidade
         elif tipo == 'saida':
-            novo_saldo = Decimal(str(self.quantidade or 0)) - Decimal(str(quantidade))
+            novo_saldo = qtd_anterior - quantidade
             self.quantidade = novo_saldo if novo_saldo > 0 else Decimal("0")
-            self.quantidade_vendida += quantidade
-            self.total_vendido += (self.preco_venda * quantidade)
+            self.quantidade_vendida = Decimal(str(self.quantidade_vendida or 0)) + quantidade
+            self.total_vendido = Decimal(str(self.total_vendido or 0)) + Decimal(str(self.preco_venda or 0)) * quantidade
             self.ultima_venda = utcnow()
+        custo = Decimal(str(self.preco_custo or 0))
         return MovimentacaoEstoque(estabelecimento_id=self.estabelecimento_id, produto_id=self.id, venda_id=venda_id,
                                    funcionario_id=usuario_id, tipo=tipo, quantidade=quantidade, quantidade_anterior=qtd_anterior,
-                                   quantidade_atual=self.quantidade, custo_unitario=self.preco_custo,
-                                   valor_total=self.preco_venda * quantidade if tipo == 'saida' else self.preco_custo * quantidade, motivo=motivo)
+                                   quantidade_atual=self.quantidade, custo_unitario=custo,
+                                   valor_total=Decimal(str(self.preco_venda or 0)) * quantidade if tipo == 'saida' else custo * quantidade, motivo=motivo)
 
-    def recalcular_preco_custo_ponderado(self, quantidade_entrada: int, custo_unitario_entrada, estoque_atual: int = None,
+    def recalcular_preco_custo_ponderado(self, quantidade_entrada, custo_unitario_entrada, estoque_atual=None,
                                          registrar_historico: bool = True, funcionario_id: int = None, motivo: str = "Entrada de estoque - CMP",
                                          data_alteracao=None):
-        if quantidade_entrada is None or int(quantidade_entrada) <= 0 or custo_unitario_entrada is None: return
+        # Quantidades fracionadas (kg, litro) entram no peso da média; o custo usa a
+        # escala da coluna porque itens de distribuição custam frações de centavo.
+        if quantidade_entrada is None or custo_unitario_entrada is None: return
+        qtd_entrada = Decimal(str(quantidade_entrada))
+        if not qtd_entrada.is_finite() or qtd_entrada <= 0: return
         custo_entrada = Decimal(str(custo_unitario_entrada))
-        if custo_entrada < 0: raise ValueError("Custo unitário não pode ser negativo")
-        qtd_atual = int(self.quantidade or 0) if estoque_atual is None else int(estoque_atual)
-        if qtd_atual < 0: qtd_atual = 0
+        if not custo_entrada.is_finite() or custo_entrada < 0: raise ValueError("Custo unitário não pode ser negativo")
+        qtd_atual = Decimal(str(self.quantidade or 0)) if estoque_atual is None else Decimal(str(estoque_atual))
+        if qtd_atual < 0: qtd_atual = Decimal("0")
         custo_anterior = Decimal(str(self.preco_custo or 0))
         margem_anterior = Decimal(str(self.margem_lucro or 0))
-        qtd_entrada = int(quantidade_entrada)
-        base = qtd_atual + qtd_entrada
-        if base <= 0: self.preco_custo = custo_entrada
-        else:
-            novo_custo = ((Decimal(qtd_atual) * custo_anterior) + (Decimal(qtd_entrada) * custo_entrada)) / Decimal(base)
-            self.preco_custo = novo_custo.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        novo_custo = (qtd_atual * custo_anterior + qtd_entrada * custo_entrada) / (qtd_atual + qtd_entrada)
+        self.preco_custo = novo_custo.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
         if self.preco_venda and self.preco_custo and self.preco_custo > 0:
             self.margem_lucro = (self.preco_venda - self.preco_custo) / self.preco_custo * 100
         else: self.margem_lucro = 0
@@ -1299,14 +1301,24 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
             return "Alto Giro"
         except: return "Sem Vendas"
 
-    def get_lotes_disponiveis(self):
-        return ProdutoLote.query.filter_by(produto_id=self.id, estabelecimento_id=self.estabelecimento_id, ativo=True).filter(ProdutoLote.quantidade > 0).order_by(ProdutoLote.data_validade.asc(), ProdutoLote.id.asc()).with_for_update().all()
+    def get_lotes_disponiveis(self, incluir_vencidos: bool = False, bloquear: bool = False):
+        """Lotes elegíveis em ordem FEFO: vence primeiro, sai primeiro.
 
-    def consumir_estoque_fifo(self, quantidade) -> List[Dict]:
+        Com controle de validade, lote vencido fica em quarentena e não entra em
+        venda; só o descarte pede ``incluir_vencidos``.
+        """
+        query = ProdutoLote.query.filter_by(produto_id=self.id, estabelecimento_id=self.estabelecimento_id, ativo=True)\
+            .filter(ProdutoLote.quantidade > 0)
+        if not incluir_vencidos and self.controlar_validade is not False:
+            query = query.filter(ProdutoLote.data_validade >= date.today())
+        query = query.order_by(ProdutoLote.data_validade.asc(), ProdutoLote.data_entrada.asc(), ProdutoLote.id.asc())
+        return query.with_for_update().all() if bloquear else query.all()
+
+    def consumir_estoque_fifo(self, quantidade, incluir_vencidos: bool = False) -> List[Dict]:
         consumidos = []
         qtd_solicitada = Decimal(str(quantidade or 0))
         restante = qtd_solicitada
-        for lote in self.get_lotes_disponiveis():
+        for lote in self.get_lotes_disponiveis(incluir_vencidos=incluir_vencidos, bloquear=True):
             if restante <= 0: break
             disponivel = Decimal(str(lote.quantidade or 0))
             qtd = min(restante, disponivel)

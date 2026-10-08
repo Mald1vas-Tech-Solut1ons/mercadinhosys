@@ -620,113 +620,209 @@ def obter_rastreamento(id):
 def criar_venda_entrega_unificada():
     """
     Cria uma Venda e uma Entrega vinculada em uma única transação atômica.
-    Ideal para o fluxo 'Venda Entrega na Prática'.
+
+    Segue as regras do PDV: totais recalculados, estoque e lotes pela regra única,
+    custo histórico no item, crédito do fiado e dinheiro no caixa de quem vendeu.
+    Pagamento "entrega" fica pendente para acerto na entrega.
     """
+    from app.decorators.plan_guards import normalize_plan
+    from app.models import Auditoria, ContaReceber, Estabelecimento, Pagamento
+    from app.services.estoque_service import registrar_saida
+    from app.utils.checkout_locking import lock_checkout, validate_credit, validate_pricing
+    from app.utils.sale_validation import number, validate_payments, validate_totals
+
+    cent = Decimal("0.01")
     try:
-        data = request.get_json()
-        from app.utils.query_helpers import get_authorized_establishment_id
-        est_id = get_authorized_establishment_id()
-        claims = get_jwt()
-        est_id = int(claims.get("estabelecimento_id") or 1)
-        
-        # 1. Criar a Venda
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify({"success": False, "error": "Dados não fornecidos"}), 400
+        if getattr(request, "is_super_admin", False):
+            from app.utils.query_helpers import get_authorized_establishment_id
+            est_id = get_authorized_establishment_id()
+        else:
+            est_id = request.allowed_estabelecimento_id
+        if not est_id or str(est_id).lower() == "all":
+            return jsonify({"success": False, "error": "Selecione a loja da venda"}), 400
+        est_id = int(est_id)
+        operador = request.current_user
+
+        itens = data.get("itens")
+        if not isinstance(itens, list) or not itens or any(not isinstance(i, dict) for i in itens):
+            return jsonify({"success": False, "error": "Adicione itens à venda"}), 400
+        itens = [{"produto_id": i.get("produto_id"),
+                  "quantidade": i.get("quantidade", i.get("quantity", 1)),
+                  "preco_unitario": i.get("preco_unitario", i.get("price"))} for i in itens]
+        taxa = number(data.get("taxa_entrega", 0), "Taxa de entrega")
+        subtotal, desconto, total = validate_totals(
+            {"items": itens, "subtotal": data.get("subtotal", 0), "desconto": data.get("desconto", 0),
+             "total": data.get("total", 0)}, taxa)
+
+        pagamentos = data.get("pagamentos") or [
+            {"forma_pagamento": data.get("forma_pagamento", "entrega"), "valor": data.get("total", 0)}]
+        if not isinstance(pagamentos, list) or any(not isinstance(p, dict) for p in pagamentos):
+            return jsonify({"success": False, "error": "Pagamentos inválidos"}), 400
+        na_entrega = len(pagamentos) == 1 and (pagamentos[0].get("forma_pagamento") or pagamentos[0].get("forma")) == "entrega"
+        if na_entrega:
+            if abs(number(pagamentos[0].get("valor"), "Pagamento") - total) > cent:
+                return jsonify({"success": False, "error": "Pagamento na entrega deve cobrir o total"}), 400
+            pagamentos = [{"forma": "entrega", "forma_pagamento": "entrega", "valor": total}]
+            total_pago = Decimal("0")
+        else:
+            total_pago = validate_payments(pagamentos, total)
+            if total_pago < total:
+                return jsonify({"success": False, "error": "Valor pago é menor que o total da venda"}), 400
+        tem_fiado = any(p["forma"] == "fiado" for p in pagamentos)
+        tem_dinheiro = any(p["forma"] == "dinheiro" for p in pagamentos)
+
         cliente_id = data.get("cliente_id")
-        cliente = Cliente.query.filter_by(id=cliente_id, estabelecimento_id=est_id).first() if cliente_id else None
-        
+        cliente = lock_checkout(est_id, operador.id, itens, cliente_id)
+        if cliente_id and not cliente:
+            db.session.rollback()
+            return jsonify({"success": False, "error": "Cliente não encontrado neste estabelecimento"}), 404
+        validate_credit(cliente, [p for p in pagamentos if p["forma"] == "fiado"])
+        validate_pricing(operador, itens, desconto, est_id)
+        if tem_fiado and not operador.is_super_admin and str(operador.role or "").upper() != "ADMIN":
+            estabelecimento = Estabelecimento.query.get(est_id)
+            if normalize_plan(getattr(estabelecimento, "plano", "Gratuito")) != "Pro":
+                db.session.rollback()
+                return jsonify({"success": False, "error": "Seu plano não permite vendas no FIADO/VALE."}), 403
+
+        caixa = Caixa.query.filter_by(estabelecimento_id=est_id, funcionario_id=operador.id, status="aberto")\
+            .order_by(Caixa.data_abertura.desc()).first()
+        # Dinheiro físico precisa de gaveta; Pix/cartão conciliam pelo pagamento.
+        if tem_dinheiro and not caixa:
+            db.session.rollback()
+            return jsonify({"success": False, "error": "Abra o caixa para receber dinheiro na venda"}), 403
+
+        motorista_id = data.get("motorista_id") or None
+        veiculo_id = data.get("veiculo_id") or None
+        if motorista_id and not Motorista.query.filter_by(id=motorista_id, estabelecimento_id=est_id).first():
+            db.session.rollback()
+            return jsonify({"success": False, "error": "Entregador não encontrado"}), 404
+        veiculo = Veiculo.query.filter_by(id=veiculo_id, estabelecimento_id=est_id).first() if veiculo_id else None
+        if veiculo_id and not veiculo:
+            db.session.rollback()
+            return jsonify({"success": False, "error": "Veículo não encontrado"}), 404
+
+        agora = datetime.now()
         venda = Venda(
             estabelecimento_id=est_id,
-            cliente_id=cliente_id,
-            funcionario_id=data.get("funcionario_id") or int(get_jwt_identity()), 
-            codigo=f"VE-{datetime.now().strftime('%y%m%d%H%M%S')}",
+            cliente_id=cliente.id if cliente else None,
+            funcionario_id=operador.id,
+            caixa_id=caixa.id if caixa else None,
+            codigo=f"VE-{agora.strftime('%y%m%d%H%M%S')}-{uuid.uuid4().hex[:4].upper()}",
             status="finalizada",
             tipo_venda="delivery",
-            subtotal=Decimal(str(data.get("subtotal", 0))),
-            desconto=Decimal(str(data.get("desconto", 0))),
-            total=Decimal(str(data.get("total", 0))),
-            data_venda=datetime.now()
+            subtotal=subtotal,
+            desconto=desconto,
+            total=total,
+            valor_recebido=total_pago,
+            troco=max(Decimal("0"), total_pago - total),
+            quantidade_itens=len(itens),
+            data_venda=agora,
         )
         db.session.add(venda)
-        db.session.flush() # ID da venda
+        db.session.flush()
 
-        # 1.1 Processar Multi-Pagamentos
-        pagamentos_data = data.get("pagamentos", [])
-        if not pagamentos_data:
-            # Fallback para compatibilidade se enviarem o formato antigo
-            forma_antiga = data.get("forma_pagamento", "dinheiro")
-            pagamentos_data = [{"forma_pagamento": forma_antiga, "valor": data.get("total", 0)}]
-
-        total_recebido = Decimal("0")
-        from app.models import Pagamento
-        for p_data in pagamentos_data:
-            valor_p = Decimal(str(p_data["valor"]))
-            total_recebido += valor_p
-            pagamento = Pagamento(
-                estabelecimento_id=est_id,
-                venda_id=venda.id,
-                forma_pagamento=p_data["forma_pagamento"],
-                valor=valor_p,
-                status="pendente" if p_data["forma_pagamento"] == "entrega" else "aprovado",
-                data_pagamento=datetime.now()
-            )
-            db.session.add(pagamento)
-        
-        venda.valor_recebido = total_recebido
-        venda.troco = max(Decimal("0"), total_recebido - venda.total)
-        
-        # 2. Adicionar Itens
-        for item in data.get("itens", []):
-            # Pessimistic Locking para Consistência de Estoque ACID e isolamento Tenant
-            # Suporte SuperAdmin 'all'
-            query_prod = db.session.query(Produto).filter(Produto.id == item["produto_id"])
-            if str(est_id).lower() != 'all':
-                query_prod = query_prod.filter(Produto.id == item["produto_id"], Produto.estabelecimento_id == est_id)
-            
-            # with_for_update() não é suportado em SQLite; usar apenas em PostgreSQL
-            try:
-                prod = query_prod.with_for_update().first()
-            except Exception:
-                prod = query_prod.first()
-            if not prod: continue
-            
+        venda_itens = []
+        for item in itens:
+            prod = Produto.query.filter_by(id=item["produto_id"], estabelecimento_id=est_id).first()
+            if not prod:
+                db.session.rollback()
+                return jsonify({"success": False, "error": f"Produto {item['produto_id']} não encontrado"}), 404
+            if not prod.ativo or prod.deleted_at is not None:
+                db.session.rollback()
+                return jsonify({"success": False, "error": f"Produto {prod.nome} está inativo"}), 400
+            quantidade = Decimal(str(item["quantidade"]))
+            preco = Decimal(str(item["preco_unitario"]))
+            total_item = (quantidade * preco).quantize(cent)
+            _, custo = registrar_saida(prod, quantidade, venda_id=venda.id, funcionario_id=operador.id,
+                                       motivo=f"Venda entrega {venda.codigo}", data=agora)
             v_item = VendaItem(
                 venda_id=venda.id,
-                estabelecimento_id=est_id, # Usar variável local garantida
+                estabelecimento_id=est_id,
                 produto_id=prod.id,
                 produto_nome=prod.nome,
-                quantidade=Decimal(str(item.get("quantidade") or item.get("quantity", 1))),
-                preco_unitario=Decimal(str(item.get("preco_unitario") or item.get("price", prod.preco_venda))),
-                total_item=Decimal(str(item.get("total_item") or item.get("total", 0))),
+                produto_codigo=prod.codigo_interno or prod.codigo_barras,
+                produto_unidade=prod.unidade_medida or "UN",
+                quantidade=quantidade,
+                preco_unitario=preco,
+                total_item=total_item,
+                custo_unitario=custo,
+                margem_lucro_real=((preco - custo) * quantidade).quantize(cent),
             )
             db.session.add(v_item)
-            # O processamento de estoque deve ser feito pelos listeners ou manualmente aqui
-            if hasattr(prod, 'estoque_atual'):
-                prod.estoque_atual -= v_item.quantidade
+            venda_itens.append(v_item)
+            prod.quantidade_vendida = Decimal(str(prod.quantidade_vendida or 0)) + quantidade
+            prod.total_vendido = Decimal(str(prod.total_vendido or 0)) + total_item
+            prod.ultima_venda = agora
+        db.session.flush()
 
-        # 3. Criar a Entrega
-        motorista_id = data.get("motorista_id")
-        veiculo_id = data.get("veiculo_id")
-        
-        # Calcular KM e Combustível se informados (ou usar padrões)
-        distancia = Decimal(str(data.get("distancia_km", 5.0)))
+        troco = max(Decimal("0"), total_pago - total)
+        valor_fiado = Decimal("0")
+        for p_data in pagamentos:
+            forma = p_data["forma"]
+            valor = Decimal(str(p_data["valor"]))
+            db.session.add(Pagamento(
+                estabelecimento_id=est_id,
+                venda_id=venda.id,
+                forma_pagamento=forma,
+                valor=valor,
+                bandeira=p_data.get("bandeira"),
+                status="pendente" if forma == "entrega" else "aprovado",
+                data_pagamento=agora,
+            ))
+            if forma == "entrega":
+                continue
+            if forma == "fiado":
+                valor_fiado += valor
+                if caixa:
+                    db.session.add(MovimentacaoCaixa(
+                        caixa_id=caixa.id, estabelecimento_id=est_id, venda_id=venda.id, tipo="fiado",
+                        valor=valor, forma_pagamento="fiado",
+                        descricao=f"Venda entrega {venda.codigo} - fiado (a receber)"))
+                continue
+            if not caixa:
+                continue
+            entrada = valor
+            if forma == "dinheiro" and troco > 0:
+                abatido = min(entrada, troco)
+                entrada -= abatido
+                troco -= abatido
+            db.session.add(MovimentacaoCaixa(
+                caixa_id=caixa.id, estabelecimento_id=est_id, venda_id=venda.id, tipo="venda",
+                valor=entrada, forma_pagamento=forma, descricao=f"Venda entrega {venda.codigo} - {forma}"))
+            if forma == "dinheiro":
+                caixa.saldo_atual = Decimal(str(caixa.saldo_atual or 0)) + entrada
+
+        if valor_fiado > 0:
+            cliente.saldo_devedor = Decimal(str(cliente.saldo_devedor or 0)) + valor_fiado
+            db.session.add(ContaReceber(
+                estabelecimento_id=est_id, cliente_id=cliente.id, venda_id=venda.id,
+                numero_documento=venda.codigo, valor_original=valor_fiado, valor_atual=valor_fiado,
+                data_emissao=agora.date(), data_vencimento=(agora + timedelta(days=30)).date(), status="aberto",
+                observacoes=f"Fiado venda entrega - {cliente.nome}"))
+        if cliente:
+            cliente.total_compras = int(cliente.total_compras or 0) + 1
+            cliente.valor_total_gasto = Decimal(str(cliente.valor_total_gasto or 0)) + total
+            cliente.ultima_compra = agora
+
+        distancia = number(data.get("distancia_km", 5), "Distância")
         km_total = distancia * 2
         custo_fuel = Decimal("0.00")
-        
-        if veiculo_id:
-            veiculo = Veiculo.query.get(veiculo_id)
-            if veiculo and veiculo.consumo_medio:
-                custo_fuel = (km_total / veiculo.consumo_medio) * Decimal("5.80")
+        if veiculo and veiculo.consumo_medio:
+            custo_fuel = ((km_total / Decimal(str(veiculo.consumo_medio))) * Decimal("5.80")).quantize(cent)
 
-        main_payment = pagamentos_data[0]["forma_pagamento"] if pagamentos_data else "loja"
         entrega = Entrega(
             estabelecimento_id=est_id,
             venda_id=venda.id,
-            cliente_id=cliente_id,
+            cliente_id=venda.cliente_id,
             motorista_id=motorista_id,
             veiculo_id=veiculo_id,
-            codigo_rastreamento=f"TRK{venda.codigo.split('-')[-1]}",
+            codigo_rastreamento=f"TRK{venda.codigo[3:].replace('-', '')}",
             status="em_preparo",
-            data_prevista=datetime.now() + timedelta(minutes=45),
-            taxa_entrega=Decimal(str(data.get("taxa_entrega", 0))),
+            data_prevista=agora + timedelta(minutes=45),
+            taxa_entrega=taxa,
             custo_combustivel=custo_fuel,
             distancia_km=distancia,
             km_percorridos=km_total,
@@ -737,42 +833,37 @@ def criar_venda_entrega_unificada():
             endereco_cidade=data.get("endereco_cidade", "Manaus"),
             endereco_estado=data.get("endereco_estado", "AM"),
             endereco_complemento=data.get("endereco_complemento", ""),
-            pagamento_tipo="loja" if main_payment != "entrega" else "entrega",
-            pagamento_status="pago" if main_payment != "entrega" else "pendente"
+            pagamento_tipo="entrega" if na_entrega else "loja",
+            pagamento_status="pendente" if na_entrega else "pago",
         )
-        
         db.session.add(entrega)
-        
-        # 4. Movimentação de Caixa (usando Pagamento, não mais venda.forma_pagamento)
-        caixa = Caixa.query.filter_by(estabelecimento_id=est_id, status="aberto").first()
-        if caixa:
-            # Verificar se há pagamentos em dinheiro/pix para dar entrada no caixa
-            formas_caixa = [p["forma_pagamento"] for p in pagamentos_data if p["forma_pagamento"] in ["dinheiro", "pix"]]
-            if formas_caixa:
-                mov = MovimentacaoCaixa(
-                    caixa_id=caixa.id,
-                    estabelecimento_id=est_id,
-                    venda_id=venda.id,
-                    tipo="entrada",
-                    valor=venda.total,
-                    descricao=f"Venda Entrega Unificada #{venda.codigo}"
-                )
-                db.session.add(mov)
-                caixa.saldo_atual += venda.total
+        db.session.flush()
+        for v_item in venda_itens:
+            db.session.add(EntregaItem(entrega_id=entrega.id, produto_id=v_item.produto_id, venda_item_id=v_item.id,
+                                       quantidade=v_item.quantidade, quantidade_entregue=0, status="pendente"))
+        db.session.add(RastreamentoEntrega(entrega_id=entrega.id, status="pedido_recebido",
+                                           observacao="Venda com entrega registrada"))
+        Auditoria.registrar(
+            estabelecimento_id=est_id, tipo_evento="venda_finalizada",
+            descricao=f"Venda entrega {venda.codigo} finalizada - Total: R$ {total:.2f}",
+            usuario_id=operador.id, valor=total, detalhes={"codigo": venda.codigo})
 
         db.session.commit()
-        
         return jsonify({
-            "success": True, 
-            "venda_id": venda.id, 
+            "success": True,
+            "venda_id": venda.id,
             "entrega_id": entrega.id,
             "codigo": venda.codigo
         }), 201
 
+    except (ValueError, TypeError) as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
     except Exception as e:
         db.session.rollback()
         logger.error(f"Erro na Venda Entrega Unificada: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"success": False, "error": "Não foi possível registrar a venda com entrega"}), 500
+
 
 # ==================== VENDAS PENDENTES ====================
 

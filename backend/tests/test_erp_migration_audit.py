@@ -1,7 +1,7 @@
-"""Provas de aceitação para migração ERP; xfail identifica bloqueios conhecidos.
+"""Provas de aceitação para migração ERP (ERP-01 a ERP-09).
 
-Não altera código de produção. Usa apenas o banco isolado das fixtures.
-Remover o xfail de cada caso quando a respectiva regra for corrigida.
+Nasceram como xfail na auditoria de 07/10/2026; todas passam desde a correção
+de 08/10/2026. Usa apenas o banco isolado das fixtures.
 """
 from datetime import date, timedelta
 from decimal import Decimal
@@ -65,14 +65,14 @@ def _purchase(client, ctx):
     return response.get_json()["pedido"]["id"]
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-01: recebimento parcial encerra o pedido")
 def test_recebimento_parcial_permite_complemento(client, session, erp_context):
     ctx = erp_context
     purchase_id = _purchase(client, ctx)
     item = session.query(PedidoCompraItem).filter_by(pedido_id=purchase_id).first()
     response = client.post("/api/pedidos-compra/receber", headers=ctx["headers"], json={
         "pedido_id": purchase_id,
-        "itens": [{"item_id": item.id, "quantidade_recebida": 3}],
+        "itens": [{"item_id": item.id, "quantidade_recebida": 3,
+                   "data_validade": (date.today() + timedelta(days=60)).isoformat()}],
     })
     assert response.status_code == 200, response.get_json()
     session.expire_all()
@@ -100,7 +100,6 @@ def test_fornecedor_rejeita_pagamento_negativo(client, session, erp_context):
     assert response.status_code == 400, response.get_json()
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-04: SFA aceita totais incompatíveis com os itens")
 def test_sfa_rejeita_total_incoerente(client, erp_context):
     ctx = erp_context
     response = client.post("/api/sfa/sync-pedidos", headers=ctx["headers"], json={
@@ -111,9 +110,12 @@ def test_sfa_rejeita_total_incoerente(client, erp_context):
     assert response.status_code == 400, response.get_json()
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-05: venda por entrega não baixa Produto.quantidade")
 def test_delivery_baixa_estoque(client, session, erp_context):
     ctx = erp_context
+    # Pagamento imediato entra no caixa de quem vendeu, como no PDV.
+    session.add(Caixa(estabelecimento_id=ctx["estab"].id, funcionario_id=ctx["admin"].id,
+                      numero_caixa="ERP-DELIVERY", saldo_inicial=0, saldo_atual=0, status="aberto"))
+    session.commit()
     response = client.post("/api/delivery/venda-entrega", headers=ctx["headers"], json={
         "cliente_id": ctx["customer"].id, "subtotal": 20, "total": 20,
         "itens": [{"produto_id": ctx["prod"].id, "quantidade": 2,
@@ -125,7 +127,6 @@ def test_delivery_baixa_estoque(client, session, erp_context):
     assert session.query(Produto).filter_by(id=ctx["prod"].id).first().quantidade == 8
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-06: faturamento SFA não consome lotes")
 def test_sfa_baixa_lotes(client, session, erp_context):
     ctx = erp_context
     synced = client.post("/api/sfa/sync-pedidos", headers=ctx["headers"], json={
@@ -142,7 +143,6 @@ def test_sfa_baixa_lotes(client, session, erp_context):
     assert session.query(ProdutoLote).filter_by(id=ctx["lot"].id).first().quantidade == 8
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-07: CMP trunca quantidades fracionárias")
 def test_custo_medio_preserva_quantidade_fracionaria(erp_context):
     prod = erp_context["prod"]
     prod.quantidade = Decimal("1.5")
@@ -151,7 +151,6 @@ def test_custo_medio_preserva_quantidade_fracionaria(erp_context):
     assert prod.preco_custo == Decimal("12.50"), f"observado: {prod.preco_custo}"
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-08: lote vencido é elegível para consumo")
 def test_consumo_nao_seleciona_lote_vencido(session, erp_context):
     ctx = erp_context
     ctx["lot"].data_validade = date.today() - timedelta(days=1)
@@ -160,7 +159,6 @@ def test_consumo_nao_seleciona_lote_vencido(session, erp_context):
     assert ctx["lot"].id not in {lot.id for lot in selected}
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError, reason="ERP-09: PDV não persiste custo unitário para CMV")
 def test_pdv_registra_custo_historico_do_item(client, session, erp_context):
     ctx = erp_context
     session.add(Caixa(estabelecimento_id=ctx["estab"].id, funcionario_id=ctx["admin"].id,

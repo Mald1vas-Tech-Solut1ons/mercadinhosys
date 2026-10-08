@@ -1,43 +1,17 @@
 """
 Serviço de lógica de vendas
 """
-from app.models import db, Venda, VendaItem, Pagamento, ContaReceber, Produto, MovimentacaoEstoque, Cliente, MovimentacaoCaixa
-from app.utils.errors import EstoqueInsuficienteError, ProdutoNaoEncontradoError, FiadoSemClienteError, PagamentoInvalidoError
+from app.models import db, Pagamento, ContaReceber, Cliente, MovimentacaoCaixa
+from app.utils.errors import FiadoSemClienteError, PagamentoInvalidoError
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 
 class VendaService:
-    """Serviço de lógica de vendas"""
-    
-    @staticmethod
-    def validar_estoque(produto_id: int, quantidade: Decimal) -> Produto:
-        """
-        Valida se há estoque suficiente
-        
-        Args:
-            produto_id: ID do produto
-            quantidade: Quantidade solicitada
-            
-        Returns:
-            Produto: Objeto do produto
-            
-        Raises:
-            ProdutoNaoEncontradoError: Se produto não existe
-            EstoqueInsuficienteError: Se estoque insuficiente
-        """
-        produto = Produto.query.with_for_update().get(produto_id)
-        if not produto:
-            raise ProdutoNaoEncontradoError(produto_id)
-        
-        if produto.quantidade < quantidade:
-            raise EstoqueInsuficienteError(
-                produto_nome=produto.nome,
-                disponivel=int(produto.quantidade),
-                solicitado=int(quantidade)
-            )
-        
-        return produto
+    """Serviço de lógica de vendas.
+
+    Baixa e estorno de estoque ficam em ``estoque_service`` (regra única de lotes).
+    """
     
     @staticmethod
     def validar_pagamentos(pagamentos_data: List[Dict], total_venda: Decimal) -> None:
@@ -138,41 +112,6 @@ class VendaService:
             observacoes=f"Fiado PDV - {cliente.nome}. Venda fiado em {data_venda.strftime('%d/%m/%Y')}"
         )
         db.session.add(conta)
-    
-    @staticmethod
-    def atualizar_estoque(produto_id: int, quantidade: Decimal, venda_id: int, 
-                         estabelecimento_id: int, funcionario_id: int, 
-                         data_venda: datetime, codigo_venda: str) -> None:
-        """
-        Atualiza estoque e registra movimentação
-        
-        Args:
-            produto_id: ID do produto
-            quantidade: Quantidade vendida
-            venda_id: ID da venda
-            estabelecimento_id: ID do estabelecimento
-            funcionario_id: ID do funcionário
-            data_venda: Data da venda
-            codigo_venda: Código da venda
-        """
-        produto = VendaService.validar_estoque(produto_id, quantidade)
-        
-        estoque_anterior = Decimal(str(produto.quantidade))
-        produto.quantidade = Decimal(str(estoque_anterior - quantidade))
-        
-        movimentacao = MovimentacaoEstoque(
-            estabelecimento_id=estabelecimento_id,
-            produto_id=produto_id,
-            tipo="saida",
-            quantidade=quantidade,
-            quantidade_anterior=estoque_anterior,
-            quantidade_atual=produto.quantidade,
-            venda_id=venda_id,
-            funcionario_id=funcionario_id,
-            created_at=data_venda,
-            motivo=f"Venda PDV {codigo_venda}"
-        )
-        db.session.add(movimentacao)
     
     @staticmethod
     def registrar_movimentacao_caixa(caixa_id: int, pagamentos_data: List[Dict], 

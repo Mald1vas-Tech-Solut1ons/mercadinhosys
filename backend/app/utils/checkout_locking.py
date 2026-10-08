@@ -8,25 +8,6 @@ from app import db
 from app.models import Caixa, Cliente, Produto
 
 
-def consume_lots(product, quantity):
-    consumed = product.consumir_estoque_fifo(quantity)
-    return json.dumps({'lotes_consumidos': [[c['lote_id'], str(c['quantidade_consumida'])] for c in consumed]})
-
-
-def restore_lots(sale_id, product):
-    from app.models import MovimentacaoEstoque, ProdutoLote
-    movements = MovimentacaoEstoque.query.filter_by(venda_id=sale_id, produto_id=product.id, tipo='saida').all()
-    for movement in movements:
-        try:
-            entries = json.loads(movement.observacoes or '{}').get('lotes_consumidos', [])
-        except (ValueError, AttributeError):
-            continue  # vendas anteriores à rastreabilidade não tinham este registro
-        for lot_id, quantity in entries:
-            lot = ProdutoLote.query.filter_by(id=lot_id, produto_id=product.id, estabelecimento_id=product.estabelecimento_id).with_for_update().first()
-            if lot:
-                lot.quantidade = Decimal(str(lot.quantidade)) + Decimal(quantity)
-
-
 def lock_checkout(tenant_id, actor_id, items, client_id=None, offline_uuid=None):
     if not isinstance(items, list) or not items or len(items) > 1000:
         raise ValueError('Carrinho inválido')

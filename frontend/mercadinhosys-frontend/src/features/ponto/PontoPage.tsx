@@ -416,40 +416,6 @@ const PontoPage: React.FC = () => {
     return horarios[tipo] || '';
   };
 
-  const limparRegistrosDeTeste = async () => {
-    const confirmar = window.confirm(
-      '⚠️ ATENÇÃO - MODO TESTE\n\nVocê realmente quer deletar TODOS os registros de hoje para testes?\n\nEsta ação não pode ser desfeita!'
-    );
-
-    if (!confirmar) return;
-
-    try {
-      setLoading(true);
-
-      const promise = fetch('/api/ponto/teste/limpar-hoje', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('access_token')}`,
-          'Content-Type': 'application/json'
-        }
-      }).then(res => res.json());
-
-      const data = await showToast.promise(promise, {
-        loading: 'Limpando registros de teste...',
-        success: (res: any) => `${res.message} (${res.data.registros_removidos} removidos)`,
-        error: 'Erro ao limpar registros'
-      });
-
-      if (data && data.success) {
-        await carregarDados();
-      }
-    } catch (error: any) {
-      console.error('Erro ao limpar registros:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const validarHorarioRegistro = (tipo: string): { valido: boolean; mensagem: string; alerta?: string } => {
     if (!configuracao) return { valido: true, mensagem: '' };
 

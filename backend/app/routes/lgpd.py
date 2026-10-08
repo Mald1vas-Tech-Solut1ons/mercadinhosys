@@ -68,7 +68,16 @@ def solicitar_exclusao_lgpd():
         cnt_clientes = 0
         for c in clientes:
             c.nome = f"Cliente Anonimizado LGPD #{c.id}"
-            c.cpf = "000.000.000-00"
+            # Documento único por registro: CPF/CNPJ têm restrição de unicidade por loja.
+            c.cpf = f"ANON{c.id:010d}"
+            c.cnpj = None
+            c.razao_social = None
+            c.inscricao_estadual = None
+            c.contato_nome = None
+            c.rg = None
+            c.data_nascimento = None
+            c.observacoes = None
+            c.complemento = None
             c.email = f"anon_cliente_{c.id}@lgpd.local"
             c.telefone = "(00) 00000-0000"
             c.celular = "(00) 00000-0000"
@@ -88,11 +97,30 @@ def solicitar_exclusao_lgpd():
         cnt_func = 0
         for f in funcionarios_inativos:
             f.nome = f"Ex-Funcionário Anonimizado #{f.id}"
-            f.cpf = "000.000.000-00"
+            f.cpf = f"ANON{f.id:010d}"
             f.email = f"anon_func_{f.id}@lgpd.local"
             f.telefone = "(00) 00000-0000"
             f.celular = "(00) 00000-0000"
             cnt_func += 1
+
+        # 2.1 Motoristas inativos: CPF, CNH, contatos e documentos digitalizados
+        from app.models import Motorista
+        motoristas_inativos = Motorista.query.filter(
+            Motorista.estabelecimento_id == estabelecimento_id,
+            Motorista.ativo == False
+        ).all()
+        cnt_motoristas = 0
+        for m in motoristas_inativos:
+            m.nome = f"Ex-Motorista Anonimizado #{m.id}"
+            m.cpf = f"ANON{m.id:010d}"
+            m.rg = None
+            m.cnh = f"ANON{m.id:010d}"
+            m.telefone = "(00) 00000-0000"
+            m.celular = "(00) 00000-0000"
+            m.email = None
+            m.foto_url = None
+            m.cnh_documento_url = None
+            cnt_motoristas += 1
 
         # 3. Registrar Log de Auditoria LGPD
         auditoria_log = Auditoria(
@@ -104,6 +132,7 @@ def solicitar_exclusao_lgpd():
                 "modulo": "LGPD",
                 "clientes_anonimizados": cnt_clientes,
                 "funcionarios_anonimizados": cnt_func,
+                "motoristas_anonimizados": cnt_motoristas,
             },
             data_evento=datetime.now(timezone.utc)
         )
@@ -119,6 +148,7 @@ def solicitar_exclusao_lgpd():
                 "estabelecimento_id": estabelecimento_id,
                 "clientes_anonimizados": cnt_clientes,
                 "funcionarios_anonimizados": cnt_func,
+                "motoristas_anonimizados": cnt_motoristas,
                 "historico_financeiro_preservado": True,
                 "executado_em": datetime.now(timezone.utc).isoformat()
             }
@@ -130,5 +160,5 @@ def solicitar_exclusao_lgpd():
         return jsonify({
             "success": False,
             "error": "Erro interno",
-            "message": f"Falha ao executar procedimento LGPD: {str(e)}"
+            "message": "Falha ao executar o procedimento LGPD; nada foi alterado. Tente novamente ou contate o suporte."
         }), 500

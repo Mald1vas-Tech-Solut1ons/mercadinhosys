@@ -19,6 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('action', choices=['stage', 'deploy', 'rollback'])
 parser.add_argument('--release', required=True)
 parser.add_argument('--expected-image')
+parser.add_argument('--ci-proof', help='JSON do run GitHub concluído para a mesma revisão da imagem')
 args = parser.parse_args()
 if not re.fullmatch(r'[0-9a-f]{12}', args.release):
     raise SystemExit('Release deve ser SHA de 12 caracteres')
@@ -140,13 +141,24 @@ def stage():
                 raise RuntimeError('Banco fora do escopo descartável')
             docker('exec', PG, 'createdb', '-U', USER, database)
             created.append(database)
-        environment(databases[0], testing=True)
-        tests = ['test_postgres_checkout_concurrency.py', 'test_finance_postgres_concurrency.py',
-                 'test_finance_release.py', 'test_devops_finance_review.py', 'test_fin01_boleto_payments.py',
-                 'test_security_audit.py', 'test_tenant_isolation.py', 'test_routes_multi_tenant_guard.py',
-                 'test_fornecedores_listing_response.py', 'test_busca_produto_acento.py']
-        output = run('python', '-m', 'pytest', *['tests/' + t for t in tests], '-q', '--tb=short', '--disable-warnings')
-        summary = output.decode(errors='replace').strip().splitlines()[-1]
+        if args.ci_proof:
+            proof = json.loads(Path(args.ci_proof).read_text())
+            revision = info(IMAGE)['Config'].get('Labels', {}).get('org.opencontainers.image.revision')
+            if proof.get('status') != 'completed' or proof.get('conclusion') != 'success' or proof.get('head_sha') != revision:
+                raise RuntimeError('Evidência CI não corresponde à imagem validada')
+            if not revision or revision[:12] != args.release or proof.get('path') != '.github/workflows/ci.yml':
+                raise RuntimeError('Evidência CI não identifica a release e o workflow de testes')
+            if not proof.get('html_url', '').startswith('https://github.com/Mald1vas-Tech-Solut1ons/mercadinhosys/actions/runs/'):
+                raise RuntimeError('Evidência CI fora do repositório autorizado')
+            summary = 'CI PostgreSQL confirmado: ' + proof['html_url']
+        else:
+            environment(databases[0], testing=True)
+            tests = ['test_postgres_checkout_concurrency.py', 'test_finance_postgres_concurrency.py',
+                     'test_finance_release.py', 'test_devops_finance_review.py', 'test_fin01_boleto_payments.py',
+                     'test_security_audit.py', 'test_tenant_isolation.py', 'test_routes_multi_tenant_guard.py',
+                     'test_fornecedores_listing_response.py', 'test_busca_produto_acento.py']
+            output = run('python', '-m', 'pytest', *['tests/' + t for t in tests], '-q', '--tb=short', '--disable-warnings')
+            summary = output.decode(errors='replace').strip().splitlines()[-1]
         print('POSTGRES_TESTS ' + summary, flush=True)
         dump = docker('exec', PG, 'pg_dump', '-U', USER, '--no-owner', '--no-acl', 'mercadinhosys')
         docker('exec', '-i', PG, 'psql', '-U', USER, '-d', databases[1], '-v', 'ON_ERROR_STOP=1', data=dump)

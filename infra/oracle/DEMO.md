@@ -1,6 +1,6 @@
 # MercadinhoSys na Oracle: instalação, seed e operação
 
-Atualizado em 05/10/2026. Instalação realizada com dados simulados; nenhum dado real do Aiven foi restaurado.
+Atualizado em 07/10/2026. Release e evidências: [relatório modular](../../docs/RELATORIO_RELEASE_MODULAR_2026-10-07.md). Instalação realizada com dados simulados; nenhum dado real do Aiven foi restaurado.
 
 ## Infraestrutura instalada
 
@@ -49,7 +49,7 @@ Detalhes da IA e seus limites: [RAG e provedores](IA-RAG.md). Resultados de inte
 
 O projeto Vercel `mercadinhosys` usa `VITE_API_URL=https://mercadinhosys-api.144.22.151.18.sslip.io/api` no ambiente e no comando de build. O build explícito foi necessário porque o código remoto anterior fixava Render no `vercel.json`.
 
-Deployment publicado: `dpl_FxoNHMV9kV3oyYcZSAtbUUFLbUnM`. O arquivo local `frontend/mercadinhosys-frontend/vercel.json` foi corrigido; essas alterações locais ainda não foram commitadas/enviadas ao Git remoto. A Vercel já recebeu a configuração Oracle pelo projeto.
+Deployment publicado: `dpl_Em78qKzfF69TaVCn9Fp1agMG63gh`, revisão `6d95713cf189f798aa98eb7f1fd64fa584a30683`. As alterações de frontend e infraestrutura foram commitadas, enviadas ao GitHub e integradas em `master` (PR #3). A versão anterior `dpl_FxoNHMV9kV3oyYcZSAtbUUFLbUnM` foi preservada para rollback.
 
 Se a PWA usar um bundle antigo, clicar em **Limpar Cache e Reiniciar** no formulário de login. Isso resolveu a primeira tentativa no navegador. Login posterior confirmado como Rafael Maldivas / Modo Super-Admin, com dados do banco Oracle.
 

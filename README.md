@@ -9,7 +9,7 @@
 <br/>
 
 [![Version](https://img.shields.io/badge/version-5.0.0-2563eb?style=for-the-badge)](#)
-[![Status](https://img.shields.io/badge/status-Enterprise_Ready-16a34a?style=for-the-badge)](#)
+[![Status](https://img.shields.io/badge/status-Em_homologacao-d97706?style=for-the-badge)](#)
 [![PWA](https://img.shields.io/badge/Duo_Management-Mobile_&_Desktop-9333ea?style=for-the-badge&logo=pwa&logoColor=white)](#)
 [![License](https://img.shields.io/badge/license-MIT-64748b?style=for-the-badge)](#-licença--autor)
 
@@ -84,12 +84,12 @@ Nossa arquitetura prioriza **Zero-Downtime** e tolerância a falhas. O backend f
 O MercadinhoSys v5.0 conta com um pipeline avançado de implantação:
 
 1. **Testes e Build Automatizados**: O GitHub Actions audita dependências, compila o Frontend (TypeScript Strict) e roda testes no Backend (Pytest).
-2. **Deploy Automático**: Vercel (Front) e Render (Back).
+2. **Publicação**: Vercel (frontend) e Oracle OCI (API/PostgreSQL), com release imutável, ensaio de migração, backup e rollback de imagem. Evidências: [relatório modular de publicação](docs/RELATORIO_RELEASE_MODULAR_2026-10-07.md).
 3. **Database Migrations Seguras**: Flask-Migrate sincroniza perfeitamente o schema no PostgreSQL de produção. Em caso de *schema drift*, as consultas no Python isolam exceções via `psycopg2` Savepoints, impedindo queda em cascata (*Efeito Dominó*).
 
 ### Setup Rápido (Ambiente de Desenvolvimento)
 ```bash
-git clone https://github.com/MaldivaSky/mercadinhosys.git
+git clone https://github.com/Mald1vas-Tech-Solut1ons/mercadinhosys.git
 cd mercadinhosys
 cp .env.example .env
 make install

@@ -49,8 +49,11 @@ function EntradaTab() {
     const [preview, setPreview] = useState<NotaEntradaPreview | null>(null);
     const [arquivo, setArquivo] = useState<File | null>(null);
     const [importando, setImportando] = useState(false);
+    const [destinoCompra, setDestinoCompra] = useState('');
+    const [avulsaConfirmada, setAvulsaConfirmada] = useState(false);
     const [dragOver, setDragOver] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const leituraAtual = useRef(0);
 
     const carregar = useCallback(async () => {
         setLoading(true);
@@ -61,24 +64,34 @@ function EntradaTab() {
     useEffect(() => { carregar(); }, [carregar]);
 
     const processarArquivo = async (file: File) => {
+        if (importando) return;
         if (!file.name.toLowerCase().endsWith('.xml')) { showToast.error('Selecione um arquivo .xml'); return; }
+        const leitura = ++leituraAtual.current;
         setArquivo(file);
+        setPreview(null);
+        setDestinoCompra('');
+        setAvulsaConfirmada(false);
         try {
             const pv = await fiscalService.previewEntrada(file);
+            if (leitura !== leituraAtual.current) return;
             setPreview(pv);
         } catch (e: any) {
+            if (leitura !== leituraAtual.current) return;
             showToast.error(e?.response?.data?.error || 'Falha ao ler o XML');
             setArquivo(null);
         }
     };
 
     const confirmarImportacao = async () => {
-        if (!arquivo) return;
+        if (!arquivo || !destinoCompra || (destinoCompra === 'avulsa' && !avulsaConfirmada)) return;
         setImportando(true);
         try {
-            const r = await fiscalService.importarEntrada(arquivo);
+            const r = await fiscalService.importarEntrada(arquivo,
+                destinoCompra === 'avulsa' ? undefined : Number(destinoCompra), destinoCompra === 'avulsa');
             const res = r.resultado || {};
-            showToast.success(`Nota importada: ${res.produtos_criados || 0} novos, ${res.produtos_atualizados || 0} atualizados, ${res.contas_pagar_geradas || 0} conta(s) a pagar.`);
+            showToast.success(res.modo === 'vinculada'
+                ? 'XML vinculado ao pedido. Estoque e cobrança continuam no recebimento da compra.'
+                : `Nota importada: ${res.produtos_criados || 0} novos, ${res.produtos_atualizados || 0} atualizados, ${res.contas_pagar_geradas || 0} conta(s) a pagar.`);
             setPreview(null); setArquivo(null);
             carregar();
         } catch (e: any) {
@@ -102,12 +115,12 @@ function EntradaTab() {
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) processarArquivo(f); }}
-                onClick={() => inputRef.current?.click()}
+                onClick={() => !importando && inputRef.current?.click()}
                 className={`cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition ${dragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-300 dark:border-slate-700 hover:border-primary-400'}`}
             >
                 <Upload className="w-10 h-10 mx-auto text-slate-400 mb-3" />
                 <p className="font-bold text-slate-700 dark:text-slate-200">Arraste o XML da NF-e de compra aqui</p>
-                <p className="text-sm text-slate-500">ou clique para selecionar. O sistema dá entrada no estoque, atualiza o custo e gera as contas a pagar.</p>
+                <p className="text-sm text-slate-500">Vincule ao pedido de compra ou confira uma compra avulsa antes de importar.</p>
                 <input ref={inputRef} type="file" accept=".xml,text/xml,application/xml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) processarArquivo(f); e.currentTarget.value = ''; }} />
             </div>
 
@@ -127,7 +140,7 @@ function EntradaTab() {
                                 : notas.map((n) => (
                                     <tr key={n.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                         <td className="px-5 py-3 font-medium text-slate-700 dark:text-slate-200">{n.fornecedor_nome || n.emitente_nome}</td>
-                                        <td className="px-4 py-3 text-slate-500 font-mono">{n.numero}/{n.serie}</td>
+                                        <td className="px-4 py-3 text-slate-500 font-mono">{n.numero}/{n.serie}{n.pedido_compra_id && <p className="text-xs">Pedido #{n.pedido_compra_id}</p>}</td>
                                         <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{fmtData(n.data_emissao)}</td>
                                         <td className="px-4 py-3 text-right font-bold tabular-nums">{brl(n.valor_total)}</td>
                                         <td className="px-5 py-3 text-right"><button onClick={() => baixarXml(n.id)} className="text-primary-600 hover:text-primary-700 inline-flex items-center gap-1 text-xs font-semibold"><Download className="w-4 h-4" /> XML</button></td>
@@ -147,6 +160,16 @@ function EntradaTab() {
                         </div>
                         <div className="flex-1 overflow-y-auto p-6 space-y-3">
                             {preview.ja_importada && <div className="rounded-xl bg-warning-50 text-warning-700 dark:bg-warning-900/20 px-4 py-3 text-sm font-semibold">⚠ Esta nota já foi importada anteriormente.</div>}
+                            <label className="block text-sm font-semibold">
+                                Destino da nota
+                                <select value={destinoCompra} disabled={importando} onChange={e => { setDestinoCompra(e.target.value); setAvulsaConfirmada(false); }} className="mt-2 block w-full rounded-lg border p-2 dark:bg-slate-800">
+                                    <option value="">Selecione o pedido ou compra avulsa</option>
+                                    {(preview.pedidos_fornecedor || []).map(p => <option key={p.id} value={p.id}>{p.numero_pedido} · {p.status} · {brl(p.total)}</option>)}
+                                    <option value="avulsa">Compra avulsa, sem pedido</option>
+                                </select>
+                            </label>
+                            {destinoCompra && destinoCompra !== 'avulsa' && <p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">O XML deve cobrir o pedido inteiro. Não gera outra entrada de estoque ou cobrança. Confira a mercadoria no recebimento do pedido, inclusive em cargas parciais.</p>}
+                            {destinoCompra === 'avulsa' && <label className="flex gap-2 rounded-lg bg-warning-50 p-3 text-sm text-warning-800"><input type="checkbox" checked={avulsaConfirmada} disabled={importando} onChange={e => setAvulsaConfirmada(e.target.checked)} />Confirmo que esta compra não foi registrada ou recebida por pedido. A importação movimentará estoque e gerará contas a pagar.</label>}
                             <div className="rounded-xl border border-slate-200 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
                                 {preview.itens.map((it, i) => (
                                     <div key={i} className="flex items-center justify-between px-4 py-2.5 text-sm">
@@ -155,18 +178,18 @@ function EntradaTab() {
                                             <p className="text-xs text-slate-400">{it.quantidade} × {brl(it.valor_unitario)} {it.ncm ? `· NCM ${it.ncm}` : ''}</p>
                                         </div>
                                         <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${it.produto_existente ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'}`}>
-                                            {it.produto_existente ? 'Atualizar estoque' : 'Novo produto'}
+                                            {destinoCompra && destinoCompra !== 'avulsa' ? 'Conferir vínculo' : it.produto_existente ? 'Atualizar estoque' : 'Novo produto'}
                                         </span>
                                     </div>
                                 ))}
                             </div>
-                            {preview.duplicatas.length > 0 && (
+                            {destinoCompra === 'avulsa' && preview.duplicatas.length > 0 && (
                                 <p className="text-xs text-slate-500">{preview.duplicatas.length} conta(s) a pagar serão geradas (1ª vence {preview.duplicatas[0].vencimento}).</p>
                             )}
                         </div>
                         <div className="flex gap-2 px-6 py-4 border-t border-slate-200 dark:border-slate-800">
                             <button onClick={() => { setPreview(null); setArquivo(null); }} disabled={importando} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm text-slate-600 dark:text-slate-300">Cancelar</button>
-                            <button onClick={confirmarImportacao} disabled={importando || preview.ja_importada} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 text-white font-bold text-sm hover:bg-primary-700 disabled:opacity-50">
+                            <button onClick={confirmarImportacao} disabled={importando || preview.ja_importada || !destinoCompra || (destinoCompra === 'avulsa' && !avulsaConfirmada)} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary-600 text-white font-bold text-sm hover:bg-primary-700 disabled:opacity-50">
                                 {importando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Confirmar importação
                             </button>
                         </div>

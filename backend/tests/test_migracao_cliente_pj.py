@@ -103,5 +103,7 @@ def test_revisao_encadeia_na_cabeca_atual():
     from alembic.script import ScriptDirectory
     config = Config()
     config.set_main_option("script_location", str(CAMINHO.parent.parent))
-    cabecas = ScriptDirectory.from_config(config).get_heads()
-    assert cabecas == ["f7a9c1e3b5d8"], f"mais de uma cabeça de migração: {cabecas}"
+    script = ScriptDirectory.from_config(config)
+    cabecas = script.get_heads()
+    assert len(cabecas) == 1, f"mais de uma cabeça de migração: {cabecas}"
+    assert "f7a9c1e3b5d8" in {r.revision for r in script.walk_revisions()}, "migração PJ fora da cadeia"

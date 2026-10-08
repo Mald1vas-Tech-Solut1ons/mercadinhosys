@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import (
     PedidoCompra, PedidoCompraItem, Produto, Fornecedor, Funcionario,
-    ContaPagar, ContaPagarBaixa, MovimentacaoEstoque, Despesa, ProdutoLote
+    ContaPagar, ContaPagarBaixa, MovimentacaoEstoque, Despesa, ProdutoLote, NotaFiscalEntrada, Estabelecimento
 )
 from app.decorators.decorator_jwt import funcionario_required
 from app.services.estoque_service import quantidade_valida
@@ -416,6 +416,12 @@ def receber_pedido_compra():
             return jsonify({'error': 'Dados não fornecidos'}), 400
         pedido_id = data.get('pedido_id')
 
+        # Mesma ordem da importação XML: estabelecimento -> pedido -> produto.
+        # Evita que XML avulso e conferência da mesma nota entrem simultaneamente.
+        if not estab_id or str(estab_id).lower() == 'all':
+            raise ValueError('Selecione um estabelecimento para receber a compra')
+        Estabelecimento.query.filter_by(id=estab_id).populate_existing().with_for_update().first()
+
         # Trava o pedido: dois recebimentos simultâneos não somam a mesma carga.
         pedido = PedidoCompra.query.filter_by(
             id=pedido_id,
@@ -428,6 +434,22 @@ def receber_pedido_compra():
         if pedido.status not in ('pendente', 'parcial'):
             return jsonify({'error': 'Pedido já foi processado'}), 400
 
+        nota_vinculada = NotaFiscalEntrada.query.filter_by(pedido_compra_id=pedido.id).first()
+        from app.services.fiscal.entrada_service import _numero
+        numero_nota = data.get('numero_nota_fiscal') or pedido.numero_nota_fiscal
+        serie_nota = data.get('serie_nota_fiscal') or pedido.serie_nota_fiscal
+        if nota_vinculada:
+            if numero_nota and _numero(numero_nota) != _numero(nota_vinculada.numero):
+                raise ValueError('Número da nota difere do XML vinculado ao pedido')
+            if serie_nota and _numero(serie_nota) != _numero(nota_vinculada.serie):
+                raise ValueError('Série da nota difere do XML vinculado ao pedido')
+        elif numero_nota:
+            notas_avulsas = NotaFiscalEntrada.query.filter_by(estabelecimento_id=estab_id,
+                fornecedor_id=pedido.fornecedor_id, pedido_compra_id=None).filter(NotaFiscalEntrada.status != 'cancelada').all()
+            if any(_numero(n.numero) == _numero(numero_nota) and
+                   (not serie_nota or _numero(n.serie) == _numero(serie_nota)) for n in notas_avulsas):
+                raise ValueError('Esta nota já movimentou estoque pela importação avulsa. Reconcilie antes de receber o pedido')
+
         itens_recebidos = data.get('itens', [])
         if not isinstance(itens_recebidos, list) or not itens_recebidos:
             return jsonify({'error': 'Informe os itens recebidos'}), 400
@@ -438,7 +460,10 @@ def receber_pedido_compra():
             fator_rateio = Decimal(str(pedido.total or 0)) / Decimal(str(pedido.subtotal))
         movimentou = False
 
-        for item_data in itens_recebidos:
+        if any(not isinstance(i, dict) for i in itens_recebidos):
+            raise ValueError('Item de recebimento inválido')
+        for item_data in sorted(itens_recebidos, key=lambda i: itens_pedido.get(int(i.get('item_id') or 0)).produto_id
+                                if int(i.get('item_id') or 0) in itens_pedido else 0):
             if not isinstance(item_data, dict):
                 raise ValueError('Item de recebimento inválido')
             item = itens_pedido.get(int(item_data.get('item_id') or 0))
@@ -468,7 +493,7 @@ def receber_pedido_compra():
 
             # Estoque recebe só o que é vendável: recebido - avariado + bonificado.
             quantidade_para_estoque = quantidade_recebida - quantidade_avariada + quantidade_bonificada
-            produto = item.produto
+            produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estab_id).populate_existing().with_for_update().first()
             if produto and quantidade_para_estoque > 0:
                 data_validade = None
                 data_fabricacao = None

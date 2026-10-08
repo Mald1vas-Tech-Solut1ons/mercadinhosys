@@ -140,3 +140,17 @@ Os horários da entrega são devolvidos com offset para o navegador calcular o t
 **Validação:** 30 casos novos, incluindo duas provas de concorrência exclusivas de PostgreSQL, adicionadas ao job PostgreSQL do CI. SQLite valida regras e efeitos financeiros; não comprova locks. A evidência de publicação deve identificar o commit, o run CI, o ensaio Oracle e o deployment Vercel da entrega.
 
 **Escopo:** o acerto registra valores já recebidos; não dispara cobrança, não verifica Pix no banco e não executa cartão em adquirente. A confirmação atual é integral; entrega parcial, devolução parcial, reserva/separação/expedição (PED-01), vínculo XML/pedido (COM-02) e pós-venda continuam no backlog. Não foi criada migração de schema nem realizado seed de produção.
+
+## COM-02A — documento XML vinculado à compra
+
+Uma nota que cobre o pedido integral pode ser vinculada antes, durante ou depois do recebimento físico. O vínculo preserva estoque, lotes, custo, título, vencimento e baixas: não realiza outro recebimento nem gera outra obrigação. A compra continua recebendo cargas parciais no fluxo de conferência existente.
+
+São conferidos estabelecimento destinatário, fornecedor, produtos, unidades, quantidades integrais, total e valores líquidos por produto. Pedido devolvido/cancelado, outra loja, segunda nota do mesmo pedido e chave já importada são recusados. O vínculo de um pedido é único no banco. Importações simultâneas são serializadas por estabelecimento; a prova PostgreSQL está no CI. O XML e o mapa de produtos são guardados.
+
+A tela exige selecionar o pedido ou confirmar uma compra avulsa distinta. Se a nota já identifica um pedido, importar avulsa é recusado. Se um XML avulso já movimentou estoque, receber um pedido informando essa mesma nota é recusado para reconciliação. Vendedor e entregador não acessam a importação fiscal.
+
+Migração expansiva `f9b2c4d6e8a0`: coluna nullable, FK e unicidade; notas legadas continuam avulsas, sem inferir vínculos ou mexer em saldo. Downgrade de schema recusa apagar vínculos ativos; voltar a imagem mantém a expansão compatível.
+
+**Limites desta fatia:** uma NF-e por pedido integral; não aceita várias notas fiscais parciais, conversão de embalagem ou divergência de preço/tributos. Esses casos exigem outra fatia e reconciliação explícita. Duplicatas do XML não substituem o vencimento ou parcelamento contratado no pedido. Não valida autenticidade/autorização na SEFAZ. A confirmação de compra avulsa é declaração do operador: sem referência documental não é possível inferir que duas compras diferentes são a mesma operação. COM-02 completo continua aberto.
+
+**Liberação empresarial:** ver `DECISAO_LIBERACAO_MIGRACAO_2026-10-08.md`. Não liberar migração integral ou piloto com escrita real apenas porque uma fatia foi publicada.

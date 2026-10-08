@@ -76,7 +76,7 @@ jobs:
           JWT_SECRET_KEY: ci_test_jwt_secret_key_12345
           SKIP_DB_SETUP: "true"
         run: |
-          pytest backend/tests/test_postgres_checkout_concurrency.py backend/tests/test_finance_postgres_concurrency.py backend/tests/test_finance_release.py backend/tests/test_devops_finance_review.py backend/tests/test_tenant_isolation.py backend/tests/test_routes_multi_tenant_guard.py backend/tests/test_fornecedores_listing_response.py backend/tests/test_fin01_boleto_payments.py backend/tests/test_postgres_erp_concurrency.py backend/tests/test_erp_migration_audit.py backend/tests/test_erp_integridade_canais.py backend/tests/test_entrega_acerto.py -q
+          pytest backend/tests/test_postgres_checkout_concurrency.py backend/tests/test_finance_postgres_concurrency.py backend/tests/test_finance_release.py backend/tests/test_devops_finance_review.py backend/tests/test_tenant_isolation.py backend/tests/test_routes_multi_tenant_guard.py backend/tests/test_fornecedores_listing_response.py backend/tests/test_fin01_boleto_payments.py backend/tests/test_postgres_erp_concurrency.py backend/tests/test_erp_migration_audit.py backend/tests/test_erp_integridade_canais.py backend/tests/test_entrega_acerto.py backend/tests/test_compra_xml_vinculo.py -q
 
   frontend-build:
     name: Frontend TypeScript & Vite Build

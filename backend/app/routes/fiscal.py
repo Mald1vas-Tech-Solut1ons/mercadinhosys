@@ -15,6 +15,7 @@ from app.utils.query_helpers import get_authorized_establishment_id
 from app.services.fiscal.xml_parser import parse_nfe_xml, XMLNotaError
 from app.services.fiscal import entrada_service
 from app.services.fiscal import emissao_service
+from app.decorators.rbac import resource_required
 
 fiscal_bp = Blueprint("fiscal", __name__)
 
@@ -32,11 +33,11 @@ def _ler_xml_da_request() -> bytes:
 
 
 @fiscal_bp.route("/entrada/preview", methods=["POST"])
-@jwt_required()
+@resource_required('entrada_xml')
 def entrada_preview():
     try:
         estab_id = get_authorized_establishment_id()
-        if not estab_id:
+        if not estab_id or str(estab_id).lower() == 'all':
             return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
         xml_bytes = _ler_xml_da_request()
         parsed = parse_nfe_xml(xml_bytes)
@@ -49,17 +50,24 @@ def entrada_preview():
 
 
 @fiscal_bp.route("/entrada/importar", methods=["POST"])
-@jwt_required()
+@resource_required('entrada_xml')
 def entrada_importar():
     try:
         estab_id = get_authorized_establishment_id()
-        if not estab_id:
+        if not estab_id or str(estab_id).lower() == 'all':
             return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
         funcionario_id = int(get_jwt_identity())
         xml_bytes = _ler_xml_da_request()
         xml_text = xml_bytes.decode("utf-8", errors="replace")
         parsed = parse_nfe_xml(xml_bytes)
-        resultado = entrada_service.importar(parsed, xml_text, estab_id, funcionario_id)
+        pedido_id = request.form.get('pedido_id') or request.args.get('pedido_id')
+        if pedido_id is not None:
+            if not str(pedido_id).isdigit() or int(pedido_id) <= 0:
+                raise entrada_service.ImportacaoError('Pedido inválido.')
+            pedido_id = int(pedido_id)
+        compra_avulsa = (request.form.get('compra_avulsa') or request.args.get('compra_avulsa')) == 'true'
+        resultado = entrada_service.importar(parsed, xml_text, estab_id, funcionario_id,
+                                            pedido_id=pedido_id, compra_avulsa=compra_avulsa)
         return jsonify({"success": True, "message": "Nota importada com sucesso", "resultado": resultado}), 201
     except (XMLNotaError, entrada_service.ImportacaoError) as e:
         db.session.rollback()
@@ -73,7 +81,7 @@ def entrada_importar():
 
 
 @fiscal_bp.route("/entrada", methods=["GET"])
-@jwt_required()
+@resource_required('entrada_xml')
 def entrada_listar():
     try:
         estab_id = get_authorized_establishment_id()
@@ -94,7 +102,7 @@ def entrada_listar():
 
 
 @fiscal_bp.route("/entrada/<int:nota_id>/xml", methods=["GET"])
-@jwt_required()
+@resource_required('entrada_xml')
 def entrada_xml(nota_id):
     try:
         estab_id = get_authorized_establishment_id()

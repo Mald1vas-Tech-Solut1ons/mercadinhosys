@@ -17,10 +17,14 @@ from __future__ import annotations
 from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional
+from sqlalchemy.orm import selectinload
+import json
+import re
 
 from app.models import (
     db, Produto, Fornecedor, CategoriaProduto, MovimentacaoEstoque,
     ContaPagar, NotaFiscalEntrada, Estabelecimento, utcnow,
+    PedidoCompra,
 )
 from app.services.catalogo_mestre_service import registrar_produto_se_novo
 
@@ -29,6 +33,87 @@ CATEGORIA_IMPORTACAO = "Importação NF-e"
 
 class ImportacaoError(ValueError):
     pass
+
+
+def _digitos(value):
+    return re.sub(r'\D', '', str(value or ''))
+
+
+def _numero(value):
+    return str(value or '').strip().lstrip('0') or '0'
+
+
+def _pedidos_fornecedor(parsed, estab_id):
+    cnpj = _digitos(parsed['emitente'].get('cnpj'))
+    return [p for p in PedidoCompra.query.options(selectinload(PedidoCompra.fornecedor)).filter_by(estabelecimento_id=estab_id)
+            .filter(PedidoCompra.status.in_(['pendente', 'parcial', 'recebido'])).all()
+            if p.fornecedor and _digitos(p.fornecedor.cnpj) == cnpj]
+
+
+def _mapear_pedido(parsed, pedido, estab_id):
+    if _digitos(parsed['emitente'].get('cnpj')) != _digitos(pedido.fornecedor.cnpj):
+        raise ImportacaoError('Fornecedor do XML difere do pedido selecionado.')
+    if pedido.status not in ('pendente', 'parcial', 'recebido'):
+        raise ImportacaoError('O pedido está cancelado ou devolvido.')
+    if pedido.numero_nota_fiscal and _numero(pedido.numero_nota_fiscal) != _numero(parsed['numero']):
+        raise ImportacaoError('Número da nota difere do registrado no pedido.')
+    if pedido.serie_nota_fiscal and _numero(pedido.serie_nota_fiscal) != _numero(parsed['serie']):
+        raise ImportacaoError('Série da nota difere da registrada no pedido.')
+    total = Decimal(str(parsed['total']))
+    if not total.is_finite() or total.quantize(Decimal('0.01')) != Decimal(str(pedido.total)).quantize(Decimal('0.01')):
+        raise ImportacaoError('Valor do XML difere do total do pedido; revise a compra antes de vincular.')
+    esperadas, unidades, valores_esperados = {}, {}, {}
+    for item in pedido.itens:
+        esperadas[item.produto_id] = esperadas.get(item.produto_id, Decimal('0')) + Decimal(str(item.quantidade_solicitada))
+        unidades[item.produto_id] = str(item.produto_unidade or item.produto.unidade_medida or 'UN').upper().strip()
+        valores_esperados[item.produto_id] = valores_esperados.get(item.produto_id, Decimal('0')) + Decimal(str(item.total_item))
+    informadas, valores_informados = {}, {}
+    for item in parsed['itens']:
+        prod = _produto_existente(estab_id, item.get('ean'), item.get('codigo'))
+        if not prod or prod.id not in esperadas:
+            raise ImportacaoError('Produto do XML não corresponde aos produtos do pedido.')
+        if str(item.get('unidade') or 'UN').upper().strip() != unidades[prod.id]:
+            raise ImportacaoError('Unidade do XML difere do pedido; conversão de embalagem exige conferência.')
+        qtd = Decimal(str(item['quantidade']))
+        if not qtd.is_finite() or qtd <= 0:
+            raise ImportacaoError('Quantidade do XML inválida.')
+        informadas[prod.id] = informadas.get(prod.id, Decimal('0')) + qtd
+        valor = Decimal(str(item['valor_total'])) - Decimal(str(item.get('desconto', 0)))
+        if not valor.is_finite() or valor < 0:
+            raise ImportacaoError('Valor do item XML inválido.')
+        valores_informados[prod.id] = valores_informados.get(prod.id, Decimal('0')) + valor
+    if informadas != esperadas:
+        raise ImportacaoError('O XML deve cobrir as quantidades integrais do pedido. Notas parciais exigem outro fluxo.')
+    if any(valores_informados[k].quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) !=
+           valores_esperados[k].quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) for k in esperadas):
+        raise ImportacaoError('Valor líquido por produto difere do pedido; revise os preços e descontos.')
+    return [{'produto_id': produto_id, 'quantidade': str(qtd), 'unidade': unidades[produto_id]}
+            for produto_id, qtd in sorted(informadas.items())]
+
+
+def _vincular(parsed, xml_text, estab_id, funcionario_id, pedido_id):
+    pedido = PedidoCompra.query.filter_by(id=pedido_id, estabelecimento_id=estab_id).populate_existing().with_for_update().first()
+    if not pedido:
+        raise ImportacaoError('Pedido não encontrado neste estabelecimento.')
+    if NotaFiscalEntrada.query.filter_by(pedido_compra_id=pedido.id).first():
+        raise ImportacaoError('Este pedido já possui XML vinculado.')
+    itens = _mapear_pedido(parsed, pedido, estab_id)
+    # Documento não é comprovante de recebimento físico. O recebimento do pedido
+    # continua sendo o único escritor de estoque, lotes, custo e obrigação.
+    nota = NotaFiscalEntrada(estabelecimento_id=estab_id, fornecedor_id=pedido.fornecedor_id,
+        funcionario_id=funcionario_id, pedido_compra_id=pedido.id, chave_acesso=parsed['chave_acesso'],
+        modelo=parsed.get('modelo', '55'), numero=parsed['numero'], serie=parsed['serie'],
+        natureza_operacao=parsed.get('natureza_operacao'), emitente_cnpj=parsed['emitente'].get('cnpj'),
+        emitente_nome=parsed['emitente'].get('nome'), data_emissao=_parse_data(parsed.get('data_emissao')),
+        valor_total=parsed['total'], qtd_itens=len(parsed['itens']), status='vinculada',
+        xml_content=xml_text, itens_json=json.dumps(itens))
+    pedido.numero_nota_fiscal, pedido.serie_nota_fiscal = parsed['numero'], parsed['serie']
+    db.session.add(nota)
+    db.session.commit()
+    return {'nota_id': nota.id, 'chave_acesso': nota.chave_acesso, 'pedido_compra_id': pedido.id,
+            'produtos_criados': 0, 'produtos_atualizados': 0, 'contas_pagar_geradas': 0,
+            'fornecedor_id': pedido.fornecedor_id, 'valor_total': float(parsed['total']),
+            'modo': 'vinculada', 'estoque_movimentado': False}
 
 
 def _parse_data(value: Optional[str]) -> Optional[datetime]:
@@ -43,8 +128,10 @@ def _parse_data(value: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def _produto_existente(estab_id: int, ean: Optional[str], codigo: Optional[str]) -> Optional[Produto]:
+def _produto_existente(estab_id: int, ean: Optional[str], codigo: Optional[str], lock=False) -> Optional[Produto]:
     q = Produto.query.filter(Produto.estabelecimento_id == estab_id)
+    if lock:
+        q = q.populate_existing().with_for_update()
     if ean:
         p = q.filter(Produto.codigo_barras == ean).first()
         if p:
@@ -135,15 +222,35 @@ def preview(parsed: Dict[str, Any], estab_id: int) -> Dict[str, Any]:
         "duplicatas": [{"numero": d["numero"], "vencimento": d["vencimento"], "valor": float(d["valor"])}
                        for d in parsed["duplicatas"]],
         "itens": itens_preview,
+        "pedidos_fornecedor": [{"id": p.id, "numero_pedido": p.numero_pedido,
+                                "status": p.status, "total": float(p.total or 0)}
+                               for p in _pedidos_fornecedor(parsed, estab_id)],
     }
 
 
 def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_id: int,
-             markup_padrao: Decimal = Decimal("30")) -> Dict[str, Any]:
+             markup_padrao: Decimal = Decimal("30"), pedido_id=None, compra_avulsa=False) -> Dict[str, Any]:
     """Efetiva a importação da NF-e de entrada. Idempotente pela chave de acesso."""
     chave = parsed["chave_acesso"]
+    # Serializa importações por estabelecimento antes de consultar a chave.
+    # Duas requisições não entram no estoque antes de disputar a constraint.
+    estab = Estabelecimento.query.filter_by(id=estab_id).populate_existing().with_for_update().first()
+    if not estab:
+        raise ImportacaoError('Estabelecimento não identificado.')
+    destinatario = _digitos(parsed.get('destinatario', {}).get('cnpj'))
+    if destinatario and destinatario != _digitos(estab.cnpj):
+        raise ImportacaoError('CNPJ destinatário do XML difere do estabelecimento selecionado.')
     if NotaFiscalEntrada.query.filter_by(estabelecimento_id=estab_id, chave_acesso=chave).first():
         raise ImportacaoError("Esta nota já foi importada (chave de acesso duplicada).")
+
+    if pedido_id is not None:
+        return _vincular(parsed, xml_text, estab_id, funcionario_id, pedido_id)
+    pedidos = _pedidos_fornecedor(parsed, estab_id)
+    if any(p.numero_nota_fiscal and _numero(p.numero_nota_fiscal) == _numero(parsed['numero'])
+           and (not p.serie_nota_fiscal or _numero(p.serie_nota_fiscal) == _numero(parsed['serie'])) for p in pedidos):
+        raise ImportacaoError('Esta nota já identifica um pedido; vincule o XML para não duplicar a entrada.')
+    if pedidos and not compra_avulsa:
+        raise ImportacaoError('Há pedido deste fornecedor. Selecione o pedido ou confirme uma compra avulsa distinta.')
 
     forn = _upsert_fornecedor(estab_id, parsed["emitente"])
     categoria = None
@@ -155,7 +262,7 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
     for it in parsed["itens"]:
         qtd = Decimal(str(it["quantidade"]))
         custo_unit = Decimal(str(it["valor_unitario"]))
-        prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"))
+        prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"), lock=True)
 
         if prod is None:
             if categoria is None:

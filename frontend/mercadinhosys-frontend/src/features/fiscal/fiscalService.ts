@@ -15,6 +15,7 @@ export interface NotaEntradaItemPreview {
 }
 
 export interface NotaEntradaPreview {
+    pedidos_fornecedor: { id: number; numero_pedido: string; status: string; total: number }[];
     chave_acesso: string;
     ja_importada: boolean;
     numero: string;
@@ -30,6 +31,7 @@ export interface NotaEntradaPreview {
 }
 
 export interface NotaEntrada {
+    pedido_compra_id: number | null;
     id: number;
     chave_acesso: string;
     numero: string;
@@ -73,9 +75,11 @@ export const fiscalService = {
         return data.preview;
     },
 
-    importarEntrada: async (file: File): Promise<any> => {
+    importarEntrada: async (file: File, pedidoId?: number, compraAvulsa = false): Promise<any> => {
         const fd = new FormData();
         fd.append('xml', file);
+        if (pedidoId) fd.append('pedido_id', String(pedidoId));
+        fd.append('compra_avulsa', String(compraAvulsa));
         const { data } = await apiClient.post('/fiscal/entrada/importar', fd, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });

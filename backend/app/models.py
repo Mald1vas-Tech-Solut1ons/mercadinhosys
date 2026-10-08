@@ -1933,6 +1933,7 @@ class NotaFiscalEntrada(db.Model, MultiTenantMixin, SerializableMixin):
     id = db.Column(db.Integer, primary_key=True)
     estabelecimento_id = TenantID()
     fornecedor_id = db.Column(db.Integer, db.ForeignKey("fornecedores.id"), index=True)
+    pedido_compra_id = db.Column(db.Integer, db.ForeignKey("pedidos_compra.id", name="fk_nfe_entrada_pedido"), nullable=True)
     funcionario_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), index=True)
     chave_acesso = db.Column(db.String(44), nullable=False)
     modelo = db.Column(db.String(2), default="55")
@@ -1949,7 +1950,9 @@ class NotaFiscalEntrada(db.Model, MultiTenantMixin, SerializableMixin):
     itens_json = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=utcnow)
     fornecedor = db.relationship("Fornecedor", backref=db.backref("notas_entrada", lazy=True))
+    pedido_compra = db.relationship("PedidoCompra", backref=db.backref("nota_entrada", uselist=False))
     __table_args__ = (
+        db.UniqueConstraint("pedido_compra_id", name="uq_nfe_entrada_pedido"),
         db.Index("ix_nfe_entrada_chave", "chave_acesso"),
         db.Index("ix_nfe_entrada_data", "data_emissao"),
         db.UniqueConstraint("estabelecimento_id", "chave_acesso", name="uq_nfe_entrada_estab_chave"),
@@ -1961,6 +1964,7 @@ class NotaFiscalEntrada(db.Model, MultiTenantMixin, SerializableMixin):
             "modelo": self.modelo, "natureza_operacao": self.natureza_operacao,
             "emitente_cnpj": self.emitente_cnpj, "emitente_nome": self.emitente_nome,
             "fornecedor_id": self.fornecedor_id,
+            "pedido_compra_id": self.pedido_compra_id,
             "fornecedor_nome": self.fornecedor.nome_fantasia if self.fornecedor else self.emitente_nome,
             "data_emissao": self.data_emissao.isoformat() if self.data_emissao else None,
             "valor_total": float(self.valor_total or 0), "qtd_itens": self.qtd_itens,

@@ -150,6 +150,7 @@ def parse_nfe_xml(xml_bytes: bytes | str) -> Dict[str, Any]:
             "quantidade": _dec(_text(prod, "qCom")),
             "valor_unitario": _dec(_text(prod, "vUnCom")),
             "valor_total": _dec(_text(prod, "vProd")),
+            "desconto": _dec(_text(prod, "vDesc")),
         })
 
     if not itens:

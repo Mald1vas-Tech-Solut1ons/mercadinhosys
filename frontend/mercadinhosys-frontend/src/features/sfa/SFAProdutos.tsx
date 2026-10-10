@@ -75,7 +75,8 @@ export default function SFAProdutos() {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {produtosFiltrados.map((produto) => {
-                            const estoque = Number(produto.quantidade) || 0;
+                            // Disponível para prometer: o que já está reservado para outros pedidos não conta.
+                            const estoque = Number(produto.quantidade_disponivel ?? produto.quantidade) || 0;
                             const emEstoque = estoque > 0;
                             const estoqueBaixo = emEstoque && estoque <= 5;
 

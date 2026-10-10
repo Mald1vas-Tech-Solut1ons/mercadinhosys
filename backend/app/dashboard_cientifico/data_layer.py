@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy import func, desc, extract, case, and_, or_
 from decimal import Decimal, ROUND_HALF_UP
 from app.utils.custo import custo_efetivo
+from app.utils.timezone import local_date_to_utc_naive
 from app.models import (
     Venda, VendaItem, Produto, Cliente,
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
@@ -1819,18 +1820,18 @@ class DataLayer:
         }
 
         try:
-            # db injetado pelo decorator
+            # db injetado pelo decorator. Datas puras são dias da LOJA: o banco guarda UTC, então o dia
+            # vai de 00:00 a 23:59 locais (antes era UTC e venda/recebimento entre 21h e meia-noite
+            # caía no dia seguinte do painel).
             if isinstance(start_date, datetime):
                 start_dt = start_date if start_date.tzinfo else start_date.replace(tzinfo=timezone.utc)
             else:
-                start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
-                
+                start_dt = local_date_to_utc_naive(start_date).replace(tzinfo=timezone.utc)
+
             if isinstance(end_date, datetime):
                 end_dt = end_date if end_date.tzinfo else end_date.replace(tzinfo=timezone.utc)
             else:
-                end_dt = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
-                if end_dt.hour == 0:
-                    end_dt = end_dt.replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+                end_dt = local_date_to_utc_naive(end_date, fim_do_dia=True).replace(tzinfo=timezone.utc)
 
             # 1. DADOS DE VENDAS
             try:

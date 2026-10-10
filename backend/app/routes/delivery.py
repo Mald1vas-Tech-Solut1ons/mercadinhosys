@@ -12,6 +12,7 @@ from app.models import (
     ChecklistVeiculo, ITENS_CHECKLIST_PADRAO,
 )
 from app.decorators.rbac import tenant_or_super_admin_required, resource_required
+from app.utils.timezone import hoje_local
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import json
@@ -840,7 +841,7 @@ def criar_venda_entrega_unificada():
             db.session.add(ContaReceber(
                 estabelecimento_id=est_id, cliente_id=cliente.id, venda_id=venda.id,
                 numero_documento=venda.codigo, valor_original=valor_fiado, valor_atual=valor_fiado,
-                data_emissao=agora.date(), data_vencimento=(agora + timedelta(days=30)).date(), status="aberto",
+                data_emissao=hoje_local(), data_vencimento=hoje_local() + timedelta(days=30), status="aberto",
                 observacoes=f"Fiado venda entrega - {cliente.nome}"))
         if cliente:
             cliente.total_compras = int(cliente.total_compras or 0) + 1

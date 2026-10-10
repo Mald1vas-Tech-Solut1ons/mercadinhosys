@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 from flask_jwt_extended import create_access_token
 
+from app.utils.timezone import hoje_local
 from app.models import (Caixa, CategoriaProduto, Cliente, Configuracao, ContaReceber, Estabelecimento, Funcionario,
                         Produto, ProdutoLote)
 
@@ -45,7 +46,7 @@ def _venda_mista(client, fin):
 
 
 def _resumo(client, fin):
-    hoje = date.today().isoformat()
+    hoje = hoje_local().isoformat()  # dia da loja: o CI roda em UTC e o dia local pode ser o anterior
     resposta = client.get(f"/api/despesas/resumo-financeiro/?data_inicio={hoje}&data_fim={hoje}", headers=fin["headers"])
     assert resposta.status_code == 200, resposta.get_json()
     return resposta.get_json()

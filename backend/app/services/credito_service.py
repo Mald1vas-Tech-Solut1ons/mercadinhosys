@@ -12,6 +12,7 @@ from decimal import Decimal
 from sqlalchemy import func
 
 from app.models import ContaReceber
+from app.utils.timezone import hoje_local
 
 # Dias de atraso tolerados antes de bloquear nova venda a prazo.
 DIAS_TOLERANCIA_ATRASO = 5
@@ -19,7 +20,7 @@ SCORE_NEUTRO = 500
 
 
 def _hoje(hoje=None) -> date:
-    return hoje or date.today()
+    return hoje or hoje_local()
 
 
 def titulos_vencidos(cliente, hoje=None, tolerancia=DIAS_TOLERANCIA_ATRASO):

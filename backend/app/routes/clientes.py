@@ -16,6 +16,7 @@ from app.models import db, Cliente, Estabelecimento, Venda, VendaItem, ContaRece
 from app.utils import validar_email, formatar_telefone, calcular_idade
 # Validadores com dígito verificador (os de app.utils só conferiam o tamanho).
 from app.utils.validators import validar_cpf, validar_cnpj
+from app.utils.timezone import hoje_local
 from app.utils.ia_copiloto import gerar_texto, ia_disponivel
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
@@ -2512,7 +2513,7 @@ def importar_clientes_csv():
                     db.session.add(cliente)
                     db.session.flush()
                     if saldo > 0:
-                        hoje = date.today()
+                        hoje = hoje_local()
                         db.session.add(ContaReceber(
                             estabelecimento_id=estabelecimento_id, cliente_id=cliente.id,
                             numero_documento=(campo("documento_saldo") or f"SALDO-INICIAL-{cliente.id}")[:50],

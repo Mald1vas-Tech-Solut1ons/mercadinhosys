@@ -2,6 +2,7 @@
 from decimal import Decimal
 from datetime import datetime, timedelta
 import pytest
+from app.utils.timezone import data_local
 from app.models import (Entrega, EntregaItem, Motorista, RastreamentoEntrega, Estabelecimento, Veiculo,
                         Pagamento, Caixa, MovimentacaoCaixa, Funcionario)
 from test_erp_integridade_canais import ctx, _entrega, _get
@@ -188,7 +189,7 @@ def test_caixa_reconhece_acerto_na_data_do_recebimento(client, session, ctx, ent
     session.commit()
     assert _acerto(client, ctx, eid, [{"forma_pagamento": "dinheiro", "valor": "60"}]).status_code == 200
     def resumo(dia):
-        d = dia.date().isoformat()
+        d = data_local(dia).isoformat()  # o painel agrupa por dia da loja, não por dia UTC
         response = client.get(f"/api/despesas/resumo-financeiro/?data_inicio={d}&data_fim={d}", headers=ctx["headers"])
         assert response.status_code == 200, response.get_json()
         return response.get_json()

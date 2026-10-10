@@ -112,9 +112,9 @@ Os 14 defeitos do parecer foram corrigidos de uma vez, com varredura de todos os
 
 ## Próximas histórias
 
-1. **PED-01** — reserva → separação → expedição → entrega parcial.
-2. **COM-02** — vincular XML ao pedido/recebimento para não duplicar estoque e título.
-3. **ENT-01** — máquina de estados e acerto do pagamento "na entrega": implementação e aceites abaixo.
+1. ~~**PED-01** — reserva → separação → expedição → entrega parcial.~~ Entregue; ver "PED-01" abaixo.
+2. ~~**COM-02A** — vincular XML ao pedido de compra.~~ Entregue; ver "COM-02A" abaixo.
+3. ~~**ENT-01** — máquina de estados e acerto do pagamento "na entrega".~~ Entregue; ver "ENT-01" abaixo.
 4. Pós-venda: chamado, devolução parcial por lote, troca.
 5. CX comercial: campanha rastreada com consentimento e comissão de vendedor.
 6. NF-e modelo 55, depósitos e inventário, conciliação bancária.
@@ -154,3 +154,27 @@ Migração expansiva `f9b2c4d6e8a0`: coluna nullable, FK e unicidade; notas lega
 **Limites desta fatia:** uma NF-e por pedido integral; não aceita várias notas fiscais parciais, conversão de embalagem ou divergência de preço/tributos. Esses casos exigem outra fatia e reconciliação explícita. Duplicatas do XML não substituem o vencimento ou parcelamento contratado no pedido. Não valida autenticidade/autorização na SEFAZ. A confirmação de compra avulsa é declaração do operador: sem referência documental não é possível inferir que duas compras diferentes são a mesma operação. COM-02 completo continua aberto.
 
 **Liberação empresarial:** ver `DECISAO_LIBERACAO_MIGRACAO_2026-10-08.md`. Não liberar migração integral ou piloto com escrita real apenas porque uma fatia foi publicada.
+
+## PED-01 — pedido B2B: reserva, separação, expedição parcial e saldo em carteira (09/10/2026)
+
+Antes, aprovar um pedido do vendedor faturava tudo de uma vez: não havia como prometer estoque, entregar em partes nem manter o que faltou em carteira. Agora o pedido percorre `pendente → aprovado (reservado) → parcial → faturado`, ou `cancelado` quando nada saiu.
+
+| Passo | Rota (gerente/admin) | Regra |
+|---|---|---|
+| Reservar | `POST /sfa/pedidos/<id>/reservar` | Confere crédito (cliente em dia e limite, só a prazo) e separa estoque livre. Tudo ou nada; com `permitir_falta` reserva o que existe e o resto fica em carteira. Pode ser repetida quando chega mercadoria |
+| Separar | `GET /sfa/pedidos/<id>/separacao` | Roteiro do estoquista com os lotes de validade mais curta primeiro |
+| Expedir | `POST /sfa/pedidos/<id>/expedir` | Tudo que está reservado, ou itens e quantidades informados. Cada saída é uma venda: baixa FEFO, custo histórico, títulos só do que saiu, desconto do pedido proporcional (a última saída fecha os centavos). Crédito é conferido de novo |
+| Cortar saldo | `POST /sfa/pedidos/<id>/cancelar-saldo` | Cancela o que não saiu e libera a reserva; sem nada expedido, cancela o pedido |
+| Faturar tudo | `POST /sfa/pedidos/<id>/aprovar` | Continua existindo: reserva tudo e expede de uma vez (idempotente); em pedido já parcial, fatura o saldo |
+
+**Estoque:** a reserva é por item (`quantidade_reservada`) e sai do saldo vendável de todos os canais: PDV, venda direta, entrega e faturamento passam por `registrar_saida`, que desconta o reservado de outros pedidos. A mensagem de falta diz quanto está reservado. O catálogo do vendedor (`/sfa/sync-data`) traz `quantidade_disponivel` e a tela usa esse valor.
+
+**Cancelamento da venda de uma expedição** reabre o saldo do pedido (sem reserva) e o status volta para `aprovado` ou `parcial`; cada expedição fica registrada com as quantidades e os valores que saíram (`pedido_venda_expedicoes`).
+
+**Concorrência:** pedido bloqueado primeiro, depois caixa, cliente e produtos, na mesma ordem em reserva, expedição e cancelamento de venda. Três provas PostgreSQL (reservas simultâneas, expedição simultânea do mesmo saldo, balcão contra reserva) rodam no CI; SQLite não prova locks.
+
+**Migração** `c8e0a2d4f6b1` (depois de `f9b2c4d6e8a0`): três colunas com padrão 0 e duas tabelas novas; pedidos antigos já faturados passam a constar como atendidos. Expansiva e reversível.
+
+**Tela:** a fila de pedidos do SFA mostra "Aguardando análise" e "Em atendimento" com andamento, reservado e falta por item, quantidade a expedir editável, reserva parcial, impressão da separação e corte de saldo.
+
+**Limites:** a expedição não gera entrega logística nem romaneio por si (vincular à entrega e ao motorista é outra fatia); a reserva não expira sozinha; a lista de separação sugere lotes sem reservá-los individualmente; não há depósitos múltiplos nem NF-e modelo 55 por expedição; o painel de produtos ainda mostra o saldo físico, não o disponível.

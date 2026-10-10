@@ -6,6 +6,7 @@ from decimal import Decimal
 import pytest
 from flask_jwt_extended import create_access_token
 
+from app.utils.timezone import hoje_local
 from app.models import (Caixa, CategoriaProduto, Cliente, ContaReceber, Estabelecimento, Funcionario, Produto,
                         ProdutoLote)
 from app.services.credito_service import calcular_score, recalcular_credito, titulos_vencidos, validar_sem_atraso
@@ -36,7 +37,7 @@ def loja(session):
     session.flush()
     session.add_all([
         ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, numero_lote="CRD", quantidade=50,
-                    quantidade_inicial=50, data_entrada=date.today(), data_validade=date.today() + timedelta(days=90),
+                    quantidade_inicial=50, data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=90),
                     preco_custo_unitario=40, ativo=True),
         Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="CRD", saldo_inicial=0,
               saldo_atual=0, status="aberto"),
@@ -153,7 +154,7 @@ def test_score_sem_historico_e_neutro_e_nao_vira_bom_pagador(session, loja):
 
 def test_score_premia_pontualidade_e_explica_componentes(session, loja):
     cliente = _cliente(session, loja)
-    hoje = date.today()
+    hoje = hoje_local()
     for i in range(3):
         _titulo(session, loja, cliente, 100, hoje - timedelta(days=10 + i), status="pago",
                 recebimento=hoje - timedelta(days=12 + i))
@@ -165,7 +166,7 @@ def test_score_premia_pontualidade_e_explica_componentes(session, loja):
 
 def test_score_cai_com_titulo_vencido_em_aberto(session, loja):
     cliente = _cliente(session, loja)
-    _titulo(session, loja, cliente, 200, date.today() - timedelta(days=70))
+    _titulo(session, loja, cliente, 200, hoje_local() - timedelta(days=70))
     resultado = calcular_score(cliente)
     assert resultado["titulos_vencidos_em_aberto"] == 1
     assert resultado["maior_atraso_dias"] == 70
@@ -176,9 +177,9 @@ def test_score_cai_com_titulo_vencido_em_aberto(session, loja):
 
 def test_tolerancia_de_atraso_antes_de_bloquear(session, loja):
     cliente = _cliente(session, loja)
-    _titulo(session, loja, cliente, 100, date.today() - timedelta(days=3))
+    _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=3))
     validar_sem_atraso(cliente)  # dentro da tolerância de 5 dias
-    _titulo(session, loja, cliente, 100, date.today() - timedelta(days=9))
+    _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=9))
     with pytest.raises(ValueError, match="vencido"):
         validar_sem_atraso(cliente)
     assert len(titulos_vencidos(cliente)) == 1
@@ -186,7 +187,7 @@ def test_tolerancia_de_atraso_antes_de_bloquear(session, loja):
 
 def test_recalcular_credito_grava_no_cliente(session, loja):
     cliente = _cliente(session, loja)
-    _titulo(session, loja, cliente, 100, date.today() - timedelta(days=20))
+    _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=20))
     recalcular_credito(cliente)
     assert cliente.risco_inadimplencia in ("MEDIO", "ALTO")
     assert cliente.atraso_medio_dias == pytest.approx(20.0)
@@ -202,7 +203,7 @@ def _venda_fiado(client, loja, cliente, valor=100):
 
 def test_pdv_bloqueia_fiado_de_cliente_em_atraso_mas_aceita_a_vista(client, session, loja):
     cliente = _cliente(session, loja)
-    _titulo(session, loja, cliente, 100, date.today() - timedelta(days=15))
+    _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=15))
     bloqueada = _venda_fiado(client, loja, cliente)
     assert bloqueada.status_code in (400, 409, 422), bloqueada.get_json()
     assert "vencido" in str(bloqueada.get_json()).lower()
@@ -226,7 +227,7 @@ def test_endpoint_de_credito_mostra_bloqueio(client, session, loja):
     cliente = _cliente(session, loja)
     assert client.get(f"/api/clientes/{cliente.id}/credito", headers=loja["headers"]).get_json()["credito"][
         "bloqueado_para_prazo"] is False
-    _titulo(session, loja, cliente, 100, date.today() - timedelta(days=30))
+    _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=30))
     credito = client.get(f"/api/clientes/{cliente.id}/credito", headers=loja["headers"]).get_json()["credito"]
     assert credito["bloqueado_para_prazo"] is True
     assert credito["dias_tolerancia_atraso"] == 5
@@ -237,7 +238,7 @@ def test_endpoint_de_credito_mostra_bloqueio(client, session, loja):
 
 def _devedor(session, loja, saldo=300):
     cliente = _cliente(session, loja, saldo_devedor=Decimal(saldo))
-    _titulo(session, loja, cliente, saldo, date.today() + timedelta(days=10))
+    _titulo(session, loja, cliente, saldo, hoje_local() + timedelta(days=10))
     return cliente
 
 
@@ -271,9 +272,9 @@ def test_pagar_fiado_parcial_depois_total_quita_titulo_e_recalcula_credito(clien
 
 def test_pagar_fiado_distribui_fifo_entre_titulos(client, session, loja):
     cliente = _cliente(session, loja, saldo_devedor=Decimal("300"))
-    antigo = _titulo(session, loja, cliente, 100, date.today() + timedelta(days=5), numero="A")
-    antigo.data_emissao = date.today() - timedelta(days=40)
-    recente = _titulo(session, loja, cliente, 200, date.today() + timedelta(days=20), numero="B")
+    antigo = _titulo(session, loja, cliente, 100, hoje_local() + timedelta(days=5), numero="A")
+    antigo.data_emissao = hoje_local() - timedelta(days=40)
+    recente = _titulo(session, loja, cliente, 200, hoje_local() + timedelta(days=20), numero="B")
     session.commit()
     resposta = client.post(f"/api/clientes/{cliente.id}/pagar_fiado", headers=loja["headers"], json={"valor": 150})
     assert resposta.status_code == 200, resposta.get_json()

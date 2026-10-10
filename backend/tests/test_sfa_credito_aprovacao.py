@@ -31,8 +31,8 @@ def ctx(session):
     session.add(prod)
     session.flush()
     session.add(ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, numero_lote="L1", quantidade=100,
-                            quantidade_inicial=100, data_entrada=date.today(),
-                            data_validade=date.today() + timedelta(days=60), preco_custo_unitario=4, ativo=True))
+                            quantidade_inicial=100, data_entrada=hoje_local(),
+                            data_validade=hoje_local() + timedelta(days=60), preco_custo_unitario=4, ativo=True))
     session.commit()
     token = create_access_token(identity=str(admin.id), additional_claims={"estabelecimento_id": estab.id, "role": "admin"})
     return dict(estab=estab, admin=admin, cliente=cliente, prod=prod, headers={"Authorization": f"Bearer {token}"})
@@ -50,8 +50,8 @@ def _pedido(client, ctx, condicao, quantidade=20):
 
 def _vencido(session, ctx, dias=30):
     session.add(ContaReceber(estabelecimento_id=ctx["estab"].id, cliente_id=ctx["cliente"].id, numero_documento="VENC",
-                             valor_original=50, valor_atual=50, data_emissao=date.today() - timedelta(days=dias + 30),
-                             data_vencimento=date.today() - timedelta(days=dias), status="aberto"))
+                             valor_original=50, valor_atual=50, data_emissao=hoje_local() - timedelta(days=dias + 30),
+                             data_vencimento=hoje_local() - timedelta(days=dias), status="aberto"))
     session.commit()
 
 

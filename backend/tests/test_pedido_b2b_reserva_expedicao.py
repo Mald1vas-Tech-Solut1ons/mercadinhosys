@@ -34,13 +34,13 @@ def ctx(session):
     session.flush()
     session.add_all([
         ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, numero_lote="ARROZ-CURTO", quantidade=4,
-                    quantidade_inicial=4, data_entrada=date.today(), data_validade=date.today() + timedelta(days=20),
+                    quantidade_inicial=4, data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=20),
                     preco_custo_unitario=4, ativo=True),
         ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, numero_lote="ARROZ-LONGO", quantidade=6,
-                    quantidade_inicial=6, data_entrada=date.today(), data_validade=date.today() + timedelta(days=120),
+                    quantidade_inicial=6, data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=120),
                     preco_custo_unitario=4, ativo=True),
         ProdutoLote(estabelecimento_id=estab.id, produto_id=outro.id, numero_lote="FEIJAO", quantidade=20,
-                    quantidade_inicial=20, data_entrada=date.today(), data_validade=date.today() + timedelta(days=90),
+                    quantidade_inicial=20, data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=90),
                     preco_custo_unitario=3, ativo=True),
         Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="B2B-1", saldo_inicial=0,
               saldo_atual=0, status="aberto"),
@@ -192,7 +192,7 @@ def test_desconto_do_pedido_e_proporcional_e_a_ultima_saida_fecha_os_centavos(cl
     session.add(barato)
     session.flush()
     session.add(ProdutoLote(estabelecimento_id=ctx["estab"].id, produto_id=barato.id, numero_lote="SAL", quantidade=30,
-                            quantidade_inicial=30, data_entrada=date.today(), data_validade=date.today() + timedelta(days=300),
+                            quantidade_inicial=30, data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=300),
                             preco_custo_unitario=1, ativo=True))
     session.commit()
     pedido = _pedido(client, ctx, quantidade=3, preco=3.33, desconto=1.00, produto=barato)  # itens 9,99; total 8,99
@@ -303,8 +303,8 @@ def test_cancelar_a_venda_da_expedicao_reabre_o_saldo_do_pedido(client, session,
 
 def _vencido(session, ctx):
     session.add(ContaReceber(estabelecimento_id=ctx["estab"].id, cliente_id=ctx["cliente"].id, numero_documento="VENC",
-                             valor_original=50, valor_atual=50, data_emissao=date.today() - timedelta(days=60),
-                             data_vencimento=date.today() - timedelta(days=30), status="aberto"))
+                             valor_original=50, valor_atual=50, data_emissao=hoje_local() - timedelta(days=60),
+                             data_vencimento=hoje_local() - timedelta(days=30), status="aberto"))
     session.commit()
 
 

@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from sqlalchemy import func
 
-from app.models import MovimentacaoEstoque, Produto, ProdutoLote, db
+from app.models import MovimentacaoEstoque, PedidoVenda, PedidoVendaItem, Produto, ProdutoLote, db
 
 QTD = Decimal('0.001')
 CENT = Decimal('0.01')
@@ -21,12 +21,18 @@ CENT = Decimal('0.01')
 class EstoqueIndisponivelError(ValueError):
     """Saldo vendável insuficiente; ValueError para as rotas responderem 400."""
 
-    def __init__(self, produto, solicitado, disponivel, quarentena):
+    def __init__(self, produto, solicitado, disponivel, quarentena, reservado=Decimal('0')):
         self.produto_id = produto.id
         self.solicitado = solicitado
         self.disponivel = disponivel
         self.quarentena = quarentena
-        detalhe = f' ({_qtd(quarentena)} em lote vencido)' if quarentena > 0 else ''
+        self.reservado = reservado
+        partes = []
+        if quarentena > 0:
+            partes.append(f'{_qtd(quarentena)} em lote vencido')
+        if reservado > 0:
+            partes.append(f'{_qtd(reservado)} reservado para pedidos')
+        detalhe = f' ({"; ".join(partes)})' if partes else ''
         super().__init__(f'Estoque insuficiente para {produto.nome}: disponível {_qtd(disponivel)}{detalhe}, '
                          f'solicitado {_qtd(solicitado)}')
 
@@ -69,25 +75,41 @@ def quantidade_em_quarentena(produto) -> Decimal:
     return Decimal(str(total or 0))
 
 
+def reservado_no_produto(produto, exceto_pedido_id=None) -> Decimal:
+    """Quantidade separada para pedidos B2B abertos (aprovado/parcial); não pode ser vendida por outro canal."""
+    consulta = db.session.query(func.coalesce(func.sum(PedidoVendaItem.quantidade_reservada), 0)).join(
+        PedidoVenda, PedidoVenda.id == PedidoVendaItem.pedido_id).filter(
+        PedidoVendaItem.produto_id == produto.id,
+        PedidoVendaItem.estabelecimento_id == produto.estabelecimento_id,
+        PedidoVenda.status.in_(('aprovado', 'parcial')),
+        PedidoVenda.deleted_at.is_(None),
+    )
+    if exceto_pedido_id is not None:
+        consulta = consulta.filter(PedidoVenda.id != exceto_pedido_id)
+    return Decimal(str(consulta.scalar() or 0))
+
+
 def custo_historico(produto) -> Decimal:
     """Custo médio vigente no instante da saída; fica gravado no item para o CMV."""
     return Decimal(str(produto.preco_custo or 0))
 
 
-def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, data=None):
+def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, data=None, ignorar_pedido_id=None):
     """Baixa agregado e lotes de uma venda e grava o movimento com o rastro.
 
     Retorna ``(movimento, custo_unitario)``; serviço não movimenta estoque e
-    devolve ``movimento=None``.
+    devolve ``movimento=None``. O saldo vendável desconta o que está reservado para
+    pedidos; a expedição de um pedido passa ``ignorar_pedido_id`` para usar a própria reserva.
     """
     quantidade = quantidade_valida(quantidade)
     custo = custo_historico(produto)
     if not controla_estoque(produto):
         return None, custo
     quarentena = quantidade_em_quarentena(produto)
-    disponivel = Decimal(str(produto.quantidade or 0)) - quarentena
+    reservado = reservado_no_produto(produto, exceto_pedido_id=ignorar_pedido_id)
+    disponivel = Decimal(str(produto.quantidade or 0)) - quarentena - reservado
     if quantidade > disponivel:
-        raise EstoqueIndisponivelError(produto, quantidade, max(disponivel, Decimal('0')), quarentena)
+        raise EstoqueIndisponivelError(produto, quantidade, max(disponivel, Decimal('0')), quarentena, reservado)
     anterior = Decimal(str(produto.quantidade or 0))
     consumidos = produto.consumir_estoque_fifo(quantidade)
     movimento = MovimentacaoEstoque(

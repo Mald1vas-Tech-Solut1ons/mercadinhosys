@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, Response, current_app
 from app import db
-from app.utils.timezone import fmt_local, local_date_to_utc_naive
+from app.utils.timezone import fmt_local, hoje_local, local_date_to_utc_naive
 from app.models import (
     Venda,
     VendaItem,
@@ -987,7 +987,7 @@ def criar_venda():
                     if data_vencimento_fiado:
                         vencimento = datetime.strptime(data_vencimento_fiado, "%Y-%m-%d").date()
                     else:
-                        vencimento = datetime.now(timezone.utc).date() + timedelta(days=pgto.get("prazo_dias", 30))
+                        vencimento = hoje_local() + timedelta(days=pgto.get("prazo_dias", 30))
 
                     conta = ContaReceber(
                         estabelecimento_id=nova_venda.estabelecimento_id,
@@ -996,7 +996,7 @@ def criar_venda():
                         numero_documento=nova_venda.codigo,
                         valor_original=valor_p,
                         valor_atual=valor_p,
-                        data_emissao=datetime.now(timezone.utc).date(),
+                        data_emissao=hoje_local(),
                         data_vencimento=vencimento,
                         status="aberto",
                         observacoes=f"FIADO gerado via Venda #{nova_venda.codigo}"
@@ -1248,6 +1248,8 @@ def cancelar_venda(venda_id):
         try:
             from app.utils.checkout_locking import lock_checkout
             from app.services.estoque_service import controla_estoque, estornar_saidas_venda
+            from app.services.pedido_b2b_service import reabrir_expedicao, travar_pedido_da_venda
+            travar_pedido_da_venda(venda)  # pedido de origem primeiro: mesma ordem de locks da expedição
             lock_checkout(venda.estabelecimento_id, venda.funcionario_id,
                           [{'productId': item.produto_id} for item in venda.itens], venda.cliente_id)
             # O razão de movimentos diz o que saiu. Vendas antigas sem movimento
@@ -1305,6 +1307,7 @@ def cancelar_venda(venda_id):
                         Decimal(0), Decimal(str(cliente.saldo_devedor or 0)) - Decimal(str(conta.valor_atual or 0))
                     )
 
+            reabrir_expedicao(venda)  # saída de pedido B2B: o item volta a ser saldo do pedido
             venda.status = "cancelada"
             agora = datetime.now()
             venda.data_cancelamento = agora

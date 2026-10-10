@@ -95,3 +95,60 @@ def test_recebimento_concorrente_nao_ultrapassa_pedido(app, session, erp):
     db.session.expire_all()
     assert session.get(Produto, erp['product']).quantidade == 17
     assert session.get(PedidoCompra, order_id).status == 'parcial'
+
+
+def _pedido_b2b(app, erp, quantidade, condicao='A Vista'):
+    with app.test_client() as client:
+        resposta = client.post('/api/sfa/sync-pedidos', headers=erp['headers'], json={'pedidos': [{
+            'cliente_id': erp['customer'], 'subtotal': quantidade * 10, 'total': quantidade * 10, 'condicao_pagamento': condicao,
+            'itens': [{'produto_id': erp['product'], 'quantidade': quantidade, 'preco_unitario': 10,
+                       'total_item': quantidade * 10}]}]})
+    assert resposta.status_code == 200, resposta.get_json()
+    return db.session.query(PedidoVenda).order_by(PedidoVenda.id.desc()).first().id
+
+
+def test_reservas_concorrentes_nao_prometem_o_mesmo_estoque(app, session, erp):
+    # Saldo vendável: 6 (os outros 4 estão em lote vencido). Três pedidos de 4: só o primeiro cabe.
+    pedidos = [_pedido_b2b(app, erp, 4) for _ in range(3)]
+    ids = iter(pedidos)
+    results = parallel(app, 3, lambda c: c.post(f'/api/sfa/pedidos/{next(ids)}/reservar', headers=erp['headers']))
+    assert sorted(status for status, _ in results) == [200, 400, 400], results
+    db.session.expire_all()
+    from app.models import PedidoVendaItem
+    total = sum(Decimal(str(i.quantidade_reservada)) for i in session.query(PedidoVendaItem).all())
+    assert total == Decimal('4')
+
+
+def test_expedicao_concorrente_do_mesmo_saldo_sai_uma_vez(app, session, erp):
+    pedido = _pedido_b2b(app, erp, 3)
+    with app.test_client() as client:
+        assert client.post(f'/api/sfa/pedidos/{pedido}/reservar', headers=erp['headers']).status_code == 200
+    results = parallel(app, 4, lambda c: c.post(f'/api/sfa/pedidos/{pedido}/expedir', headers=erp['headers']))
+    assert sorted(status for status, _ in results) == [200, 400, 400, 400], results
+    db.session.expire_all()
+    assert session.query(Venda).count() == 1
+    assert session.get(Produto, erp['product']).quantidade == 7
+    assert session.query(ContaReceber).count() == 1
+    assert session.get(Cliente, erp['customer']).saldo_devedor == Decimal('30')
+
+
+def test_balcao_e_reserva_nunca_vendem_mais_que_o_saldo(app, session, erp):
+    pedido = _pedido_b2b(app, erp, 6)  # todo o saldo vendável
+    balcao = {'items': [{'productId': erp['product'], 'quantity': 1, 'price': 10}], 'subtotal': 10, 'total': 10,
+              'pagamentos': [{'forma': 'dinheiro', 'valor': 10}]}
+    chamadas = [lambda c: c.post(f'/api/sfa/pedidos/{pedido}/reservar', headers=erp['headers'])] + \
+               [lambda c: c.post('/api/pdv/finalizar', json=balcao, headers=erp['headers'])] * 6
+
+    def executar(chamada):
+        with app.test_client() as client:
+            resposta = chamada(client)
+            return resposta.status_code
+    with ThreadPoolExecutor(max_workers=7) as pool:
+        status = list(pool.map(executar, chamadas))
+    reservou = status[0] == 200
+    vendidos = sum(1 for s in status[1:] if s == 201)
+    db.session.expire_all()
+    from app.models import PedidoVendaItem
+    reservado = sum(Decimal(str(i.quantidade_reservada)) for i in session.query(PedidoVendaItem).all())
+    assert reservado + vendidos <= 6, (status, reservado, vendidos)
+    assert (reservado == 6) == reservou

@@ -1604,7 +1604,9 @@ class PedidoVenda(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin
     vendedor_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=False, index=True)
     
     codigo = db.Column(db.String(50), nullable=False)
-    status = db.Column(db.String(20), default="pendente") # pendente, aprovado, faturado, cancelado
+    # pendente (aguarda análise) -> aprovado (crédito ok, estoque reservado) -> parcial (parte expedida)
+    # -> faturado (tudo expedido ou saldo cancelado) | cancelado (nada foi expedido)
+    status = db.Column(db.String(20), default="pendente")
     subtotal = db.Column(db.Numeric(19, 4), nullable=False, default=0)
     desconto = db.Column(db.Numeric(19, 4), default=0)
     total = db.Column(db.Numeric(19, 4), nullable=False, default=0)
@@ -1628,6 +1630,46 @@ class PedidoVendaItem(db.Model, MultiTenantMixin, SerializableMixin):
     quantidade = db.Column(db.Numeric(10, 3), nullable=False)
     preco_unitario = db.Column(db.Numeric(19, 4), nullable=False)
     desconto = db.Column(db.Numeric(19, 4), default=0)
+    total_item = db.Column(db.Numeric(19, 4), nullable=False)
+    # Saldo do item = quantidade - atendida - cancelada. A reserva é a parte do saldo com estoque
+    # separado para este pedido; o que falta fica em carteira (backorder) até chegar mercadoria.
+    quantidade_reservada = db.Column(db.Numeric(10, 3), nullable=False, default=0, server_default="0")
+    quantidade_atendida = db.Column(db.Numeric(10, 3), nullable=False, default=0, server_default="0")
+    quantidade_cancelada = db.Column(db.Numeric(10, 3), nullable=False, default=0, server_default="0")
+
+    @property
+    def saldo(self):
+        from decimal import Decimal as _D
+        return max(_D("0"), _D(str(self.quantidade or 0)) - _D(str(self.quantidade_atendida or 0))
+                   - _D(str(self.quantidade_cancelada or 0)))
+
+
+class PedidoVendaExpedicao(db.Model, MultiTenantMixin):
+    """Cada saída (parcial ou total) de um pedido: gera a venda, a baixa de estoque e os títulos."""
+    __tablename__ = "pedido_venda_expedicoes"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedidos_venda.id", ondelete="CASCADE"), nullable=False, index=True)
+    venda_id = db.Column(db.Integer, db.ForeignKey("vendas.id"), nullable=False, unique=True)
+    sequencia = db.Column(db.Integer, nullable=False, default=1)
+    subtotal = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    desconto = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    total = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    funcionario_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    created_at = db.Column(db.DateTime, default=utcnow)
+    cancelada_em = db.Column(db.DateTime)
+    itens = db.relationship("PedidoVendaExpedicaoItem", backref="expedicao", cascade="all, delete-orphan", lazy=True)
+    pedido = db.relationship("PedidoVenda", backref=db.backref("expedicoes", lazy=True))
+    __table_args__ = (db.UniqueConstraint("pedido_id", "sequencia", name="uq_expedicao_pedido_sequencia"),)
+
+
+class PedidoVendaExpedicaoItem(db.Model, MultiTenantMixin):
+    __tablename__ = "pedido_venda_expedicao_itens"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    expedicao_id = db.Column(db.Integer, db.ForeignKey("pedido_venda_expedicoes.id", ondelete="CASCADE"), nullable=False, index=True)
+    pedido_item_id = db.Column(db.Integer, db.ForeignKey("pedido_venda_itens.id"), nullable=False, index=True)
+    quantidade = db.Column(db.Numeric(10, 3), nullable=False)
     total_item = db.Column(db.Numeric(19, 4), nullable=False)
 
 

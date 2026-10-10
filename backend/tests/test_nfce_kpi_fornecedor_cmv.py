@@ -7,7 +7,7 @@ import pytest
 from flask_jwt_extended import create_access_token
 
 from app.models import (Caixa, CategoriaProduto, Cliente, Estabelecimento, Fornecedor, Funcionario, PedidoCompra,
-                        PedidoCompraItem, PedidoVenda, Produto, ProdutoLote, Venda, VendaItem, db)
+                        PedidoCompraItem, PedidoVenda, PedidoVendaItem, Produto, ProdutoLote, Venda, VendaItem, db)
 from app.services import fornecedor_score
 from app.services.fiscal import emissao_service
 from app.utils.timezone import fuso_da_uf, local_date_to_utc_naive, to_local
@@ -134,15 +134,25 @@ def vendedor(session, ctx):
     return dict(func=func, headers={"Authorization": f"Bearer {token}"})
 
 
-def _pedido(session, ctx, vendedor, cliente, total, status, emissao, codigo):
+def _pedido(session, ctx, vendedor, cliente, total, status, emissao, codigo, atendida=0):
     pedido = PedidoVenda(estabelecimento_id=ctx["estab"].id, cliente_id=cliente.id, vendedor_id=vendedor["func"].id,
                          codigo=codigo, status=status, subtotal=total, total=total, data_emissao=emissao)
     session.add(pedido)
+    session.flush()
+    session.add(PedidoVendaItem(estabelecimento_id=ctx["estab"].id, pedido_id=pedido.id, produto_id=ctx["prod"].id,
+                                quantidade=10, preco_unitario=Decimal(total) / 10, total_item=total,
+                                quantidade_atendida=atendida))
     session.commit()
     return pedido
 
 
-def test_kpi_conta_so_faturado_no_mes_local_e_mostra_pendente_a_parte(client, session, ctx, vendedor):
+def _venda_sfa(session, ctx, vendedor, cliente, total, data_venda, codigo, status="finalizada", tipo="sfa"):
+    session.add(Venda(estabelecimento_id=ctx["estab"].id, cliente_id=cliente.id, funcionario_id=vendedor["func"].id,
+                      codigo=codigo, subtotal=total, total=total, status=status, tipo_venda=tipo, data_venda=data_venda))
+    session.commit()
+
+
+def test_kpi_conta_vendas_reais_no_mes_local_e_mostra_o_saldo_a_faturar_a_parte(client, session, ctx, vendedor):
     outro = Cliente(estabelecimento_id=ctx["estab"].id, nome="Outro", cpf="11144477735", celular="11999999999",
                     cep="01000000", logradouro="Rua", numero="1", bairro="Centro", cidade="São Paulo", estado="SP")
     session.add(outro)
@@ -151,26 +161,26 @@ def test_kpi_conta_so_faturado_no_mes_local_e_mostra_pendente_a_parte(client, se
     primeiro_dia = to_local(datetime.now(timezone.utc)).date().replace(day=1)
     inicio_mes = local_date_to_utc_naive(primeiro_dia)
 
-    _pedido(session, ctx, vendedor, ctx["cliente"], 100, "faturado", inicio_mes + timedelta(minutes=1), "P1")
-    _pedido(session, ctx, vendedor, ctx["cliente"], 1000, "faturado", inicio_mes - timedelta(minutes=1), "P2")  # mês anterior
-    _pedido(session, ctx, vendedor, ctx["cliente"], 50, "pendente", agora, "P3")
-    _pedido(session, ctx, vendedor, ctx["cliente"], 700, "cancelado", agora, "P4")
-    _pedido(session, ctx, vendedor, outro, 200, "faturado", agora, "P5")
+    _venda_sfa(session, ctx, vendedor, ctx["cliente"], 100, inicio_mes + timedelta(minutes=1), "V1")
+    _venda_sfa(session, ctx, vendedor, ctx["cliente"], 1000, inicio_mes - timedelta(minutes=1), "V2")  # mês anterior
+    _venda_sfa(session, ctx, vendedor, outro, 200, agora, "V3")
+    _venda_sfa(session, ctx, vendedor, outro, 700, agora, "V4", status="cancelada")
+    _venda_sfa(session, ctx, vendedor, outro, 500, agora, "V5", tipo="pdv")  # balcão não é do vendedor externo
+    _pedido(session, ctx, vendedor, ctx["cliente"], 50, "pendente", agora, "P1")  # 50 a faturar
+    _pedido(session, ctx, vendedor, ctx["cliente"], 100, "parcial", agora, "P2", atendida=4)  # faltam 6 de 10 = 60
+    _pedido(session, ctx, vendedor, ctx["cliente"], 700, "cancelado", agora, "P3")
 
     resposta = client.get("/api/sfa/kpi/vendedor", headers=vendedor["headers"])
     assert resposta.status_code == 200, resposta.get_json()
     dados = resposta.get_json()["data"]
     assert dados["realizado"]["faturamento"] == pytest.approx(300.0)
-    assert dados["realizado"]["pipeline_pendente"] == pytest.approx(50.0)
+    assert dados["realizado"]["pipeline_pendente"] == pytest.approx(110.0)
     assert dados["carteira"]["positivados"] == 2
 
 
-def test_kpi_do_vendedor_nao_mistura_pedidos_de_outro_vendedor(client, session, ctx, vendedor):
-    admin_pedido = PedidoVenda(estabelecimento_id=ctx["estab"].id, cliente_id=ctx["cliente"].id,
-                               vendedor_id=ctx["admin"].id, codigo="ADM", status="faturado", subtotal=900, total=900,
-                               data_emissao=datetime.now(timezone.utc).replace(tzinfo=None))
-    session.add(admin_pedido)
-    session.commit()
+def test_kpi_do_vendedor_nao_mistura_vendas_de_outro_vendedor(client, session, ctx, vendedor):
+    outro_vendedor = {"func": ctx["admin"]}
+    _venda_sfa(session, ctx, outro_vendedor, ctx["cliente"], 900, datetime.now(timezone.utc).replace(tzinfo=None), "ADM")
     dados = client.get("/api/sfa/kpi/vendedor", headers=vendedor["headers"]).get_json()["data"]
     assert dados["realizado"]["faturamento"] == 0
 

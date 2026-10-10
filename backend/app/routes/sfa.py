@@ -3,6 +3,8 @@ from app.models import (db, TabelaPreco, TabelaPrecoItem, Rota, PedidoVenda, Ped
                         Cliente, Produto, MetaVendedor, ProdutoFoco, Funcionario,
                         Venda, VendaItem, ContaReceber)
 from app.services.venda_service import VendaService
+from app.services.pedido_b2b_service import (ReservaIndisponivelError, cancelar_saldo, condicao_a_vista, executar_expedicao,
+                                             lista_separacao, parcelas_condicao, planejar_expedicao, reservar)
 from app.utils.errors import EstoqueInsuficienteError
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from flask_jwt_extended import get_jwt_identity, get_jwt
@@ -18,22 +20,7 @@ from app.utils.timezone import iso_local, local_date_to_utc_naive, to_local
 bp = Blueprint("sfa", __name__)
 
 
-def _parcelas_condicao(condicao, total, base_dt):
-    """Traduz a condição de pagamento em parcelas (valor, vencimento).
-    'A Vista' → 1x hoje; '30 Dias' → 1x +30d; '30/60' → 2x; '30/60/90' → 3x."""
-    total = Decimal(str(total or 0))
-    dias = [int(x) for x in re.findall(r"\d+", condicao or "")]
-    if not dias:
-        dias = [0]  # à vista / sem prazo
-    dias = sorted(dias)
-    n = len(dias)
-    base_val = (total / n).quantize(Decimal("0.01"))
-    parcelas, acc = [], Decimal("0")
-    for i, d in enumerate(dias):
-        valor = base_val if i < n - 1 else (total - acc)  # última ajusta centavos
-        acc += valor
-        parcelas.append((valor, (base_dt + timedelta(days=d)).date()))
-    return parcelas
+_parcelas_condicao = parcelas_condicao  # mantido por compatibilidade com quem importa daqui
 
 
 def _estab_id():
@@ -170,18 +157,28 @@ def _pagina_produtos(estab_id, apos, limite):
     # Custo e margem ficam no escritório: o pacote vai para o celular do vendedor.
     rows = db.session.execute(
         text("""
-            SELECT id, nome, descricao, preco_venda,
-                   quantidade, unidade_medida, codigo_barras, imagem_url,
-                   categoria_id, ativo, marca
-            FROM produtos
-            WHERE estabelecimento_id = :eid AND ativo = TRUE AND (deleted_at IS NULL) AND id > :apos
-            ORDER BY id
+            SELECT p.id, p.nome, p.descricao, p.preco_venda,
+                   p.quantidade, p.unidade_medida, p.codigo_barras, p.imagem_url,
+                   p.categoria_id, p.ativo, p.marca,
+                   COALESCE((SELECT SUM(i.quantidade_reservada)
+                             FROM pedido_venda_itens i JOIN pedidos_venda pv ON pv.id = i.pedido_id
+                             WHERE i.produto_id = p.id AND i.estabelecimento_id = :eid
+                               AND pv.status IN ('aprovado', 'parcial') AND pv.deleted_at IS NULL), 0) AS quantidade_reservada
+            FROM produtos p
+            WHERE p.estabelecimento_id = :eid AND p.ativo = TRUE AND (p.deleted_at IS NULL) AND p.id > :apos
+            ORDER BY p.id
             LIMIT :lim
         """),
         {"eid": estab_id, "apos": apos, "lim": limite + 1}
     ).mappings().all()
     proximo = rows[limite - 1]["id"] if len(rows) > limite else None
-    return [dict(r) for r in rows[:limite]], proximo
+    produtos = []
+    for r in rows[:limite]:
+        produto = dict(r)
+        # Disponível para prometer = saldo físico menos o que já está separado para outros pedidos.
+        produto["quantidade_disponivel"] = max(0.0, float(produto["quantidade"] or 0) - float(produto["quantidade_reservada"] or 0))
+        produtos.append(produto)
+    return produtos, proximo
 
 
 @bp.route("/sfa/sync-data", methods=["GET"])
@@ -301,26 +298,43 @@ def kpi_vendedor():
         meta_faturamento = float(meta_row["meta_faturamento"]) if meta_row else 0.0
         meta_positivacao = int(meta_row["meta_positivacao"]) if meta_row else 0
 
-        # 2. Vendas do mês atual deste vendedor (raw SQL)
-        pedidos_rows = db.session.execute(
+        # 2. Faturamento do mês = vendas geradas pelos pedidos do vendedor (cada expedição é uma venda), já sem
+        # as canceladas. Pedido pendente ou só reservado ainda pode ser recusado ou cortado: entra à parte,
+        # como carteira a faturar (pipeline), pelo saldo que falta sair.
+        vendas_rows = db.session.execute(
             text("""
-                SELECT id, total, cliente_id, status
-                FROM pedidos_venda
-                WHERE vendedor_id = :vid
+                SELECT id, total, cliente_id
+                FROM vendas
+                WHERE funcionario_id = :vid
                   AND estabelecimento_id = :eid
-                  AND data_emissao >= :inicio AND data_emissao < :fim
-                  AND status IN ('pendente', 'aprovado', 'faturado')
+                  AND tipo_venda = 'sfa' AND status = 'finalizada'
+                  AND data_venda >= :inicio AND data_venda < :fim
                   AND (deleted_at IS NULL)
             """),
             {"vid": vendedor_id, "inicio": inicio_mes, "fim": fim_mes, "eid": estab_id}
         ).mappings().all()
+        saldo_rows = db.session.execute(
+            text("""
+                SELECT pv.id AS pedido_id, pv.total, pv.subtotal, i.quantidade, i.quantidade_atendida,
+                       i.quantidade_cancelada, i.total_item
+                FROM pedidos_venda pv JOIN pedido_venda_itens i ON i.pedido_id = pv.id
+                WHERE pv.vendedor_id = :vid AND pv.estabelecimento_id = :eid
+                  AND pv.status IN ('pendente', 'aprovado', 'parcial') AND (pv.deleted_at IS NULL)
+            """),
+            {"vid": vendedor_id, "eid": estab_id}
+        ).mappings().all()
 
-        # Meta e positivação só contam o que virou venda (faturado). Pedido pendente ainda
-        # pode ser recusado ou ficar sem estoque; é mostrado à parte, como pipeline.
-        faturados = [p for p in pedidos_rows if p["status"] == "faturado"]
-        faturamento_realizado = sum(float(p["total"]) for p in faturados)
-        pipeline_pendente = sum(float(p["total"]) for p in pedidos_rows if p["status"] != "faturado")
-        clientes_positivados = len(set(p["cliente_id"] for p in faturados if p["cliente_id"]))
+        faturamento_realizado = sum(float(v["total"]) for v in vendas_rows)
+        clientes_positivados = len(set(v["cliente_id"] for v in vendas_rows if v["cliente_id"]))
+        saldo_por_pedido, fator_por_pedido = {}, {}
+        for r in saldo_rows:
+            quantidade = float(r["quantidade"] or 0)
+            saldo = max(0.0, quantidade - float(r["quantidade_atendida"] or 0) - float(r["quantidade_cancelada"] or 0))
+            saldo_por_pedido[r["pedido_id"]] = saldo_por_pedido.get(r["pedido_id"], 0.0) + (
+                saldo / quantidade * float(r["total_item"] or 0) if quantidade else 0.0)
+            subtotal = float(r["subtotal"] or 0)
+            fator_por_pedido[r["pedido_id"]] = float(r["total"] or 0) / subtotal if subtotal else 1.0  # desconto do pedido
+        pipeline_pendente = sum(valor * fator_por_pedido[pid] for pid, valor in saldo_por_pedido.items())
 
         # 3. Base de clientes na rota do vendedor
         base_row = db.session.execute(
@@ -354,14 +368,14 @@ def kpi_vendedor():
         if foco_rows:
             itens_foco = db.session.execute(
                 text("""
-                    SELECT COALESCE(SUM(pvi.quantidade), 0) as total
-                    FROM pedido_venda_itens pvi
-                    JOIN pedidos_venda pv ON pv.id = pvi.pedido_id
-                    WHERE pv.vendedor_id = :vid
-                      AND pv.estabelecimento_id = :eid
-                      AND pv.data_emissao >= :inicio AND pv.data_emissao < :fim
-                      AND pv.status = 'faturado'
-                      AND pvi.produto_id IN :foco_ids
+                    SELECT COALESCE(SUM(vi.quantidade), 0) as total
+                    FROM venda_itens vi
+                    JOIN vendas v ON v.id = vi.venda_id
+                    WHERE v.funcionario_id = :vid
+                      AND v.estabelecimento_id = :eid
+                      AND v.tipo_venda = 'sfa' AND v.status = 'finalizada'
+                      AND v.data_venda >= :inicio AND v.data_venda < :fim
+                      AND vi.produto_id IN :foco_ids
                 """).bindparams(bindparam("foco_ids", expanding=True)),
                 {"vid": vendedor_id, "inicio": inicio_mes, "fim": fim_mes, "eid": estab_id,
                  "foco_ids": [f["produto_id"] for f in foco_rows]}
@@ -537,17 +551,22 @@ def listar_pedidos_vendedor():
         if not (_is_privileged() and not request.args.get("vendedor_id")):
             sql += " AND pv.vendedor_id = :vid"
             params["vid"] = _vendedor_id()
-        if status:
-            sql += " AND pv.status = :status"
-            params["status"] = status
+        statuses = [x.strip() for x in (status or "").split(",") if x.strip()]
+        if statuses:
+            sql += " AND pv.status IN :statuses"
+            params["statuses"] = statuses
         sql += " ORDER BY pv.data_emissao DESC LIMIT 200"
 
-        pedidos = [dict(r) for r in db.session.execute(text(sql), params).mappings().all()]
+        consulta = text(sql)
+        if statuses:
+            consulta = consulta.bindparams(bindparam("statuses", expanding=True))
+        pedidos = [dict(r) for r in db.session.execute(consulta, params).mappings().all()]
         if pedidos:
             ids = ",".join(str(int(p["id"])) for p in pedidos)
             itens = db.session.execute(text(f"""
-                SELECT i.pedido_id, i.produto_id, p.nome AS produto_nome, p.unidade_medida,
-                       i.quantidade, i.preco_unitario, i.desconto, i.total_item
+                SELECT i.id AS item_id, i.pedido_id, i.produto_id, p.nome AS produto_nome, p.unidade_medida,
+                       i.quantidade, i.preco_unitario, i.desconto, i.total_item,
+                       i.quantidade_reservada, i.quantidade_atendida, i.quantidade_cancelada
                 FROM pedido_venda_itens i
                 JOIN produtos p ON p.id = i.produto_id AND p.estabelecimento_id = i.estabelecimento_id
                 WHERE i.pedido_id IN ({ids}) AND i.estabelecimento_id = :eid
@@ -589,19 +608,163 @@ def rejeitar_pedido(pedido_id):
         return jsonify({"status": "error", "message": "Não foi possível rejeitar o pedido"}), 500
 
 
+def _pedido_travado(pedido_id):
+    """Pedido da loja do token, bloqueado FOR UPDATE: reserva, expedição e aprovação não correm juntas."""
+    estab_id = _estab_id()
+    if not estab_id:
+        return estab_id, None
+    pedido = PedidoVenda.query.filter_by(id=pedido_id, estabelecimento_id=estab_id) \
+        .populate_existing().with_for_update().first()
+    return estab_id, pedido
+
+
+def _travar_cliente_e_produtos(estab_id, pedido):
+    """Mesma ordem de locks do checkout: caixa do operador, cliente (crédito) e depois produtos."""
+    from app.utils.checkout_locking import lock_checkout
+    return lock_checkout(estab_id, get_jwt_identity(), [{'produto_id': item.produto_id} for item in pedido.itens],
+                         pedido.cliente_id)
+
+
+def _validar_credito(cliente, valor, pedido, agora):
+    """Crédito só vale para venda a prazo: à vista não consome limite nem é barrada por atraso.
+    A prazo exige cliente em dia e limite disponível."""
+    valor = Decimal(str(valor or 0))
+    if not cliente or condicao_a_vista(pedido.condicao_pagamento, valor, agora):
+        return
+    from app.services.credito_service import validar_sem_atraso
+    validar_sem_atraso(cliente)
+    limite_disponivel = Decimal(str(cliente.limite_credito or 0)) - Decimal(str(cliente.saldo_devedor or 0))
+    if valor > limite_disponivel:
+        raise ValueError(f"Limite de crédito excedido. Disponível: R$ {limite_disponivel:.2f}, pedido: R$ {valor:.2f}")
+
+
+def _resumo_itens(pedido):
+    return [{"item_id": i.id, "produto_id": i.produto_id, "quantidade": float(i.quantidade),
+             "reservado": float(i.quantidade_reservada or 0), "atendido": float(i.quantidade_atendida or 0),
+             "cancelado": float(i.quantidade_cancelada or 0), "saldo": float(i.saldo)} for i in pedido.itens]
+
+
+@bp.route("/sfa/pedidos/<int:pedido_id>/reservar", methods=["POST"])
+@gerente_ou_admin_required
+def reservar_pedido(pedido_id):
+    """Aprova o crédito e separa estoque para o pedido, sem faturar.
+
+    Tudo ou nada por padrão; com ``permitir_falta`` reserva o que existe e o resto fica em carteira.
+    Pode ser repetido quando chegar mercadoria para completar a reserva."""
+    try:
+        corpo = request.get_json(silent=True) or {}
+        estab_id, pedido = _pedido_travado(pedido_id)
+        if not pedido:
+            return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
+        if pedido.status in ("faturado", "cancelado"):
+            return jsonify({"status": "error", "message": f"Pedido {pedido.status} não aceita reserva"}), 400
+        if not pedido.itens:
+            return jsonify({"status": "error", "message": "Pedido sem itens"}), 400
+        cliente = _travar_cliente_e_produtos(estab_id, pedido)
+        if pedido.status == "pendente":
+            _validar_credito(cliente, pedido.total, pedido, datetime.utcnow())
+        faltas = reservar(pedido, permitir_falta=bool(corpo.get("permitir_falta")))
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Pedido reservado" if not faltas else "Reserva parcial: itens em falta ficam em carteira",
+                        "data": {"pedido_status": pedido.status, "faltas": faltas, "itens": _resumo_itens(pedido)}}), 200
+    except (EstoqueInsuficienteError, ValueError) as e:
+        db.session.rollback()
+        corpo_erro = {"status": "error", "message": str(e)}
+        if isinstance(e, ReservaIndisponivelError):
+            corpo_erro["faltas"] = e.faltas
+        return jsonify(corpo_erro), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Falha ao reservar pedido SFA %s", pedido_id)
+        return jsonify({"status": "error", "message": "Falha ao reservar o pedido"}), 500
+
+
+@bp.route("/sfa/pedidos/<int:pedido_id>/separacao", methods=["GET"])
+@gerente_ou_admin_required
+def separacao_pedido(pedido_id):
+    """Roteiro de separação do estoquista, com os lotes de validade mais curta primeiro."""
+    estab_id = _estab_id()
+    pedido = PedidoVenda.query.filter_by(id=pedido_id, estabelecimento_id=estab_id).first() if estab_id else None
+    if not pedido:
+        return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
+    return jsonify({"status": "success", "data": {"pedido_id": pedido.id, "codigo": pedido.codigo, "status": pedido.status,
+                                                  "itens": lista_separacao(pedido)}}), 200
+
+
+@bp.route("/sfa/pedidos/<int:pedido_id>/expedir", methods=["POST"])
+@gerente_ou_admin_required
+def expedir_pedido(pedido_id):
+    """Expede o que está reservado (tudo, ou só os itens/quantidades informados): vende, baixa o estoque
+    e gera os títulos do que saiu. O saldo continua no pedido."""
+    try:
+        corpo = request.get_json(silent=True) or {}
+        selecao = None
+        if corpo.get("itens") is not None:
+            if not isinstance(corpo["itens"], list) or not corpo["itens"]:
+                raise ValueError("Informe os itens a expedir")
+            selecao = {}
+            for linha in corpo["itens"]:
+                if not isinstance(linha, dict) or linha.get("item_id") is None:
+                    raise ValueError("Item de expedição inválido")
+                if int(linha["item_id"]) in selecao:
+                    raise ValueError("Item repetido na expedição")
+                selecao[int(linha["item_id"])] = linha.get("quantidade")
+        estab_id, pedido = _pedido_travado(pedido_id)
+        if not pedido:
+            return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
+        if pedido.status not in ("aprovado", "parcial"):
+            return jsonify({"status": "error", "message": "Reserve o pedido antes de expedir"}), 400
+        cliente = _travar_cliente_e_produtos(estab_id, pedido)
+        agora = datetime.utcnow()
+        plano = planejar_expedicao(pedido, selecao)
+        _validar_credito(cliente, plano.total, pedido, agora)
+        venda, expedicao, parcelas = executar_expedicao(pedido, plano, cliente, agora=agora)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Expedição registrada",
+                        "data": {"venda_codigo": venda.codigo, "venda_id": venda.id, "expedicao": expedicao.sequencia,
+                                 "parcelas": parcelas, "total": float(plano.total), "pedido_status": pedido.status,
+                                 "itens": _resumo_itens(pedido)}}), 200
+    except (EstoqueInsuficienteError, ValueError, TypeError, DecimalException) as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Falha ao expedir pedido SFA %s", pedido_id)
+        return jsonify({"status": "error", "message": "Falha ao expedir o pedido"}), 500
+
+
+@bp.route("/sfa/pedidos/<int:pedido_id>/cancelar-saldo", methods=["POST"])
+@gerente_ou_admin_required
+def cancelar_saldo_pedido(pedido_id):
+    """Corta o que ainda não saiu e libera a reserva. Nada expedido: o pedido inteiro é cancelado."""
+    try:
+        motivo = str((request.get_json(silent=True) or {}).get("motivo") or "Saldo cancelado")[:200]
+        estab_id, pedido = _pedido_travado(pedido_id)
+        if not pedido:
+            return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
+        if pedido.status not in ("aprovado", "parcial"):
+            return jsonify({"status": "error", "message": "Só pedido aprovado ou parcial tem saldo a cancelar"}), 400
+        _travar_cliente_e_produtos(estab_id, pedido)
+        status = cancelar_saldo(pedido, motivo)
+        db.session.commit()
+        return jsonify({"status": "success", "message": "Saldo cancelado",
+                        "data": {"pedido_status": status, "itens": _resumo_itens(pedido)}}), 200
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Falha ao cancelar saldo do pedido SFA %s", pedido_id)
+        return jsonify({"status": "error", "message": "Falha ao cancelar o saldo"}), 500
+
+
 @bp.route("/sfa/pedidos/<int:pedido_id>/aprovar", methods=["POST"])
 @gerente_ou_admin_required
 def aprovar_pedido(pedido_id):
-    """Aprova o pedido do vendedor e o transforma em Venda real:
-    valida crédito, baixa estoque, cria Venda + itens e gera Conta(s) a Receber
-    conforme a condição de pagamento. Idempotente por pedido."""
+    """Aprova e fatura o pedido inteiro de uma vez: valida crédito, reserva e expede tudo.
+    Para reservar primeiro ou entregar em partes, use /reservar e /expedir. Idempotente por pedido."""
     try:
-        from app.services.estoque_service import registrar_saida
-        from app.utils.checkout_locking import lock_checkout
-        estab_id = _estab_id()
-        # Trava o pedido: duas aprovações simultâneas não faturam duas vezes.
-        pedido = PedidoVenda.query.filter_by(id=pedido_id, estabelecimento_id=estab_id)\
-            .populate_existing().with_for_update().first() if estab_id else None
+        estab_id, pedido = _pedido_travado(pedido_id)
         if not pedido:
             return jsonify({"status": "error", "message": "Pedido não encontrado"}), 404
 
@@ -613,101 +776,27 @@ def aprovar_pedido(pedido_id):
         if not pedido.itens:
             return jsonify({"status": "error", "message": "Pedido sem itens"}), 400
 
-        # Mesma ordem de locks do checkout: cliente (crédito) e depois produtos.
-        cliente = lock_checkout(estab_id, get_jwt_identity(),
-                                [{'produto_id': item.produto_id} for item in pedido.itens], pedido.cliente_id)
-        total_pedido = Decimal(str(pedido.total or 0))
+        cliente = _travar_cliente_e_produtos(estab_id, pedido)
         agora = datetime.utcnow()
-
-        # 1. Crédito só vale para venda a prazo: pedido à vista não consome limite
-        # nem é barrado por atraso (o cliente paga na entrega). A prazo exige
-        # cliente em dia e limite disponível.
-        a_vista = all(venc <= agora.date() for _, venc in _parcelas_condicao(pedido.condicao_pagamento, total_pedido, agora))
-        if cliente and not a_vista:
-            from app.services.credito_service import validar_sem_atraso
-            try:
-                validar_sem_atraso(cliente)
-            except ValueError as erro:
-                db.session.rollback()
-                return jsonify({"status": "error", "message": str(erro)}), 400
-            limite_disponivel = Decimal(str(cliente.limite_credito or 0)) - Decimal(str(cliente.saldo_devedor or 0))
-            if total_pedido > limite_disponivel:
-                db.session.rollback()
-                return jsonify({"status": "error",
-                                "message": f"Limite de crédito excedido. Disponível: R$ {limite_disponivel:.2f}, pedido: R$ {total_pedido:.2f}"}), 400
-
-        codigo_venda = f"VD-SFA-{pedido.id}-{int(agora.timestamp())}"
-
-        # 2. Cria a Venda (faturamento) vinculada ao vendedor do pedido
-        venda = Venda(
-            estabelecimento_id=estab_id,
-            cliente_id=pedido.cliente_id,
-            funcionario_id=pedido.vendedor_id,
-            codigo=codigo_venda,
-            subtotal=pedido.subtotal or pedido.total,
-            desconto=pedido.desconto or Decimal("0"),
-            total=pedido.total,
-            status="finalizada",
-            tipo_venda="sfa",
-            quantidade_itens=len(pedido.itens),
-            observacoes=f"Faturamento do pedido SFA {pedido.codigo}",
-            data_venda=agora,
-        )
-        db.session.add(venda)
-        db.session.flush()  # obtém venda.id
-
-        # 3. Itens da venda + baixa de estoque e lotes pela regra única dos canais
-        for item in pedido.itens:
-            produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estab_id).first()
-            if not produto:
-                db.session.rollback()
-                return jsonify({"status": "error", "message": f"Produto {item.produto_id} não encontrado"}), 400
-            quantidade = Decimal(str(item.quantidade))
-            total_item = Decimal(str(item.total_item))
-            _, custo_unitario = registrar_saida(
-                produto, quantidade, venda_id=venda.id, funcionario_id=pedido.vendedor_id,
-                motivo=f"Venda SFA {codigo_venda}", data=agora)
-            db.session.add(VendaItem(
-                estabelecimento_id=estab_id, venda_id=venda.id, produto_id=produto.id,
-                produto_nome=produto.nome, produto_codigo=produto.codigo_interno,
-                produto_unidade=produto.unidade_medida,
-                quantidade=quantidade, preco_unitario=item.preco_unitario,
-                desconto=item.desconto or Decimal("0"), total_item=total_item,
-                custo_unitario=custo_unitario,
-                margem_lucro_real=(total_item - custo_unitario * quantidade).quantize(CENT)))
-            produto.quantidade_vendida = Decimal(str(produto.quantidade_vendida or 0)) + quantidade
-            produto.total_vendido = Decimal(str(produto.total_vendido or 0)) + total_item
-            produto.ultima_venda = agora
-
-        # 4. Conta(s) a Receber conforme a condição de pagamento
-        parcelas = _parcelas_condicao(pedido.condicao_pagamento, pedido.total, agora)
-        for i, (valor, venc) in enumerate(parcelas, start=1):
-            db.session.add(ContaReceber(
-                estabelecimento_id=estab_id, cliente_id=pedido.cliente_id, venda_id=venda.id,
-                numero_documento=f"DUP-{codigo_venda}-{i}/{len(parcelas)}",
-                valor_original=valor, valor_atual=valor,
-                data_emissao=agora.date(), data_vencimento=venc, status="aberto",
-                observacoes=f"Pedido SFA {pedido.codigo} - parcela {i}/{len(parcelas)} ({pedido.condicao_pagamento or 'à vista'})"))
-
-        # 5. Atualiza saldo devedor e métricas do cliente
-        if cliente:
-            cliente.saldo_devedor = Decimal(str(cliente.saldo_devedor or 0)) + total_pedido
-            VendaService.atualizar_metricas_cliente(cliente.id, total_pedido, agora)
-
-        # 6. Fecha o ciclo do pedido
-        pedido.status = "faturado"
-        pedido.observacoes = (pedido.observacoes or "") + f" | Faturado como {codigo_venda}"
+        if pedido.status == "pendente":
+            _validar_credito(cliente, pedido.total, pedido, agora)
+        reservar(pedido)  # tudo ou nada: sem estoque livre, nada é reservado nem faturado
+        plano = planejar_expedicao(pedido)
+        if pedido.status != "pendente":
+            _validar_credito(cliente, plano.total, pedido, agora)
+        venda, _, parcelas = executar_expedicao(pedido, plano, cliente, agora=agora)
+        pedido.observacoes = (pedido.observacoes or "") + f" | Faturado como {venda.codigo}"
         db.session.commit()
 
         return jsonify({"status": "success", "message": "Pedido aprovado e faturado",
-                        "data": {"venda_codigo": codigo_venda, "venda_id": venda.id,
-                                 "parcelas": len(parcelas), "total": float(pedido.total)}}), 200
+                        "data": {"venda_codigo": venda.codigo, "venda_id": venda.id,
+                                 "parcelas": parcelas, "total": float(plano.total)}}), 200
     except (EstoqueInsuficienteError, ValueError) as e:
         db.session.rollback()
         return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception as e:
+    except Exception:
         db.session.rollback()
-        import traceback; traceback.print_exc()
+        current_app.logger.exception("Falha ao faturar pedido SFA %s", pedido_id)
         return jsonify({"status": "error", "message": "Falha ao faturar o pedido"}), 500
 
 

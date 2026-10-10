@@ -9,6 +9,13 @@ from app.models import (CategoriaProduto, Cliente, ContaReceber, Estabelecimento
                         ProdutoLote)
 
 
+def hoje_local():
+    """Data do dia na loja (o servidor roda em UTC e os títulos usam a data local)."""
+    from datetime import datetime, timezone
+    from app.utils.timezone import to_local
+    return to_local(datetime.now(timezone.utc)).date()
+
+
 @pytest.fixture
 def ctx(session):
     estab = session.query(Estabelecimento).first()
@@ -58,7 +65,7 @@ def test_pedido_a_vista_acima_do_limite_e_aprovado(client, session, ctx):
     session.expire_all()
     # O título à vista vence hoje (cobrança na entrega) e o saldo do cliente bate com os títulos abertos.
     titulo = ContaReceber.query.filter_by(cliente_id=ctx["cliente"].id).one()
-    assert titulo.valor_atual == Decimal("200.00") and titulo.data_vencimento == date.today()
+    assert titulo.valor_atual == Decimal("200.00") and titulo.data_vencimento == hoje_local()
     assert session.get(Cliente, ctx["cliente"].id).saldo_devedor == Decimal("200.00")
 
 
@@ -93,7 +100,7 @@ def test_pedido_a_prazo_de_cliente_em_dia_dentro_do_limite_gera_titulo(client, s
     assert resposta.status_code == 200, resposta.get_json()
     titulo = ContaReceber.query.filter_by(cliente_id=ctx["cliente"].id).one()
     assert titulo.valor_atual == Decimal("50.00")
-    assert titulo.data_vencimento == date.today() + timedelta(days=30)
+    assert titulo.data_vencimento == hoje_local() + timedelta(days=30)
 
 
 def test_cliente_cadastrado_pelo_vendedor_entra_na_carteira_dele(client, session, ctx):

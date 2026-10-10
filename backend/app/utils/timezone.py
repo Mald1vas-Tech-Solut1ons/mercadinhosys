@@ -71,3 +71,14 @@ _OFFSET_POR_UF = {"AC": -5, "AM": -4, "RO": -4, "RR": -4, "MT": -4, "MS": -4}
 def fuso_da_uf(uf):
     """Fuso da loja pelo estado: documentos fiscais levam o offset real do emitente."""
     return timezone(timedelta(hours=_OFFSET_POR_UF.get((uf or "").strip().upper(), -3)))
+
+
+def hoje_local():
+    """Data de hoje na loja. O servidor roda em UTC: `date.today()` vira o dia 3h cedo e datava título,
+    vencimento e atraso no dia seguinte entre 21h e meia-noite."""
+    return to_local(datetime.now(timezone.utc)).date()
+
+
+def data_local(dt):
+    """Dia da loja de um instante (naive é UTC, como o banco grava)."""
+    return to_local(dt).date() if dt is not None else None

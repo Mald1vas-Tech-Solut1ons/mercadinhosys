@@ -7,3 +7,20 @@ mercadinhosys-api.144.22.151.18.sslip.io {
         respond "MercadinhoSys API" 200
     }
 }
+
+# leads do maldivastech.dev (PostgREST) — scripts/oracle/setup-leads.sh
+maldivas-leads.144.22.151.18.sslip.io {
+    encode gzip
+    header -Server
+    reverse_proxy maldivas-leads:3000
+}
+
+# MySuperStore (marketplace) — containers em ~/mysuperstore, rede oracle_default
+mysuperstore-api.144.22.151.18.sslip.io {
+    encode gzip
+    header -Server
+    request_body {
+        max_size 25MB
+    }
+    reverse_proxy mysuperstore-api:8000
+}

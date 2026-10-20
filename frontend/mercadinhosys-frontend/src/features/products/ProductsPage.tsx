@@ -19,6 +19,7 @@ import PurchaseOrderModal from './components/PurchaseOrderModal';
 import CommandToolbar from './components/CommandToolbar';
 
 import ProductFormModal from './components/ProductFormModal';
+import LabelPrintModal from './labels/LabelPrintModal';
 import PinDialog from '../../components/modals/PinDialog';
 import { ProductsTable } from './components/ProductsTable';
 import LotesDisponiveisModal from './components/LotesDisponiveisModal';
@@ -77,6 +78,7 @@ const ProductsPage: React.FC = () => {
   const [showProductModal, setShowProductModal] = useState(false);
   const [showStockModal, setShowStockModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showLabelModal, setShowLabelModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showMarkupCalculator, setShowMarkupCalculator] = useState(false);
   const [showProductHistory, setShowProductHistory] = useState(false);
@@ -632,6 +634,7 @@ const ProductsPage: React.FC = () => {
           onMarkup={() => setShowMarkupCalculator(true)}
           onImport={() => setShowImportModal(true)}
           onExport={handleExportCSV}
+          onLabels={() => setShowLabelModal(true)}
           search={buscaLocal}
           onSearchChange={setBuscaLocal}
           onToggleFilters={() => setShowFilters(!showFilters)}
@@ -1020,6 +1023,11 @@ const ProductsPage: React.FC = () => {
         isOpen={showAdvancedAnalyticsModal}
         onClose={() => setShowAdvancedAnalyticsModal(false)}
         type={advancedAnalyticsType}
+      />
+
+      <LabelPrintModal
+        isOpen={showLabelModal}
+        onClose={() => { setShowLabelModal(false); loadProdutos(); }}
       />
 
       <ProductImportModal

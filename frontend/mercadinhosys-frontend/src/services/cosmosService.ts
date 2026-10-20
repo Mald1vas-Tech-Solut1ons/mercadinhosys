@@ -31,7 +31,7 @@ export interface CosmosProductData {
     gross_weight: number;
 }
 
-// Resultado normalizado do lookup inteligente (catálogo local -> Cosmos)
+// Resultado normalizado do lookup inteligente (catálogo local -> Cosmos -> bases abertas)
 export interface CatalogoLookupData {
     ean: string;
     nome: string | null;
@@ -45,8 +45,8 @@ export interface CatalogoLookupData {
 
 export interface CatalogoLookupResult {
     success: boolean;
-    source?: 'catalogo' | 'cosmos';
-    code?: 'ean_invalido' | 'nao_encontrado' | 'quota' | 'token' | 'conexao' | 'api' | 'erro_interno';
+    source?: 'catalogo' | 'cosmos' | 'openfoodfacts' | 'openbeautyfacts' | 'openproductsfacts';
+    code?: 'ean_invalido' | 'nao_encontrado' | 'interno' | 'quota' | 'token' | 'conexao' | 'api' | 'erro_interno';
     message?: string;
     data?: CatalogoLookupData;
 }

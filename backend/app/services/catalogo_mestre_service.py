@@ -18,7 +18,9 @@ def _ean_valido(codigo: str) -> bool:
     if not codigo:
         return False
     codigo = codigo.strip()
-    return codigo.isdigit() and 8 <= len(codigo) <= 14
+    from app.services.codigo_barras_service import eh_codigo_interno
+    # Código interno (20-29) só vale na loja que o gerou: nunca entra no catálogo global.
+    return codigo.isdigit() and 8 <= len(codigo) <= 14 and not eh_codigo_interno(codigo)
 
 
 def registrar_produto_se_novo(produto, estabelecimento, via: str) -> None:

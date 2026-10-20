@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Camera, Sparkles, Package, Wrench, HelpCircle } from 'lucide-react';
+import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2 } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import SchemaField from '../../../components/schema/SchemaField';
 import { showToast } from '../../../utils/toast';
@@ -223,13 +223,16 @@ const ProductFormModal = ({
                     cest: d.cest || prev.cest,
                     imagem_url: d.imagem_url || prev.imagem_url,
                 }));
-                const origem = res.source === 'catalogo' ? 'catálogo local' : 'Cosmos';
+                const origem = res.source === 'catalogo' ? 'catálogo local'
+                    : res.source === 'cosmos' ? 'Cosmos' : 'base aberta de produtos';
                 const temNcm = d.ncm ? ` NCM ${d.ncm} preenchido.` : ' (sem NCM — preencha manualmente).';
                 showToast.success(`Dados preenchidos (${origem}).${temNcm}`, { id: toastId });
             } else {
                 // Mensagem verdadeira conforme a causa (não mais "não encontrado" genérico)
                 const msg = res.message || 'Não foi possível consultar o produto.';
-                if (res.code === 'nao_encontrado') {
+                if (res.code === 'interno') {
+                    showToast.success('Código interno da loja: preencha nome e preço.', { id: toastId });
+                } else if (res.code === 'nao_encontrado') {
                     showToast.error(msg, { id: toastId });
                     if (!force) setShowForceSync(true);
                 } else {
@@ -241,6 +244,17 @@ const ProductFormModal = ({
             showToast.error('Falha inesperada ao consultar o produto.', { id: toastId });
         } finally {
             setIsSearchingCosmos(false);
+        }
+    };
+
+    const gerarCodigoInterno = async () => {
+        try {
+            const codigo = await productsService.proximoCodigoBarras();
+            setFormData(prev => ({ ...prev, codigo_barras: codigo }));
+            setShowForceSync(false);
+            showToast.success('Código interno gerado. Ele já sai na etiqueta e passa no leitor do PDV.');
+        } catch {
+            showToast.error('Não foi possível gerar o código agora.');
         }
     };
 
@@ -450,6 +464,13 @@ const ProductFormModal = ({
                                             <Camera className="w-5 h-5" />
                                         </button>
                                     </div>
+                                    {!formData.codigo_barras.trim() && (
+                                        <button type="button" onClick={gerarCodigoInterno}
+                                            className="mt-2 w-full py-2 px-3 text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                                            <Wand2 className="w-4 h-4" />
+                                            Sem código? Gerar código interno
+                                        </button>
+                                    )}
                                     {showForceSync && formData.codigo_barras && (
                                         <button type="button" onClick={() => handleScanCodigo(formData.codigo_barras, true)}
                                             className="mt-2 w-full py-2 px-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center justify-center gap-2 transition-colors">
@@ -613,6 +634,17 @@ const ProductFormModal = ({
                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Controle de Estoque</h4>
                         <div className={sectionClass}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {!editMode && (
+                                    <div>
+                                        <label className={labelClass}>Estoque inicial</label>
+                                        <input type="number" min="0" step="any" value={formData.quantidade}
+                                            onChange={e => field('quantidade', Math.max(0, parseFloat(e.target.value) || 0))}
+                                            className={inputClass} />
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Quanto já tem na loja agora. Com estoque zero o PDV não vende (salvo se a loja permitir venda sem estoque).
+                                        </p>
+                                    </div>
+                                )}
                                 {visivel('quantidade_minima') && (
                                     <div>
                                         <label className={labelClass}>Qtd. Mínima (Alerta)</label>

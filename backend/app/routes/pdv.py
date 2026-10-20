@@ -978,6 +978,9 @@ def finalizar_venda():
                 }), 400
 
             itens_formatados_para_resposta = []
+            from app.models import Configuracao
+            config_loja = Configuracao.query.filter_by(estabelecimento_id=estab_id).first()
+            vende_sem_estoque = bool(config_loja and config_loja.permitir_venda_sem_estoque)
 
             for item_data in items:
                 produto_id = item_data.get("id") or item_data.get("productId") or item_data.get("produto_id")
@@ -997,7 +1000,8 @@ def finalizar_venda():
                 try:
                     _, custo_unitario = registrar_saida(
                         produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
-                        motivo=f"Venda PDV {nova_venda.codigo}", data=data_venda)
+                        motivo=f"Venda PDV {nova_venda.codigo}", data=data_venda,
+                        permitir_sem_estoque=vende_sem_estoque)
                 except ValueError as erro_estoque:
                     db.session.rollback()
                     return jsonify({"error": str(erro_estoque)}), 400

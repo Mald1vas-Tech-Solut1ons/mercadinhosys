@@ -38,6 +38,15 @@ input, button, select, textarea {
   font-size: 16px; /* Evita zoom automático em iOS */
 }
 
+/* Sem o reset acima a caixinha some: checkbox/radio voltam ao controle nativo
+   (os toggles do app usam sr-only + peer e não dependem disso). */
+input[type="checkbox"], input[type="radio"] {
+  -webkit-appearance: auto;
+  -moz-appearance: auto;
+  appearance: auto;
+  accent-color: #4f46e5;
+}
+
 /* Melhor scroll em mobile */
 body {
   -webkit-overflow-scrolling: touch;

@@ -10,6 +10,18 @@ export const productsService = {
         return response.data.produtos;
     },
 
+    // Código interno EAN-13 (prefixo 20) para produto sem código do fabricante
+    proximoCodigoBarras: async (): Promise<string> => {
+        const response = await apiClient.get<{ success: boolean; codigo_barras: string }>('/produtos/codigo-barras/proximo');
+        return response.data.codigo_barras;
+    },
+
+    gerarCodigosBarras: async (produtoIds: number[]): Promise<Record<string, string>> => {
+        const response = await apiClient.post<{ success: boolean; codigos: Record<string, string> }>(
+            '/produtos/codigo-barras/gerar', { produto_ids: produtoIds });
+        return response.data.codigos;
+    },
+
     getByBarcode: async (codigo: string): Promise<Produto> => {
         const response = await apiClient.get<{ success: boolean; produto: Produto }>(`/produtos/barcode/${codigo}`);
         return response.data.produto;

@@ -94,12 +94,15 @@ def custo_historico(produto) -> Decimal:
     return Decimal(str(produto.preco_custo or 0))
 
 
-def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, data=None, ignorar_pedido_id=None):
+def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, data=None, ignorar_pedido_id=None,
+                    permitir_sem_estoque=False):
     """Baixa agregado e lotes de uma venda e grava o movimento com o rastro.
 
     Retorna ``(movimento, custo_unitario)``; serviço não movimenta estoque e
     devolve ``movimento=None``. O saldo vendável desconta o que está reservado para
     pedidos; a expedição de um pedido passa ``ignorar_pedido_id`` para usar a própria reserva.
+    ``permitir_sem_estoque`` (config da loja, só no balcão): vende além do saldo; os lotes
+    vendáveis são consumidos até zerar e o agregado fica no piso 0 (lote vencido nunca sai).
     """
     quantidade = quantidade_valida(quantidade)
     custo = custo_historico(produto)
@@ -108,10 +111,15 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
     quarentena = quantidade_em_quarentena(produto)
     reservado = reservado_no_produto(produto, exceto_pedido_id=ignorar_pedido_id)
     disponivel = Decimal(str(produto.quantidade or 0)) - quarentena - reservado
-    if quantidade > disponivel:
+    if quantidade > disponivel and not permitir_sem_estoque:
         raise EstoqueIndisponivelError(produto, quantidade, max(disponivel, Decimal('0')), quarentena, reservado)
     anterior = Decimal(str(produto.quantidade or 0))
-    consumidos = produto.consumir_estoque_fifo(quantidade)
+    # Venda além do saldo só baixa o vendável: reserva e quarentena ficam intactas.
+    baixa = quantidade if quantidade <= disponivel else max(disponivel, Decimal('0'))
+    consumidos = produto.consumir_estoque_fifo(baixa)
+    rastro = {'lotes_consumidos': [[c['lote_id'], str(c['quantidade_consumida'])] for c in consumidos]}
+    if baixa != quantidade:
+        rastro['baixa_efetiva'] = str(baixa)  # o estorno devolve só o que saiu de fato
     movimento = MovimentacaoEstoque(
         estabelecimento_id=produto.estabelecimento_id,
         produto_id=produto.id,
@@ -125,7 +133,7 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
         custo_unitario=custo,
         valor_total=(custo * quantidade).quantize(CENT, rounding=ROUND_HALF_UP),
         motivo=motivo[:100],
-        observacoes=json.dumps({'lotes_consumidos': [[c['lote_id'], str(c['quantidade_consumida'])] for c in consumidos]}),
+        observacoes=json.dumps(rastro),
     )
     if data is not None:
         movimento.created_at = data
@@ -138,6 +146,15 @@ def _lotes_do_rastro(movimento):
         return json.loads(movimento.observacoes or '{}').get('lotes_consumidos', [])
     except (ValueError, AttributeError):
         return []  # saídas anteriores ao rastro não sabem quais lotes usaram
+
+
+def _baixa_efetiva(movimento, quantidade):
+    """Quanto a saída tirou do agregado (venda sem estoque baixa menos do que vendeu)."""
+    try:
+        valor = json.loads(movimento.observacoes or '{}').get('baixa_efetiva')
+    except (ValueError, AttributeError):
+        valor = None
+    return Decimal(valor) if valor is not None else quantidade
 
 
 def estornar_saidas_venda(venda, *, funcionario_id, motivo, itens_sem_movimento=None):
@@ -163,6 +180,7 @@ def estornar_saidas_venda(venda, *, funcionario_id, motivo, itens_sem_movimento=
         if not produto:
             continue
         anterior = Decimal(str(produto.quantidade or 0))
+        quantidade = _baixa_efetiva(saida, quantidade) if saida is not None else quantidade
         produto.quantidade = anterior + quantidade
         for lote_id, consumida in (_lotes_do_rastro(saida) if saida else []):
             lote = ProdutoLote.query.filter_by(id=lote_id, produto_id=produto.id,

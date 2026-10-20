@@ -9,7 +9,8 @@ import {
   Search,
   Filter,
   RefreshCw,
-  ChevronDown
+  ChevronDown,
+  Barcode
 } from 'lucide-react';
 
 interface CommandToolbarProps {
@@ -19,6 +20,7 @@ interface CommandToolbarProps {
   onMarkup: () => void;
   onImport: () => void;
   onExport: () => void;
+  onLabels: () => void;
   search: string;
   onSearchChange: (val: string) => void;
   onToggleFilters: () => void;
@@ -32,6 +34,7 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
   onMarkup,
   onImport,
   onExport,
+  onLabels,
   search,
   onSearchChange,
   onToggleFilters,
@@ -107,6 +110,15 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
         >
           <Calculator className="w-4 h-4" />
           <span className="hidden sm:inline">Markup</span>
+        </button>
+
+        <button
+          onClick={onLabels}
+          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 rounded-xl transition-all text-sm font-medium"
+          title="Imprimir etiquetas com código de barras"
+        >
+          <Barcode className="w-4 h-4" />
+          <span className="hidden sm:inline">Etiquetas</span>
         </button>
 
         <div className="relative" ref={menuRef}>

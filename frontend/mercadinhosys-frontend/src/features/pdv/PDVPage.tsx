@@ -205,7 +205,9 @@ const PDVPage: React.FC = () => {
                         }
                         return msg;
                     },
-                    error: (err: any) => err.message || 'Erro ao finalizar venda'
+                    // Motivo do servidor (estoque, desconto, crédito…) — nunca o "status code 400" do axios
+                    error: (err: any) => err?.response?.data?.message || err?.response?.data?.error
+                        || err?.message || 'Erro ao finalizar venda'
                 }
             );
 

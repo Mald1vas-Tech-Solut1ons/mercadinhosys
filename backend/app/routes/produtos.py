@@ -499,6 +499,72 @@ def _cosmos_para_catalogo(ean: str, j: dict) -> "CatalogoMestre":
     return item
 
 
+OPEN_FACTS_BASES = (
+    "https://world.openfoodfacts.org",      # alimentos e bebidas
+    "https://world.openbeautyfacts.org",    # higiene e beleza
+    "https://world.openproductsfacts.org",  # limpeza, bazar e o resto
+)
+
+
+def _buscar_open_facts(ean: str):
+    """Bases abertas (sem token e sem cota diária): fallback quando o Cosmos falha.
+
+    Devolve o CatalogoMestre gravado (sem commit) ou None se nenhuma base conhece o EAN.
+    """
+    import json as _json
+    campos = "product_name,product_name_pt,brands,categories,image_front_small_url,quantity"
+    headers = {"User-Agent": "MercadinhoSys/2.0 (catalogo de produtos)"}
+    for base in OPEN_FACTS_BASES:
+        try:
+            resp = requests.get(f"{base}/api/v2/product/{ean}.json", params={"fields": campos},
+                                headers=headers, timeout=6)
+            j = resp.json() if resp.status_code == 200 else {}
+        except (requests.exceptions.RequestException, ValueError):
+            continue
+        p = j.get("product") or {}
+        nome = (p.get("product_name_pt") or p.get("product_name") or "").strip()
+        if j.get("status") != 1 or not nome:
+            continue
+        if p.get("quantity") and p["quantity"].lower() not in nome.lower():
+            nome = f"{nome} {p['quantity']}"
+        categorias = [c.strip() for c in (p.get("categories") or "").split(",") if c.strip()]
+        item = CatalogoMestre.query.filter_by(ean=ean).first()
+        if not item:
+            item = CatalogoMestre(ean=ean)
+            db.session.add(item)
+        item.nome = nome[:200]
+        item.marca = ((p.get("brands") or "").split(",")[0].strip() or item.marca)
+        item.categoria = (categorias[-1].split(":")[-1] if categorias else item.categoria)
+        item.imagem_url = p.get("image_front_small_url") or item.imagem_url
+        item.fonte = base.split("//")[1].split(".")[1]  # openfoodfacts / openbeautyfacts / ...
+        item.status = "encontrado"
+        item.payload_json = _json.dumps(p)[:60000]
+        item.consultado_em = datetime.utcnow()
+        return item
+    return None
+
+
+def _responder_open_facts(ean: str, motivo_cosmos: str):
+    """Tenta as bases abertas; se não achar, explica o motivo real ao lojista."""
+    try:
+        item = _buscar_open_facts(ean)
+        if item:
+            db.session.commit()
+            return jsonify({"success": True, "source": item.fonte, "data": item.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Open Facts erro ao gravar catálogo ({ean}): {e}")
+    mensagens = {
+        "quota": "Cosmos sem cota hoje e o produto não está nas bases abertas. Preencha nome e preço manualmente.",
+        "token": "Token do Cosmos inválido e o produto não está nas bases abertas. Preencha manualmente.",
+        "conexao": "Sem conexão com as bases de produtos. Preencha manualmente.",
+        "nao_encontrado": "Este código não existe no Cosmos nem nas bases abertas. Preencha os dados manualmente.",
+    }
+    status = {"nao_encontrado": 404, "quota": 429}.get(motivo_cosmos, 502)
+    return jsonify({"success": False, "code": motivo_cosmos,
+                    "message": mensagens.get(motivo_cosmos, mensagens["nao_encontrado"])}), status
+
+
 @produtos_bp.route("/catalogo/lookup/<ean>", methods=["GET"])
 @funcionario_required
 def catalogo_lookup(ean):
@@ -515,6 +581,11 @@ def catalogo_lookup(ean):
     if len(ean_limpo) < 8:
         return jsonify({"success": False, "code": "ean_invalido",
                         "message": "Código de barras inválido (leitura incompleta?). Tente escanear novamente."}), 400
+
+    from app.services.codigo_barras_service import eh_codigo_interno
+    if eh_codigo_interno(ean_limpo):
+        return jsonify({"success": False, "code": "interno",
+                        "message": "Código interno da loja (não existe em bases externas). Preencha os dados manualmente."}), 404
 
     force = request.args.get("force", "false").lower() == "true"
 
@@ -540,8 +611,7 @@ def catalogo_lookup(ean):
         resp = requests.get(url, headers=headers, timeout=10)
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Cosmos lookup falha de conexão ({ean_limpo}): {e}")
-        return jsonify({"success": False, "code": "conexao",
-                        "message": "Sem conexão com o Cosmos no momento. Tente novamente ou preencha manualmente."}), 502
+        return _responder_open_facts(ean_limpo, "conexao")
 
     if resp.status_code == 200:
         try:
@@ -558,20 +628,59 @@ def catalogo_lookup(ean):
     if resp.status_code == 404:
         # Não gravamos cache negativo para permitir que o usuário cadastre manualmente 
         # sem ser bloqueado em consultas futuras caso a API do Cosmos seja atualizada.
-        return jsonify({"success": False, "code": "nao_encontrado",
-                        "message": "Este EAN não existe na base Cosmos. Preencha os dados manualmente."}), 404
+        return _responder_open_facts(ean_limpo, "nao_encontrado")
 
     if resp.status_code in (401, 403):
         current_app.logger.error(f"Cosmos token inválido/expirado (HTTP {resp.status_code}).")
-        return jsonify({"success": False, "code": "token",
-                        "message": "Token do Cosmos inválido ou expirado. Configure um COSMOS_TOKEN válido."}), 502
+        return _responder_open_facts(ean_limpo, "token")
     if resp.status_code == 429:
-        return jsonify({"success": False, "code": "quota",
-                        "message": "Limite diário de consultas do Cosmos atingido. Use um token próprio (COSMOS_TOKEN) ou tente amanhã."}), 429
+        current_app.logger.warning("Cosmos sem cota (HTTP 429); usando bases abertas.")
+        return _responder_open_facts(ean_limpo, "quota")
 
     current_app.logger.error(f"Cosmos lookup HTTP {resp.status_code} para {ean_limpo}.")
-    return jsonify({"success": False, "code": "api",
-                    "message": f"Cosmos respondeu erro {resp.status_code}. Tente novamente em instantes."}), 502
+    return _responder_open_facts(ean_limpo, "conexao")
+
+
+# ============================================
+# CÓDIGO DE BARRAS INTERNO (produto sem EAN do fabricante)
+# ============================================
+
+@produtos_bp.route("/codigo-barras/proximo", methods=["GET"])
+@funcionario_required
+def codigo_barras_proximo():
+    """Sugere o próximo EAN-13 interno livre da loja (preenche o cadastro)."""
+    from app.services.codigo_barras_service import proximos_codigos_internos
+    estab_id = get_authorized_establishment_id()
+    return jsonify({"success": True, "codigo_barras": proximos_codigos_internos(estab_id)[0]}), 200
+
+
+@produtos_bp.route("/codigo-barras/gerar", methods=["POST"])
+@funcionario_required
+@gerente_required
+def codigo_barras_gerar():
+    """Atribui código interno aos produtos da loja que ainda não têm código de barras.
+
+    Body: {"produto_ids": [..]}. Produto que já tem código é mantido como está.
+    Resposta: {"codigos": {"<id>": "20..."}} com o código final de cada produto pedido.
+    """
+    from app.services.codigo_barras_service import proximos_codigos_internos
+    estab_id = get_authorized_establishment_id()
+    ids = (request.get_json(silent=True) or {}).get("produto_ids") or []
+    try:
+        ids = sorted({int(i) for i in ids})
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "Lista de produtos inválida"}), 400
+    if not ids or len(ids) > 500:
+        return jsonify({"success": False, "message": "Informe de 1 a 500 produtos"}), 400
+
+    produtos = Produto.query.filter(Produto.estabelecimento_id == estab_id, Produto.id.in_(ids))\
+        .order_by(Produto.id).with_for_update().all()
+    sem_codigo = [p for p in produtos if not (p.codigo_barras or "").strip()]
+    for produto, codigo in zip(sem_codigo, proximos_codigos_internos(estab_id, len(sem_codigo))):
+        produto.codigo_barras = codigo
+    db.session.commit()
+    return jsonify({"success": True, "gerados": len(sem_codigo),
+                    "codigos": {str(p.id): p.codigo_barras for p in produtos}}), 200
 
 
 # ============================================

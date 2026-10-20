@@ -34,6 +34,7 @@
     "dexie-react-hooks": "^4.4.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^12.34.0",
+    "jsbarcode": "3.12.1",
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
     "leaflet": "^1.9.4",

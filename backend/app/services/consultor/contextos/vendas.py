@@ -3,13 +3,14 @@ from decimal import Decimal
 from sqlalchemy import func
 from app import db
 from app.models import Venda, VendaItem, Pagamento, Produto
+from app.services.consultor.contextos._datas import hoje_local, ini, fim
 
 def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto de vendas para o consultor IA.
     Se is_manager=False, oculta dados financeiros agregados.
     """
     agora = datetime.now()
-    hoje = agora.date()
+    hoje = hoje_local()
     ontem = hoje - timedelta(days=1)
     semana_inicio = hoje - timedelta(days=6)
     mes_atual_inicio = hoje.replace(day=1)
@@ -22,14 +23,14 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
 
     contexto = {}
 
-    def get_vendas_stats(inicio, fim):
+    def get_vendas_stats(dia_ini, dia_fim):
         q = db.session.query(
             func.count(Venda.id).label("qtd"),
             func.sum(Venda.total).label("total")
         ).filter(
             Venda.status != 'cancelada',
-            Venda.data_venda >= inicio,
-            Venda.data_venda <= fim
+            Venda.data_venda >= ini(dia_ini),
+            Venda.data_venda <= fim(dia_fim)
         )
         if estabelecimento_id != 'all':
             q = q.filter(Venda.estabelecimento_id == estabelecimento_id)
@@ -56,8 +57,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
         func.sum(Pagamento.valor).label("total")
     ).join(Venda).filter(
         Venda.status != 'cancelada',
-        Venda.data_venda >= mes_atual_inicio,
-        Venda.data_venda <= hoje
+        Venda.data_venda >= ini(mes_atual_inicio),
+        Venda.data_venda <= fim(hoje)
     )
     if estabelecimento_id != 'all':
         q_pagamentos = q_pagamentos.filter(Venda.estabelecimento_id == estabelecimento_id)
@@ -81,8 +82,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
         func.sum(VendaItem.total_item).label("valor_total")
     ).join(VendaItem.produto).join(VendaItem.venda).filter(
         Venda.status != 'cancelada',
-        Venda.data_venda >= mes_atual_inicio,
-        Venda.data_venda <= hoje
+        Venda.data_venda >= ini(mes_atual_inicio),
+        Venda.data_venda <= fim(hoje)
     )
     if estabelecimento_id != 'all':
         q_top_produtos = q_top_produtos.filter(Venda.estabelecimento_id == estabelecimento_id)
@@ -103,8 +104,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
         func.sum(Venda.total).label("total")
     ).filter(
         Venda.status == 'cancelada',
-        Venda.data_venda >= mes_atual_inicio,
-        Venda.data_venda <= hoje
+        Venda.data_venda >= ini(mes_atual_inicio),
+        Venda.data_venda <= fim(hoje)
     )
     if estabelecimento_id != 'all':
         q_canceladas = q_canceladas.filter(Venda.estabelecimento_id == estabelecimento_id)

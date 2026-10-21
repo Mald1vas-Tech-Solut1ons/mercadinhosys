@@ -33,6 +33,8 @@ export function RegisterPage() {
         cpf_admin: '',
         celular_admin: '',
         username: '',
+        senha: '',
+        confirmar_senha: '',
     });
 
     const [termsAccepted, setTermsAccepted] = useState(false);
@@ -46,6 +48,15 @@ export function RegisterPage() {
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (formData.senha.length < 6) {
+            setError('A senha deve ter ao menos 6 caracteres.');
+            return;
+        }
+        if (formData.senha !== formData.confirmar_senha) {
+            setError('As senhas não conferem.');
+            return;
+        }
 
         setLoading(true);
         setError('');
@@ -63,13 +74,14 @@ export function RegisterPage() {
                 celular_admin: formData.celular_admin,
                 email_admin: formData.email_loja, // E-mail usado para receber as credenciais
                 username: formData.username,
+                senha: formData.senha,
             };
 
             const promise = authService.registerAccount(payload);
 
             await showToast.promise(promise, {
                 loading: 'Criando sua conta...',
-                success: 'Conta criada! Verifique seu e-mail.',
+                success: 'Conta criada! Entre com seu usuário e a senha escolhida.',
                 error: 'Erro ao criar conta. Verifique os dados.'
             });
 
@@ -90,6 +102,8 @@ export function RegisterPage() {
         formData.nome_admin &&
         formData.email_loja &&
         formData.username &&
+        formData.senha.length >= 6 &&
+        formData.senha === formData.confirmar_senha &&
         termsAccepted;
 
     return (
@@ -199,9 +213,12 @@ export function RegisterPage() {
                                 </Box>
                             </Box>
 
-                            <Alert severity="info" sx={{ mt: 3, borderRadius: 2 }}>
-                                Por medidas de segurança, o sistema gerará uma senha inicial forte e a enviará para o e-mail cadastrado acima.
-                            </Alert>
+                            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 2 }}>
+                                <TextField fullWidth type="password" label="Senha (mín. 6 caracteres) *" name="senha" value={formData.senha} onChange={handleChange} required autoComplete="new-password" />
+                                <TextField fullWidth type="password" label="Confirmar senha *" name="confirmar_senha" value={formData.confirmar_senha} onChange={handleChange} required autoComplete="new-password"
+                                    error={!!formData.confirmar_senha && formData.senha !== formData.confirmar_senha}
+                                    helperText={formData.confirmar_senha && formData.senha !== formData.confirmar_senha ? 'As senhas não conferem' : ' '} />
+                            </Box>
 
                             <Box sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
                                 <FormControlLabel

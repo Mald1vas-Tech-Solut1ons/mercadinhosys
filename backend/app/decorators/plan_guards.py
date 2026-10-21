@@ -16,6 +16,18 @@ def normalize_plan(plan_name):
         return 'Pro'
     return 'Gratuito'
 
+def plano_efetivo(plano, plano_status=None):
+    """Plano que vale para liberar módulos: trial em vigor conta como Pro.
+
+    O trial self-service nasce com plano='trial' e status 'experimental'. Sem esta regra
+    ele normalizava para Gratuito e a loja nova via o dashboard e os módulos bloqueados.
+    O vencimento é barrado globalmente em app/__init__.py (403 de trial vencido).
+    """
+    if str(plano or '').lower().strip() == 'trial' and (plano_status or 'experimental') == 'experimental':
+        return 'Pro'
+    return normalize_plan(plano)
+
+
 def plan_required(min_plan='Gratuito'):
     """
     Decorator para exigir um plano mínimo para acesso à rota.
@@ -50,7 +62,7 @@ def plan_required(min_plan='Gratuito'):
                 current_plan = claims.get('plano', 'Gratuito')
                 current_status = claims.get('plano_status', 'ativo')
 
-            user_plan_norm = normalize_plan(current_plan)
+            user_plan_norm = plano_efetivo(current_plan, current_status)
             min_plan_norm = normalize_plan(min_plan)
             
             user_level = PLAN_HIERARCHY.get(user_plan_norm, 1)
@@ -99,7 +111,7 @@ def quota_required(model_name):
                 est_id = claims.get('estabelecimento_id')
                 est = Estabelecimento.query.get(est_id)
 
-                plano = normalize_plan(getattr(est, 'plano', 'Gratuito'))
+                plano = plano_efetivo(getattr(est, 'plano', 'Gratuito'), getattr(est, 'plano_status', None))
                 if plano == 'Pro':
                     # Plano Pro tem cotas ilimitadas (exceto funcionários que é 3)
                     if model_name == 'funcionario':

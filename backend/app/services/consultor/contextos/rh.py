@@ -3,11 +3,12 @@ from app.services.rh_calculator_service import calcular_custo_folha_detalhado
 from app.models import Funcionario, JustificativaPonto, Rescisao, Venda, RegistroPonto
 from app import db
 from sqlalchemy import func
+from app.services.consultor.contextos._datas import hoje_local, ini, fim
 
 def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto de RH para o consultor IA."""
     agora = datetime.now()
-    hoje = agora.date()
+    hoje = hoje_local()
     mes_atual_inicio = hoje.replace(day=1)
     
     if hoje.month == 1:
@@ -36,8 +37,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     # % sobre faturamento (Receita)
     q_vendas = db.session.query(func.sum(Venda.total)).filter(
         Venda.status != 'cancelada',
-        Venda.data_venda >= mes_atual_inicio,
-        Venda.data_venda <= hoje
+        Venda.data_venda >= ini(mes_atual_inicio),
+        Venda.data_venda <= fim(hoje)
     )
     if estabelecimento_id != 'all':
         q_vendas = q_vendas.filter(Venda.estabelecimento_id == estabelecimento_id)

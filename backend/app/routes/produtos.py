@@ -835,6 +835,23 @@ def codigo_barras_proximo():
         return jsonify({"success": False, "message": str(e)}), 409
 
 
+@produtos_bp.route("/barcode/<string:codigo>", methods=["GET"])
+@funcionario_required
+def produto_por_codigo_barras(codigo):
+    """Produto da loja pelo código de barras exato (leitor das etiquetas)."""
+    estab_id = get_authorized_establishment_id()
+    if not estab_id or str(estab_id).lower() == "all":
+        return jsonify({"success": False, "message": "Selecione a loja"}), 400
+    produto = Produto.query.filter(
+        Produto.estabelecimento_id == estab_id,
+        Produto.codigo_barras == (codigo or "").strip(),
+        Produto.deleted_at.is_(None),
+    ).first()
+    if not produto:
+        return jsonify({"success": False, "message": "Produto não encontrado"}), 404
+    return jsonify({"success": True, "produto": produto.to_dict()}), 200
+
+
 @produtos_bp.route("/codigo-barras/gerar", methods=["POST"])
 @funcionario_required
 @gerente_required

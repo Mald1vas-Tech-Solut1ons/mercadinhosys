@@ -17,6 +17,7 @@ export default function DashboardPageV2() {
   const [activeTab, setActiveTab] = useState('executive');
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
+  const [erroDados, setErroDados] = useState<'plano' | 'assinatura' | 'falha' | null>(null);
   const [daysFilter, setDaysFilter] = useState<number | 'custom'>(30);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -36,6 +37,7 @@ export default function DashboardPageV2() {
       return; // Prevenir requisição sem datas
     }
     setLoading(true);
+    setErroDados(null);
     try {
       // apiClient já inclui /api no baseURL — prefixar aqui viraria /api/api/... (404)
       let url = `/dashboard/cientifico?days=${daysFilter}`;
@@ -44,8 +46,11 @@ export default function DashboardPageV2() {
       }
       const response = await apiClient.get(url);
       setData(response.data?.data || response.data);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setData(null);
+      const codigo = e?.response?.data?.code;
+      setErroDados(codigo === 'PLAN_RESTRICTED' ? 'plano' : codigo === 'SUBSCRIPTION_INACTIVE' ? 'assinatura' : 'falha');
     } finally {
       setLoading(false);
     }
@@ -165,9 +170,17 @@ export default function DashboardPageV2() {
           </div>
         ) : !data ? (
           <div className="flex flex-col items-center justify-center p-12 bg-white dark:bg-slate-800/50 rounded-2xl border border-gray-200 dark:border-slate-800">
-             <AlertTriangle className="w-12 h-12 text-red-400 mb-4" />
-             <h3 className="text-xl font-bold">Falha ao carregar dados</h3>
-             <p className="text-gray-500 dark:text-slate-400 mt-2">Não foi possível obter as estatísticas do servidor.</p>
+             <AlertTriangle className={`w-12 h-12 mb-4 ${erroDados === 'plano' ? 'text-amber-400' : 'text-red-400'}`} />
+             <h3 className="text-xl font-bold">
+               {erroDados === 'plano' ? 'Disponível no plano Pro' : erroDados === 'assinatura' ? 'Assinatura inativa' : 'Falha ao carregar dados'}
+             </h3>
+             <p className="text-gray-500 dark:text-slate-400 mt-2">
+               {erroDados === 'plano'
+                 ? 'O Intelligence Hub completo faz parte do plano Pro. Fale com a gente para liberar.'
+                 : erroDados === 'assinatura'
+                   ? 'Regularize a assinatura em Configurações para voltar a ver os indicadores.'
+                   : 'Não foi possível obter as estatísticas do servidor.'}
+             </p>
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom-4 duration-500">

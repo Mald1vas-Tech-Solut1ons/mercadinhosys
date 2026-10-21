@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { salvarCatalogo, ProdutoCatalogo } from './offlineCatalog';
 
 // Gera um UUID (usa o nativo do browser quando disponível; senão, a lib uuid)
-const genUuid = (): string =>
+export const genUuid = (): string =>
     (typeof crypto !== 'undefined' && 'randomUUID' in crypto) ? crypto.randomUUID() : uuidv4();
 
 // Tipos específicos do PDV
@@ -27,6 +27,12 @@ export interface ConfiguracoesPDV {
     exibe_preco_tela: boolean;
     mostrar_foto_produto_pdv: boolean;
     exige_observacao_desconto: boolean;
+    /** Prontidão fiscal (backend: gateway real configurado). Ausente em backends antigos. */
+    nfce?: {
+        pronta: boolean;
+        ambiente: 'homologacao' | 'producao' | string;
+        gateway?: string;
+    };
 }
 
 export interface FormaPagamentoPDV {
@@ -96,6 +102,7 @@ export interface FinalizarVendaRequest {
     data_vencimento_fiado?: string;
     paymentMethod?: string; // Mantido para compatibilidade temporária
     emitir_nfce?: boolean; // Gatilho de Emissão
+    offline_uuid?: string; // Idempotência: o mesmo carrinho reenviado não duplica a venda
 }
 
 export interface AutorizarGerenteRequest {

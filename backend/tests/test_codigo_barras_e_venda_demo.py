@@ -149,3 +149,22 @@ def test_loja_que_permite_vende_sem_estoque_e_cancelamento_nao_cria_fantasma(cli
     session.expire_all()
     # Devolve só o 1 que saiu de fato, não os 3 vendidos
     assert session.get(Produto, produto.id).quantidade == Decimal("1")
+
+
+
+# ── Login atrás do proxy ───────────────────────────────────────────────────
+
+def test_ip_do_cliente_vem_do_proxy_e_nao_do_caddy(app, client):
+    """Rate limit e auditoria precisam do IP real; com o IP do Caddy todas as lojas dividiam 5 logins/min."""
+    from flask import request, request_started
+    vistos = []
+
+    def capturar(sender, **extra):
+        vistos.append(request.remote_addr)
+    request_started.connect(capturar, app)
+    try:
+        client.get("/api/health", environ_base={"REMOTE_ADDR": "172.18.0.5"},
+                   headers={"X-Forwarded-For": "200.100.50.25"})
+    finally:
+        request_started.disconnect(capturar, app)
+    assert vistos == ["200.100.50.25"]

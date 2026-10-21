@@ -23,6 +23,7 @@ import time
 
 from app import db
 from app.models import Estabelecimento, ViewRegistry
+from app.services.fiscal.tributacao import regras_para_interface
 
 # ==============================================================================
 # SEGMENTOS DE NEGÓCIO
@@ -161,6 +162,16 @@ FAMILIAS_PRODUTO = {
             "marca": "Ex: Tramontina",
         },
     },
+    "perfumaria_higiene": {
+        "nome": "Perfumaria e Higiene",
+        "descricao": "Perfumes, cosméticos, higiene pessoal e bucal.",
+        "segmento_base": "mercearia",
+        "exemplos": {
+            "nome": "Ex: Shampoo Hidratante 350ml",
+            "categoria": "Ex: Perfumes, Cabelos, Higiene Bucal...",
+            "marca": "Ex: Natura",
+        },
+    },
     "construcao_leve": {
         "nome": "Construção Leve",
         "descricao": "Itens leves de manutenção e construção vendidos em balcão de bairro.",
@@ -236,11 +247,11 @@ FAMILIAS_PRODUTO = {
 }
 
 MIX_PADRAO_POR_SEGMENTO = {
-    "mercearia": ["alimento", "bebida", "embalagem_descartavel", "bazar", "construcao_leve"],
-    "vestuario": ["vestuario", "bebida"],
+    "mercearia": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve"],
+    "vestuario": ["vestuario", "bebida", "perfumaria_higiene"],
     "construcao": ["construcao_leve", "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem"],
     "autopecas": ["autopecas", "servico"],
-    "generico": ["alimento", "bebida", "embalagem_descartavel", "bazar", "construcao_leve",
+    "generico": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
                  "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem", "vestuario", "servico"],
 }
 
@@ -249,6 +260,7 @@ PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
     "bebida": "mercearia_padrao",
     "embalagem_descartavel": "embalagem_descartavel",
     "bazar": "bazar_padrao",
+    "perfumaria_higiene": "perfumaria_higiene",
     "construcao_leve": "construcao_leve",
     "construcao_eletrica": "construcao_eletrica",
     "construcao_hidraulica": "construcao_hidraulica",
@@ -596,6 +608,26 @@ FISCAL_SUGERIDO_POR_FAMILIA = {
         "csosn_sugerido": "102", "cst_icms_sugerido": "00", "cfop_padrao_sugerido": "5102",
         "icms_aliquota_sugerida": 18.0, "observacao_fiscal": "",
     },
+    # Perfumaria/higiene: o ICMS-ST depende da UF (CEST segmento 20, Convênio
+    # ICMS 142/2018), então a sugestão não marca ST sozinha: pergunta. O PIS/COFINS
+    # monofásico não entra aqui porque sai do NCM (services/fiscal/tributacao.py).
+    "perfumaria_higiene": {
+        "csosn_sugerido": "102", "cst_icms_sugerido": "00", "cfop_padrao_sugerido": "5102",
+        "icms_aliquota_sugerida": 18.0,
+        "icms_st_a_confirmar": True,
+        "observacao_fiscal": "Perfumaria e cosméticos têm ICMS por substituição tributária (ST) "
+                              "em vários estados. Confirme com o contador se este NCM tem ST no seu "
+                              "estado; se tiver, marque \"ICMS recolhido por ST\" e informe o CEST.",
+        # Só dica para o operador conferir na embalagem ou na nota do fornecedor;
+        # o formulário nunca preenche o NCM com isto.
+        "ncm_exemplos": [
+            {"ncm": "33030010", "descricao": "Perfume"},
+            {"ncm": "33049990", "descricao": "Creme e loção"},
+            {"ncm": "33051000", "descricao": "Xampu"},
+            {"ncm": "33061000", "descricao": "Creme dental"},
+            {"ncm": "34011190", "descricao": "Sabonete"},
+        ],
+    },
     "construcao_leve": {
         "csosn_sugerido": "102", "cst_icms_sugerido": "00", "cfop_padrao_sugerido": "5102",
         "icms_aliquota_sugerida": 18.0,
@@ -641,9 +673,13 @@ FISCAL_SUGERIDO_POR_FAMILIA = {
 def sugestao_fiscal_para_familia(familia_produto: str = None, tipo_item: str = "produto") -> dict:
     """Sugestão assistida (não autoritativa) de CSOSN/CST/CFOP/alíquota por família."""
     if str(tipo_item or "produto").lower() == "servico":
-        return dict(FISCAL_SUGERIDO_POR_FAMILIA["servico"])
-    familia = str(familia_produto or "").strip().lower()
-    return dict(FISCAL_SUGERIDO_POR_FAMILIA.get(familia) or FISCAL_SUGERIDO_POR_FAMILIA["alimento"])
+        sugestao = dict(FISCAL_SUGERIDO_POR_FAMILIA["servico"])
+    else:
+        familia = str(familia_produto or "").strip().lower()
+        sugestao = dict(FISCAL_SUGERIDO_POR_FAMILIA.get(familia) or FISCAL_SUGERIDO_POR_FAMILIA["alimento"])
+    sugestao.setdefault("icms_st_a_confirmar", False)
+    sugestao["ncm_exemplos"] = [dict(item) for item in sugestao.get("ncm_exemplos") or []]
+    return sugestao
 
 
 def _linha_vale_para(linha: ViewRegistry, segmento: str, habilitados: set, ocultos: set) -> bool:
@@ -753,6 +789,9 @@ def resolver_view_schema(
         # pré-preenche com isso (produto novo) e mostra aviso de revisão; nunca
         # sobrescreve o que o usuário já digitou.
         "sugestao_fiscal": sugestao_fiscal_para_familia(familia_produto, tipo_item=tipo_item),
+        # Regras fiscais por item que valem para qualquer família (monofásico por
+        # NCM, efeito da marca de ST) — o formulário avisa o operador com elas.
+        "regras_fiscais": regras_para_interface(),
         "mix_permitido": mix_permitido,
         "familias_configuraveis": listar_familias_disponiveis(segmento_tenant),
         "familias_disponiveis": listar_familias_disponiveis(segmento_tenant, mix_permitido),

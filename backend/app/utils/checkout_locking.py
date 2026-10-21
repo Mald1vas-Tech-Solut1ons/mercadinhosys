@@ -8,9 +8,53 @@ from app import db
 from app.models import Caixa, Cliente, Produto
 
 
-def lock_checkout(tenant_id, actor_id, items, client_id=None, offline_uuid=None):
+_CHAVES_PRODUTO = ('id', 'productId', 'produto_id')
+_CHAVES_QUANTIDADE = ('quantity', 'quantidade')
+_CHAVES_PRECO = ('price', 'preco_unitario')
+
+
+def _unificar(item, chaves, rotulo, conversor):
+    """Exige que as chaves sinônimas presentes concordem e grava o valor em todas."""
+    presentes = [c for c in chaves if item.get(c) not in (None, '')]
+    if not presentes:
+        return None
+    try:
+        valores = {conversor(item[c]) for c in presentes}
+    except (TypeError, ValueError, ArithmeticError):
+        raise ValueError(f'Item com {rotulo} inválido')
+    if len(valores) > 1:
+        raise ValueError(f'Item com {rotulo} divergente')
+    original = item[presentes[0]]
+    for chave in chaves:
+        item[chave] = original
+    return valores.pop()
+
+
+def normalizar_itens_checkout(items):
+    """Uma única leitura de produto/quantidade/preço por item, para todo o checkout.
+
+    Cada rota lia as chaves numa ordem (``id or productId`` x ``productId or id``):
+    o validador de preço conferia um produto e a rota vendia outro. Aqui as chaves
+    sinônimas precisam concordar e são reescritas IN PLACE com o mesmo valor, então
+    lock, validação de preço e baixa enxergam exatamente o mesmo item.
+    """
     if not isinstance(items, list) or not items or len(items) > 1000:
         raise ValueError('Carrinho inválido')
+    for item in items:
+        if not isinstance(item, dict):
+            raise ValueError('Item inválido')
+        produto_id = _unificar(item, _CHAVES_PRODUTO, 'identificação de produto', int)
+        if not produto_id or produto_id <= 0:
+            raise ValueError('Item sem produto válido')
+        for chave in _CHAVES_PRODUTO:
+            item[chave] = produto_id
+        _unificar(item, _CHAVES_QUANTIDADE, 'quantidade', lambda v: Decimal(str(v)))
+        _unificar(item, _CHAVES_PRECO, 'preço', lambda v: Decimal(str(v)))
+    return items
+
+
+def lock_checkout(tenant_id, actor_id, items, client_id=None, offline_uuid=None):
+    normalizar_itens_checkout(items)
     if offline_uuid:
         if not isinstance(offline_uuid, str) or len(offline_uuid) > 36:
             raise ValueError('Identificador offline inválido')
@@ -22,7 +66,7 @@ def lock_checkout(tenant_id, actor_id, items, client_id=None, offline_uuid=None)
     client = None
     if client_id:
         client = Cliente.query.filter_by(id=client_id, estabelecimento_id=tenant_id).populate_existing().with_for_update().first()
-    ids = sorted({int(i.get('productId') or i.get('produto_id') or i.get('id')) for i in items if isinstance(i, dict)})
+    ids = sorted({i['produto_id'] for i in items})
     if ids:
         products = Produto.query.filter(Produto.estabelecimento_id == tenant_id, Produto.id.in_(ids)).order_by(Produto.id).populate_existing().with_for_update().all()
         g.checkout_products = {p.id: p for p in products}
@@ -42,13 +86,14 @@ def validate_pricing(user, items, discount, tenant_id):
     config = Configuracao.query.filter_by(estabelecimento_id=tenant_id).first()
     if config:
         limit = min(limit, Decimal(str(config.desconto_maximo_percentual)), Decimal(str(config.desconto_maximo_funcionario)))
+    normalizar_itens_checkout(items)  # idempotente: mesma leitura de item que o lock e a rota
     catalog_total = Decimal(0)
     charged = Decimal(0)
     for item in items:
-        product_id = int(item.get('productId') or item.get('produto_id') or item.get('id'))
-        product = getattr(g, 'checkout_products', {}).get(product_id)
+        product = getattr(g, 'checkout_products', {}).get(item['produto_id'])
         if not product:
-            continue  # a rota devolve 404 para produto inexistente
+            # Nunca pular: item fora da conferência de preço é item vendido sem limite.
+            raise ValueError(f"Produto {item['produto_id']} não encontrado nesta loja")
         quantity = Decimal(str(item.get('quantity', item.get('quantidade', 1))))
         price = Decimal(str(item.get('price', item.get('preco_unitario', 0))))
         catalog_total += Decimal(str(product.preco_venda)) * quantity

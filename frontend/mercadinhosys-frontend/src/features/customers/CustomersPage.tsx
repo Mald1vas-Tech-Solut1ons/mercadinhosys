@@ -40,6 +40,7 @@ import * as XLSX from 'xlsx';
 import { Cliente } from '../../types';
 import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
+import { mensagemErro } from '../../utils/mensagemErro';
 import { pdvService } from '../pdv/pdvService';
 import { customerService } from './customerService';
 import CustomerDashboard from './components/CustomerDashboard';
@@ -654,8 +655,7 @@ const CustomersPage: React.FC = () => {
             setFiadoContaSelecionada(null);
             await refreshAll();
         } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Erro ao registrar pagamento';
-            showToast.error(msg);
+            showToast.error(mensagemErro(err, 'Erro ao registrar pagamento'));
         } finally {
             setFiadoLoading(false);
         }
@@ -712,7 +712,7 @@ const CustomersPage: React.FC = () => {
                         {
                             loading: 'Excluindo cliente...',
                             success: `Cliente "${cliente.nome}" excluído com sucesso`,
-                            error: 'Erro ao excluir cliente',
+                            error: (e: unknown) => mensagemErro(e, 'Erro ao excluir cliente'),
                         },
                         { theme: 'error' },
                     );
@@ -742,17 +742,13 @@ const CustomersPage: React.FC = () => {
                                 showToast.success(`Cliente "${cliente.nome}" desativado com sucesso`);
                                 await refreshAll();
                             } catch (patchErr: unknown) {
-                                const patchMsg =
-                                    (patchErr as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-                                    'Erro ao desativar cliente';
-                                showToast.error(patchMsg);
+                                showToast.error(mensagemErro(patchErr, 'Erro ao desativar cliente'));
                             }
                             return;
                         }
                     }
 
-                    const errorMessage = err.response?.data?.message || 'Erro ao excluir cliente';
-                    showToast.error(errorMessage);
+                    // Mensagem de erro já exibida pelo showToast.promise (evita toast duplicado).
                 } finally {
                     setSaving(false);
                 }
@@ -772,7 +768,7 @@ const CustomersPage: React.FC = () => {
             const savedCustomer = await showToast.promise(promise, {
                 loading: editData?.id ? 'Atualizando cliente...' : 'Cadastrando cliente...',
                 success: editData?.id ? 'Cliente atualizado com sucesso' : 'Cliente cadastrado com sucesso',
-                error: 'Erro ao salvar cliente',
+                error: (e: unknown) => mensagemErro(e, 'Erro ao salvar cliente'),
             });
 
             if (editData?.id) {
@@ -785,12 +781,8 @@ const CustomersPage: React.FC = () => {
             setEditData(undefined);
             await refreshAll();
         } catch (error: unknown) {
-            const errResponse =
-                typeof error === 'object' && error !== null && 'response' in error
-                    ? (error as { response?: { data?: { message?: string; error?: string } } }).response
-                    : undefined;
-            const errorMessage = errResponse?.data?.message || errResponse?.data?.error || 'Erro ao salvar cliente';
-            showToast.error(errorMessage);
+            // Toast de erro já exibido pelo showToast.promise (antes saíam dois).
+            console.error('Erro ao salvar cliente:', error);
         } finally {
             setSaving(false);
         }

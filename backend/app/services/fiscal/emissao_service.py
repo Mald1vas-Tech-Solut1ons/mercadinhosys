@@ -7,6 +7,11 @@ Persiste o DocumentoFiscal e controla a numeração por estabelecimento.
 Observação de responsabilidade: os defaults tributários (CSOSN 102, CFOP 5102,
 PIS/COFINS 49) cobrem o caso típico de mercadinho no Simples revendendo
 mercadoria, mas a correção fiscal final é do contador do lojista.
+
+Regras por item que não dependem de UF (services/fiscal/tributacao.py):
+- produto marcado com ICMS-ST → CSOSN 500 / CST 60, CFOP 5405 e CEST obrigatório;
+- NCM de perfumaria/higiene monofásico (Lei 10.147/2000) → CST PIS/COFINS 04 no
+  regime normal; no Simples a nota segue com 49 e a receita é segregada no PGDAS.
 """
 from __future__ import annotations
 
@@ -17,6 +22,7 @@ from typing import Any, Dict
 
 from app.models import db, Venda, DocumentoFiscal, Estabelecimento, utcnow
 from app.services.fiscal.gateways import get_gateway, SimuladoGateway
+from app.services.fiscal import tributacao
 
 # Mapa forma de pagamento (interno → código Focus NFe / SEFAZ)
 FORMA_PGTO_COD = {
@@ -93,11 +99,15 @@ def _validar_cadastro_fiscal_producao(venda: Venda, estab: Estabelecimento) -> N
         erros = []
         if not _ncm_valido(getattr(prod, "ncm", None)):
             erros.append("NCM invalido")
-        if not _cfop_valido(getattr(prod, "cfop_padrao", None)):
+        # Com ICMS-ST o CFOP da nota é sempre 5405, o cadastrado não é usado.
+        if not tributacao.icms_por_st(prod) and not _cfop_valido(getattr(prod, "cfop_padrao", None)):
             erros.append("CFOP invalido")
         if not _origem_valida(getattr(prod, "origem", None)):
             erros.append("origem invalida")
-        if not _codigo_icms_valido(prod, estab):
+        if tributacao.icms_por_st(prod):
+            if not tributacao.cest_valido(getattr(prod, "cest", None)):
+                erros.append("CEST obrigatorio para produto com ICMS por ST (7 digitos)")
+        elif not _codigo_icms_valido(prod, estab):
             regime = (getattr(estab, "regime_tributario", "") or "").upper()
             erros.append("CSOSN ausente/invalido" if "SIMPLES" in regime else "CST ICMS ausente/invalido")
 
@@ -136,12 +146,30 @@ def _destinatario(venda: Venda) -> Dict[str, Any]:
     return {}
 
 
+def _tributacao_item(prod, estab: Estabelecimento) -> Dict[str, str]:
+    """CFOP, CSOSN/CST do ICMS e CST de PIS/COFINS de um item da NFC-e.
+
+    Sem marca de ST o ICMS segue exatamente o cadastro do produto (como sempre foi);
+    com a marca, prevalecem CSOSN 500 / CST 60 e CFOP 5405.
+    """
+    regime = getattr(estab, "regime_tributario", None)
+    if tributacao.icms_por_st(prod):
+        icms = tributacao.codigos_icms_st(regime)
+        cfop, codigo_icms = icms["cfop"], icms["icms_situacao_tributaria"]
+    else:
+        cfop = (getattr(prod, "cfop_padrao", None) or "5102")
+        codigo_icms = _codigo_icms_payload(prod, estab) or "102"
+    cst_pis_cofins = tributacao.cst_pis_cofins_saida(getattr(prod, "ncm", None), regime)
+    return {"cfop": cfop, "icms": codigo_icms, "pis_cofins": cst_pis_cofins}
+
+
 def _build_payload(venda: Venda, estab: Estabelecimento, numero: int, serie: int) -> Dict[str, Any]:
     itens = []
     for i, item in enumerate(venda.itens, start=1):
         prod = item.produto
-        cfop = (getattr(prod, "cfop_padrao", None) or "5102")
-        codigo_icms = _codigo_icms_payload(prod, estab) or "102"
+        trib = _tributacao_item(prod, estab)
+        cfop = trib["cfop"]
+        codigo_icms = trib["icms"]
         unidade = (item.produto_unidade or getattr(prod, "unidade_medida", None) or "UN")
         unidade_tributavel = (
             getattr(prod, "unidade_tributavel", None)
@@ -165,8 +193,8 @@ def _build_payload(venda: Venda, estab: Estabelecimento, numero: int, serie: int
             "codigo_ncm": getattr(prod, "ncm", None) or "22021000",
             "icms_origem": str(getattr(prod, "origem", 0) or 0),
             "icms_situacao_tributaria": codigo_icms,
-            "pis_situacao_tributaria": "49",
-            "cofins_situacao_tributaria": "49",
+            "pis_situacao_tributaria": trib["pis_cofins"],
+            "cofins_situacao_tributaria": trib["pis_cofins"],
         })
         cest = re.sub(r"\D", "", str(getattr(prod, "cest", "") or ""))
         if len(cest) == 7:

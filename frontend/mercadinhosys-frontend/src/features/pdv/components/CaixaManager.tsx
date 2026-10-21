@@ -8,6 +8,7 @@ import {
     RefreshCw, Wallet
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
+import { mensagemErro } from '../../../utils/mensagemErro';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import PinDialog from '../../../components/modals/PinDialog';
 
@@ -24,7 +25,20 @@ const FORMA_LABELS: Record<string, { label: string; emoji: string; color: string
     cartao_credito: { label: 'Crédito', emoji: '💳', color: 'text-purple-600' },
     pix: { label: 'PIX', emoji: '📱', color: 'text-teal-600' },
     fiado: { label: 'Fiado', emoji: '🤝', color: 'text-orange-600' },
-    outros: { label: 'Outros', emoji: '📦', color: 'text-gray-400 dark:text-slate-500' },
+    outros: { label: 'Outros', emoji: '📦', color: 'text-slate-400' },
+};
+
+/** Escapa texto vindo do banco antes de ir para o HTML do relatório (document.write). */
+const esc = (v: unknown): string => String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const paraNumero = (v: unknown): number => {
+    const n = typeof v === 'number' ? v : parseFloat(String(v ?? '').replace(',', '.'));
+    return Number.isFinite(n) ? n : NaN;
 };
 
 const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, isOpen, onClose }) => {
@@ -77,26 +91,37 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
             showToast.success('Caixa aberto com sucesso!');
             onClose();
         } catch (err: any) {
-            showToast.error(err.response?.data?.error || 'Erro ao abrir caixa');
+            showToast.error(mensagemErro(err, 'Erro ao abrir caixa'));
         } finally { setLoading(false); }
     };
 
-    const imprimirRelatorioCaixa = (resumo: any, caixa: any, valorContado: number) => {
-        const fmt = (v: number) => `R$ ${Number(v || 0).toFixed(2).replace('.', ',')}`;
+    /**
+     * Escreve o relatório numa janela JÁ aberta no clique (abrir depois do
+     * await do fechamento faz o navegador bloquear o pop-up). Devolve false se
+     * não houver janela — aí o toast diz a verdade em vez de "enviado".
+     * Todo valor interpolado passa por esc() (nome do operador, formas etc.
+     * vêm do banco).
+     */
+    const imprimirRelatorioCaixa = (win: Window | null, resumo: any, caixa: any, valorContado: number): boolean => {
+        if (!win || win.closed) return false;
+        const fmt = (v: unknown) => {
+            const n = paraNumero(v);
+            return `R$ ${(Number.isFinite(n) ? n : 0).toFixed(2).replace('.', ',')}`;
+        };
         const agora = new Date().toLocaleString('pt-BR');
         const formas: Record<string, string> = {
-            dinheiro: 'Dinheiro', cartao_debito: 'Cartao Debito', cartao_credito: 'Cartao Credito',
+            dinheiro: 'Dinheiro', cartao_debito: 'Cartão de Débito', cartao_credito: 'Cartão de Crédito',
             pix: 'PIX', fiado: 'Fiado', outros: 'Outros',
         };
         const linhasForma = Object.entries(resumo?.por_forma_pagamento || {})
-            .map(([f, d]: any) => `<tr><td>${formas[f] || f}</td><td>${d.quantidade}</td><td style="text-align:right">${fmt(d.total)}</td></tr>`)
+            .map(([f, d]: any) => `<tr><td>${esc(formas[f] || f)}</td><td>${esc(Number(d?.quantidade) || 0)}</td><td style="text-align:right">${fmt(d?.total)}</td></tr>`)
             .join('');
 
-        const diferenca = valorContado - (resumo?.saldo_esperado_gaveta || 0);
+        const diferenca = valorContado - (paraNumero(resumo?.saldo_esperado_gaveta) || 0);
         const difCor = diferenca >= 0 ? '#16a34a' : '#dc2626';
 
         const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Relatorio de Caixa</title>
+<title>Relatório de Caixa</title>
 <style>
   body{font-family:Arial,sans-serif;margin:0;padding:20px;font-size:13px}
   h1{font-size:16px;font-weight:900;margin:0 0 4px}
@@ -114,13 +139,13 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
   .dif{color:${difCor};font-size:16px;font-weight:900;text-align:center;padding:8px;background:#f8fafc;border:2px solid ${difCor};border-radius:8px;margin-top:12px}
   @media print{body{padding:0}button{display:none}}
 </style></head><body>
-<h1>Relatorio de Fechamento de Caixa</h1>
-<h2>Emitido em: ${agora}</h2>
+<h1>Relatório de Fechamento de Caixa</h1>
+<h2>Emitido em: ${esc(agora)}</h2>
 <div class="box">
-  <div class="kv"><span class="label">Operador</span><span class="value">${caixa?.funcionario_nome || 'N/D'}</span></div>
-  <div class="kv"><span class="label">Caixa Nro</span><span class="value">${caixa?.numero_caixa || caixa?.id || 'N/D'}</span></div>
-  <div class="kv"><span class="label">Abertura</span><span class="value">${caixa?.data_abertura ? new Date(caixa.data_abertura).toLocaleString('pt-BR') : 'N/D'}</span></div>
-  <div class="kv"><span class="label">Fechamento</span><span class="value">${agora}</span></div>
+  <div class="kv"><span class="label">Operador</span><span class="value">${esc(caixa?.funcionario_nome || 'N/D')}</span></div>
+  <div class="kv"><span class="label">Caixa nº</span><span class="value">${esc(caixa?.numero_caixa || caixa?.id || 'N/D')}</span></div>
+  <div class="kv"><span class="label">Abertura</span><span class="value">${esc(caixa?.data_abertura ? new Date(caixa.data_abertura).toLocaleString('pt-BR') : 'N/D')}</span></div>
+  <div class="kv"><span class="label">Fechamento</span><span class="value">${esc(agora)}</span></div>
 </div>
 <table><thead><tr><th>Forma</th><th>Qtd</th><th style="text-align:right">Total</th></tr></thead>
 <tbody>${linhasForma}</tbody>
@@ -133,29 +158,49 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
   <div class="kv"><span class="label">Esperado na gaveta</span><span class="value">${fmt(resumo?.saldo_esperado_gaveta)}</span></div>
   <div class="kv"><span class="label">Contado pelo operador</span><span class="value">${fmt(valorContado)}</span></div>
 </div>
-<div class="dif">Diferenca: ${diferenca >= 0 ? '+' : ''}${fmt(diferenca)}</div>
+<div class="dif">Diferença: ${diferenca >= 0 ? '+' : ''}${fmt(diferenca)}</div>
 <script>window.onload=()=>window.print()</script>
 </body></html>`;
 
-        const win = window.open('', '_blank', 'width=700,height=900');
-        if (win) { win.document.write(html); win.document.close(); }
+        try {
+            win.document.open();
+            win.document.write(html);
+            win.document.close();
+            return true;
+        } catch {
+            return false;
+        }
     };
 
     const handleFechamento = async (e: React.FormEvent) => {
         e.preventDefault();
         const val = parseFloat(valorFechamento.replace(',', '.'));
         if (isNaN(val) || valorFechamento.trim() === '') return showToast.error('Informe o valor em dinheiro no caixa.');
+        // Abre a janela do relatório AGORA, ainda dentro do clique: depois do
+        // await o navegador trata como pop-up e bloqueia.
+        let janela: Window | null = null;
+        try {
+            janela = window.open('', '_blank', 'width=700,height=900');
+            janela?.document.write('<p style="font-family:Arial,sans-serif;padding:20px">Fechando o caixa…</p>');
+        } catch {
+            janela = null;
+        }
         try {
             setLoading(true);
             const resp = await pdvService.fecharCaixa(val);
             // Imprimir relatório com os dados retornados pelo backend
             const resumoFinal = resp?.resumo_fechamento || resumoCaixa;
-            imprimirRelatorioCaixa(resumoFinal, caixaAtual, val);
+            const impresso = imprimirRelatorioCaixa(janela, resumoFinal, caixaAtual, val);
             setCaixaAtual(null);
-            showToast.success('Caixa fechado! Relatório enviado para impressão.');
+            if (impresso) {
+                showToast.success('Caixa fechado! Relatório aberto para impressão.');
+            } else {
+                showToast.warning('Caixa fechado. O navegador bloqueou a janela do relatório: libere pop-ups para este site para imprimir nos próximos fechamentos.', { duration: 8000 });
+            }
             onClose();
         } catch (err: any) {
-            showToast.error(err.response?.data?.error || 'Erro ao fechar caixa');
+            try { janela?.close(); } catch { /* janela já fechada */ }
+            showToast.error(mensagemErro(err, 'Erro ao fechar caixa'));
         } finally { setLoading(false); }
     };
 
@@ -184,7 +229,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
             setValorMovimentacao(''); setDescricaoMovimentacao('');
             onClose();
         } catch (err: any) {
-            showToast.error(err.response?.data?.error || 'Erro ao registrar movimentação');
+            showToast.error(mensagemErro(err, 'Erro ao registrar movimentação'));
         } finally { setLoading(false); }
     };
 
@@ -214,15 +259,15 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                     {/* Header */}
                     <div className="relative px-8 pt-8 pb-6 text-center">
                         <button onClick={onClose} title="Fechar (ESC)"
-                            className="absolute top-4 right-4 p-2 rounded-full text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:text-white hover:bg-white/10 transition-all">
+                            className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-all">
                             <X className="w-5 h-5" />
                         </button>
                         <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4"
                             style={{ background: 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}>
-                            <Unlock className="w-10 h-10 text-gray-900 dark:text-white" />
+                            <Unlock className="w-10 h-10 text-white" />
                         </div>
-                        <h2 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Abertura de Caixa</h2>
-                        <p className="text-gray-500 dark:text-slate-400 text-sm mt-1">Informe o troco disponível na gaveta</p>
+                        <h2 className="text-2xl font-black text-white tracking-tight">Abertura de Caixa</h2>
+                        <p className="text-slate-400 text-sm mt-1">Informe o troco disponível na gaveta</p>
                     </div>
 
                     {/* Form */}
@@ -231,13 +276,13 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                             <div className="flex items-center px-4 py-1 border-b"
                                 style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
-                                <span className="text-gray-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">Saldo Inicial (R$)</span>
+                                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Saldo Inicial (R$)</span>
                             </div>
                             <div className="relative">
                                 <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
                                 <input
                                     type="number" step="0.01" min="0" required autoFocus
-                                    className="w-full pl-12 pr-4 py-5 text-3xl font-black bg-transparent text-gray-900 dark:text-white outline-none tabular-nums"
+                                    className="w-full pl-12 pr-4 py-5 text-3xl font-black bg-transparent text-white outline-none tabular-nums"
                                     placeholder="0,00"
                                     value={saldoInicial}
                                     onChange={e => setSaldoInicial(e.target.value)}
@@ -248,7 +293,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                         </div>
 
                         <button type="submit" disabled={loading || !saldoInicial}
-                            className="w-full py-4 rounded-2xl font-black text-gray-900 dark:text-white tracking-widest uppercase transition-all active:scale-95 disabled:opacity-40"
+                            className="w-full py-4 rounded-2xl font-black text-white tracking-widest uppercase transition-all active:scale-95 disabled:opacity-40"
                             style={{ background: loading || !saldoInicial ? undefined : 'linear-gradient(135deg, #6366f1, #4f46e5)', boxShadow: '0 8px 24px rgba(99,102,241,0.35)' }}>
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
@@ -290,17 +335,17 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center"
                             style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)' }}>
-                            <Wallet className="w-5 h-5 text-gray-900 dark:text-white" />
+                            <Wallet className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <p className="text-gray-900 dark:text-white font-black text-base leading-none">Gerenciar Caixa</p>
-                            <p className="text-gray-500 dark:text-slate-400 text-xs mt-0.5 font-mono">
+                            <p className="text-white font-black text-base leading-none">Gerenciar Caixa</p>
+                            <p className="text-slate-400 text-xs mt-0.5 font-mono">
                                 Saldo: <span className="text-green-400 font-bold">{formatCurrency(caixaAtual.saldo_atual)}</span>
                             </p>
                         </div>
                     </div>
                     <button onClick={onClose} disabled={loading}
-                        className="p-2 rounded-xl text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:text-white hover:bg-white/10 transition-all">
+                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -354,11 +399,11 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                             {/* Valor */}
                             <div className="rounded-2xl overflow-hidden"
                                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                                <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-3">Valor (R$)</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3">Valor (R$)</p>
                                 <div className="relative">
-                                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-slate-500" />
+                                    <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                                     <input type="number" step="0.01" min="0.01" required
-                                        className="w-full pl-12 pr-4 py-4 text-2xl font-black bg-transparent text-gray-900 dark:text-white outline-none tabular-nums"
+                                        className="w-full pl-12 pr-4 py-4 text-2xl font-black bg-transparent text-white outline-none tabular-nums"
                                         placeholder="0,00"
                                         value={valorMovimentacao}
                                         onChange={e => setValorMovimentacao(e.target.value)}
@@ -368,7 +413,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
 
                             {/* Descrição */}
                             <input type="text" required
-                                className="w-full px-4 py-3 rounded-2xl text-sm font-medium text-gray-900 dark:text-white outline-none transition-all"
+                                className="w-full px-4 py-3 rounded-2xl text-sm font-medium text-white outline-none transition-all"
                                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
                                 placeholder="Motivo / Descrição (obrigatório)"
                                 value={descricaoMovimentacao}
@@ -376,7 +421,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                             />
 
                             <button type="submit" disabled={loading || !valorMovimentacao || !descricaoMovimentacao}
-                                className="w-full py-4 rounded-2xl font-black text-gray-900 dark:text-white tracking-wider uppercase transition-all active:scale-95 disabled:opacity-40"
+                                className="w-full py-4 rounded-2xl font-black text-white tracking-wider uppercase transition-all active:scale-95 disabled:opacity-40"
                                 style={{
                                     background: loading ? undefined : tipoMovimentacao === 'sangria'
                                         ? 'linear-gradient(135deg,#ef4444,#dc2626)'
@@ -397,7 +442,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                         <form onSubmit={handleFechamento} className="space-y-4">
                             {/* Resumo por forma de pagamento */}
                             {loadingResumo ? (
-                                <div className="flex items-center justify-center gap-2 py-6 text-gray-400 dark:text-slate-500 text-sm">
+                                <div className="flex items-center justify-center gap-2 py-6 text-slate-400 text-sm">
                                     <RefreshCw className="w-4 h-4 animate-spin" /> Carregando resumo do turno...
                                 </div>
                             ) : resumoCaixa && (
@@ -407,7 +452,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                                         <div className="flex items-center gap-2">
                                             <BarChart3 className="w-4 h-4 text-indigo-400" />
-                                            <span className="text-xs font-black text-gray-500 dark:text-slate-400 uppercase tracking-widest">Resumo do Turno</span>
+                                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Resumo do Turno</span>
                                         </div>
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">ATIVO</span>
                                     </div>
@@ -415,20 +460,20 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                     {/* Grid de Totais Rápidos */}
                                     <div className="grid grid-cols-2 gap-px bg-white/5 border-b border-white/5">
                                         <div className="p-3">
-                                            <p className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-tighter">Vendas Totais</p>
-                                            <p className="text-sm font-black text-gray-900 dark:text-white">{formatCurrency(resumoCaixa.total_vendas)}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Vendas Totais</p>
+                                            <p className="text-sm font-black text-white">{formatCurrency(resumoCaixa.total_vendas)}</p>
                                         </div>
                                         <div className="p-3 border-l border-white/5">
-                                            <p className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-tighter">Entradas (Suprim.)</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Entradas (Suprim.)</p>
                                             <p className="text-sm font-black text-green-400">+{formatCurrency(resumoCaixa.total_suprimentos)}</p>
                                         </div>
                                         <div className="p-3 border-t border-white/5">
-                                            <p className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-tighter">Saídas (Sangrias)</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Saídas (Sangrias)</p>
                                             <p className="text-sm font-black text-red-400">-{formatCurrency(resumoCaixa.total_sangrias)}</p>
                                         </div>
                                         <div className="p-3 border-t border-l border-white/5">
-                                            <p className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-tighter">Troco Inicial</p>
-                                            <p className="text-sm font-black text-gray-600 dark:text-slate-300">{formatCurrency(resumoCaixa.saldo_inicial)}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Troco Inicial</p>
+                                            <p className="text-sm font-black text-slate-300">{formatCurrency(resumoCaixa.saldo_inicial)}</p>
                                         </div>
                                     </div>
 
@@ -436,7 +481,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                     <div className="divide-y divide-white/5">
                                         {Object.entries(resumoCaixa.por_forma_pagamento || {}).map(([forma, dados]: any) => {
                                             if (dados.total === 0 && forma !== 'dinheiro' && forma !== 'fiado') return null;
-                                            const info = FORMA_LABELS[forma] || { label: forma, emoji: '📦', color: 'text-gray-500 dark:text-slate-400' };
+                                            const info = FORMA_LABELS[forma] || { label: forma, emoji: '📦', color: 'text-slate-400' };
                                             const isFiado = forma === 'fiado';
                                             return (
                                                 <div key={forma}
@@ -445,11 +490,11 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-base leading-none">{info.emoji}</span>
                                                         <div>
-                                                            <p className="text-[13px] font-bold text-gray-900 dark:text-white leading-tight">{info.label}</p>
-                                                            <p className="text-[10px] text-gray-400 dark:text-slate-500">{dados.quantidade} op.</p>
+                                                            <p className="text-[13px] font-bold text-white leading-tight">{info.label}</p>
+                                                            <p className="text-[10px] text-slate-400">{dados.quantidade} op.</p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-black text-sm tabular-nums ${isFiado ? 'text-orange-400' : 'text-gray-900 dark:text-white'}`}>
+                                                    <span className={`font-black text-sm tabular-nums ${isFiado ? 'text-orange-400' : 'text-white'}`}>
                                                         {formatCurrency(dados.total)}
                                                     </span>
                                                 </div>
@@ -493,7 +538,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                 <div className="relative">
                                     <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red-400/60" />
                                     <input type="number" step="0.01" min="0" required
-                                        className="w-full pl-12 pr-4 py-4 text-2xl font-black bg-transparent text-gray-900 dark:text-white outline-none tabular-nums"
+                                        className="w-full pl-12 pr-4 py-4 text-2xl font-black bg-transparent text-white outline-none tabular-nums"
                                         placeholder="0,00"
                                         value={valorFechamento}
                                         onChange={e => setValorFechamento(e.target.value)}
@@ -501,8 +546,40 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                 </div>
                             </div>
 
+                            {/* Sobra/falta ANTES de confirmar (antes só aparecia no relatório impresso) */}
+                            {(() => {
+                                const contado = paraNumero(valorFechamento);
+                                const esperado = paraNumero(resumoCaixa?.saldo_esperado_gaveta);
+                                if (valorFechamento.trim() === '' || !Number.isFinite(contado)) return null;
+                                if (!Number.isFinite(esperado)) {
+                                    return (
+                                        <p className="text-xs text-slate-400 px-1">
+                                            {loadingResumo ? 'Calculando o valor esperado…' : 'Valor esperado indisponível — a diferença sai no relatório.'}
+                                        </p>
+                                    );
+                                }
+                                const diferenca = Math.round((contado - esperado) * 100) / 100;
+                                const confere = Math.abs(diferenca) < 0.005;
+                                const sobra = diferenca > 0;
+                                return (
+                                    <div className={`flex items-center justify-between px-4 py-3 rounded-2xl border ${confere
+                                        ? 'bg-emerald-500/10 border-emerald-400/30'
+                                        : sobra ? 'bg-sky-500/10 border-sky-400/30' : 'bg-red-500/10 border-red-400/40'}`}>
+                                        <div>
+                                            <p className={`text-sm font-black ${confere ? 'text-emerald-300' : sobra ? 'text-sky-300' : 'text-red-300'}`}>
+                                                {confere ? 'Caixa confere' : sobra ? 'Sobra no caixa' : 'Falta no caixa'}
+                                            </p>
+                                            <p className="text-xs text-slate-400">Esperado {formatCurrency(esperado)} · Contado {formatCurrency(contado)}</p>
+                                        </div>
+                                        <span className={`text-xl font-black tabular-nums ${confere ? 'text-emerald-300' : sobra ? 'text-sky-300' : 'text-red-300'}`}>
+                                            {confere ? formatCurrency(0) : `${sobra ? '+' : '−'}${formatCurrency(Math.abs(diferenca))}`}
+                                        </span>
+                                    </div>
+                                );
+                            })()}
+
                             <button type="submit" disabled={loading || valorFechamento.trim() === ''}
-                                className="w-full py-4 rounded-2xl font-black text-gray-900 dark:text-white tracking-wider uppercase transition-all active:scale-95 disabled:opacity-40"
+                                className="w-full py-4 rounded-2xl font-black text-white tracking-wider uppercase transition-all active:scale-95 disabled:opacity-40"
                                 style={{ background: 'linear-gradient(135deg,#ef4444,#dc2626)', boxShadow: '0 8px 24px rgba(239,68,68,0.35)' }}>
                                 {loading ? (
                                     <span className="flex items-center justify-center gap-2">
@@ -524,11 +601,11 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
 
                             <div className="space-y-2">
                                 {loadingAuditoria ? (
-                                    <div className="flex items-center justify-center gap-2 py-8 text-gray-400 dark:text-slate-500 text-sm">
+                                    <div className="flex items-center justify-center gap-2 py-8 text-slate-400 text-sm">
                                         <RefreshCw className="w-4 h-4 animate-spin" /> Carregando extrato...
                                     </div>
                                 ) : movimentacoes.length === 0 ? (
-                                    <div className="text-center py-10 text-gray-400 dark:text-slate-600 text-sm">
+                                    <div className="text-center py-10 text-slate-500 text-sm">
                                         <History className="w-8 h-8 mx-auto mb-2 opacity-30" />
                                         Nenhuma movimentação neste turno
                                     </div>
@@ -546,10 +623,10 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                                         : <ArrowUpCircle className="w-5 h-5 text-green-400" />}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-gray-900 dark:text-white capitalize">
+                                                    <p className="text-sm font-bold text-white capitalize">
                                                         {mov.descricao || mov.tipo}
                                                     </p>
-                                                    <p className="text-xs text-gray-400 dark:text-slate-500 font-mono">
+                                                    <p className="text-xs text-slate-400 font-mono">
                                                         {new Date(mov.created_at || mov.data).toLocaleString('pt-BR')}
                                                     </p>
                                                 </div>

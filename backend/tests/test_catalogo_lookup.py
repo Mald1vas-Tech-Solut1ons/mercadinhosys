@@ -13,6 +13,12 @@ from app.models import db, Estabelecimento, CatalogoMestre
 import app.routes.produtos as produtos_mod
 
 
+@pytest.fixture(autouse=True)
+def cosmos_configurado(monkeypatch):
+    # Sem token no código: o Cosmos só é consultado com COSMOS_TOKEN no ambiente.
+    monkeypatch.setenv("COSMOS_TOKEN", "token-de-teste")
+
+
 @pytest.fixture
 def headers(session):
     estab = session.query(Estabelecimento).first()

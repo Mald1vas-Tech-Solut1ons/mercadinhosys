@@ -1100,6 +1100,9 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     cfop_padrao = db.Column(db.String(4), default="5102")
     cst_icms = db.Column(db.String(3))          # usado no regime normal
     csosn = db.Column(db.String(3), default="102")  # usado no Simples Nacional
+    # ICMS já recolhido por substituição tributária: a NFC-e sai com CSOSN 500 /
+    # CST 60 e CFOP 5405 (ver services/fiscal/tributacao.py) e o CEST é exigido.
+    icms_st = db.Column(db.Boolean, nullable=True, default=False)
     unidade_tributavel = db.Column(db.String(6))
     icms_aliquota = db.Column(db.Numeric(5, 2), default=0)
     pis_aliquota = db.Column(db.Numeric(5, 2), default=0)
@@ -1384,6 +1387,10 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         data["atributos"] = self.atributos
         data["tipo_item"] = self.tipo_item or "produto"
         data["controlar_estoque"] = self.controlar_estoque is not False
+        # Marca derivada do NCM (Lei 10.147/2000) para segregar a receita no PGDAS.
+        from app.services.fiscal.tributacao import eh_pis_cofins_monofasico
+        data["icms_st"] = bool(self.icms_st)
+        data["pis_cofins_monofasico"] = eh_pis_cofins_monofasico(self.ncm)
 
         if include_metrics:
             # Fonte única: usa a métrica de giro pré-anexada (_giro_metrica) pelo

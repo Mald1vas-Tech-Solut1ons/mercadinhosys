@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { CreditCard, DollarSign, Smartphone, Trash2, Plus, Tag } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
+import { showToast } from '../../../utils/toast';
+
+/** "1.234,56" / "1234,56" / "1234.56" / "50" → número (NaN se inválido). */
+const parseValorBR = (texto: string): number => {
+    const t = texto.replace(/[R$\s]/g, '');
+    if (!t) return NaN;
+    const normalizado = t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t;
+    return parseFloat(normalizado);
+};
+
+const arred = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 export interface PagamentoItem {
     id: string;
@@ -34,9 +45,29 @@ const MultiPaymentManager: React.FC<MultiPaymentManagerProps> = ({
     const [pixData, setPixData] = useState<{qr_code: string, txid: string, valor: number} | null>(null);
     const [tefData, setTefData] = useState<{status: string, mensagem: string, valor: number, tipo: string} | null>(null);
 
+    // Só forma com permite_troco (dinheiro) aceita valor acima do faltante;
+    // PIX/cartão/vale/fiado são limitados ao que falta — não geram troco.
+    const permiteTroco = (tipo: string) => {
+        const forma = formasDisponiveis.find(f => f.tipo === tipo);
+        return forma ? Boolean(forma.permite_troco) : tipo === 'dinheiro';
+    };
+
     const handleAdicionar = async () => {
-        const valor = parseFloat(valorInput.replace(',', '.')) || faltante;
+        const digitado = parseValorBR(valorInput);
+        if (valorInput.trim() && (!Number.isFinite(digitado) || digitado <= 0)) {
+            showToast.error('Valor inválido. Use, por exemplo, 50 ou 50,00.');
+            return;
+        }
+        let valor = arred(Number.isFinite(digitado) && digitado > 0 ? digitado : faltante);
         if (valor <= 0) return;
+        if (!permiteTroco(formaSelecionada) && valor > faltante + 0.001) {
+            if (faltante <= 0) {
+                showToast.warning('A venda já está paga. Remova um pagamento para trocar a forma.');
+                return;
+            }
+            valor = arred(faltante);
+            showToast.info(`Esta forma não dá troco: valor ajustado para ${formatCurrency(valor)}.`);
+        }
 
         if (formaSelecionada === 'pix') {
              // Fluxo manual para PIX
@@ -152,13 +183,19 @@ const MultiPaymentManager: React.FC<MultiPaymentManagerProps> = ({
                 <div className="flex-1 relative">
                     <input
                         type="text"
+                        inputMode="decimal"
+                        enterKeyHint="done"
+                        aria-label="Valor recebido"
                         value={valorInput}
                         onChange={(e) => setValorInput(e.target.value)}
-                        placeholder={`Restante: ${faltante.toFixed(2)}`}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); handleAdicionar(); }
+                        }}
+                        placeholder={`Restante: ${faltante.toFixed(2).replace('.', ',')}`}
                         className="w-full p-4 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-2xl text-lg font-bold focus:border-blue-600 outline-none transition-all"
                     />
                     <button
-                        onClick={() => setValorInput(faltante.toString())}
+                        onClick={() => setValorInput(faltante.toFixed(2).replace('.', ','))}
                         className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-[10px] font-black uppercase text-blue-600 hover:bg-blue-50 rounded-lg"
                     >
                         Total
@@ -166,6 +203,7 @@ const MultiPaymentManager: React.FC<MultiPaymentManagerProps> = ({
                 </div>
                 <button
                     onClick={handleAdicionar}
+                    aria-label="Adicionar pagamento"
                     disabled={faltante <= 0 && valorInput === ''}
                     className="px-6 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black uppercase text-xs tracking-widest transition-all disabled:opacity-50 disabled:bg-slate-400 shadow-lg shadow-blue-500/20"
                 >

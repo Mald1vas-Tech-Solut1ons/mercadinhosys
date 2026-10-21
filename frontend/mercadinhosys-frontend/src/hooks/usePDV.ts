@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Produto, Cliente } from '../types';
 import { pdvService, ConfiguracoesPDV, CaixaPDV } from '../features/pdv/pdvService';
 import { showToast } from '../utils/toast';
+import { mensagemErro } from '../utils/mensagemErro';
 
 export interface ItemCarrinho {
     produto: Produto;
@@ -231,6 +232,7 @@ export const usePDV = () => {
                 await refreshCaixa();
             } catch (error) {
                 console.error('Erro ao carregar configurações/caixa do PDV:', error);
+                showToast.error(mensagemErro(error, 'Não foi possível carregar as configurações do PDV. Recarregue a página.'), { duration: 6000 });
             }
         };
         carregarConfiguracoes();
@@ -388,7 +390,9 @@ export const usePDV = () => {
         setCarrinho(prev => prev.filter(item => item.produto.id !== produtoId));
     }, [setCarrinho]);
 
-    const atualizarQuantidade = useCallback((produtoId: number, quantidade: number) => {
+    const atualizarQuantidade = useCallback((produtoId: number, quantidadeBruta: number) => {
+        // 3 casas = gramas/ml; evita 0.1 + 0.2 = 0.30000000000000004 no granel
+        const quantidade = Math.round((quantidadeBruta + Number.EPSILON) * 1000) / 1000;
         if (quantidade <= 0) {
             removerProduto(produtoId);
             return;
@@ -458,7 +462,9 @@ export const usePDV = () => {
         });
     }, [updateSessao]);
 
-    const finalizarVenda = async (extraData?: { data_vencimento_fiado?: string }, enqueueFn?: (payload: any) => Promise<string>) => {
+    const finalizarVenda = async (
+        extraData?: { data_vencimento_fiado?: string; emitir_nfce?: boolean; offline_uuid?: string },
+        enqueueFn?: (payload: any) => Promise<string>) => {
         if (carrinho.length === 0) {
             throw new Error('Adicione produtos ao carrinho');
         }

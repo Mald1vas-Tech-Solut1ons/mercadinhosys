@@ -82,6 +82,23 @@ RBAC_MATRIX: dict[str, set[int]] = {
 }
 
 
+
+class _ErroDaRota(Exception):
+    """Exceção levantada pela ROTA (não pela autenticação): deve seguir intacta."""
+    def __init__(self, original):
+        super().__init__(str(original))
+        self.original = original
+
+
+def _chamar_rota(f, args, kwargs):
+    # Os decoradores envolvem a autenticação em try/except genérico; sem esta marca,
+    # qualquer erro de negócio/banco da rota virava 500 "Erro de autenticação".
+    try:
+        return f(*args, **kwargs)
+    except Exception as erro:
+        raise _ErroDaRota(erro) from erro
+
+
 def _get_nivel(user: Funcionario) -> int:
     """Retorna o nível numérico do funcionário (1–6)."""
     if getattr(user, "is_super_admin", False):
@@ -151,7 +168,9 @@ def nivel_required(nivel_minimo: int):
                     return readonly_err
 
                 request.current_user = user
-                return f(*args, **kwargs)
+                return _chamar_rota(f, args, kwargs)
+            except _ErroDaRota as erro_rota:
+                raise erro_rota.original
             except Exception as e:
                 current_app.logger.error(f"[RBAC] nivel_required error: {e}")
                 return jsonify({"success": False, "error": "Erro de autenticação"}), 500
@@ -188,7 +207,9 @@ def resource_required(resource: str):
                     return readonly_err
 
                 request.current_user = user
-                return f(*args, **kwargs)
+                return _chamar_rota(f, args, kwargs)
+            except _ErroDaRota as erro_rota:
+                raise erro_rota.original
             except Exception as e:
                 current_app.logger.error(f"[RBAC] resource_required error: {e}")
                 return jsonify({"success": False, "error": "Erro de autenticação"}), 500
@@ -232,7 +253,9 @@ def super_admin_required(f):
 
             request.current_user = user
             request.is_super_admin = True
-            return f(*args, **kwargs)
+            return _chamar_rota(f, args, kwargs)
+        except _ErroDaRota as erro_rota:
+            raise erro_rota.original
         except Exception as e:
             current_app.logger.error(f"[RBAC] super_admin_required error: {e}")
             return jsonify({"success": False, "error": "Erro de autenticação"}), 500
@@ -252,7 +275,7 @@ def tenant_or_super_admin_required(f):
                 request.current_user = user
                 request.is_super_admin = True
                 request.tenant_access = "global"
-                return f(*args, **kwargs)
+                return _chamar_rota(f, args, kwargs)
             target_id = (kwargs.get("estabelecimento_id")
                          or get_jwt().get("estabelecimento_id")
                          or request.args.get("estabelecimento_id"))
@@ -270,7 +293,9 @@ def tenant_or_super_admin_required(f):
             request.is_super_admin = False
             request.tenant_access = "restricted"
             request.allowed_estabelecimento_id = user.estabelecimento_id
-            return f(*args, **kwargs)
+            return _chamar_rota(f, args, kwargs)
+        except _ErroDaRota as erro_rota:
+            raise erro_rota.original
         except Exception as e:
             current_app.logger.error(f"[RBAC] tenant_or_super_admin_required error: {e}")
             return jsonify({"success": False, "error": "Erro de autenticação"}), 500
@@ -298,14 +323,16 @@ def role_required(*allowed_roles):
 
                 if user.is_super_admin:
                     request.current_user = user
-                    return f(*args, **kwargs)
+                    return _chamar_rota(f, args, kwargs)
                 if not user.role or user.role.upper() not in [r.upper() for r in allowed_roles]:
                     return jsonify({
                         "success": False,
                         "error": f"Acesso restrito às roles: {', '.join(allowed_roles)}"
                     }), 403
                 request.current_user = user
-                return f(*args, **kwargs)
+                return _chamar_rota(f, args, kwargs)
+            except _ErroDaRota as erro_rota:
+                raise erro_rota.original
             except Exception as e:
                 current_app.logger.error(f"[RBAC] role_required error: {e}")
                 return jsonify({"success": False, "error": "Erro de autenticação"}), 500

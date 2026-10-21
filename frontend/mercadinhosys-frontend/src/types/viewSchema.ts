@@ -75,6 +75,25 @@ export interface SugestaoFiscal {
     cfop_padrao_sugerido: string;
     icms_aliquota_sugerida: number;
     observacao_fiscal: string;
+    // true quando a família costuma ter ICMS-ST em parte dos estados: o formulário
+    // pergunta ao operador em vez de marcar sozinho.
+    icms_st_a_confirmar?: boolean;
+    // Só dica de NCM para conferir na embalagem/nota; nunca preenche o campo.
+    ncm_exemplos?: Array<{ ncm: string; descricao: string }>;
+}
+
+export interface RegrasFiscais {
+    pis_cofins_monofasico: {
+        posicoes: string[];     // prefixos de 4 dígitos (ex.: "3303")
+        codigos: string[];      // NCM completos de 8 dígitos
+        base_legal: string;
+    };
+    icms_st: {
+        csosn: string;
+        cst_icms: string;
+        cfop: string;
+        exige_cest: boolean;
+    };
 }
 
 export interface ViewSchema {
@@ -88,6 +107,7 @@ export interface ViewSchema {
         perfil_fiscal_padrao?: string;
     };
     sugestao_fiscal?: SugestaoFiscal;
+    regras_fiscais?: RegrasFiscais;
     mix_permitido?: string[];
     familias_configuraveis?: Array<{
         chave: string;

@@ -29,12 +29,11 @@ def registrar_produto_se_novo(produto, estabelecimento, via: str) -> None:
         ean = (produto.codigo_barras or "").strip()
         if not _ean_valido(ean):
             return
-        if CatalogoMestre.query.filter_by(ean=ean).first():
+        existente = CatalogoMestre.query.filter_by(ean=ean).first()
+        if existente and existente.status != "nao_encontrado":
             return
-
         categoria_nome = produto.categoria.nome if produto.categoria else None
-        db.session.add(CatalogoMestre(
-            ean=ean,
+        campos = dict(
             nome=produto.nome,
             marca=produto.marca,
             fabricante=produto.fabricante,
@@ -46,6 +45,12 @@ def registrar_produto_se_novo(produto, estabelecimento, via: str) -> None:
             status="encontrado",
             descoberto_por_estabelecimento_id=estabelecimento.id if estabelecimento else None,
             descoberto_via=via,
-        ))
+        )
+        if existente:
+            # Cache negativo do lookup não impede a loja de ensinar o produto ao catálogo.
+            for campo, valor in campos.items():
+                setattr(existente, campo, valor)
+        else:
+            db.session.add(CatalogoMestre(ean=ean, **campos))
     except Exception as e:
         logger.warning(f"Catálogo Mestre: falha ao registrar produto (via={via}): {e}")

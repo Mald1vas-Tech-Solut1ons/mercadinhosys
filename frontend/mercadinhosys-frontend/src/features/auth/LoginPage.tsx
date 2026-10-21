@@ -19,8 +19,7 @@ import {
   AccountCircleOutlined,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import { showToast } from '../../utils/toast';
-import { authService } from './authService';
+import { mensagemErroLogin } from '../../utils/mensagemErro';
 import logo from '../../../logoprincipal.png';
 
 export function LoginPage() {
@@ -34,7 +33,6 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showBootstrap, setShowBootstrap] = useState(false);
 
   // Detectar sucesso vindo do Gateway de Pagamento
   const queryParams = new URLSearchParams(window.location.search);
@@ -51,7 +49,6 @@ export function LoginPage() {
 
     setLoading(true);
     setError('');
-    setShowBootstrap(false);
 
     try {
       const success = await authLogin(identifier, password);
@@ -60,15 +57,11 @@ export function LoginPage() {
         setError('Falha no login. Verifique suas credenciais.');
       }
       // Note: AuthContext.login already handles the redirect to /dashboard on success
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Erro no login:', err);
-      let errorMessage = err.response?.data?.error || 'Erro ao fazer login';
-
-      if (err.response?.status === 401 || err.response?.status === 404) {
-        setShowBootstrap(true);
-      }
-
-      setError(errorMessage);
+      // AuthContext já traduz: servidor fora/timeout, senha errada, usuário
+      // inativo, assinatura/trial bloqueado.
+      setError(mensagemErroLogin(err));
     } finally {
       setLoading(false);
     }
@@ -232,42 +225,9 @@ export function LoginPage() {
                 {loading ? <CircularProgress size={26} color="inherit" /> : 'Entrar no Painel'}
               </Button>
 
-              {showBootstrap && !loading && (
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  size="large"
-                  onClick={async () => {
-                    setLoading(true);
-                    setError('');
-                    try {
-                      const promise = authService.bootstrapAdmin(identifier, password).then(async bootstrap => {
-                        if (bootstrap.success) {
-                          const loginOk = await authLogin(identifier, password);
-                          // No hard reload here anymore - AuthContext/AppRoutes handle it
-                          return loginOk;
-                        }
-                        throw new Error('Falha ao criar admin');
-                      });
-
-                      await showToast.promise(promise, {
-                        loading: 'Criando administrador e autenticando...',
-                        success: 'Administrador criado com sucesso!',
-                        error: 'Falha ao criar administrador inicial'
-                      });
-                    } catch (e) {
-                      console.error(e);
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  sx={{ py: 1.5, mb: 2, borderRadius: 2, textTransform: 'none' }}
-                >
-                  Criar administrador inicial
-                </Button>
-              )}
-
-
+              {/* O botão "Criar administrador inicial" (bootstrap) saiu da tela de
+                  login: o endpoint /auth/bootstrap está desativado (410) e o botão
+                  apareceria para qualquer senha digitada errado. */}
             </form>
 
             <Box sx={{ mt: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>

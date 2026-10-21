@@ -35,6 +35,7 @@ from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import gerente_required, resource_required
 from app.services.catalogo_mestre_service import registrar_produto_se_novo
+from app.services.fiscal.tributacao import cest_valido
 from app.services.view_schema_service import (
     inferir_perfil_fiscal_padrao,
     mix_permitido_para_estabelecimento,
@@ -223,6 +224,19 @@ def _montar_radar_fornecedores(produto_id, estabelecimento_id):
 # ============================================
 
 
+MENSAGEM_ST_SEM_CEST = (
+    "Produto com ICMS recolhido por substituição tributária (ST) precisa do CEST "
+    "com 7 dígitos. Peça o CEST ao contador ou veja na nota do fornecedor."
+)
+
+
+def _marcado(valor) -> bool:
+    """Lê um booleano vindo do JSON ou de formulário ("true", "1", "sim")."""
+    if isinstance(valor, str):
+        return valor.strip().lower() in ("1", "true", "sim", "s", "on", "yes")
+    return bool(valor)
+
+
 def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
     """Valida todos os dados do produto antes de salvar"""
     erros = []
@@ -313,6 +327,9 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
         ncm = re.sub(r"\D", "", data["ncm"])
         if len(ncm) != 8:
             erros.append("NCM deve conter 8 dígitos")
+
+    if _marcado(data.get("icms_st")) and not cest_valido(data.get("cest")):
+        erros.append(MENSAGEM_ST_SEM_CEST)
 
     if estabelecimento is not None:
         mix_permitido = mix_permitido_para_estabelecimento(estabelecimento)
@@ -436,6 +453,54 @@ def verificar_validade_proxima(produto):
 def ping_produtos():
     return jsonify({"status": "ok", "message": "Blueprint Produtos Ativo"})
 
+def _cosmos_token():
+    """Token só vem do ambiente: sem COSMOS_TOKEN o Cosmos é pulado (nunca há token no código)."""
+    return (os.environ.get("COSMOS_TOKEN") or "").strip() or None
+
+
+# Confiança da fonte de um item do Catálogo Mestre (global, compartilhado entre lojas).
+# Uma consulta só pode sobrescrever item de fonte igual ou pior: base aberta (editável por
+# qualquer pessoa) nunca troca um item que veio do Cosmos ou foi curado manualmente.
+_RANK_FONTE_ABERTA = 1
+_RANK_FONTE = {"openfoodfacts": 1, "openbeautyfacts": 1, "openproductsfacts": 1, "tenant": 1, "cosmos": 2}
+CACHE_NEGATIVO_DIAS = 7
+
+
+def _rank_fonte(fonte):
+    return _RANK_FONTE.get((fonte or "").lower(), 3)  # desconhecida = curadoria manual/superadmin
+
+
+def _pode_sobrescrever(item, rank_nova_fonte):
+    """Item novo, cache negativo ou de fonte igual/pior pode receber dado da nova fonte."""
+    if item is None or item.status != "encontrado":
+        return True
+    return _rank_fonte(item.fonte) <= rank_nova_fonte
+
+
+def _cache_negativo_vigente(item):
+    if item is None or item.status != "nao_encontrado":
+        return False
+    consultado = item.consultado_em or item.updated_at or item.created_at
+    return consultado is None or consultado >= datetime.utcnow() - timedelta(days=CACHE_NEGATIVO_DIAS)
+
+
+def _gravar_cache_negativo(ean):
+    """EAN que nenhuma fonte conhece: não reconsulta por CACHE_NEGATIVO_DIAS (cota e abuso)."""
+    try:
+        item = CatalogoMestre.query.filter_by(ean=ean).first()
+        if item is not None and item.status == "encontrado":
+            return
+        if item is None:
+            item = CatalogoMestre(ean=ean)
+            db.session.add(item)
+        item.status = "nao_encontrado"
+        item.consultado_em = datetime.utcnow()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.warning(f"Catálogo: falha ao gravar cache negativo ({ean}): {e}")
+
+
 @produtos_bp.route("/cosmos/<gtin>", methods=["GET"])
 @funcionario_required
 def buscar_cosmos_gtin(gtin):
@@ -443,9 +508,14 @@ def buscar_cosmos_gtin(gtin):
     Consulta o banco de dados geral do Cosmos através do GTIN.
     Atua como um proxy para evitar exposição do Token no frontend e contornar CORS.
     """
-    token = os.environ.get("COSMOS_TOKEN") or "MVsiut1dwhg12WGhPuTD9Q"
+    token = _cosmos_token()
+    if not token:
+        return jsonify({"success": False, "message": "Consulta ao Cosmos não configurada (COSMOS_TOKEN)."}), 503
+    gtin = "".join(c for c in str(gtin) if c.isdigit())[:14]
+    if len(gtin) < 8:
+        return jsonify({"success": False, "message": "GTIN inválido"}), 400
     url = f"https://api.cosmos.bluesoft.com.br/gtins/{gtin}.json"
-    
+
     headers = {
         'X-Cosmos-Token': token,
         'Content-Type': 'application/json',
@@ -483,6 +553,8 @@ def _cosmos_para_catalogo(ean: str, j: dict) -> "CatalogoMestre":
         preco = None
 
     item = CatalogoMestre.query.filter_by(ean=ean).first()
+    if not _pode_sobrescrever(item, _RANK_FONTE["cosmos"]):
+        return item  # curadoria manual vale mais que o Cosmos
     if not item:
         item = CatalogoMestre(ean=ean)
         db.session.add(item)
@@ -506,51 +578,78 @@ OPEN_FACTS_BASES = (
 )
 
 
+OPEN_FACTS_PRAZO_TOTAL_S = 8.0  # soma das 3 bases; antes eram até 18 s (3 × 6 s) segurando a thread
+
+
 def _buscar_open_facts(ean: str):
     """Bases abertas (sem token e sem cota diária): fallback quando o Cosmos falha.
 
-    Devolve o CatalogoMestre gravado (sem commit) ou None se nenhuma base conhece o EAN.
+    Devolve ``(item, todas_responderam)``: o CatalogoMestre gravado (sem commit) ou None,
+    e se todas as bases responderam de fato (só então "não achou" vira cache negativo).
+    Item já de fonte melhor (Cosmos/curadoria) não é sobrescrito por base aberta.
     """
     import json as _json
+    import time as _time
     campos = "product_name,product_name_pt,brands,categories,image_front_small_url,quantity"
     headers = {"User-Agent": "MercadinhoSys/2.0 (catalogo de produtos)"}
+    prazo = _time.monotonic() + OPEN_FACTS_PRAZO_TOTAL_S
+    todas_responderam = True
     for base in OPEN_FACTS_BASES:
+        restante = prazo - _time.monotonic()
+        if restante <= 0.2:
+            todas_responderam = False
+            break
         try:
             resp = requests.get(f"{base}/api/v2/product/{ean}.json", params={"fields": campos},
-                                headers=headers, timeout=6)
+                                headers=headers, timeout=min(restante, 4.0))
+            if resp.status_code not in (200, 404):
+                todas_responderam = False
             j = resp.json() if resp.status_code == 200 else {}
         except (requests.exceptions.RequestException, ValueError):
+            todas_responderam = False
             continue
         p = j.get("product") or {}
-        nome = (p.get("product_name_pt") or p.get("product_name") or "").strip()
+        nome = str(p.get("product_name_pt") or p.get("product_name") or "").strip()
         if j.get("status") != 1 or not nome:
             continue
-        if p.get("quantity") and p["quantity"].lower() not in nome.lower():
-            nome = f"{nome} {p['quantity']}"
-        categorias = [c.strip() for c in (p.get("categories") or "").split(",") if c.strip()]
+        quantidade = str(p.get("quantity") or "").strip()
+        if quantidade and quantidade.lower() not in nome.lower():
+            nome = f"{nome} {quantidade}"
+        categorias = [c.strip() for c in str(p.get("categories") or "").split(",") if c.strip()]
+        imagem = str(p.get("image_front_small_url") or "")
+        dominio = base.split("//")[1].split(".", 1)[1]  # openfoodfacts.org / ...
+        # Imagem só https e do próprio domínio da base (o dado é editável por qualquer pessoa).
+        imagem_ok = imagem.startswith("https://") and imagem.split("/")[2].endswith(dominio)
         item = CatalogoMestre.query.filter_by(ean=ean).first()
+        if not _pode_sobrescrever(item, _RANK_FONTE_ABERTA):
+            return item, True  # já há dado melhor: base aberta não rebaixa o catálogo global
         if not item:
             item = CatalogoMestre(ean=ean)
             db.session.add(item)
         item.nome = nome[:200]
-        item.marca = ((p.get("brands") or "").split(",")[0].strip() or item.marca)
-        item.categoria = (categorias[-1].split(":")[-1] if categorias else item.categoria)
-        item.imagem_url = p.get("image_front_small_url") or item.imagem_url
+        item.marca = (str(p.get("brands") or "").split(",")[0].strip()[:100] or item.marca)
+        item.categoria = (categorias[-1].split(":")[-1][:60] if categorias else item.categoria)
+        item.imagem_url = imagem[:500] if imagem_ok else item.imagem_url
         item.fonte = base.split("//")[1].split(".")[1]  # openfoodfacts / openbeautyfacts / ...
         item.status = "encontrado"
         item.payload_json = _json.dumps(p)[:60000]
         item.consultado_em = datetime.utcnow()
-        return item
-    return None
+        return item, True
+    return None, todas_responderam
 
 
 def _responder_open_facts(ean: str, motivo_cosmos: str):
     """Tenta as bases abertas; se não achar, explica o motivo real ao lojista."""
     try:
-        item = _buscar_open_facts(ean)
+        item, todas_responderam = _buscar_open_facts(ean)
         if item:
             db.session.commit()
             return jsonify({"success": True, "source": item.fonte, "data": item.to_dict()}), 200
+        # Ninguém conhece o EAN (Cosmos disse 404 ou está fora, e as bases abertas
+        # responderam "não existe"): cache negativo evita 4 chamadas externas por repetição.
+        # Cota/token/conexão do Cosmos NÃO entram: lá o Cosmos não foi de fato consultado.
+        if todas_responderam and motivo_cosmos in ("nao_encontrado", "sem_token"):
+            _gravar_cache_negativo(ean)
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Open Facts erro ao gravar catálogo ({ean}): {e}")
@@ -559,8 +658,9 @@ def _responder_open_facts(ean: str, motivo_cosmos: str):
         "token": "Token do Cosmos inválido e o produto não está nas bases abertas. Preencha manualmente.",
         "conexao": "Sem conexão com as bases de produtos. Preencha manualmente.",
         "nao_encontrado": "Este código não existe no Cosmos nem nas bases abertas. Preencha os dados manualmente.",
+        "sem_token": "Este código não está nas bases de produtos. Preencha os dados manualmente.",
     }
-    status = {"nao_encontrado": 404, "quota": 429}.get(motivo_cosmos, 502)
+    status = {"nao_encontrado": 404, "sem_token": 404, "quota": 429}.get(motivo_cosmos, 502)
     return jsonify({"success": False, "code": motivo_cosmos,
                     "message": mensagens.get(motivo_cosmos, mensagens["nao_encontrado"])}), status
 
@@ -587,7 +687,22 @@ def catalogo_lookup(ean):
         return jsonify({"success": False, "code": "interno",
                         "message": "Código interno da loja (não existe em bases externas). Preencha os dados manualmente."}), 404
 
+    if len(ean_limpo) > 14:  # GTIN tem no máximo 14 dígitos (e a coluna do catálogo também)
+        return jsonify({"success": False, "code": "ean_invalido",
+                        "message": "Código de barras inválido (mais de 14 dígitos)."}), 400
+
     force = request.args.get("force", "false").lower() == "true"
+    if force:
+        # Forçar reconsulta reescreve o catálogo GLOBAL (todas as lojas) e gasta cota:
+        # só gerente/admin. Mesmo forçado, base aberta nunca rebaixa item do Cosmos.
+        from app.decorators.rbac import nivel_do_role
+        from app.models import Funcionario
+        usuario = getattr(request, "current_user", None)
+        if usuario is None:
+            usuario = db.session.get(Funcionario, int(get_jwt_identity()))
+        if not usuario or not (usuario.is_super_admin or nivel_do_role(usuario.role) <= 2):
+            return jsonify({"success": False, "code": "sem_permissao",
+                            "message": "Somente gerente ou administrador pode forçar nova consulta."}), 403
 
     # 1) Catálogo local
     item = None
@@ -595,20 +710,21 @@ def catalogo_lookup(ean):
         item = CatalogoMestre.query.filter_by(ean=ean_limpo, status="encontrado").first()
         if item:
             return jsonify({"success": True, "source": "catalogo", "data": item.to_dict()}), 200
-        # Cache negativo: EAN já consultado e inexistente NÃO reconsulta o Cosmos
-        # (economiza quota, que é limitada — ver tratamento de 429 abaixo). O
-        # usuário pode forçar um refresh com ?force=true caso o Cosmos atualize.
+        # Cache negativo (TTL de CACHE_NEGATIVO_DIAS): EAN que nenhuma fonte conhece não
+        # reconsulta Cosmos nem bases abertas. Gerente pode forçar com ?force=true.
         negativo = CatalogoMestre.query.filter_by(ean=ean_limpo, status="nao_encontrado").first()
-        if negativo:
+        if _cache_negativo_vigente(negativo):
             return jsonify({"success": False, "source": "catalogo", "code": "nao_encontrado",
-                            "message": "EAN já consultado e ausente na base. Preencha manualmente ou use ?force=true."}), 404
+                            "message": "EAN já consultado e ausente nas bases. Preencha os dados manualmente."}), 404
 
-    # 2) Fallback Cosmos (se não encontrou localmente, ou se forçou)
-    token = os.environ.get("COSMOS_TOKEN") or "MVsiut1dwhg12WGhPuTD9Q"
+    # 2) Cosmos (só com COSMOS_TOKEN no ambiente); sem token, direto às bases abertas
+    token = _cosmos_token()
+    if not token:
+        return _responder_open_facts(ean_limpo, "sem_token")
     url = f"https://api.cosmos.bluesoft.com.br/gtins/{ean_limpo}.json"
     headers = {"X-Cosmos-Token": token, "Content-Type": "application/json", "User-Agent": "Cosmos-API-Request"}
     try:
-        resp = requests.get(url, headers=headers, timeout=10)
+        resp = requests.get(url, headers=headers, timeout=6)
     except requests.exceptions.RequestException as e:
         current_app.logger.error(f"Cosmos lookup falha de conexão ({ean_limpo}): {e}")
         return _responder_open_facts(ean_limpo, "conexao")
@@ -649,9 +765,14 @@ def catalogo_lookup(ean):
 @funcionario_required
 def codigo_barras_proximo():
     """Sugere o próximo EAN-13 interno livre da loja (preenche o cadastro)."""
-    from app.services.codigo_barras_service import proximos_codigos_internos
+    from app.services.codigo_barras_service import proximos_codigos_internos, SequenciaInternaEsgotada
     estab_id = get_authorized_establishment_id()
-    return jsonify({"success": True, "codigo_barras": proximos_codigos_internos(estab_id)[0]}), 200
+    if not estab_id or str(estab_id).lower() == "all":
+        return jsonify({"success": False, "message": "Selecione a loja"}), 400
+    try:
+        return jsonify({"success": True, "codigo_barras": proximos_codigos_internos(estab_id)[0]}), 200
+    except SequenciaInternaEsgotada as e:
+        return jsonify({"success": False, "message": str(e)}), 409
 
 
 @produtos_bp.route("/codigo-barras/gerar", methods=["POST"])
@@ -663,8 +784,11 @@ def codigo_barras_gerar():
     Body: {"produto_ids": [..]}. Produto que já tem código é mantido como está.
     Resposta: {"codigos": {"<id>": "20..."}} com o código final de cada produto pedido.
     """
-    from app.services.codigo_barras_service import proximos_codigos_internos
+    from sqlalchemy.exc import IntegrityError
+    from app.services.codigo_barras_service import proximos_codigos_internos, SequenciaInternaEsgotada
     estab_id = get_authorized_establishment_id()
+    if not estab_id or str(estab_id).lower() == "all":
+        return jsonify({"success": False, "message": "Selecione a loja"}), 400
     ids = (request.get_json(silent=True) or {}).get("produto_ids") or []
     try:
         ids = sorted({int(i) for i in ids})
@@ -673,11 +797,31 @@ def codigo_barras_gerar():
     if not ids or len(ids) > 500:
         return jsonify({"success": False, "message": "Informe de 1 a 500 produtos"}), 400
 
+    if db.engine.dialect.name == "postgresql":
+        # Serializa a geração por loja: duas gerações simultâneas não calculam o mesmo "próximo".
+        db.session.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": 7_300_000_000 + int(estab_id)})
     produtos = Produto.query.filter(Produto.estabelecimento_id == estab_id, Produto.id.in_(ids))\
         .order_by(Produto.id).with_for_update().all()
     sem_codigo = [p for p in produtos if not (p.codigo_barras or "").strip()]
-    for produto, codigo in zip(sem_codigo, proximos_codigos_internos(estab_id, len(sem_codigo))):
-        produto.codigo_barras = codigo
+    # Cadastro concorrente (ou /proximo usado à mão) pode ocupar o código calculado:
+    # a unicidade (loja, código) recusa e a geração tenta de novo mais adiante.
+    for tentativa in range(5):
+        try:
+            with db.session.begin_nested():
+                codigos = proximos_codigos_internos(estab_id, len(sem_codigo), pular=tentativa * len(sem_codigo))
+                for produto, codigo in zip(sem_codigo, codigos):
+                    produto.codigo_barras = codigo
+                db.session.flush()
+            break
+        except IntegrityError:
+            for produto in sem_codigo:
+                db.session.refresh(produto)
+        except SequenciaInternaEsgotada as e:
+            db.session.rollback()
+            return jsonify({"success": False, "message": str(e)}), 409
+    else:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Não foi possível reservar códigos livres. Tente novamente."}), 409
     db.session.commit()
     return jsonify({"success": True, "gerados": len(sem_codigo),
                     "codigos": {str(p.id): p.codigo_barras for p in produtos}}), 200
@@ -1811,6 +1955,8 @@ def criar_produto():
             or fiscal_sugerido["cst_icms_sugerido"],
             csosn=clean_nullable_str(re.sub(r"\D", "", data.get("csosn", "")), 3)
             or fiscal_sugerido["csosn_sugerido"],
+            # Nunca ligado pela sugestão da família: só quando quem cadastra marca.
+            icms_st=False if tipo_item == "servico" else _marcado(data.get("icms_st")),
             unidade_tributavel=clean_nullable_str(data.get("unidade_tributavel"), 6),
             icms_aliquota=(
                 safe_decimal(data.get("icms_aliquota"), None)
@@ -2035,6 +2181,7 @@ def atualizar_produto(id):
             "cfop_padrao",
             "cst_icms",
             "csosn",
+            "icms_st",
             "unidade_tributavel",
             "icms_aliquota",
             "pis_aliquota",
@@ -2101,6 +2248,8 @@ def atualizar_produto(id):
                         produto.cfop_padrao = clean_numeric_code(data[campo], 4)
                     elif campo in ["cst_icms", "csosn"]:
                         setattr(produto, campo, clean_numeric_code(data[campo], 3))
+                    elif campo == "icms_st":
+                        produto.icms_st = False if tipo_item == "servico" else _marcado(data[campo])
                     elif campo == "unidade_tributavel":
                         produto.unidade_tributavel = clean_nullable_str(data[campo], 6)
                     elif campo == "unidade_medida":
@@ -2114,6 +2263,11 @@ def atualizar_produto(id):
         if tipo_item == "servico":
             produto.controlar_validade = False
             produto.quantidade_minima = 0
+            produto.icms_st = False
+        if produto.icms_st and not cest_valido(produto.cest):
+            db.session.rollback()
+            return jsonify({"success": False, "message": MENSAGEM_ST_SEM_CEST,
+                            "errors": [MENSAGEM_ST_SEM_CEST]}), 400
         if tipo_item == "servico" or not usa_validade:
             produto.controlar_validade = False
             produto.data_validade = None
@@ -5118,187 +5272,397 @@ def atualizar_classificacao_abc():
             500,
         )
 
+# ============================================
+# IMPORTAÇÃO DE PRODUTOS POR PLANILHA (modal "Importar Planilha")
+# ============================================
+
+_IMPORT_PRODUTOS_MAX_LINHAS = 2000
+
+_IMPORT_PRODUTOS_CABECALHO = (
+    "nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;"
+    "marca;unidade;estoque;lote;data_validade;ncm"
+)
+
+# Cabeçalho da planilha (minúsculo, sem acento, espaço vira "_") → coluna canônica.
+_IMPORT_PRODUTOS_ALIASES = {
+    "produto": "nome",
+    "custo": "preco_custo", "preco_de_custo": "preco_custo",
+    "preco": "preco_venda", "preco_de_venda": "preco_venda",
+    "codigo_de_barras": "codigo_barras", "ean": "codigo_barras", "gtin": "codigo_barras",
+    "sku": "codigo_interno",
+    "unidade_medida": "unidade", "un": "unidade",
+    "quantidade": "estoque", "estoque_inicial": "estoque",
+    "numero_lote": "lote",
+    "validade": "data_validade",
+}
+
+
+def _imp_sem_acento(texto) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", str(texto or "")) if not unicodedata.combining(c))
+
+
+def _imp_chave_categoria(nome) -> str:
+    """"Mercearia", "mercearia" e " MERCEARIA " são a mesma categoria; "Cosméticos" = "Cosmeticos"."""
+    return " ".join(_imp_sem_acento(nome).lower().split())
+
+
+def _imp_coluna(cabecalho) -> str:
+    chave = re.sub(r"[^a-z0-9]+", "_", _imp_sem_acento(cabecalho).strip().lower()).strip("_")
+    return _IMPORT_PRODUTOS_ALIASES.get(chave, chave)
+
+
+def _imp_decimal(valor, rotulo: str, padrao=None) -> Decimal:
+    """Número como o brasileiro digita: 8,90 · 8.90 · 1.234,56 · R$ 8,90."""
+    texto = str(valor or "").replace("R$", "").replace(" ", "").replace(" ", "").strip()
+    if not texto:
+        if padrao is None:
+            raise ValueError(f"{rotulo} é obrigatório")
+        return Decimal(padrao)
+    if "," in texto and "." in texto:
+        if texto.rfind(",") > texto.rfind("."):
+            texto = texto.replace(".", "").replace(",", ".")  # 1.234,56
+        else:
+            texto = texto.replace(",", "")  # 1,234.56
+    else:
+        texto = texto.replace(",", ".")
+    try:
+        numero = Decimal(texto)
+    except (DecimalException, ValueError):
+        raise ValueError(f"{rotulo} '{valor}' não é um número válido")
+    if not numero.is_finite():
+        raise ValueError(f"{rotulo} '{valor}' não é um número válido")
+    if numero < 0:
+        raise ValueError(f"{rotulo} '{valor}' não pode ser negativo")
+    return numero
+
+
+def _imp_data(valor):
+    texto = str(valor or "").strip()
+    if not texto:
+        return None
+    for formato in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y"):
+        try:
+            return datetime.strptime(texto, formato).date()
+        except ValueError:
+            continue
+    raise ValueError(f"data de validade '{texto}' inválida (use dd/mm/aaaa)")
+
+
+def _imp_codigo_barras(valor):
+    texto = str(valor or "").strip().replace(" ", "")
+    if not texto:
+        return None
+    if re.fullmatch(r"\d+([.,]\d+)?[eE]\+?\d+", texto):
+        raise ValueError(
+            f"o código de barras virou '{texto}' (o Excel converteu para notação científica). "
+            "Formate a coluna codigo_barras como Texto e digite o código de novo"
+        )
+    if not texto.isdigit() or len(texto) > 14:
+        raise ValueError(f"código de barras '{texto}' inválido: use só números (até 14 dígitos)")
+    return texto
+
+
+def _imp_ncm(valor) -> str:
+    texto = str(valor or "").strip()
+    digitos = re.sub(r"\D", "", texto)
+    if not digitos:
+        return ""
+    if len(digitos) == 7:  # o Excel tira o zero à esquerda (capítulos 01 a 09: alimentos)
+        digitos = "0" + digitos
+    if len(digitos) != 8:
+        raise ValueError(f"NCM '{texto}' deve ter 8 dígitos")
+    return digitos
+
+
+def _imp_ler_linha(v: dict) -> dict:
+    """Valida e converte uma linha. Erro sai como ValueError com texto para o dono da loja."""
+    nome = " ".join(v.get("nome", "").split())
+    if not nome:
+        raise ValueError("o nome do produto é obrigatório")
+    if len(nome) > 100:
+        raise ValueError(f"o nome tem {len(nome)} caracteres; o máximo é 100")
+    categoria = " ".join(v.get("categoria", "").split())
+    if not categoria:
+        raise ValueError("a categoria é obrigatória")
+    if len(categoria) > 50:
+        raise ValueError("o nome da categoria passa de 50 caracteres")
+    preco_venda = _imp_decimal(v.get("preco_venda"), "preço de venda")
+    if preco_venda <= 0:
+        raise ValueError("o preço de venda deve ser maior que zero")
+    estoque = _imp_decimal(v.get("estoque"), "estoque", "0")
+    if estoque > Decimal("9999999"):
+        raise ValueError(f"estoque '{v.get('estoque')}' é grande demais")
+    codigo_interno = v.get("codigo_interno", "").strip()
+    if len(codigo_interno) > 50:
+        raise ValueError("o código interno passa de 50 caracteres")
+    return {
+        "nome": nome,
+        "categoria": categoria,
+        "preco_custo": _imp_decimal(v.get("preco_custo"), "preço de custo", "0"),
+        "preco_venda": preco_venda,
+        "estoque": estoque,
+        "codigo_barras": _imp_codigo_barras(v.get("codigo_barras")),
+        "codigo_interno": codigo_interno or None,
+        "marca": v.get("marca", "").strip()[:50],
+        "unidade": (v.get("unidade", "").strip() or "UN").upper()[:20],
+        "lote": v.get("lote", "").strip()[:40],
+        "data_validade": _imp_data(v.get("data_validade")),
+        "ncm": _imp_ncm(v.get("ncm")),
+    }
+
+
 @produtos_bp.route("/importar", methods=["POST"])
 @funcionario_required
 def importar_produtos_csv():
-    """
-    Importa produtos em massa via CSV.
-    Permissao: ADMIN ou GERENTE.
+    """Importa produtos em massa via CSV (modal "Importar Planilha").
+
+    Colunas: nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;
+    unidade;estoque;lote;data_validade e, opcional, ncm. Aceita separador ';' ou ',', UTF-8
+    (com ou sem BOM) ou Windows-1252 (Excel pt-BR) e números com vírgula.
+
+    Cada linha é gravada num savepoint: erro numa linha não desfaz as outras, e só conta
+    como importada a linha gravada de fato. O erro cita a linha como o Excel mostra (o
+    cabeçalho é a linha 1). Código de barras ou código interno repetido na planilha ou já
+    cadastrado na loja (mesmo em produto excluído) é recusado com o nome do produto dono.
+    Categoria é casada sem diferenciar maiúsculas nem acento.
+
+    Estoque inicial segue o cadastro individual: quantidade + MovimentacaoEstoque de entrada.
+    Lote (ProdutoLote) só nasce quando a planilha informa a validade; sem validade não se
+    inventa data. Permissão: ADMIN ou GERENTE.
     """
     import csv
     import io
-    from decimal import Decimal
-    
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+    from app.utils.timezone import hoje_local
+
     try:
-        # 1. Validar Permissoes
         claims = get_jwt()
-        role = claims.get("role")
-        if role not in ["ADMIN", "GERENTE"]:
-            return (
-                jsonify({
-                    "success": False,
-                    "message": "Permissao negada. Apenas Administradores ou Gerentes podem importar produtos."
-                }),
-                403,
-            )
-        
-        estabelecimento_id = claims.get("estabelecimento_id")
-        funcionario_id = claims.get("sub") # ID do funcionario logado
-        
-        # 2. Validar Arquivo
-        if 'arquivo' not in request.files:
+        if (claims.get("role") or "").upper() not in ("ADMIN", "GERENTE"):
+            return jsonify({
+                "success": False,
+                "message": "Permissão negada. Apenas administradores ou gerentes podem importar produtos.",
+            }), 403
+
+        estabelecimento_id = get_authorized_establishment_id()
+        if not estabelecimento_id or str(estabelecimento_id).lower() == "all":
+            return jsonify({"success": False, "message": "Selecione a loja que receberá os produtos"}), 400
+        try:
+            funcionario_id = int(get_jwt_identity())
+        except (TypeError, ValueError):
+            funcionario_id = None
+
+        arquivo = request.files.get("arquivo")
+        if not arquivo or not arquivo.filename:
             return jsonify({"success": False, "message": "Nenhum arquivo enviado"}), 400
-        
-        file = request.files['arquivo']
-        if file.filename == '':
-            return jsonify({"success": False, "message": "Arquivo invalido"}), 400
-        
-        if not file.filename.endswith('.csv'):
-            return jsonify({"success": False, "message": "O arquivo deve ser um CSV"}), 400
+        if not arquivo.filename.lower().endswith(".csv"):
+            return jsonify({
+                "success": False,
+                "message": "O arquivo deve ser uma planilha .csv. No Excel: Arquivo → Salvar como → "
+                           "CSV UTF-8 (delimitado por vírgulas).",
+            }), 400
 
-        # 3. Processar CSV
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-        reader = csv.DictReader(stream, delimiter=';') # Padrao comum em Excel PT-BR eh ';'
-        
-        # Se nao encontrar nada com ';', tentar ','
-        if not reader.fieldnames or len(reader.fieldnames) < 2:
-            stream.seek(0)
-            reader = csv.DictReader(stream, delimiter=',')
-            
-        success_count = 0
-        error_count = 0
-        errors = []
-        
-        # Cache de categorias para evitar queries repetitivas
-        categorias_cache = {}
-        
-        for row_idx, row in enumerate(reader, start=1):
+        bruto = arquivo.stream.read()
+        texto = None
+        for codificacao in ("utf-8-sig", "cp1252", "latin-1"):
             try:
-                # Limpeza de dados
-                nome = row.get('nome', '').strip()
-                cat_nome = row.get('categoria', '').strip()
-                preco_custo_str = row.get('preco_custo', '0').replace(',', '.')
-                marca = row.get('marca', '').strip()
-                unidade = row.get('unidade', 'UN').strip()
-                qtd_inicial_str = row.get('estoque', '0').strip()
-                qtd_inicial = int(qtd_inicial_str) if qtd_inicial_str.isdigit() else 0
-                
-                lote_num = row.get('lote', '').strip()
-                validade_str = row.get('data_validade', '').strip()
-                data_validade = None
-                
-                if validade_str:
-                    try:
-                        # Tenta vários formatos comuns
-                        for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y'):
-                            try:
-                                data_validade = datetime.strptime(validade_str, fmt).date()
-                                break
-                            except ValueError:
-                                continue
-                        if not data_validade:
-                            errors.append(f"Linha {row_idx}: Formato de data invalido para '{validade_str}'")
-                    except Exception:
-                        pass
-                
-                # Validações básicas
-                if not nome:
-                    errors.append(f"Linha {row_idx}: Nome do produto eh obrigatorio")
-                    error_count += 1
-                    continue
-                if not cat_nome:
-                    errors.append(f"Linha {row_idx}: Categoria eh obrigatoria")
-                    error_count += 1
-                    continue
-                
-                # Tratar Categoria
-                if cat_nome not in categorias_cache:
-                    cat = CategoriaProduto.query.filter_by(
-                        nome=cat_nome, 
-                        estabelecimento_id=estabelecimento_id
-                    ).first()
-                    
-                    if not cat:
-                        cat = CategoriaProduto(
-                            nome=cat_nome, 
-                            estabelecimento_id=estabelecimento_id,
-                            ativo=True
-                        )
-                        db.session.add(cat)
-                        db.session.flush() # Para pegar o ID
-                    
-                    categorias_cache[cat_nome] = cat.id
-                
-                categoria_id = categorias_cache[cat_nome]
-                
-                # Criar Produto
-                novo_produto = Produto(
-                    estabelecimento_id=estabelecimento_id,
-                    categoria_id=categoria_id,
-                    nome=nome,
-                    codigo_barras=codigo_barras or None,
-                    codigo_interno=codigo_interno or None,
-                    marca=marca,
-                    unidade_medida=unidade,
-                    preco_custo=Decimal(preco_custo_str),
-                    preco_venda=Decimal(preco_venda_str),
-                    quantidade=qtd_inicial,
-                    lote=lote_num or None,
-                    data_validade=data_validade,
-                    controlar_validade=True if data_validade else False,
-                    ativo=True
-                )
-                
-                db.session.add(novo_produto)
-                db.session.flush() # Para pegar o ID do produto para o lote
-                
-                # Auditoria SaaS
-                Auditoria.registrar(
-                    estabelecimento_id=estabelecimento_id,
-                    tipo_evento="produto_criado",
-                    descricao=f"Produto '{novo_produto.nome}' importado via Bulk",
-                    valor=novo_produto.preco_venda,
-                    detalhes={"id": novo_produto.id, "nome": novo_produto.nome, "metodo": "import_bulk"}
-                )
+                texto = bruto.decode(codificacao)
+                break
+            except UnicodeDecodeError:
+                continue
+        primeira = next((l for l in texto.splitlines() if l.strip()), "")
+        delimitador = ";" if primeira.count(";") >= primeira.count(",") else ","
+        leitor = csv.DictReader(io.StringIO(texto, newline=""), delimiter=delimitador)
+        if not leitor.fieldnames:
+            return jsonify({"success": False, "message": "A planilha está vazia"}), 400
+        leitor.fieldnames = [_imp_coluna(c) for c in leitor.fieldnames]
+        faltando = [c for c in ("nome", "categoria", "preco_venda") if c not in leitor.fieldnames]
+        if faltando:
+            return jsonify({
+                "success": False,
+                "message": f"Cabeçalho não reconhecido: falta(m) a(s) coluna(s) {', '.join(faltando)}. "
+                           f"A 1ª linha da planilha deve ser: {_IMPORT_PRODUTOS_CABECALHO} "
+                           "(ncm é opcional). Baixe o modelo no próprio modal.",
+            }), 400
 
-                # Se informou estoque > 0, cria o primeiro lote oficial
-                if qtd_inicial > 0:
-                    novo_lote = ProdutoLote(
-                        estabelecimento_id=estabelecimento_id,
-                        produto_id=novo_produto.id,
-                        numero_lote=lote_num or f"IMPORT-{date.today().strftime('%Y%m%d')}",
-                        quantidade=qtd_inicial,
-                        quantidade_inicial=qtd_inicial,
-                        data_validade=data_validade or (date.today() + timedelta(days=365)), # Fallback 1 ano se nao informado
-                        data_entrada=date.today(),
-                        preco_custo_unitario=Decimal(preco_custo_str),
-                        preco_venda=Decimal(preco_venda_str),
-                        ativo=True
+        # Estado da loja lido sem o filtro de soft-delete: as constraints únicas valem também
+        # para produtos, lotes e categorias excluídos.
+        def _mapa(coluna):
+            return {
+                codigo: nome for codigo, nome in db.session.execute(
+                    select(coluna, Produto.nome).where(
+                        Produto.estabelecimento_id == estabelecimento_id,
+                        coluna.isnot(None), coluna != "",
                     )
-                    db.session.add(novo_lote)
+                ).all()
+            }
 
-                success_count += 1
-                
-                # Commit parcial a cada 50 itens para performance e seguranca
-                if success_count % 50 == 0:
-                    db.session.commit()
-                    
-            except Exception as row_err:
-                db.session.rollback()
-                errors.append(f"Linha {row_idx}: Erro inesperado - {str(row_err)}")
-                error_count += 1
-                
+        eans_da_loja = _mapa(Produto.codigo_barras)
+        internos_da_loja = _mapa(Produto.codigo_interno)
+        lotes_da_loja = set(db.session.execute(
+            select(ProdutoLote.numero_lote).where(ProdutoLote.estabelecimento_id == estabelecimento_id)
+        ).scalars())
+        categorias = {}
+        for cat in db.session.execute(
+            select(CategoriaProduto)
+            .where(CategoriaProduto.estabelecimento_id == estabelecimento_id)
+            .order_by(CategoriaProduto.deleted_at.isnot(None), CategoriaProduto.id)
+        ).scalars():
+            categorias.setdefault(_imp_chave_categoria(cat.nome), cat)
+
+        hoje = hoje_local()
+        importados, erros, linhas_lidas = 0, [], 0
+        eans_na_planilha, internos_na_planilha = {}, {}
+
+        for linha in leitor:
+            numero = leitor.line_num  # linha física no Excel (cabeçalho = 1)
+            valores = {k: str(v).strip() for k, v in linha.items() if k and v is not None}
+            if not any(valores.values()):
+                continue  # linha em branco
+            linhas_lidas += 1
+            if linhas_lidas > _IMPORT_PRODUTOS_MAX_LINHAS:
+                erros.append(
+                    f"Limite de {_IMPORT_PRODUTOS_MAX_LINHAS} produtos por arquivo atingido na linha "
+                    f"{numero}: divida a planilha e importe o restante em outro arquivo"
+                )
+                break
+            rotulo = f"Linha {numero}" + (f" ({valores.get('nome')[:60]})" if valores.get("nome") else "")
+            try:
+                d = _imp_ler_linha(valores)
+                ean, interno = d["codigo_barras"], d["codigo_interno"]
+                if ean and ean in eans_na_planilha:
+                    raise ValueError(f"código de barras {ean} repetido — já aparece na linha {eans_na_planilha[ean]}")
+                if ean and ean in eans_da_loja:
+                    raise ValueError(f"código de barras {ean} já está cadastrado no produto '{eans_da_loja[ean]}'")
+                if interno and interno in internos_na_planilha:
+                    raise ValueError(f"código interno {interno} repetido — já aparece na linha {internos_na_planilha[interno]}")
+                if interno and interno in internos_da_loja:
+                    raise ValueError(f"código interno {interno} já está cadastrado no produto '{internos_da_loja[interno]}'")
+
+                chave_cat = _imp_chave_categoria(d["categoria"])
+                with db.session.begin_nested():
+                    categoria = categorias.get(chave_cat)
+                    if categoria is None:
+                        categoria = CategoriaProduto(
+                            estabelecimento_id=estabelecimento_id,
+                            nome=CategoriaProduto.normalizar_nome_categoria(d["categoria"]),
+                            ativo=True,
+                        )
+                        db.session.add(categoria)
+                        db.session.flush()
+                    elif categoria.deleted_at is not None or not categoria.ativo:
+                        categoria.deleted_at = None
+                        categoria.ativo = True
+
+                    custo, venda, estoque = d["preco_custo"], d["preco_venda"], d["estoque"]
+                    validade = d["data_validade"]
+                    produto = Produto(
+                        estabelecimento_id=estabelecimento_id,
+                        categoria_id=categoria.id,
+                        nome=d["nome"],
+                        codigo_barras=ean,
+                        codigo_interno=interno,
+                        marca=d["marca"],
+                        unidade_medida=d["unidade"],
+                        preco_custo=custo,
+                        preco_venda=venda,
+                        margem_lucro=((venda - custo) / custo * 100) if custo > 0 else Decimal("0"),
+                        quantidade=estoque,
+                        ncm=d["ncm"],
+                        lote=d["lote"] or None,
+                        data_validade=validade,
+                        controlar_validade=validade is not None,
+                        ativo=True,
+                    )
+                    db.session.add(produto)
+                    db.session.flush()
+
+                    lote = None
+                    if estoque > 0 and validade is not None:
+                        numero_lote = d["lote"] or f"IMP-{hoje.strftime('%Y%m%d')}"
+                        if numero_lote in lotes_da_loja or not d["lote"]:
+                            numero_lote = f"{numero_lote}-{produto.id}"
+                        lote = ProdutoLote(
+                            estabelecimento_id=estabelecimento_id,
+                            produto_id=produto.id,
+                            numero_lote=numero_lote,
+                            quantidade=estoque,
+                            quantidade_inicial=estoque,
+                            data_validade=validade,
+                            data_entrada=hoje,
+                            preco_custo_unitario=custo,
+                            preco_venda=venda,
+                            ativo=True,
+                        )
+                        db.session.add(lote)
+                        db.session.flush()
+
+                    if estoque > 0:
+                        db.session.add(MovimentacaoEstoque(
+                            estabelecimento_id=estabelecimento_id,
+                            produto_id=produto.id,
+                            lote_id=lote.id if lote else None,
+                            funcionario_id=funcionario_id,
+                            tipo="entrada",
+                            quantidade=estoque,
+                            quantidade_anterior=0,
+                            quantidade_atual=estoque,
+                            custo_unitario=custo,
+                            valor_total=estoque * custo,
+                            motivo="Estoque inicial (importação de planilha)",
+                            observacoes=f"Planilha {arquivo.filename[:100]}, linha {numero}",
+                        ))
+
+                    Auditoria.registrar(
+                        estabelecimento_id=estabelecimento_id,
+                        tipo_evento="produto_criado",
+                        descricao=f"Produto '{produto.nome}' importado por planilha",
+                        usuario_id=funcionario_id,
+                        valor=produto.preco_venda,
+                        detalhes={"id": produto.id, "nome": produto.nome, "metodo": "importacao_planilha",
+                                  "linha": numero},
+                    )
+
+                # Só depois do savepoint gravado: estado em memória nunca aponta para algo desfeito.
+                categorias[chave_cat] = categoria
+                if ean:
+                    eans_na_planilha[ean] = numero
+                if interno:
+                    internos_na_planilha[interno] = numero
+                if lote is not None:
+                    lotes_da_loja.add(lote.numero_lote)
+                importados += 1
+            except ValueError as e:
+                erros.append(f"{rotulo}: {e}")
+            except IntegrityError:
+                erros.append(
+                    f"{rotulo}: código de barras, código interno ou lote já usado por outro produto "
+                    "desta loja (pode ser um produto excluído)"
+                )
+            except Exception:
+                current_app.logger.exception(f"Importação de produtos: falha na linha {numero}")
+                erros.append(f"{rotulo}: não foi possível gravar este produto (erro interno registrado)")
+
         db.session.commit()
-        
+
+        mensagem = f"{importados} produto(s) importado(s)"
+        if erros:
+            mensagem += f", {len(erros)} linha(s) com problema — corrija só essas linhas e importe de novo"
         return jsonify({
             "success": True,
-            "message": f"Importacao concluida: {success_count} produtos importados, {error_count} erros.",
-            "total_importados": success_count,
-            "total_erros": error_count,
-            "erros": errors[:10] # Retornar apenas os 10 primeiros erros
+            "message": mensagem + ".",
+            "total_linhas": linhas_lidas,
+            "total_importados": importados,
+            "total_erros": len(erros),
+            "erros": erros,
         })
-        
-    except Exception as e:
+
+    except Exception:
         db.session.rollback()
-        current_app.logger.error(f"Erro na importacao de produtos: {str(e)}")
-        return jsonify({"success": False, "message": f"Erro interno na importacao: {str(e)}"}), 500
+        current_app.logger.exception("Erro na importação de produtos")
+        return jsonify({
+            "success": False,
+            "message": "Não foi possível processar a planilha e nenhum produto foi gravado. "
+                       "Confira se o arquivo é o modelo de importação salvo como CSV e tente de novo.",
+        }), 500

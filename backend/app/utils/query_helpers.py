@@ -514,6 +514,20 @@ def get_produto_safe(prod_id):
         logger.error(f"Erro em get_produto_safe: {e}")
         return None
 
+def _filtro_tenant_sql(params, coluna="estabelecimento_id"):
+    """Fronteira de tenant para SQL cru: o mesmo tenant que o TenantQuery aplicaria.
+
+    ``text()`` não passa pelo TenantQuery; sem este filtro, uma busca por id devolvia
+    venda/cliente de QUALQUER loja (IDOR). Em request sem tenant resolvido,
+    ``_tenant_atual()`` devolve -1 (fail-closed) e nada é encontrado.
+    """
+    from app.models import _tenant_atual
+    tenant = _tenant_atual()
+    if tenant is None:
+        return "", params
+    return f" AND {coluna} = :_tenant_sql", {**params, "_tenant_sql": tenant}
+
+
 def get_cliente_safe(cli_id):
     """
     Busca o cliente via SQL direto.
@@ -521,9 +535,10 @@ def get_cliente_safe(cli_id):
     try:
         if not cli_id: return None
         db = _get_db()
+        tenant_filter, params = _filtro_tenant_sql({"cid": cli_id})
         row = db.session.execute(
-            text("SELECT id, nome, email, cpf, telefone, estabelecimento_id FROM clientes WHERE id = :cid"),
-            {"cid": cli_id}
+            text("SELECT id, nome, email, cpf, telefone, estabelecimento_id FROM clientes WHERE id = :cid" + tenant_filter),
+            params
         ).fetchone()
         if not row: return None
         return {
@@ -545,9 +560,10 @@ def get_venda_safe(venda_id):
     try:
         if not venda_id: return None
         db = _get_db()
+        tenant_filter, params = _filtro_tenant_sql({"vid": venda_id})
         row = db.session.execute(
-            text("SELECT id, codigo, total, subtotal, desconto, cliente_id, funcionario_id, estabelecimento_id, data_venda, valor_recebido, troco FROM vendas WHERE id = :vid"),
-            {"vid": venda_id}
+            text("SELECT id, codigo, total, subtotal, desconto, cliente_id, funcionario_id, estabelecimento_id, data_venda, valor_recebido, troco FROM vendas WHERE id = :vid" + tenant_filter),
+            params
         ).fetchone()
         if not row: return None
         
@@ -593,7 +609,8 @@ def get_venda_itens_safe(venda_id):
             JOIN produtos p ON vi.produto_id = p.id
             WHERE vi.venda_id = :vid
         """
-        rows = db.session.execute(text(sql), {"vid": venda_id}).fetchall()
+        tenant_filter, params = _filtro_tenant_sql({"vid": venda_id}, coluna="vi.estabelecimento_id")
+        rows = db.session.execute(text(sql + tenant_filter), params).fetchall()
 
         return [
             {

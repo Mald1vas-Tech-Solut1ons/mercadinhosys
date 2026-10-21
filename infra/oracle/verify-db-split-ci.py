@@ -49,6 +49,14 @@ try:
         docker('run', '-d', '--name', client, '--network', network, '--memory', '48m',
                '-e', 'PGHOST=' + server, '-e', 'PGPORT=5432', '-e', 'PGPASSWORD=' + password, image)
         created.append(client)
+        # pg_isready no servidor passa ainda no init temporário (só socket local); o cliente
+        # usa TCP, então espera a conexão pela rede antes do createdb (falhava de forma intermitente).
+        deadline = time.monotonic() + 60
+        while subprocess.run(['docker', 'exec', client, 'psql', '-U', 'mercadinho_user', '-d', 'postgres', '-c', 'SELECT 1'],
+                             capture_output=True).returncode:
+            if time.monotonic() > deadline:
+                raise RuntimeError('Cliente não conectou ao PostgreSQL CI pela rede')
+            time.sleep(1)
         docker('exec', client, 'createdb', '-U', 'mercadinho_user', 'split_source')
         docker('exec', client, 'psql', '-U', 'mercadinho_user', '-d', 'split_source', '-v', 'ON_ERROR_STOP=1', '-c',
                "CREATE TABLE proof(id integer primary key, amount numeric(12,2)); INSERT INTO proof SELECT i,i*10.25 FROM generate_series(1,50) i")

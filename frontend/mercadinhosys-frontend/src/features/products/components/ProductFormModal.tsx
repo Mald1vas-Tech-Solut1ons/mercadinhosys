@@ -4,7 +4,7 @@ import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import SchemaField from '../../../components/schema/SchemaField';
 import { showToast } from '../../../utils/toast';
 import { Produto } from '../../../types';
-import { TipoItem } from '../../../types/viewSchema';
+import { RegrasFiscais, TipoItem } from '../../../types/viewSchema';
 import { productsService } from '../productsService';
 import { cosmosService } from '../../../services/cosmosService';
 import { useViewSchema, schemaHelpers } from '../../../services/viewSchemaService';
@@ -66,6 +66,17 @@ const CampoAjuda = ({ texto }: { texto: string }) => (
     </span>
 );
 
+// Espelha services/fiscal/tributacao.py (Lei 10.147/2000): as listas vêm do schema.
+const ncmMonofasico = (ncm: string, regras?: RegrasFiscais): boolean => {
+    const digitos = (ncm || '').replace(/\D/g, '');
+    if (!regras || digitos.length !== 8) return false;
+    const { posicoes, codigos } = regras.pis_cofins_monofasico;
+    return codigos.includes(digitos) || posicoes.includes(digitos.slice(0, 4));
+};
+
+const formatarNcm = (ncm: string) =>
+    ncm.length === 8 ? `${ncm.slice(0, 4)}.${ncm.slice(4, 6)}.${ncm.slice(6)}` : ncm;
+
 const emptyForm = {
     nome: '',
     codigo_barras: '',
@@ -78,6 +89,7 @@ const emptyForm = {
     cest: '',
     cfop_padrao: '',
     csosn: '',
+    icms_st: false,
     tipo: '',
     tipo_item: 'produto' as TipoItem,
     unidade_medida: 'un',
@@ -104,6 +116,9 @@ const ProductFormModal = ({
     const [showScanner, setShowScanner] = useState(false);
     const [isSearchingCosmos, setIsSearchingCosmos] = useState(false);
     const [showForceSync, setShowForceSync] = useState(false);
+    // true quando o preço de venda foi digitado pelo usuário (ou veio do produto
+    // em edição): mexer no custo passa a recalcular a MARGEM, não o preço.
+    const precoVendaManual = useRef(false);
 
     // Motor de Renderização Contextual: o schema decide campos, unidades e grupos
     const { schema } = useViewSchema(formData.familia_produto || undefined, formData.tipo_item);
@@ -136,6 +151,7 @@ const ProductFormModal = ({
 
     useEffect(() => {
         if (!show) return;
+        precoVendaManual.current = Boolean(produto && editMode && produto.preco_venda);
         if (produto && editMode) {
             setFormData({
                 nome: produto.nome || '',
@@ -149,6 +165,7 @@ const ProductFormModal = ({
                 cest: (produto as any).cest || '',
                 cfop_padrao: (produto as any).cfop_padrao || '',
                 csosn: (produto as any).csosn || '',
+                icms_st: Boolean((produto as any).icms_st),
                 tipo: produto.tipo || '',
                 tipo_item: (produto.tipo_item as TipoItem) || 'produto',
                 unidade_medida: produto.unidade_medida || 'un',
@@ -217,7 +234,10 @@ const ProductFormModal = ({
                 setFormData(prev => ({
                     ...prev,
                     nome: d.nome || prev.nome,
-                    descricao: d.categoria || prev.descricao,
+                    // Categoria da base vai para Categoria (obrigatória) — antes caía
+                    // em Descrição e o salvar falhava com "Categoria é obrigatória".
+                    // Não sobrescreve o que o usuário já escolheu.
+                    categoria: prev.categoria || d.categoria || '',
                     marca: d.marca || prev.marca,
                     ncm: d.ncm || prev.ncm,
                     cest: d.cest || prev.cest,
@@ -263,6 +283,12 @@ const ProductFormModal = ({
         setFormData(prev => ({ ...prev, preco_venda: parseFloat(preco.toFixed(2)) }));
     };
 
+    // Blur do custo: com preço já digitado, preserva o preço e ajusta a margem.
+    const aoSairDoCusto = () => {
+        if (precoVendaManual.current && formData.preco_venda > 0) calcularMargem();
+        else calcularPrecoVenda();
+    };
+
     const calcularMargem = () => {
         if (formData.preco_custo > 0) {
             const margem = ((formData.preco_venda - formData.preco_custo) / formData.preco_custo) * 100;
@@ -284,6 +310,10 @@ const ProductFormModal = ({
         if (!formData.categoria.trim()) { showToast.error('Categoria é obrigatória'); return; }
         if (!ehServico && (!formData.preco_custo || formData.preco_custo <= 0)) { showToast.error('Preço de custo inválido'); return; }
         if (!formData.preco_venda || formData.preco_venda <= 0) { showToast.error('Preço de venda inválido'); return; }
+        if (!ehServico && formData.icms_st && formData.cest.length !== 7) {
+            showToast.error('Produto com ICMS por substituição tributária (ST) precisa do CEST com 7 dígitos. Peça ao contador ou veja na nota do fornecedor.');
+            return;
+        }
 
         const payload: any = {
             ...formData,
@@ -338,6 +368,12 @@ const ProductFormModal = ({
     const inputClass = 'w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 dark:text-white';
     const labelClass = 'block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1';
     const sectionClass = 'p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4';
+
+    const regrasFiscais = schema?.regras_fiscais;
+    const regrasSt = regrasFiscais?.icms_st;
+    const itemMonofasico = ncmMonofasico(formData.ncm, regrasFiscais);
+    const cestFaltando = formData.icms_st && formData.cest.length !== 7;
+    const ncmExemplos = schema?.sugestao_fiscal?.ncm_exemplos || [];
 
     const titulo = editMode
         ? (ehServico ? 'Editar Serviço' : 'Editar Produto')
@@ -559,6 +595,11 @@ const ProductFormModal = ({
                                     {formData.ncm && formData.ncm.length !== 8 && (
                                         <p className="text-xs text-amber-600 mt-1">Deve ter 8 dígitos.</p>
                                     )}
+                                    {itemMonofasico && (
+                                        <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">
+                                            PIS/COFINS monofásico: o imposto já foi pago pela fábrica. No Simples, essa venda é separada no PGDAS; no lucro presumido/real, a nota sai com CST 04.
+                                        </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className={`${labelClass} flex items-center gap-1`}>
@@ -567,26 +608,59 @@ const ProductFormModal = ({
                                     </label>
                                     <input type="text" inputMode="numeric" maxLength={7} value={formData.cest}
                                         onChange={e => field('cest', e.target.value.replace(/\D/g, '').slice(0, 7))}
-                                        className={inputClass} placeholder="7 dígitos" />
+                                        className={`${inputClass} ${cestFaltando ? 'border-red-400' : ''}`}
+                                        placeholder={formData.icms_st ? 'Obrigatório com ST' : '7 dígitos'} />
+                                    {cestFaltando && (
+                                        <p className="text-xs text-red-600 mt-1">Com ST o CEST é obrigatório (7 dígitos).</p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className={`${labelClass} flex items-center gap-1`}>
                                         CFOP Padrão
                                         <CampoAjuda texto="Código Fiscal de Operações e Prestações — identifica o tipo de operação na nota (ex.: 5102 = venda de mercadoria comprada de terceiros dentro do seu estado). Já vem sugerido pela família do item; normalmente não precisa mudar." />
                                     </label>
-                                    <input type="text" inputMode="numeric" maxLength={4} value={formData.cfop_padrao}
+                                    <input type="text" inputMode="numeric" maxLength={4}
+                                        value={formData.icms_st ? (regrasSt?.cfop || '5405') : formData.cfop_padrao}
+                                        disabled={formData.icms_st}
                                         onChange={e => field('cfop_padrao', e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        className={inputClass} placeholder="Ex: 5102" />
+                                        className={`${inputClass} disabled:opacity-60`} placeholder="Ex: 5102" />
                                 </div>
                                 <div>
                                     <label className={`${labelClass} flex items-center gap-1`}>
                                         CSOSN (Simples)
                                         <CampoAjuda texto="Código de Situação da Operação no Simples Nacional — define como o ICMS é tratado na nota para quem está no Simples. Se seu regime tributário não é Simples Nacional, o sistema usa o CST em vez deste campo (configurável em Configurações → Fiscal)." />
                                     </label>
-                                    <input type="text" inputMode="numeric" maxLength={3} value={formData.csosn}
+                                    <input type="text" inputMode="numeric" maxLength={3}
+                                        value={formData.icms_st ? (regrasSt?.csosn || '500') : formData.csosn}
+                                        disabled={formData.icms_st}
                                         onChange={e => field('csosn', e.target.value.replace(/\D/g, '').slice(0, 3))}
-                                        className={inputClass} placeholder="Ex: 102" />
+                                        className={`${inputClass} disabled:opacity-60`} placeholder="Ex: 102" />
                                 </div>
+                            </div>
+                            {ncmExemplos.length > 0 && (
+                                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                                    NCM comuns nesta família (confira na embalagem ou na nota do fornecedor):{' '}
+                                    {ncmExemplos.map(ex => `${ex.descricao} ${formatarNcm(ex.ncm)}`).join(' · ')}
+                                </p>
+                            )}
+                            <div className={`mt-4 rounded-lg border px-3 py-3 ${schema?.sugestao_fiscal?.icms_st_a_confirmar && !formData.icms_st
+                                ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20'
+                                : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}>
+                                <label htmlFor="icms-st-check" className="flex items-start gap-3 cursor-pointer">
+                                    <input type="checkbox" id="icms-st-check" checked={formData.icms_st}
+                                        onChange={e => field('icms_st', e.target.checked)}
+                                        className="mt-0.5 w-4 h-4 text-blue-600 rounded" />
+                                    <span className="text-sm text-gray-800 dark:text-gray-200">
+                                        <span className="font-semibold">ICMS recolhido por substituição tributária (ST)</span>
+                                        <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                            {formData.icms_st
+                                                ? `A nota sai com CSOSN ${regrasSt?.csosn || '500'} (Simples) ou CST ${regrasSt?.cst_icms || '60'} (regime normal) e CFOP ${regrasSt?.cfop || '5405'}. O CEST é obrigatório.`
+                                                : schema?.sugestao_fiscal?.icms_st_a_confirmar
+                                                    ? 'Este item tem ST no seu estado? Confirme com o contador se este NCM tem ST e, se tiver, marque aqui.'
+                                                    : 'Marque só se o contador confirmar que este produto tem ST no seu estado.'}
+                                        </span>
+                                    </span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -603,7 +677,7 @@ const ProductFormModal = ({
                             <input type="number" step="0.01" min={ehServico ? '0' : '0.01'} required={!ehServico}
                                 value={formData.preco_custo}
                                 onChange={e => field('preco_custo', parseFloat(e.target.value) || 0)}
-                                onBlur={calcularPrecoVenda}
+                                onBlur={aoSairDoCusto}
                                 className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`} />
                             {ehServico && <p className="text-xs text-blue-500 mt-1">Peças/insumos consumidos. Pode ser zero.</p>}
                         </div>
@@ -611,8 +685,12 @@ const ProductFormModal = ({
                             <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">Margem de Lucro (%)</label>
                             <input type="number" step="0.1" min="0"
                                 value={formData.margem_lucro}
-                                onChange={e => field('margem_lucro', parseFloat(e.target.value) || 0)}
-                                onBlur={calcularPrecoVenda}
+                                onChange={e => {
+                                    // Editar a margem é pedir preço calculado por ela.
+                                    precoVendaManual.current = false;
+                                    field('margem_lucro', parseFloat(e.target.value) || 0);
+                                }}
+                                onBlur={() => { if (!precoVendaManual.current) calcularPrecoVenda(); }}
                                 className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`} />
                         </div>
                         <div>
@@ -621,7 +699,10 @@ const ProductFormModal = ({
                             </label>
                             <input type="number" step="0.01" min="0.01" required
                                 value={formData.preco_venda}
-                                onChange={e => field('preco_venda', parseFloat(e.target.value) || 0)}
+                                onChange={e => {
+                                    precoVendaManual.current = true;
+                                    field('preco_venda', parseFloat(e.target.value) || 0);
+                                }}
                                 onBlur={calcularMargem}
                                 className="w-full px-4 py-3 bg-blue-600 text-white border-transparent rounded-xl outline-none focus:ring-4 focus:ring-blue-500/30 text-lg font-bold shadow-lg shadow-blue-500/20" />
                         </div>

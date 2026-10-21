@@ -382,7 +382,25 @@ def obter_configuracoes_pdv():
             "mostrar_foto_produto_pdv": bool(cached_config.get("mostrar_foto_produto_pdv", False)) if cached_config else False,
             "exige_observacao_desconto": True,
         }
-        
+
+        # Prontidão da NFC-e: mesmo critério que emitir_nfce usa para escolher o
+        # gateway (services/fiscal/gateways.get_gateway). Gateway real + token =
+        # pronta; senão cai no SimuladoGateway (sem valor fiscal). O PDV usa isso
+        # para decidir se "Emitir NFC-e" já vem marcado.
+        nfce_info = {"pronta": False, "ambiente": "homologacao", "gateway": "simulado"}
+        try:
+            from app.models import Estabelecimento
+            from app.services.fiscal.gateways import get_gateway, SimuladoGateway
+            estab_id_cfg = funcionario_data.get("estabelecimento_id")
+            estab_cfg = Estabelecimento.query.get(int(estab_id_cfg)) if str(estab_id_cfg).isdigit() else None
+            if estab_cfg is not None:
+                nfce_info["ambiente"] = estab_cfg.fiscal_ambiente or "homologacao"
+                nfce_info["gateway"] = (estab_cfg.fiscal_gateway or "simulado").lower()
+                nfce_info["pronta"] = not isinstance(get_gateway(estab_cfg), SimuladoGateway)
+        except Exception as nfce_err:
+            current_app.logger.warning(f"Não foi possível avaliar prontidão da NFC-e: {nfce_err}")
+        configuracoes["nfce"] = nfce_info
+
         # OTIMIZAÇÃO: Incluir dados RFM se cliente_id for fornecido
         cliente_id = request.args.get("cliente_id", type=int)
         if cliente_id:
@@ -1674,16 +1692,37 @@ def imprimir_venda_html(venda_id):
         if token:
             from flask_jwt_extended import decode_token
             try:
-                decode_token(token)
-            except:
+                claims = decode_token(token)
+            except Exception:
                 return "Acesso Negado: Token Inválido", 401
         else:
             # Fallback para o comportamento padrão do jwt_required
             try:
                 from flask_jwt_extended import verify_jwt_in_request
                 verify_jwt_in_request()
-            except:
+                claims = get_jwt()
+            except Exception:
                 return "Acesso Negado: Autenticação Necessária", 401
+        # Token na query não passa pelo before_request (que só lê o header): validar aqui
+        # o usuário atual e fixar o tenant do token, senão qualquer token lia a venda de
+        # qualquer loja por id (IDOR).
+        if claims.get("type") != "access":
+            return "Acesso Negado: Token Inválido", 401
+        from flask import g
+        from app.utils.auth_utils import is_user_active
+        try:
+            usuario = db.session.get(Funcionario, int(claims.get("sub")))
+        except (TypeError, ValueError):
+            usuario = None
+        if (not usuario or usuario.deleted_at is not None or not usuario.ativo
+                or not is_user_active(usuario.status)):
+            return "Acesso Negado: Conta inativa", 401
+        if usuario.is_super_admin:
+            g.estabelecimento_id = getattr(g, "estabelecimento_id", None) or "all"
+        elif str(usuario.estabelecimento_id) != str(claims.get("estabelecimento_id")):
+            return "Acesso Negado: Contexto de loja inválido", 403
+        else:
+            g.estabelecimento_id = usuario.estabelecimento_id
         from app.utils.query_helpers import get_venda_safe, get_cliente_safe, get_estabelecimento_safe, get_venda_itens_safe
         venda_data = get_venda_safe(venda_id)
         if not venda_data:

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '../features/auth/authService';
 import { useInactivityTimeout } from '../hooks/useInactivityTimeout';
+import { mensagemErroLogin } from '../utils/mensagemErro';
 
 interface User {
     id: number;
@@ -86,7 +87,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return false;
         } catch (error) {
             console.error('Erro no login Context:', error);
-            return false;
+            // Antes devolvia `false` e a tela dizia sempre "verifique suas
+            // credenciais" — inclusive com o servidor fora do ar. Agora o motivo
+            // real (rede/timeout, senha, usuário inativo, assinatura) sobe.
+            throw new Error(mensagemErroLogin(error));
         }
     };
 

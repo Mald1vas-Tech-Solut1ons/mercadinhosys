@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Trash2, Minus, Plus, Tag, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Produto } from '../../../types';
@@ -39,6 +39,36 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
     const [mostrarDesconto, setMostrarDesconto] = useState(false);
     const [valorDesconto, setValorDesconto] = useState('');
     const [tipoDesconto, setTipoDesconto] = useState<'valor' | 'percentual'>('percentual');
+
+    // Campo de quantidade editado como TEXTO: apagar para redigitar não pode
+    // zerar (e remover) o item. Só aplica no blur/Enter; vazio ou 0 volta ao
+    // valor anterior. Remover = lixeira ou "−" até zero.
+    const formatarQtd = (q: number) => (isGranel
+        ? String(Math.round(q * 1000) / 1000).replace('.', ',')
+        : String(Math.round(q)));
+    const [qtdTexto, setQtdTexto] = useState(() => formatarQtd(quantidade));
+    const [editandoQtd, setEditandoQtd] = useState(false);
+    useEffect(() => {
+        if (!editandoQtd) setQtdTexto(formatarQtd(quantidade));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [quantidade, editandoQtd, isGranel]);
+
+    const aplicarQtdDigitada = () => {
+        setEditandoQtd(false);
+        const valor = parseFloat(qtdTexto.replace(/\s/g, '').replace(',', '.'));
+        if (!Number.isFinite(valor) || valor <= 0) {
+            setQtdTexto(formatarQtd(quantidade));
+            return;
+        }
+        const ajustado = isGranel ? Math.round(valor * 1000) / 1000 : Math.max(1, Math.round(valor));
+        if (ajustado !== quantidade) onAtualizarQuantidade(ajustado);
+        else setQtdTexto(formatarQtd(quantidade));
+    };
+
+    const passoQtd = (delta: number) => {
+        const novo = Math.round((quantidade + delta) * 1000) / 1000;
+        onAtualizarQuantidade(Math.max(0, novo));
+    };
 
     const subtotalItem = precoUnitario * quantidade;
     const percentualAplicado = desconto > 0 ? ((desconto / subtotalItem) * 100).toFixed(1) : null;
@@ -195,21 +225,32 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                         {/* Stepper de quantidade */}
                         <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                             <button
-                                onClick={() => onAtualizarQuantidade(Math.max(0, quantidade - (isGranel ? 0.1 : 1)))}
+                                onClick={() => passoQtd(-(isGranel ? 0.1 : 1))}
                                 className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
                                 aria-label="Diminuir quantidade"
                             >
                                 <Minus className="w-4 h-4" />
                             </button>
                             <input
-                                type="number"
-                                value={quantidade}
-                                step={isGranel ? "0.001" : "1"}
-                                onChange={(e) => onAtualizarQuantidade(parseFloat(e.target.value) || 0)}
-                                className="w-12 text-center bg-transparent border-none font-black text-slate-900 dark:text-white focus:outline-none tabular-nums text-sm"
+                                type="text"
+                                inputMode={isGranel ? 'decimal' : 'numeric'}
+                                aria-label="Quantidade"
+                                value={qtdTexto}
+                                onFocus={(e) => { setEditandoQtd(true); e.target.select(); }}
+                                onChange={(e) => {
+                                    setEditandoQtd(true);
+                                    const permitido = isGranel ? /[^\d.,]/g : /\D/g;
+                                    setQtdTexto(e.target.value.replace(permitido, ''));
+                                }}
+                                onBlur={aplicarQtdDigitada}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+                                    if (e.key === 'Escape') { setEditandoQtd(false); setQtdTexto(formatarQtd(quantidade)); }
+                                }}
+                                className="w-14 text-center bg-transparent border-none font-black text-slate-900 dark:text-white focus:outline-none tabular-nums text-sm"
                             />
                             <button
-                                onClick={() => onAtualizarQuantidade(quantidade + (isGranel ? 0.1 : 1))}
+                                onClick={() => passoQtd(isGranel ? 0.1 : 1)}
                                 className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
                                 aria-label="Aumentar quantidade"
                             >

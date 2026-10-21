@@ -81,6 +81,11 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
 
+    # Atrás do Caddy (único hop público; o backend só escuta em 127.0.0.1): remote_addr passa a
+    # ser o IP real do cliente. Sem isto o rate limit de login era UM só para todas as lojas
+    # (5/min no SaaS inteiro) e a auditoria gravava o IP do proxy.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
     # Carrega configurações
     app.config.from_object(config[config_name])
@@ -544,6 +549,7 @@ def create_app(config_name=None):
                     ("produtos", "imagem_url",                      "VARCHAR(255)"),
                     ("produtos", "familia_produto",                 "VARCHAR(40)"),
                     ("produtos", "perfil_fiscal",                   "VARCHAR(40)"),
+                    ("produtos", "icms_st",                         "BOOLEAN DEFAULT FALSE"),
                     ("produtos", "classificacao_abc",               "VARCHAR(1)"),
                     # Vendas
                     ("vendas", "valor_recebido",                    "NUMERIC(10,2) DEFAULT 0"),

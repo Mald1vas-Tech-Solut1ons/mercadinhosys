@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { showToast } from '../../utils/toast';
 import toast from 'react-hot-toast';
@@ -25,7 +25,8 @@ import CupomFiscalModal from './components/CupomFiscalModal';
 import PesoInputModal from './components/PesoInputModal';
 import { usePDV } from '../../hooks/usePDV';
 import { formatCurrency } from '../../utils/formatters';
-import { pdvService } from './pdvService';
+import { pdvService, genUuid } from './pdvService';
+import { mensagemErro } from '../../utils/mensagemErro';
 import { apiClient } from '../../api/apiClient';
 import PDVSkeleton from './components/PDVSkeleton';
 import CaixaManager from './components/CaixaManager';
@@ -33,6 +34,20 @@ import MultiPaymentManager from './components/MultiPaymentManager';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+
+export interface VendaConcluida {
+    id: number;
+    codigo: string;
+    offline?: boolean;
+    nfce_status?: string | null;
+    nfce_mensagem?: string | null;
+    nfce_chave?: string | null;
+    total: number;
+    troco: number;
+    valorRecebido: number;
+    emailCliente: string;
+    nfceSolicitada: boolean;
+}
 
 const PDVPage: React.FC = () => {
 
@@ -97,14 +112,34 @@ const PDVPage: React.FC = () => {
     const [activeSection, setActiveSection] = useState<'cliente' | 'pagamento'>('pagamento');
     const [enviandoEmail, setEnviandoEmail] = useState(false);
     const [mostrarModalNotaFiscal, setMostrarModalNotaFiscal] = useState(false);
-    const [vendaFinalizada, setVendaFinalizada] = useState<{ id: number; codigo: string; offline?: boolean } | null>(null);
+    // Resumo congelado da venda concluída: o carrinho é limpo logo após o
+    // sucesso (evita reenviar o mesmo carrinho com F9/F10), então o modal
+    // pós-venda lê troco/total/NFC-e daqui.
+    const [vendaFinalizada, setVendaFinalizada] = useState<VendaConcluida | null>(null);
     const [managerCaixaAberto, setManagerCaixaAberto] = useState(false);
     const [dataVencimentoFiado, setDataVencimentoFiado] = useState('');  // data prevista pagamento do fiado
     const [cupomModalAberto, setCupomModalAberto] = useState(false);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
     const [produtoPendentePeso, setProdutoPendentePeso] = useState<any>(null);
-    const [emitirNfce, setEmitirNfce] = useState(true);
+    // NFC-e: marcada por padrão SÓ quando o backend diz que a emissão fiscal
+    // está pronta (gateway real configurado — ver /pdv/configuracoes → nfce).
+    // Sem isso, começa desmarcada (antes vinha sempre marcada e a venda
+    // terminava com "NFC-e: erro" na frente do cliente).
+    const nfcePronta = Boolean(configuracoes?.nfce?.pronta);
+    const nfceAmbiente = configuracoes?.nfce?.ambiente || 'homologacao';
+    const [emitirNfce, setEmitirNfce] = useState(false);
+    useEffect(() => { setEmitirNfce(nfcePronta); }, [nfcePronta]);
     const caixaEstaAberto = !!caixaAberto;
+
+    // Trava síncrona contra venda duplicada: F9/F10/duplo clique chegam antes
+    // de o estado `loading` re-renderizar.
+    const finalizandoRef = useRef(false);
+    // offline_uuid por carrinho: reenvio do MESMO carrinho (ex.: rede caiu depois
+    // de o servidor gravar) cai na idempotência do backend. Mudou carrinho ou
+    // pagamento → novo uuid.
+    const checkoutUuidRef = useRef<string | null>(null);
+    useEffect(() => { checkoutUuidRef.current = null; }, [carrinho, pagamentos]);
+    const posVendaAberto = mostrarModalNotaFiscal || cupomModalAberto;
 
     useBodyScrollLock(formaPagamentoAberta);
 
@@ -142,11 +177,12 @@ const PDVPage: React.FC = () => {
                 buffer = '';
                 if (code.length >= 8 && /^\d+$/.test(code)) {
                     e.preventDefault();
+                    if (finalizandoRef.current) return; // venda sendo concluída: não mexe no carrinho
                     try {
                         const p = await pdvService.buscarPorCodigoBarras(code);
                         if (p) { adicionarProduto(p as any); showToast.success(`Lido: ${p.nome}`); }
                         else showToast.error(`Código ${code} não encontrado`);
-                    } catch { showToast.error('Erro ao ler código de barras'); }
+                    } catch (err) { showToast.error(mensagemErro(err, 'Erro ao ler código de barras')); }
                 }
                 return;
             }
@@ -160,6 +196,8 @@ const PDVPage: React.FC = () => {
     }, [adicionarProduto]);
 
     const handleFinalizarVenda = async () => {
+        // Bloqueia F9/F10/duplo clique enquanto envia e com o pós-venda aberto.
+        if (finalizandoRef.current || loading || posVendaAberto) return;
         if (!caixaEstaAberto) {
             showToast.error('Caixa fechado. Abra o caixa antes de concluir a venda.', { duration: 5000 });
             setFormaPagamentoAberta(false);
@@ -188,35 +226,41 @@ const PDVPage: React.FC = () => {
             return;
         }
 
+        finalizandoRef.current = true;
+        if (!checkoutUuidRef.current) checkoutUuidRef.current = genUuid();
+        // Congela o resumo ANTES do await (o carrinho é limpo no sucesso).
+        const resumo = {
+            total,
+            troco,
+            valorRecebido: totalPago,
+            emailCliente: cliente?.email || '',
+            nfceSolicitada: emitirNfce,
+        };
         try {
-            const extraData = { 
+            const extraData = {
                 data_vencimento_fiado: isFiado && dataVencimentoFiado ? dataVencimentoFiado : undefined,
-                emitir_nfce: emitirNfce
+                emitir_nfce: emitirNfce,
+                offline_uuid: checkoutUuidRef.current,
             };
             const venda = await showToast.promise(
                 finalizarVenda(extraData, enqueue),
                 {
                     loading: isOnline ? 'Finalizando venda...' : '📦 Salvando venda offline...',
-                    success: (v: any) => {
-                        let msg = v?.offline ? `📱 Venda salva offline! Código: ${v.codigo}` : '✅ Venda concluída!';
-                        if (v?.nfce_status) {
-                            if (v.nfce_status === 'autorizado') msg += ' (NFC-e Autorizada)';
-                            else msg += ' (NFC-e: ' + v.nfce_status + ')';
-                        }
-                        return msg;
-                    },
+                    success: (v: any) => (v?.offline ? `📱 Venda salva offline! Código: ${v.codigo}` : '✅ Venda concluída!'),
                     // Motivo do servidor (estoque, desconto, crédito…) — nunca o "status code 400" do axios
-                    error: (err: any) => err?.response?.data?.message || err?.response?.data?.error
-                        || err?.message || 'Erro ao finalizar venda'
+                    error: (err: any) => mensagemErro(err, 'Erro ao finalizar venda'),
                 }
             );
 
             if (venda) {
-                setVendaFinalizada(venda);
+                setVendaFinalizada({ ...venda, ...resumo });
                 setFormaPagamentoAberta(false);
-                // Offline: mostra comprovante simplificado sem tentar buscar do servidor
-                setMostrarModalNotaFiscal(true);
+                // Limpa carrinho/pagamentos JÁ: um novo F9/F10 não tem o que reenviar.
+                limparCarrinho();
+                checkoutUuidRef.current = null;
                 setDataVencimentoFiado('');
+                setEmitirNfce(nfcePronta);
+                setMostrarModalNotaFiscal(true);
                 if (venda.offline) {
                     showToast.warning(`📡 ${pendingCount + 1} venda(s) aguardando sync. Serão enviadas automaticamente quando o sinal voltar.`, { duration: 6000 });
                 }
@@ -231,10 +275,13 @@ const PDVPage: React.FC = () => {
                 return;
             }
             // Outros erros já tratados pelo promise
+        } finally {
+            finalizandoRef.current = false;
         }
     };
 
     const handleAbrirCheckout = (section: 'cliente' | 'pagamento' = 'pagamento') => {
+        if (posVendaAberto) return;
         if (!caixaEstaAberto) {
             showToast.error('Caixa fechado. Abra o caixa para liberar pagamentos e fechamento da venda.', { duration: 5000 });
             setManagerCaixaAberto(true);
@@ -845,22 +892,28 @@ const PDVPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-3 px-1 py-2 mb-2 bg-slate-100 dark:bg-slate-900 rounded-xl">
-                                    <input 
-                                        type="checkbox" 
-                                        id="emitir-nfce-check" 
+                                <div className="flex items-start gap-3 px-1 py-2 mb-2 bg-slate-100 dark:bg-slate-900 rounded-xl">
+                                    <input
+                                        type="checkbox"
+                                        id="emitir-nfce-check"
                                         checked={emitirNfce}
                                         onChange={(e) => setEmitirNfce(e.target.checked)}
-                                        className="w-5 h-5 ml-2 text-red-600 rounded"
+                                        className="w-5 h-5 ml-2 mt-0.5 text-red-600 rounded shrink-0"
                                     />
                                     <label htmlFor="emitir-nfce-check" className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                                        Emitir NFC-e (Nota Fiscal Consumidor Eletrônica)
+                                        Emitir NFC-e (nota fiscal do consumidor)
+                                        {nfcePronta && nfceAmbiente !== 'producao' && (
+                                            <span className="block font-semibold text-amber-600 dark:text-amber-400">Ambiente de homologação: nota de teste, sem valor fiscal.</span>
+                                        )}
+                                        {!nfcePronta && (
+                                            <span className="block font-semibold text-slate-500 dark:text-slate-400">Emissão fiscal não configurada (Configurações → Fiscal). Sem ela, sai comprovante não fiscal.</span>
+                                        )}
                                     </label>
                                 </div>
 
                                 <button
                                     onClick={handleFinalizarVenda}
-                                    disabled={carrinho.length === 0 || loading}
+                                    disabled={carrinho.length === 0 || loading || posVendaAberto}
                                     className={`w-full h-16 rounded-2xl flex items-center justify-center gap-3 text-lg font-black uppercase tracking-widest shadow-xl transition-all active:scale-[0.98] ${
                                         carrinho.length === 0 || loading
                                             ? 'bg-slate-200 text-slate-400'
@@ -885,11 +938,15 @@ const PDVPage: React.FC = () => {
 
             <NotaFiscalModal
                 mostrar={mostrarModalNotaFiscal}
-                emailCliente={cliente?.email || ''}
+                venda={vendaFinalizada}
+                nfceAmbiente={nfceAmbiente}
+                emailCliente={vendaFinalizada?.emailCliente || ''}
                 onFechar={() => {
+                    // Carrinho já foi limpo no sucesso; não limpar de novo para não
+                    // apagar itens que o operador já bipou para o próximo cliente.
                     setMostrarModalNotaFiscal(false);
                     setVendaFinalizada(null);
-                    limparCarrinho();
+                    document.getElementById('produto-search-input')?.focus();
                 }}
                 onImprimir={async () => {
                     if (!vendaFinalizada) return;
@@ -911,14 +968,10 @@ const PDVPage: React.FC = () => {
                         await showToast.promise(pdvService.enviarCupomFiscal(vendaFinalizada.id, email), {
                             loading: 'Enviando nota fiscal...',
                             success: 'Nota fiscal enviada por e-mail!',
-                            error: (err: any) => {
-                                const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'Erro ao enviar e-mail';
-                                return typeof msg === 'string' ? msg : 'Erro ao enviar e-mail';
-                            }
+                            error: (err: any) => mensagemErro(err, 'Erro ao enviar e-mail'),
                         });
                         setMostrarModalNotaFiscal(false);
                         setVendaFinalizada(null);
-                        limparCarrinho();
                     } catch {
                         // Erro tratado pelo promise
                     } finally {
@@ -944,7 +997,6 @@ const PDVPage: React.FC = () => {
                 onFechar={() => {
                     setCupomModalAberto(false);
                     setVendaFinalizada(null);
-                    limparCarrinho();
                 }}
             />
 

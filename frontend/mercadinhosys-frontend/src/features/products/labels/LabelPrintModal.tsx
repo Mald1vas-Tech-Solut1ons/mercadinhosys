@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FC } from 'react';
 import { Printer, Search, Trash2, Barcode, Minus, Plus, Wand2 } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import { showToast } from '../../../utils/toast';
+import { mensagemErro } from '../../../utils/mensagemErro';
 import { Produto } from '../../../types';
 import { productsService } from '../productsService';
 import { LABEL_LAYOUTS, LabelItem, LabelLayoutId, LabelOptions, buildLabelsHtml, printLabels, precoBR } from './labelPrint';
@@ -88,6 +89,39 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
         setResultados([]);
     };
 
+    /**
+     * Enter na busca (leitor USB manda o código + Enter de uma vez): não espera
+     * o debounce. Código exato → adiciona na hora; nome com 1 resultado → adiciona.
+     */
+    const adicionarPorEnter = async () => {
+        const termo = busca.trim();
+        if (!termo) return;
+        const exatoCarregado = resultados.find(p => p.codigo_barras?.trim() === termo);
+        if (exatoCarregado) { adicionar(exatoCarregado); return; }
+        const ehCodigo = /^\d{4,14}$/.test(termo);
+        if (!ehCodigo && resultados.length === 1) { adicionar(resultados[0]); return; }
+
+        setBuscando(true);
+        try {
+            if (ehCodigo) {
+                try {
+                    const porCodigo = await productsService.getByBarcode(termo);
+                    if (porCodigo) { adicionar(porCodigo); return; }
+                } catch { /* não achou pelo código: cai na busca geral */ }
+            }
+            const encontrados = (await productsService.search(termo, 8)) || [];
+            const exato = encontrados.find(p => p.codigo_barras?.trim() === termo);
+            if (exato) { adicionar(exato); return; }
+            if (encontrados.length === 1) { adicionar(encontrados[0]); return; }
+            setResultados(encontrados.slice(0, 8));
+            if (!encontrados.length) showToast.error(`Nenhum produto encontrado para "${termo}".`);
+        } catch (err) {
+            showToast.error(mensagemErro(err, 'Não foi possível buscar o produto.'));
+        } finally {
+            setBuscando(false);
+        }
+    };
+
     const alterarCopias = (id: number, copias: number) =>
         setItens(prev => prev.map(i => i.produto.id === id ? { ...i, copias: limitarCopias(copias) } : i));
 
@@ -116,7 +150,7 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                 : i));
             showToast.success('Códigos gerados e salvos nos produtos.');
         } catch (err: any) {
-            showToast.error(err?.response?.data?.message || 'Não foi possível gerar os códigos.');
+            showToast.error(mensagemErro(err, 'Não foi possível gerar os códigos.'));
         } finally {
             setGerando(false);
         }
@@ -172,9 +206,9 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                             <input type="text" value={busca} autoFocus
                                 onChange={e => setBusca(e.target.value)}
                                 onKeyDown={e => {
-                                    if (e.key === 'Enter' && resultados.length === 1) {
+                                    if (e.key === 'Enter') {
                                         e.preventDefault();
-                                        adicionar(resultados[0]);
+                                        adicionarPorEnter();
                                     }
                                 }}
                                 className={`${inputClass} pl-12`}

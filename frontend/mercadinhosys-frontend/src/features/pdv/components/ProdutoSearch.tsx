@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Package, Barcode, Camera, AlertCircle } from 'lucide-react';
 import { Produto } from '../../../types';
 import { pdvService } from '../pdvService';
+import { mensagemErro } from '../../../utils/mensagemErro';
 import { buscarOffline } from '../offlineCatalog';
 import { useConfig } from '../../../contexts/ConfigContext';
 import BarcodeScanner from './BarcodeScanner';
@@ -86,7 +87,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                     setErro('🔒 Sessão expirada. Faça login novamente.');
                     setResultados([]);
                 } else {
-                    setErro(error.response?.data?.error || error.message || 'Erro ao buscar produtos');
+                    setErro(mensagemErro(error, 'Erro ao buscar produtos'));
                     setResultados([]);
                 }
             } finally {

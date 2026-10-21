@@ -67,7 +67,7 @@ export default function ImportDataModal({ isOpen, onClose, onSuccess, title, end
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
             <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden my-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b">

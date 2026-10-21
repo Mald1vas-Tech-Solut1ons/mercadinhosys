@@ -1,0 +1,242 @@
+"""Lote backend: família/fiscal na importação, família "eletro", /api/health enxuto e
+nenhuma senha fixa criada pelo backend.
+
+1. Importação por planilha resolve a família como o cadastro individual (coluna "familia"
+   ou NCM), grava perfil fiscal/CFOP/CSOSN/alíquota sugeridos e registra o EAN novo no
+   Catálogo Mestre (via='csv').
+2. Família "eletro": no mix de mercearia e genérico, sugestão 102/5102 que pergunta a ST,
+   atributos de eletro no schema, e com ST + CEST sai CSOSN 500 / CFOP 5405 na NFC-e.
+3. GET /api/health sem login não expõe CPU, memória nem disco.
+4. A conta demo não nasce (nem continua) com a senha fixa "demo123".
+"""
+import io
+from datetime import datetime
+from decimal import Decimal
+from types import SimpleNamespace
+
+import pytest
+from flask_jwt_extended import create_access_token
+
+from app.models import CatalogoMestre, Estabelecimento, Funcionario, Produto
+from app.services.fiscal import emissao_service
+from app.services.view_schema_service import (
+    MIX_PADRAO_POR_SEGMENTO,
+    inferir_perfil_fiscal_padrao,
+    invalidar_cache_view_schema,
+    resolver_view_schema,
+    sugestao_fiscal_para_familia,
+)
+
+CABECALHO = "nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;unidade;estoque;lote;data_validade;ncm"
+
+
+def _ean(base12: str) -> str:
+    soma = sum(int(c) * (3 if i % 2 else 1) for i, c in enumerate(base12))
+    return base12 + str((10 - soma % 10) % 10)
+
+
+def _ctx(session, segmento="mercearia", configuracoes=None):
+    invalidar_cache_view_schema()
+    estab = session.query(Estabelecimento).first()
+    estab.segmento = segmento
+    estab.configuracoes = configuracoes or {}
+    admin = session.query(Funcionario).filter_by(estabelecimento_id=estab.id).first()
+    session.commit()
+    token = create_access_token(identity=str(admin.id), additional_claims={
+        "estabelecimento_id": estab.id, "role": "ADMIN"})
+    return dict(estab=estab, admin=admin, headers={"Authorization": f"Bearer {token}"})
+
+
+def _importar(client, ctx, texto):
+    r = client.post("/api/produtos/importar", headers=ctx["headers"], content_type="multipart/form-data",
+                    data={"arquivo": (io.BytesIO(texto.encode("utf-8")), "planilha.csv")})
+    assert r.status_code == 200, r.get_data(as_text=True)
+    return r.get_json()
+
+
+def _p(nome):
+    return Produto.query.filter_by(nome=nome).one()
+
+
+# ---------------------------------------------------------------------------
+# 1. Importação com família e fiscal
+# ---------------------------------------------------------------------------
+def test_importacao_infere_familia_pelo_ncm_na_mercearia(client, session):
+    ctx = _ctx(session, "mercearia")
+    ean_perfume = _ean("789700000001")
+    body = _importar(client, ctx, CABECALHO + "\n"
+                     f"Perfume Floral 100ml;Perfumaria;40;89,90;{ean_perfume};;;UN;5;;;33030010\n"
+                     "Camiseta Preta M;Moda;15;39,90;;;;UN;8;;;61091000\n"
+                     "Liquidificador 600W;Eletro;80;149,90;;;;UN;3;;;85094050\n"
+                     "Arroz 5kg;Mercearia;19;27,90;;;;UN;10;;;10063021\n"
+                     "Pao Frances;Padaria;9;16,90;;;;KG;8;;;\n")
+    assert body["total_importados"] == 5, body
+
+    perfume = _p("Perfume Floral 100ml")
+    assert perfume.familia_produto == "perfumaria_higiene"
+    assert perfume.perfil_fiscal == "perfumaria_higiene"
+    assert (perfume.csosn, perfume.cst_icms, perfume.cfop_padrao) == ("102", "00", "5102")
+    assert perfume.icms_aliquota == Decimal("18")
+    assert perfume.icms_st is False  # ST nunca é marcada pela importação
+
+    # Vestuário não está no mix da mercearia: cai na família padrão do segmento.
+    assert _p("Camiseta Preta M").familia_produto == "alimento"
+
+    liquidificador = _p("Liquidificador 600W")
+    assert liquidificador.familia_produto == "eletro"
+    assert liquidificador.perfil_fiscal == "eletro"
+    assert (liquidificador.csosn, liquidificador.cfop_padrao) == ("102", "5102")
+
+    for nome in ("Arroz 5kg", "Pao Frances"):
+        prod = _p(nome)
+        assert prod.familia_produto == "alimento"
+        assert prod.perfil_fiscal == "mercearia_padrao"
+        assert prod.icms_aliquota == Decimal("7")
+        assert prod.tipo_item == "produto"
+
+
+def test_importacao_no_generico_poe_vestuario_pelo_capitulo(client, session):
+    ctx = _ctx(session, "generico")
+    body = _importar(client, ctx, CABECALHO + "\n"
+                     "Calca Jeans 40;Moda;55;119,90;;;;UN;4;;;62034200\n"
+                     "Tenis Corrida 41;Calcados;90;199,90;;;;PAR;2;;;64041100\n")
+    assert body["total_importados"] == 2, body
+    for nome in ("Calca Jeans 40", "Tenis Corrida 41"):
+        prod = _p(nome)
+        assert prod.familia_produto == "vestuario"
+        assert prod.perfil_fiscal == "vestuario_padrao"
+        assert prod.csosn == "500" and prod.cfop_padrao == "5102"
+
+
+def test_importacao_sem_eletro_no_mix_usa_familia_padrao(client, session):
+    ctx = _ctx(session, "mercearia", {"mix_produtos": ["bebida", "alimento"]})
+    body = _importar(client, ctx, CABECALHO + "\nSecador 2000W;Eletro;60;129,90;;;;UN;2;;;85163100\n")
+    assert body["total_importados"] == 1, body
+    assert _p("Secador 2000W").familia_produto == "bebida"  # 1ª do mix configurado
+
+
+def test_importacao_coluna_familia_por_chave_ou_nome(client, session):
+    ctx = _ctx(session, "mercearia")
+    body = _importar(client, ctx, CABECALHO + ";Família\n"
+                     "Air Fryer 4L;Eletro;250;399,90;;;;UN;2;;;;eletro e eletroportateis\n"
+                     "Assadeira Redonda;Utilidades;20;39,90;;;;UN;6;;;;  BAZAR \n"
+                     "Sabonete 85g;Higiene;1;2,49;;;;UN;60;;;34011190;Perfumaria e Higiene\n"
+                     "Coisa Estranha;Geral;1;2;;;;UN;1;;;;foguetes\n"
+                     "Pastilha de Freio;Pecas;30;59,90;;;;UN;1;;;;Autopeças\n")
+    assert body["total_importados"] == 3, body
+    assert body["total_erros"] == 2, body
+    assert _p("Air Fryer 4L").familia_produto == "eletro"
+    assert _p("Assadeira Redonda").familia_produto == "bazar"
+    assert _p("Assadeira Redonda").perfil_fiscal == "bazar_padrao"
+    assert _p("Sabonete 85g").familia_produto == "perfumaria_higiene"
+    assert any("foguetes" in e and "não existe" in e for e in body["erros"]), body["erros"]
+    assert any("Autopeças" in e and "mix" in e for e in body["erros"]), body["erros"]
+
+
+def test_importacao_coluna_familia_vence_o_ncm(client, session):
+    ctx = _ctx(session, "generico")
+    _importar(client, ctx, CABECALHO + ";familia\nKit Presente;Presentes;20;49,90;;;;UN;3;;;33030010;bazar\n")
+    assert _p("Kit Presente").familia_produto == "bazar"
+
+
+def test_importacao_registra_ean_novo_no_catalogo_mestre(client, session):
+    ctx = _ctx(session, "mercearia")
+    ean = _ean("789700000099")
+    _importar(client, ctx, CABECALHO + f"\nCafe Especial 250g;Mercearia;20;34,90;{ean};;Torra Boa;UN;5;;;09012100\n")
+    item = CatalogoMestre.query.filter_by(ean=ean).one()
+    assert item.descoberto_via == "csv"
+    assert item.nome == "Cafe Especial 250g"
+    assert item.ncm == "09012100"
+    assert item.categoria == "Mercearia"
+    assert item.descoberto_por_estabelecimento_id == ctx["estab"].id
+
+
+# ---------------------------------------------------------------------------
+# 2. Família eletro
+# ---------------------------------------------------------------------------
+def test_familia_eletro_no_mix_e_sugestao():
+    for segmento in ("mercearia", "generico"):
+        assert "eletro" in MIX_PADRAO_POR_SEGMENTO[segmento]
+    assert inferir_perfil_fiscal_padrao("eletro") == "eletro"
+    sug = sugestao_fiscal_para_familia("eletro")
+    assert (sug["csosn_sugerido"], sug["cst_icms_sugerido"], sug["cfop_padrao_sugerido"]) == ("102", "00", "5102")
+    assert sug["icms_st_a_confirmar"] is True
+    assert "confirme com o contador se este NCM tem ICMS-ST no seu estado" in sug["observacao_fiscal"]
+    assert {e["ncm"] for e in sug["ncm_exemplos"]} == {"8509", "8516", "8418", "8450"}
+
+
+def test_schema_eletro_tem_voltagem_garantia_e_modelo(session):
+    ctx = _ctx(session, "mercearia")
+    schema = resolver_view_schema(ctx["estab"], familia_produto="eletro")
+    assert schema["familia_produto"]["chave"] == "eletro"
+    assert schema["familia_produto"]["nome"] == "Eletro e Eletroportáteis"
+    assert schema["familia_produto"]["perfil_fiscal_padrao"] == "eletro"
+    assert "eletro" in [f["chave"] for f in schema["familias_disponiveis"]]
+    campos = {c["chave"]: c for c in schema["campos"]}
+    assert campos["voltagem_eletro"]["opcoes"] == ["110V", "220V", "Bivolt"]
+    assert campos["garantia_meses"]["unidade"] == "meses"
+    assert "modelo" in campos
+    assert "controlar_validade" not in campos
+    assert schema["flags"]["usa_validade"] is False
+    # Os campos de eletro não vazam para outras famílias.
+    alimento = resolver_view_schema(ctx["estab"], familia_produto="alimento")
+    assert not {"voltagem_eletro", "garantia_meses", "modelo"} & {c["chave"] for c in alimento["campos"]}
+
+
+def test_produto_eletro_com_st_sai_csosn_500_cfop_5405(client, session):
+    ctx = _ctx(session, "mercearia")
+    r = client.post("/api/produtos/", headers=ctx["headers"], json={
+        "nome": "Liquidificador 600W 2L", "categoria": "Eletro", "preco_custo": 80, "preco_venda": 149.9,
+        "familia_produto": "eletro", "ncm": "85094050", "icms_st": True, "cest": "2104400",
+        "atributos": {"voltagem_eletro": "Bivolt", "garantia_meses": 12, "modelo": "L-99"},
+    })
+    assert r.status_code == 201, r.get_data(as_text=True)
+    prod = session.get(Produto, r.get_json()["produto"]["id"])
+    assert prod.familia_produto == "eletro" and prod.perfil_fiscal == "eletro"
+    assert prod.csosn == "102" and prod.cfop_padrao == "5102"  # a sugestão; a ST decide na emissão
+    assert prod.atributos == {"voltagem_eletro": "Bivolt", "garantia_meses": 12.0, "modelo": "L-99"}
+
+    estab = SimpleNamespace(regime_tributario="SIMPLES NACIONAL", cnpj="12345678000195", estado="SP",
+                            razao_social="Loja Mista Ltda")
+    item = SimpleNamespace(produto=prod, produto_unidade="UN", quantidade=Decimal("1"),
+                           preco_unitario=Decimal("149.9"), total_item=Decimal("149.9"),
+                           produto_codigo="P1", produto_nome=prod.nome)
+    venda = SimpleNamespace(itens=[item], pagamentos=[], total=Decimal("149.9"),
+                            data_venda=datetime(2026, 10, 20, 15, 0), cliente=None)
+    linha = emissao_service._build_payload(venda, estab, numero=1, serie=1)["items"][0]
+    assert linha["icms_situacao_tributaria"] == "500"
+    assert linha["cfop"] == "5405"
+    assert linha["codigo_cest"] == "2104400"
+
+
+# ---------------------------------------------------------------------------
+# 3. /api/health público
+# ---------------------------------------------------------------------------
+def test_health_publico_nao_expoe_metricas_da_maquina(client, session):
+    r = client.get("/api/health")
+    assert r.status_code == 200, r.get_data(as_text=True)
+    body = r.get_json()
+    assert set(body) == {"status", "service", "version", "timestamp", "database", "cache"}
+    assert body["status"] == "healthy" and body["database"] == {"status": "connected"}
+    texto = r.get_data(as_text=True)
+    for proibido in ("system", "cpu", "memory", "disk"):
+        assert proibido not in texto
+    assert client.get("/api/ready").status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# 4. Sem senha fixa na conta demo
+# ---------------------------------------------------------------------------
+def test_conta_demo_nao_usa_senha_fixa(client, session):
+    r = client.post("/api/auth/demo", json={})
+    assert r.status_code == 200, r.get_data(as_text=True)
+    demo = Funcionario.query.filter_by(username="demo").one()
+    assert demo.check_senha("demo123") is False
+
+    # Conta demo antiga, criada com a senha fixa, é trocada no próximo acesso.
+    demo.set_senha("demo123")
+    session.commit()
+    r = client.post("/api/auth/demo", json={})
+    assert r.status_code == 200, r.get_data(as_text=True)
+    session.expire_all()
+    assert Funcionario.query.filter_by(username="demo").one().check_senha("demo123") is False

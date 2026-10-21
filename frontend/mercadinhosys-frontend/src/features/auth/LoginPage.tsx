@@ -145,8 +145,7 @@ export function LoginPage() {
                 onClose={() => setPaymentSuccess(false)}
               >
                 <strong>Assinatura realizada com sucesso!</strong><br />
-                Faça login com seu usuário para começar. <br />
-                Sua senha temporária é: <strong>Trocar@123</strong>
+                Conta criada. Use a senha enviada por e-mail ou peça ao administrador.
               </Alert>
             )}
 

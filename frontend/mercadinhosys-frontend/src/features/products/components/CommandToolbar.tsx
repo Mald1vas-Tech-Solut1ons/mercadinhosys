@@ -10,8 +10,12 @@ import {
   Filter,
   RefreshCw,
   ChevronDown,
-  Barcode
+  Barcode,
+  QrCode
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { authService } from '../../auth/authService';
+import { canAccessRoute } from '../../../utils/permissions';
 
 interface CommandToolbarProps {
   onNew: () => void;
@@ -42,6 +46,8 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const podeDarEntrada = canAccessRoute('/entrada-nfe', authService.getCurrentUser());
 
   // Close more menu when clicking outside
   useEffect(() => {
@@ -111,6 +117,17 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
           <Calculator className="w-4 h-4" />
           <span className="hidden sm:inline">Markup</span>
         </button>
+
+        {podeDarEntrada && (
+          <button
+            onClick={() => navigate('/entrada-nfe?ler=1')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 rounded-xl transition-all text-sm font-medium"
+            title="Dar entrada no estoque pela nota fiscal (QR Code do cupom ou XML)"
+          >
+            <QrCode className="w-4 h-4" />
+            <span className="hidden sm:inline">Nota fiscal (QR Code)</span>
+          </button>
+        )}
 
         <button
           onClick={onLabels}

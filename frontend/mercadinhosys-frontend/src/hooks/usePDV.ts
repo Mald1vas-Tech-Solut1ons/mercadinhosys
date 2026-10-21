@@ -287,7 +287,8 @@ export const usePDV = () => {
     })();
 
     // Adicionar produto ao carrinho
-    const adicionarProduto = useCallback((produto: Produto, quantidade: number = 1) => {
+    // Retorna false quando o item foi recusado antes de ir ao carrinho (produto vencido).
+    const adicionarProduto = useCallback((produto: Produto, quantidade: number = 1): boolean => {
         const controlarValidade = configuracoes?.controlar_validade ?? true;
 
         if (controlarValidade && produto.data_validade) {
@@ -303,10 +304,12 @@ export const usePDV = () => {
             hoje.setHours(0, 0, 0, 0);
 
             if (dataValidade < hoje) {
-                showToast.error(`BLOQUEIO: O produto ${produto.nome} está VENCIDO!`, {
+                // Vencido não entra no carrinho (só "a vencer" é aviso).
+                showToast.error(`Produto vencido — não pode ser vendido. Retire da gôndola. (${produto.nome})`, {
                     duration: 8000,
                     icon: '🚫'
                 });
+                return false;
             } else {
                 const diasAlerta = configuracoes?.dias_alerta_validade ?? 30;
                 const dataLimiteAlerta = new Date(hoje);
@@ -384,6 +387,7 @@ export const usePDV = () => {
                 return [...prev, novoItem];
             }
         });
+        return true;
     }, [configuracoes, getEstoqueDisponivel, round, setCarrinho]);
 
     const removerProduto = useCallback((produtoId: number) => {

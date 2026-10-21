@@ -180,7 +180,7 @@ const PDVPage: React.FC = () => {
                     if (finalizandoRef.current) return; // venda sendo concluída: não mexe no carrinho
                     try {
                         const p = await pdvService.buscarPorCodigoBarras(code);
-                        if (p) { adicionarProduto(p as any); showToast.success(`Lido: ${p.nome}`); }
+                        if (p) { if (adicionarProduto(p as any)) showToast.success(`Lido: ${p.nome}`); }
                         else showToast.error(`Código ${code} não encontrado`);
                     } catch (err) { showToast.error(mensagemErro(err, 'Erro ao ler código de barras')); }
                 }
@@ -525,7 +525,7 @@ const PDVPage: React.FC = () => {
                                     <div className="w-10 h-10 bg-slate-900 dark:bg-white rounded-xl flex items-center justify-center text-white dark:text-slate-900">
                                         <Check className="w-6 h-6" />
                                     </div>
-                                    <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">Checkout</h3>
+                                    <h3 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">Pagamento</h3>
                                 </div>
                                 <button
                                     onClick={() => setFormaPagamentoAberta(false)}

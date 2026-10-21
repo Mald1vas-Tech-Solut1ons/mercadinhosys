@@ -93,6 +93,11 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
         }
     };
 
+    // Tailwind só gera classes literais: o fundo translúcido de cada cor fica explícito aqui.
+    const FUNDO_SUAVE: Record<string, string> = {
+        'bg-blue-500': 'bg-blue-500/10', 'bg-green-500': 'bg-green-500/10',
+        'bg-indigo-500': 'bg-indigo-500/10', 'bg-orange-500': 'bg-orange-500/10',
+    };
     const StatusCard = ({ title, value, icon: Icon, color, delay }: any) => (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -101,7 +106,7 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
             className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all group"
         >
             <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl ${color} bg-opacity-10 group-hover:scale-110 transition-transform`}>
+                <div className={`p-3 rounded-xl ${FUNDO_SUAVE[color] || 'bg-gray-500/10'} group-hover:scale-110 transition-transform`}>
                     <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
                 </div>
             </div>

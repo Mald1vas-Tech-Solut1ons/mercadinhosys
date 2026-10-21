@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit, Trash2, Archive, ShoppingCart, FileText, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Layers, PackageX, MoreHorizontal, History, Package, ZoomIn } from 'lucide-react';
+import { Edit, Trash2, Archive, ShoppingCart, FileText, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Layers, PackageX, MoreHorizontal, History, Package, ZoomIn, Barcode } from 'lucide-react';
 import { Produto } from '../../../types';
 import { formatCurrency } from '../../../utils/formatters';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
@@ -65,6 +65,8 @@ interface ProductsTableProps {
     onMakeOrder: (produto: Produto) => void;
     onDiscard: (produto: Produto) => void;
     onViewLotes?: (produto: Produto) => void;
+    /** Abre a impressão de etiqueta já com este produto. */
+    onLabel?: (produto: Produto) => void;
     onProductClick?: (produto: Produto) => void;
     onSort?: (key: string) => void;
     sortConfig?: { key: string; direction: 'asc' | 'desc' };
@@ -85,6 +87,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
     onMakeOrder,
     onDiscard,
     onViewLotes,
+    onLabel,
     onProductClick,
     onSort,
     sortConfig,
@@ -301,6 +304,11 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                             <button onClick={() => onEdit(produto)} className="p-2 md:p-1.5 text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center" title="Editar">
                                                 <Edit className="w-4 h-4" />
                                             </button>
+                                            {onLabel && (
+                                                <button onClick={() => onLabel(produto)} className="p-2 md:p-1.5 text-gray-500 dark:text-slate-400 hover:text-emerald-500 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center" title="Imprimir etiqueta">
+                                                    <Barcode className="w-4 h-4" />
+                                                </button>
+                                            )}
                                             
                                             {/* Dropdown for secondary actions if needed, or just keep them inline for now */}
                                             <div className="w-px h-4 bg-gray-100 dark:bg-slate-700 mx-1"></div>
@@ -386,7 +394,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                 </div>
                             </div>
 
-                            <div className="actions-container-mobile grid grid-cols-4 gap-2 pt-3 border-t border-gray-200 dark:border-slate-700/50 mt-1">
+                            <div className={`actions-container-mobile grid ${onLabel ? 'grid-cols-5' : 'grid-cols-4'} gap-2 pt-3 border-t border-gray-200 dark:border-slate-700/50 mt-1`}>
                                 <button onClick={() => onEdit(produto)} className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-100 dark:bg-slate-700/30 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white transition-colors active:scale-95" title="Editar">
                                     <Edit className="w-5 h-5 mb-1" />
                                     <span className="text-[9px] font-bold uppercase">Editar</span>
@@ -403,6 +411,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                     <History className="w-5 h-5 mb-1" />
                                     <span className="text-[9px] font-bold uppercase">Histórico</span>
                                 </button>
+                                {onLabel && (
+                                    <button onClick={() => onLabel(produto)} className="flex flex-col items-center justify-center p-2 rounded-lg bg-gray-100 dark:bg-slate-700/30 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white transition-colors active:scale-95" title="Imprimir etiqueta">
+                                        <Barcode className="w-5 h-5 mb-1" />
+                                        <span className="text-[9px] font-bold uppercase">Etiqueta</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))

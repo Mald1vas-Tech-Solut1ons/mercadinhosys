@@ -1743,6 +1743,7 @@ def guest_demo():
 
         from datetime import date
 
+        import secrets
         from werkzeug.security import generate_password_hash
 
         
@@ -1794,6 +1795,10 @@ def guest_demo():
         # 2. Encontrar ou criar o admin demo
 
         demo_admin = Funcionario.query.filter_by(estabelecimento_id=demo_est.id, username="demo").first()
+        # Conta demo antiga nasceu com a senha fixa "demo123": troca por uma aleatória.
+        if demo_admin and demo_admin.check_senha("demo123"):
+            demo_admin.set_senha(secrets.token_urlsafe(32))
+            db.session.commit()
 
         if not demo_admin:
 
@@ -1817,7 +1822,7 @@ def guest_demo():
 
                 username="demo",
 
-                senha=generate_password_hash("demo123"),
+                senha=generate_password_hash(secrets.token_urlsafe(32)),  # conta demo entra só pela rota /demo, nunca por senha
 
                 ativo=True,
                 role="ADMIN",

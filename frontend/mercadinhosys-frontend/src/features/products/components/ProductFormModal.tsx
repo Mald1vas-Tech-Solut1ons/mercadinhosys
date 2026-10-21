@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2 } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
+import FotoUpload from '../../../components/ui/FotoUpload';
 import SchemaField from '../../../components/schema/SchemaField';
 import { showToast } from '../../../utils/toast';
 import { Produto } from '../../../types';
@@ -17,6 +18,8 @@ interface ProductFormModalProps {
     categorias: string[];
     onClose: () => void;
     onSuccess: () => void;
+    /** Quando informado, o toast de cadastro oferece "Imprimir etiqueta" do produto criado. */
+    onPrintLabel?: (produto: Produto) => void;
 }
 
 // Fallback exibido só no instante antes do schema do tenant carregar (evita
@@ -110,6 +113,7 @@ const ProductFormModal = ({
     categorias,
     onClose,
     onSuccess,
+    onPrintLabel,
 }: ProductFormModalProps) => {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({ ...emptyForm });
@@ -226,7 +230,7 @@ const ProductFormModal = ({
         setFormData(prev => ({ ...prev, codigo_barras: codigo }));
         setIsSearchingCosmos(true);
         setShowForceSync(false);
-        const toastId = showToast.loading(force ? 'Forçando busca na Sefaz/Cosmos...' : 'Consultando banco de dados de produtos...');
+        const toastId = showToast.loading(force ? 'Buscando dados do produto…' : 'Consultando banco de dados de produtos...');
         try {
             const res = await cosmosService.lookup(codigo, force);
             if (res.success && res.data) {
@@ -244,7 +248,7 @@ const ProductFormModal = ({
                     imagem_url: d.imagem_url || prev.imagem_url,
                 }));
                 const origem = res.source === 'catalogo' ? 'catálogo local'
-                    : res.source === 'cosmos' ? 'Cosmos' : 'base aberta de produtos';
+                    : 'base de produtos';
                 const temNcm = d.ncm ? ` NCM ${d.ncm} preenchido.` : ' (sem NCM — preencha manualmente).';
                 showToast.success(`Dados preenchidos (${origem}).${temNcm}`, { id: toastId });
             } else {
@@ -353,7 +357,12 @@ const ProductFormModal = ({
                     return;
                 }
 
-                showToast.success(ehServico ? 'Serviço cadastrado com sucesso!' : 'Produto cadastrado com sucesso!');
+                const criado = result.produto;
+                if (!ehServico && criado && onPrintLabel) {
+                    showToast.successAction('Produto cadastrado com sucesso!', 'Imprimir etiqueta', () => onPrintLabel(criado));
+                } else {
+                    showToast.success(ehServico ? 'Serviço cadastrado com sucesso!' : 'Produto cadastrado com sucesso!');
+                }
                 onSuccess();
             }
         } catch (err: any) {
@@ -511,7 +520,7 @@ const ProductFormModal = ({
                                         <button type="button" onClick={() => handleScanCodigo(formData.codigo_barras, true)}
                                             className="mt-2 w-full py-2 px-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center justify-center gap-2 transition-colors">
                                             <Sparkles className="w-4 h-4" />
-                                            Forçar Busca na API Cosmos
+                                            Buscar novamente na base de produtos
                                         </button>
                                     )}
                                 </div>
@@ -586,7 +595,7 @@ const ProductFormModal = ({
                                 <div>
                                     <label className={`${labelClass} flex items-center gap-1`}>
                                         NCM
-                                        <CampoAjuda texto="Código fiscal de 8 dígitos que classifica o produto perante a Receita (Nomenclatura Comum do Mercosul). Se você escaneou o código de barras, geralmente já vem preenchido pela Cosmos. Sem ele, a nota fiscal não pode ser emitida." />
+                                        <CampoAjuda texto="Código fiscal de 8 dígitos que classifica o produto perante a Receita (Nomenclatura Comum do Mercosul). Se você escaneou o código de barras, geralmente já vem preenchido pela base de produtos. Sem ele, a nota fiscal não pode ser emitida." />
                                     </label>
                                     <input type="text" inputMode="numeric" maxLength={8} value={formData.ncm}
                                         onChange={e => field('ncm', e.target.value.replace(/\D/g, '').slice(0, 8))}
@@ -746,15 +755,8 @@ const ProductFormModal = ({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {visivel('imagem_url') && (
                                 <div>
-                                    <label className={labelClass}>URL da Imagem</label>
-                                    <input type="url" value={formData.imagem_url}
-                                        onChange={e => field('imagem_url', e.target.value)}
-                                        className={inputClass} placeholder="https://..." />
-                                    {formData.imagem_url && (
-                                        <img src={formData.imagem_url} alt="preview"
-                                            className="mt-2 h-20 w-20 object-cover rounded-xl border border-gray-200 dark:border-gray-700"
-                                            onError={e => (e.currentTarget.style.display = 'none')} />
-                                    )}
+                                    <FotoUpload rotulo="Foto do produto" valor={formData.imagem_url}
+                                        onChange={url => field('imagem_url', url)} pasta="produtos" />
                                 </div>
                             )}
                             <div>

@@ -535,7 +535,7 @@ const PontoPage: React.FC = () => {
       {/* MODAL DE CÂMERA */}
       {showCamera && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 z-200 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black/75 z-200 flex items-center justify-center p-4 overflow-y-auto"
           style={{
             paddingTop: 'calc(1rem + env(safe-area-inset-top))',
             paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
@@ -590,7 +590,7 @@ const PontoPage: React.FC = () => {
       {/* PREVIEW DA FOTO COM CONFIRMAÇÃO DE LOCALIZAÇÃO */}
       {foto && !showCamera && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 z-200 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black/75 z-200 flex items-center justify-center p-4 overflow-y-auto"
           style={{
             paddingTop: 'calc(1rem + env(safe-area-inset-top))',
             paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
@@ -906,7 +906,7 @@ const PontoPage: React.FC = () => {
                                 console.error('❌ Erro ao carregar thumbnail:', construirUrlFoto(registro.foto_url));
                               }}
                             />
-                            <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition flex items-center justify-center">
+                            <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition flex items-center justify-center">
                               <Camera className="w-5 h-5 text-gray-900 dark:text-white opacity-0 hover:opacity-100" />
                             </div>
                           </div>
@@ -955,7 +955,7 @@ const PontoPage: React.FC = () => {
       {/* MODAL DE FOTO */}
       {fotoModal && createPortal(
         <div
-          className="fixed inset-0 bg-black bg-opacity-75 z-200 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+          className="fixed inset-0 bg-black/75 z-200 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
           style={{
             paddingTop: 'calc(0.5rem + env(safe-area-inset-top))',
             paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',

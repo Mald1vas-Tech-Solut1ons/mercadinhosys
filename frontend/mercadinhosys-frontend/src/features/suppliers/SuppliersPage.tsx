@@ -866,7 +866,7 @@ const SuppliersPage: React.FC = () => {
 
             {/* Modal de Cadastro/Edição */}
             {showModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
                             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -1070,7 +1070,7 @@ const SuppliersPage: React.FC = () => {
 
             {/* Modal de Produtos do Fornecedor */}
             {showProdutosModal && fornecedorSelecionado && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90dvh] overflow-hidden flex flex-col">
                         <div className="sticky top-0 bg-linear-to-r from-blue-500 to-blue-600 px-6 py-4 flex items-center justify-between">
                             <div>

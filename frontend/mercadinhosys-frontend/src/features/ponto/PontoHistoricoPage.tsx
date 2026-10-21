@@ -409,7 +409,7 @@ const PontoHistoricoPage: React.FC = () => {
 
       {/* MODAL */}
       {registroSelecionado && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 z-100 flex items-center justify-center p-2 sm:p-4 overflow-y-auto" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+        <div className="fixed inset-0 bg-black/75 z-100 flex items-center justify-center p-2 sm:p-4 overflow-y-auto" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden my-auto">
             <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-white">
               <div className="flex-1">
@@ -547,7 +547,7 @@ const PontoHistoricoPage: React.FC = () => {
       {/* MODAL DE FOTO EXPANDIDA */}
       {fotoExpandida && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-90 z-100 flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 bg-black/90 z-100 flex items-center justify-center p-2 sm:p-4"
           style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}
           onClick={() => setFotoExpandida(null)}
         >
@@ -559,7 +559,7 @@ const PontoHistoricoPage: React.FC = () => {
             <div className="absolute top-2 right-2 z-10 sm:hidden">
               <button
                 onClick={() => setFotoExpandida(null)}
-                className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded-full transition"
+                className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition"
               >
                 <X className="w-6 h-6" />
               </button>

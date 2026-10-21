@@ -5,6 +5,9 @@ export interface NotaEntradaItemPreview {
     ean: string | null;
     codigo: string | null;
     ncm: string | null;
+    unidade?: string | null;
+    cfop_fornecedor?: string | null;
+    icms_st?: boolean;
     quantidade: number;
     valor_unitario: number;
     valor_total: number;
@@ -15,6 +18,7 @@ export interface NotaEntradaItemPreview {
 }
 
 export interface NotaEntradaPreview {
+    origem?: 'qrcode';
     pedidos_fornecedor: { id: number; numero_pedido: string; status: string; total: number }[];
     chave_acesso: string;
     ja_importada: boolean;
@@ -31,6 +35,7 @@ export interface NotaEntradaPreview {
 }
 
 export interface NotaEntrada {
+    modelo?: string;
     pedido_compra_id: number | null;
     id: number;
     chave_acesso: string;
@@ -42,6 +47,14 @@ export interface NotaEntrada {
     valor_total: number;
     qtd_itens: number;
     status: string;
+}
+
+export interface ConsultaChave {
+    success: boolean;
+    ja_importada: boolean;
+    mensagem: string;
+    chave: { chave_acesso: string; uf: string; modelo: string; modelo_descricao: string; serie: string; numero: string; cnpj_emitente: string; ano_mes: string };
+    nota: NotaEntrada | null;
 }
 
 export interface DocumentoFiscal {
@@ -92,6 +105,25 @@ export const fiscalService = {
     },
 
     urlXmlEntrada: (id: number) => `/fiscal/entrada/${id}/xml`,
+
+    /** Consulta pela chave (DANFE / QR Code) se a nota já entrou nesta loja. */
+    consultarChave: async (chave: string): Promise<ConsultaChave> => {
+        const { data } = await apiClient.get(`/fiscal/entrada/chave/${encodeURIComponent(chave)}`);
+        return data;
+    },
+
+    /** NFC-e de SP: lê os itens na consulta pública da SEFAZ pelo QR Code (sem certificado). */
+    previewQrcode: async (urlQrcode: string): Promise<NotaEntradaPreview> => {
+        const { data } = await apiClient.post('/fiscal/entrada/qrcode', { url_qrcode: urlQrcode });
+        return data.preview;
+    },
+
+    importarQrcode: async (urlQrcode: string, pedidoId?: number, compraAvulsa = false): Promise<any> => {
+        const { data } = await apiClient.post('/fiscal/entrada/qrcode/importar', {
+            url_qrcode: urlQrcode, pedido_id: pedidoId, compra_avulsa: compraAvulsa,
+        });
+        return data;
+    },
 
     // ----- Saída (NFC-e) -----
     emitirNFCe: async (vendaId: number): Promise<{ success: boolean; documento: DocumentoFiscal; message: string }> => {

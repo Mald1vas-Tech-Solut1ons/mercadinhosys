@@ -302,7 +302,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-210 p-2 sm:p-4" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-210 p-2 sm:p-4" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90dvh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 bg-linear-to-r from-green-50 to-green-100 dark:from-green-900 dark:to-green-800">

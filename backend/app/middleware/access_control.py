@@ -39,6 +39,7 @@ PREFIX_RESOURCE: list[tuple[str, str]] = [
     ("/api/relatorios", "relatorios"),
     ("/api/funcionarios", "funcionarios"),
     ("/api/fiscal/vendas", "pdv"),       # emissão de NFC-e faz parte da venda no caixa
+    ("/api/fiscal/entrada", "entrada_xml"),  # entrada de nota de COMPRA é estoque, não emissão
     ("/api/fiscal", "fiscal"),
     ("/api/auditoria", "auditoria"),
     ("/api/delivery", "delivery"),
@@ -80,6 +81,10 @@ FREE_PLAN_BLOCKED_PREFIXES: tuple[str, ...] = (
 
 FREE_PLAN_ALLOWED_EXACT_PATHS: tuple[str, ...] = (
     "/api/vendas/pdv",
+    # Dar entrada no estoque pela NF-e do fornecedor não emite nada nem exige
+    # certificado: é operação básica de estoque e vale em qualquer plano. A
+    # emissão (/api/fiscal/documentos, /api/fiscal/vendas) segue no Pro.
+    "/api/fiscal/entrada",
 )
 
 

@@ -114,7 +114,7 @@ export const ConsultorPage: React.FC = () => {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[url('/pattern.svg')] dark:bg-[url('/pattern-dark.svg')] bg-repeat bg-opacity-5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[url('/pattern.svg')] dark:bg-[url('/pattern-dark.svg')] bg-repeat/5">
         <AnimatePresence>
           {mensagens.map((msg) => (
             <motion.div 

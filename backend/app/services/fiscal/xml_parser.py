@@ -139,6 +139,10 @@ def parse_nfe_xml(xml_bytes: bytes | str) -> Dict[str, Any]:
         ean = _text(prod, "cEAN") or ""
         if ean.upper() in ("SEM GTIN", "SEMGTIN"):
             ean = ""
+        # Grupo de ICMS do fornecedor (ICMS00, ICMS10, ICMSSN102, ICMSSN500...):
+        # serve para saber se a mercadoria já veio com ICMS retido por ST.
+        icms_grupo = _find(det, "imposto/ICMS")
+        icms = next(iter(icms_grupo), None) if icms_grupo is not None else None
         itens.append({
             "codigo": _text(prod, "cProd"),
             "ean": _only_digits(ean) or None,
@@ -151,6 +155,9 @@ def parse_nfe_xml(xml_bytes: bytes | str) -> Dict[str, Any]:
             "valor_unitario": _dec(_text(prod, "vUnCom")),
             "valor_total": _dec(_text(prod, "vProd")),
             "desconto": _dec(_text(prod, "vDesc")),
+            "icms_orig": _text(icms, "orig"),
+            "icms_cst": _text(icms, "CST"),
+            "icms_csosn": _text(icms, "CSOSN"),
         })
 
     if not itens:

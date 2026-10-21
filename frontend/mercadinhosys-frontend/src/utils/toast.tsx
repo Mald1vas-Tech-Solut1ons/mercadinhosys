@@ -148,6 +148,30 @@ export const showToast = {
             ...options,
         });
     },
+    /** Verde com botão de ação (ex.: "Imprimir etiqueta" logo após cadastrar). */
+    successAction: (message: string, actionLabel: string, onAction: () => void, options?: ToastOptions) => {
+        return toast.success((t) => (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span>{message}</span>
+                <button
+                    type="button"
+                    onClick={() => { toast.dismiss(t.id); onAction(); }}
+                    style={{
+                        padding: '6px 14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.35)',
+                        background: 'rgba(255,255,255,0.15)', color: '#ffffff', fontWeight: 800,
+                        fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                >
+                    {actionLabel}
+                </button>
+            </span>
+        ), {
+            duration: 10000,
+            style: themes.success.style as React.CSSProperties,
+            icon: Icon.success(themes.success.iconColor),
+            ...options,
+        });
+    },
     dismiss: (toastId?: string) => toast.dismiss(toastId),
     promise: <T,>(
         promise: Promise<T>,

@@ -629,7 +629,7 @@ const SettingsPage: React.FC = () => {
                                                 className="w-full h-full object-contain opacity-50"
                                             />
                                         )}
-                                        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                             <label className="cursor-pointer text-white text-xs text-center p-1">
                                                 Alterar
                                                 <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />

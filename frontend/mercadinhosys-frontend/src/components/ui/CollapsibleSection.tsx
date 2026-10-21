@@ -44,7 +44,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     <div className={styles.container}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between ${styles.header} hover:bg-opacity-75 transition-colors`}
+        className={`w-full flex items-center justify-between ${styles.header} hover:opacity-90 transition-colors`}
       >
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {icon && <span className="shrink-0 text-gray-600 dark:text-gray-400">{icon}</span>}

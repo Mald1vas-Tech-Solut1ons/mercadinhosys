@@ -1670,7 +1670,7 @@ const ReportsPage: React.FC = () => {
 
             {/* Modal */}
             {modalOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 backdrop-blur-sm overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4 backdrop-blur-sm overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90dvh] overflow-y-auto my-auto border border-gray-200 dark:border-gray-800 transition-colors duration-200">
                         <div className="sticky top-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex justify-between items-center z-10">
                             <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{modalTitles[modalType || ''] || ''}</h2>

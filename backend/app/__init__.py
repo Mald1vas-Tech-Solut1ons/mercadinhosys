@@ -597,44 +597,17 @@ def create_app(config_name=None):
 
                 logger.info(f"✅ Schema sync concluido: {added} colunas novas adicionadas.")
                 
-                # Criar novas tabelas SFA que não existiam antes para evitar erro 500 em Produção onde create_all é desativado
-                if "metas_vendedor" not in existing_tables:
+                # Tabelas SFA ausentes em bancos antigos: criadas a partir dos MODELS (fonte única).
+                # O DDL escrito à mão que existia aqui divergia do model (valor_meta x
+                # meta_faturamento/meta_positivacao) e todo banco novo nascia com o SFA em 500.
+                for tabela_sfa in ("metas_vendedor", "produtos_foco"):
+                    if tabela_sfa in existing_tables:
+                        continue
                     try:
-                        logger.info("Criando tabela metas_vendedor (SFA)...")
-                        id_syntax = "SERIAL PRIMARY KEY" if app.config.get("USING_POSTGRES") else "INTEGER PRIMARY KEY AUTOINCREMENT"
-                        db.session.execute(_sync_text(f"""
-                            CREATE TABLE IF NOT EXISTS metas_vendedor (
-                                id {id_syntax},
-                                vendedor_id INTEGER NOT NULL REFERENCES funcionarios(id),
-                                estabelecimento_id INTEGER NOT NULL REFERENCES estabelecimentos(id),
-                                mes INTEGER NOT NULL,
-                                ano INTEGER NOT NULL,
-                                valor_meta NUMERIC(10, 2) NOT NULL DEFAULT 0.0
-                            )
-                        """))
-                        db.session.commit()
+                        logger.info(f"Criando tabela {tabela_sfa} (SFA) a partir do model...")
+                        db.metadata.tables[tabela_sfa].create(bind=db.engine, checkfirst=True)
                     except Exception as e:
-                        db.session.rollback()
-                        logger.warning(f"Erro ao criar metas_vendedor: {e}")
-                        
-                if "produtos_foco" not in existing_tables:
-                    try:
-                        logger.info("Criando tabela produtos_foco (SFA)...")
-                        id_syntax = "SERIAL PRIMARY KEY" if app.config.get("USING_POSTGRES") else "INTEGER PRIMARY KEY AUTOINCREMENT"
-                        db.session.execute(_sync_text(f"""
-                            CREATE TABLE IF NOT EXISTS produtos_foco (
-                                id {id_syntax},
-                                estabelecimento_id INTEGER NOT NULL REFERENCES estabelecimentos(id),
-                                produto_id INTEGER NOT NULL REFERENCES produtos(id),
-                                ativo BOOLEAN DEFAULT TRUE,
-                                data_inicio DATE NOT NULL,
-                                data_fim DATE
-                            )
-                        """))
-                        db.session.commit()
-                    except Exception as e:
-                        db.session.rollback()
-                        logger.warning(f"Erro ao criar produtos_foco: {e}")
+                        logger.warning(f"Erro ao criar {tabela_sfa}: {e}")
             except Exception as sync_err:
                 db.session.rollback()
                 logger.error(f"⚠️ Schema sync falhou: {sync_err}")
@@ -913,10 +886,6 @@ def create_app(config_name=None):
     @app.route("/api/health", methods=["GET"])
     def health_check():
         from sqlalchemy import text
-        try:
-            import psutil
-        except ModuleNotFoundError:
-            psutil = None
 
         health = {
             "status": "healthy",
@@ -949,16 +918,9 @@ def create_app(config_name=None):
             if health["status"] == "healthy":
                 health["status"] = "degraded"
 
-        # System Metrics
-        try:
-            health["system"] = {
-                "cpu_percent": psutil.cpu_percent(),
-                "memory_usage_mb": round(psutil.Process().memory_info().rss / (1024 * 1024), 2),
-                "disk_usage_percent": psutil.disk_usage('/').percent
-            }
-        except:
-            pass
-
+        # Rota pública (sem login): nada de CPU, memória ou disco aqui — isso ajuda
+        # a mapear a máquina. Release, healthcheck do Docker e sync_worker só leem
+        # status/database.
         return jsonify(health), 200 if database_ok else 503
 
     @app.route("/api/ready", methods=["GET"])

@@ -76,10 +76,10 @@ def registrar_conta():
             senha_temporaria = senha_escolhida
             senha_foi_gerada = False
         else:
+            import secrets
             import string
-            import random
             caracteres = string.ascii_letters + string.digits + "@#$*"
-            senha_temporaria = ''.join(random.choice(caracteres) for i in range(8))
+            senha_temporaria = ''.join(secrets.choice(caracteres) for _ in range(12))
             senha_foi_gerada = True
 
         # Não logamos a senha do cliente — apenas o evento.

@@ -172,6 +172,19 @@ FAMILIAS_PRODUTO = {
             "marca": "Ex: Natura",
         },
     },
+    "eletro": {
+        "nome": "Eletro e Eletroportáteis",
+        "descricao": "Eletrodomésticos e eletroportáteis: voltagem, garantia e modelo.",
+        "segmento_base": "generico",
+        "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": False},
+        "campos_ocultos": ["controlar_validade"],
+        "campos_habilitados": ["voltagem_eletro", "garantia_meses", "modelo", "potencia_w"],
+        "exemplos": {
+            "nome": "Ex: Liquidificador 600W 2L",
+            "categoria": "Ex: Portáteis, Cozinha, Climatização...",
+            "marca": "Ex: Mondial",
+        },
+    },
     "construcao_leve": {
         "nome": "Construção Leve",
         "descricao": "Itens leves de manutenção e construção vendidos em balcão de bairro.",
@@ -247,12 +260,14 @@ FAMILIAS_PRODUTO = {
 }
 
 MIX_PADRAO_POR_SEGMENTO = {
-    "mercearia": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve"],
+    "mercearia": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
+                  "eletro"],
     "vestuario": ["vestuario", "bebida", "perfumaria_higiene"],
     "construcao": ["construcao_leve", "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem"],
     "autopecas": ["autopecas", "servico"],
     "generico": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
-                 "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem", "vestuario", "servico"],
+                 "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem", "vestuario", "servico",
+                 "eletro"],
 }
 
 PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
@@ -261,6 +276,7 @@ PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
     "embalagem_descartavel": "embalagem_descartavel",
     "bazar": "bazar_padrao",
     "perfumaria_higiene": "perfumaria_higiene",
+    "eletro": "eletro",
     "construcao_leve": "construcao_leve",
     "construcao_eletrica": "construcao_eletrica",
     "construcao_hidraulica": "construcao_hidraulica",
@@ -363,6 +379,17 @@ CAMPOS_PADRAO = [
     {"chave": "tipo_cabeca", "label": "Tipo de Cabeça", "tipo": "select", "grupo": "atributos",
      "origem": "atributo", "segmentos": [],
      "opcoes": ["Phillips", "Fenda", "Sextavada", "Allen", "Torx"], "aplica_tipo_item": ["produto"], "ordem": 289},
+
+    # ---- Eletro e eletroportáteis (só via campos_habilitados da família "eletro") ----
+    {"chave": "voltagem_eletro", "label": "Voltagem", "tipo": "select", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "opcoes": ["110V", "220V", "Bivolt"],
+     "aplica_tipo_item": ["produto"], "ordem": 290},
+    {"chave": "garantia_meses", "label": "Garantia", "tipo": "number", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "unidade": "meses",
+     "ajuda": "Garantia do fabricante em meses.", "aplica_tipo_item": ["produto"], "ordem": 291},
+    {"chave": "modelo", "label": "Modelo", "tipo": "text", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "placeholder": "Ex: L-99 FB",
+     "aplica_tipo_item": ["produto"], "ordem": 292},
 
     # ---- Moto peças ----
     {"chave": "montadora", "label": "Montadora", "tipo": "select", "grupo": "atributos",
@@ -626,6 +653,23 @@ FISCAL_SUGERIDO_POR_FAMILIA = {
             {"ncm": "33051000", "descricao": "Xampu"},
             {"ncm": "33061000", "descricao": "Creme dental"},
             {"ncm": "34011190", "descricao": "Sabonete"},
+        ],
+    },
+    # Eletro: muitos aparelhos estão no ICMS-ST (Convênio ICMS 142/2018, CEST
+    # segmentos 21 e 28), mas depende da UF e do NCM; a sugestão pergunta e não marca.
+    "eletro": {
+        "csosn_sugerido": "102", "cst_icms_sugerido": "00", "cfop_padrao_sugerido": "5102",
+        "icms_aliquota_sugerida": 18.0,
+        "icms_st_a_confirmar": True,
+        "observacao_fiscal": "Eletrodomésticos costumam ter ICMS por substituição tributária (ST): "
+                              "confirme com o contador se este NCM tem ICMS-ST no seu estado; se "
+                              "tiver, marque \"ICMS recolhido por ST\" e informe o CEST.",
+        # Só dica para conferir na embalagem ou na nota; o formulário nunca preenche o NCM.
+        "ncm_exemplos": [
+            {"ncm": "8509", "descricao": "Eletroportátil de cozinha (liquidificador, batedeira)"},
+            {"ncm": "8516", "descricao": "Aquecimento (chuveiro, ferro, forno elétrico, secador)"},
+            {"ncm": "8418", "descricao": "Refrigeração (geladeira, freezer)"},
+            {"ncm": "8450", "descricao": "Máquina de lavar roupa"},
         ],
     },
     "construcao_leve": {

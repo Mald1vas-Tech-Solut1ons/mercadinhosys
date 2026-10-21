@@ -1,3 +1,4 @@
+import FotoUpload from '../ui/FotoUpload';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -287,9 +288,7 @@ const HeaderProfessional = () => {
                                             className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Foto URL</label>
-                                        <input type="text" value={editFotoUrl} onChange={(e) => setEditFotoUrl(e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm" />
+                                        <FotoUpload rotulo="Foto do perfil" valor={editFotoUrl} onChange={setEditFotoUrl} pasta="perfil" redondo />
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-2">

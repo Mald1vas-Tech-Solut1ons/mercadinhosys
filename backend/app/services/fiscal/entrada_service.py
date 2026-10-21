@@ -17,6 +17,7 @@ from __future__ import annotations
 from datetime import datetime, date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional
+from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 import json
 import re
@@ -24,7 +25,7 @@ import re
 from app.models import (
     db, Produto, Fornecedor, CategoriaProduto, MovimentacaoEstoque,
     ContaPagar, NotaFiscalEntrada, Estabelecimento, utcnow,
-    PedidoCompra,
+    PedidoCompra, PedidoCompraItem, ProdutoLote,
 )
 from app.services.catalogo_mestre_service import registrar_produto_se_novo
 
@@ -128,7 +129,21 @@ def _parse_data(value: Optional[str]) -> Optional[datetime]:
     return None
 
 
-def _produto_existente(estab_id: int, ean: Optional[str], codigo: Optional[str], lock=False) -> Optional[Produto]:
+def _codigo_alternativo(fornecedor_id: int, codigo: str) -> str:
+    """Código interno usado quando o código do fornecedor já pertence a outro produto da loja."""
+    return f"F{fornecedor_id}-{codigo}"[:50]
+
+
+def _produto_existente(estab_id: int, ean: Optional[str], codigo: Optional[str], lock=False,
+                       fornecedor_id: Optional[int] = None, por_fornecedor: bool = False) -> Optional[Produto]:
+    """Localiza o produto da loja pelo EAN e, na falta dele, pelo código do item.
+
+    ``por_fornecedor=True`` (compra avulsa e prévia): o cProd é código DO
+    FORNECEDOR, não da loja. Só casa com produto deste mesmo fornecedor; sem isso,
+    o item "10" do distribuidor caía no produto "10" da planilha da loja (outra
+    mercadoria) e o estoque entrava no produto errado. Sem fornecedor cadastrado,
+    não há como casar por código: o item é tratado como novo.
+    """
     q = Produto.query.filter(Produto.estabelecimento_id == estab_id)
     if lock:
         q = q.populate_existing().with_for_update()
@@ -137,10 +152,89 @@ def _produto_existente(estab_id: int, ean: Optional[str], codigo: Optional[str],
         if p:
             return p
     if codigo:
+        if por_fornecedor:
+            if not fornecedor_id:
+                return None
+            # "Do fornecedor" = cadastro, lote ou pedido de compra ligando o produto a ele.
+            ids_por_lote = select(ProdutoLote.produto_id).where(
+                ProdutoLote.estabelecimento_id == estab_id, ProdutoLote.fornecedor_id == fornecedor_id)
+            ids_por_pedido = select(PedidoCompraItem.produto_id).join(
+                PedidoCompra, PedidoCompra.id == PedidoCompraItem.pedido_id).where(
+                PedidoCompra.estabelecimento_id == estab_id, PedidoCompra.fornecedor_id == fornecedor_id)
+            qf = q.filter(or_(Produto.fornecedor_id == fornecedor_id, Produto.id.in_(ids_por_lote),
+                              Produto.id.in_(ids_por_pedido)))
+            for cod in (codigo, _codigo_alternativo(fornecedor_id, codigo)):
+                p = qf.filter(Produto.codigo_interno == cod).first()
+                if p:
+                    return p
+            return None
         p = q.filter(Produto.codigo_interno == codigo).first()
         if p:
             return p
     return None
+
+
+def _ocupante(estab_id: int, coluna, valor):
+    """(id, deleted_at) do produto que já usa o valor; inclui excluídos, como a unicidade do banco."""
+    if not valor:
+        return None
+    return db.session.execute(
+        select(Produto.id, Produto.deleted_at).where(Produto.estabelecimento_id == estab_id, coluna == valor)
+    ).first()
+
+
+# ---------------------------------------------------------------------------
+# Tributação do produto criado pela nota de compra
+# ---------------------------------------------------------------------------
+# O CFOP/CST do XML descrevem a VENDA DO FORNECEDOR para a loja (6102 interestadual,
+# 5403/6403 com ST retida, 5405...). Copiá-los para o cadastro fazia a loja vender
+# ao consumidor com o CFOP do atacadista. Na revenda a varejo o padrão é 5102 /
+# CSOSN 102; quando a mercadoria já veio com ICMS retido por ST, o produto é marcado
+# ``icms_st`` e o emissor usa CSOSN 500 / CST 60 / CFOP 5405 (tributacao.py).
+CFOP_REVENDA_VAREJO = "5102"
+CSOSN_REVENDA_PADRAO = "102"
+CFOPS_FORNECEDOR_COM_ST = {"5401", "5402", "5403", "5405", "6401", "6402", "6403", "6404"}
+CST_FORNECEDOR_COM_ST = {"10", "30", "60", "70"}
+CSOSN_FORNECEDOR_COM_ST = {"201", "202", "203", "500"}
+
+
+def mercadoria_veio_com_st(item: Dict[str, Any]) -> bool:
+    cfop = _digitos(item.get("cfop"))
+    cst = _digitos(item.get("icms_cst"))[-2:]
+    csosn = _digitos(item.get("icms_csosn"))
+    return cfop in CFOPS_FORNECEDOR_COM_ST or cst in CST_FORNECEDOR_COM_ST or csosn in CSOSN_FORNECEDOR_COM_ST
+
+
+def _origem_revenda(orig) -> int:
+    """Origem na revenda: importação direta (1/6) vira adquirida no mercado interno (2/7)."""
+    d = _digitos(orig)
+    if not d or int(d) > 8:
+        return 0
+    o = int(d)
+    return {1: 2, 6: 7}.get(o, o)
+
+
+def tributacao_revenda(item: Dict[str, Any]) -> Dict[str, Any]:
+    st = mercadoria_veio_com_st(item)
+    return {
+        "cfop_padrao": CFOP_REVENDA_VAREJO,
+        "csosn": "500" if st else CSOSN_REVENDA_PADRAO,
+        "cst_icms": "60" if st else None,
+        "icms_st": st,
+        "origem": _origem_revenda(item.get("icms_orig")),
+    }
+
+
+def _custo_unitario(item: Dict[str, Any]) -> Decimal:
+    """Custo líquido por unidade comercial: (vProd - vDesc) / qCom."""
+    qtd = Decimal(str(item["quantidade"]))
+    if not qtd.is_finite() or qtd <= 0:
+        raise ImportacaoError(f"Quantidade inválida no item '{item.get('descricao')}'.")
+    desconto = Decimal(str(item.get("desconto") or 0))
+    if desconto > 0:
+        liquido = Decimal(str(item["valor_total"])) - desconto
+        return (liquido / qtd).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    return Decimal(str(item["valor_unitario"]))
 
 
 def _get_or_create_categoria_importacao(estab_id: int) -> CategoriaProduto:
@@ -194,12 +288,16 @@ def preview(parsed: Dict[str, Any], estab_id: int) -> Dict[str, Any]:
 
     itens_preview: List[Dict[str, Any]] = []
     for it in parsed["itens"]:
-        prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"))
+        prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"),
+                                  fornecedor_id=fornecedor.id if fornecedor else None, por_fornecedor=True)
         itens_preview.append({
             "descricao": it["descricao"],
             "ean": it["ean"],
             "codigo": it["codigo"],
             "ncm": it["ncm"],
+            "unidade": it.get("unidade"),
+            "cfop_fornecedor": it.get("cfop"),
+            "icms_st": mercadoria_veio_com_st(it),
             "quantidade": float(it["quantidade"]),
             "valor_unitario": float(it["valor_unitario"]),
             "valor_total": float(it["valor_total"]),
@@ -261,19 +359,32 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
 
     for it in parsed["itens"]:
         qtd = Decimal(str(it["quantidade"]))
-        custo_unit = Decimal(str(it["valor_unitario"]))
-        prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"), lock=True)
+        custo_unit = _custo_unitario(it)
+        prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"), lock=True,
+                                  fornecedor_id=forn.id if forn else None, por_fornecedor=True)
 
         if prod is None:
             if categoria is None:
                 categoria = _get_or_create_categoria_importacao(estab_id)
+            ean = it.get("ean")
+            if _ocupante(estab_id, Produto.codigo_barras, ean):
+                # Só acontece com produto excluído (o ativo teria casado acima).
+                raise ImportacaoError(
+                    f"O código de barras {ean} ('{it.get('descricao')}') pertence a um produto excluído "
+                    "desta loja. Restaure o produto e importe a nota de novo.")
+            codigo_interno = it.get("codigo")
+            if codigo_interno and _ocupante(estab_id, Produto.codigo_interno, codigo_interno):
+                # O código do fornecedor coincide com outro produto da loja: não mistura.
+                codigo_interno = _codigo_alternativo(forn.id, codigo_interno) if forn else None
+                if codigo_interno and _ocupante(estab_id, Produto.codigo_interno, codigo_interno):
+                    codigo_interno = None
             preco_venda = (custo_unit * (1 + markup_padrao / 100)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             prod = Produto(
                 estabelecimento_id=estab_id,
                 categoria_id=categoria.id,
                 fornecedor_id=forn.id if forn else None,
-                codigo_barras=it.get("ean"),
-                codigo_interno=it.get("codigo"),
+                codigo_barras=ean,
+                codigo_interno=codigo_interno,
                 nome=(it["descricao"] or "Produto importado")[:100],
                 unidade_medida=(it.get("unidade") or "UN")[:20],
                 quantidade=Decimal("0"),
@@ -281,10 +392,11 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
                 preco_venda=preco_venda,
                 margem_lucro=markup_padrao,
                 ncm=it.get("ncm"),
-                cfop_padrao=it.get("cfop") or "5102",
                 cest=it.get("cest"),
                 # A NF-e não informa validade; o operador liga o controle para perecíveis.
                 controlar_validade=False,
+                # Tributação de REVENDA, nunca o CFOP do fornecedor.
+                **tributacao_revenda(it),
             )
             db.session.add(prod)
             db.session.flush()

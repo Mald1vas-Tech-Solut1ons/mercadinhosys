@@ -173,7 +173,7 @@ const MultiPaymentManager: React.FC<MultiPaymentManagerProps> = ({
                             }`}
                     >
                         {renderIcon(forma.tipo)}
-                        <span className="text-[9px] font-black uppercase tracking-tight">{forma.label}</span>
+                        <span className="text-[11px] font-black uppercase tracking-tight leading-tight text-center">{forma.label}</span>
                     </button>
                 ))}
             </div>

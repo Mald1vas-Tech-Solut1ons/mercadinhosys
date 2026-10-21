@@ -47,6 +47,15 @@ export default defineConfig(() => {
           theme_color: '#0b479e',
           background_color: '#ffffff',
           display: 'standalone',
+          // Web Share Target (Android): o lojista lê o QR Code do cupom com a
+          // câmera NATIVA do celular e toca em "Compartilhar → MercadinhoSyS".
+          // Abre /entrada-nfe?url=...&text=... e a tela já consulta a nota.
+          // (O app precisa estar instalado como PWA; iPhone não suporta share target.)
+          share_target: {
+            action: '/entrada-nfe',
+            method: 'GET',
+            params: { title: 'title', text: 'text', url: 'url' },
+          },
           icons: [
             {
               src: 'pwa-192x192.png',

@@ -79,6 +79,9 @@ const ProductsPage: React.FC = () => {
   const [showStockModal, setShowStockModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
+  // Produtos que já entram na fila de etiquetas (recém-cadastrado ou ação da linha)
+  const [labelProdutos, setLabelProdutos] = useState<Produto[] | undefined>(undefined);
+  const abrirEtiqueta = (p: Produto) => { setLabelProdutos([p]); setShowLabelModal(true); };
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showMarkupCalculator, setShowMarkupCalculator] = useState(false);
   const [showProductHistory, setShowProductHistory] = useState(false);
@@ -634,7 +637,7 @@ const ProductsPage: React.FC = () => {
           onMarkup={() => setShowMarkupCalculator(true)}
           onImport={() => setShowImportModal(true)}
           onExport={handleExportCSV}
-          onLabels={() => setShowLabelModal(true)}
+          onLabels={() => { setLabelProdutos(undefined); setShowLabelModal(true); }}
           search={buscaLocal}
           onSearchChange={setBuscaLocal}
           onToggleFilters={() => setShowFilters(!showFilters)}
@@ -691,6 +694,7 @@ const ProductsPage: React.FC = () => {
         onMakeOrder={openOrderModal}
         onViewLotes={(p) => { setSelectedProduct(p); setShowLotesModal(true); }}
         onDiscard={(p) => abrirFluxoDescarte(p)}
+        onLabel={abrirEtiqueta}
         onProductClick={openDetailModal}
         onSort={handleSort}
         sortConfig={{ key: filtros.ordenar_por || 'nome', direction: filtros.direcao || 'asc' }}
@@ -704,6 +708,7 @@ const ProductsPage: React.FC = () => {
         categorias={categorias}
         onClose={() => { handleCloseModal(setShowProductModal); setSelectedProduct(null); setEditMode(false); }}
         onSuccess={() => { handleCloseModal(setShowProductModal); loadProdutos(); loadStats(); }}
+        onPrintLabel={abrirEtiqueta}
       />
 
       <PinDialog
@@ -715,7 +720,7 @@ const ProductsPage: React.FC = () => {
       />
 
       {showStockModal && selectedProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-200 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-200 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-bold">Ajustar Estoque</h3>
@@ -958,7 +963,7 @@ const ProductsPage: React.FC = () => {
       )}
 
       {showMarkupCalculator && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-200 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-200 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md max-h-[90dvh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
               <h3 className="text-lg font-bold flex items-center gap-2"><Calculator className="w-5 h-5" />Calculadora de Markup</h3>
@@ -1027,7 +1032,8 @@ const ProductsPage: React.FC = () => {
 
       <LabelPrintModal
         isOpen={showLabelModal}
-        onClose={() => { setShowLabelModal(false); loadProdutos(); }}
+        produtosIniciais={labelProdutos}
+        onClose={() => { setShowLabelModal(false); setLabelProdutos(undefined); loadProdutos(); }}
       />
 
       <ProductImportModal

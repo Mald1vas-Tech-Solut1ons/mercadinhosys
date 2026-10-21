@@ -107,7 +107,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
       <div className="p-5">
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
-            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-gray-700 text-${especialista === 'financeiro' ? 'green' : 'blue'}-500`}>
+            <div className={`p-2 rounded-lg bg-gray-50 dark:bg-gray-700 ${especialista === 'financeiro' ? 'text-green-500' : 'text-blue-500'}`}>
               <Icon className="w-5 h-5" />
             </div>
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">

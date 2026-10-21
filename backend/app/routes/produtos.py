@@ -37,6 +37,7 @@ from app.decorators.rbac import gerente_required, resource_required
 from app.services.catalogo_mestre_service import registrar_produto_se_novo
 from app.services.fiscal.tributacao import cest_valido
 from app.services.view_schema_service import (
+    FAMILIAS_PRODUTO,
     inferir_perfil_fiscal_padrao,
     mix_permitido_para_estabelecimento,
     normalizar_familia_produto,
@@ -755,6 +756,65 @@ def catalogo_lookup(ean):
 
     current_app.logger.error(f"Cosmos lookup HTTP {resp.status_code} para {ean_limpo}.")
     return _responder_open_facts(ean_limpo, "conexao")
+
+
+# ============================================
+# FOTO DO PRODUTO (upload; o lojista não tem URL de imagem)
+# ============================================
+
+FOTO_MAX_BYTES = 8 * 1024 * 1024
+FOTO_LADO_MAX = 800
+
+
+@produtos_bp.route("/imagem", methods=["POST"])
+@funcionario_required
+def upload_imagem_produto():
+    """Recebe a foto (campo ``imagem``), reduz para no máximo 800 px e devolve a URL pública.
+
+    A imagem vai para o Cloudinary (CDN, URL permanente) da pasta da loja. Sem Cloudinary
+    no ambiente a rota recusa em vez de gravar em disco efêmero do container.
+    """
+    from io import BytesIO
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    arquivo = request.files.get("imagem")
+    if not arquivo or not arquivo.filename:
+        return jsonify({"success": False, "message": "Escolha uma foto do produto."}), 400
+    conteudo = arquivo.read(FOTO_MAX_BYTES + 1)
+    if len(conteudo) > FOTO_MAX_BYTES:
+        return jsonify({"success": False, "message": "Foto muito grande (máximo 8 MB)."}), 400
+    try:
+        with Image.open(BytesIO(conteudo)) as imagem:
+            if imagem.format not in {"PNG", "JPEG", "WEBP", "GIF", "MPO"} or imagem.width * imagem.height > 40_000_000:
+                raise ValueError("formato")
+            imagem = ImageOps.exif_transpose(imagem)  # foto de celular deitada
+            imagem.thumbnail((FOTO_LADO_MAX, FOTO_LADO_MAX))
+            saida = BytesIO()
+            imagem.convert("RGB").save(saida, format="JPEG", quality=82, optimize=True)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
+        return jsonify({"success": False, "message": "Arquivo não é uma foto válida (use JPG, PNG ou WebP)."}), 400
+
+    if not os.getenv("CLOUDINARY_URL"):
+        return jsonify({"success": False, "message": "Armazenamento de fotos não configurado no servidor."}), 503
+    import base64
+    import uuid
+    import cloudinary.uploader  # o SDK lê CLOUDINARY_URL do ambiente
+    estab_id = get_authorized_establishment_id()
+    pasta = "perfil" if request.form.get("pasta") == "perfil" else "produtos"  # whitelist: nada de caminho livre
+    try:
+        resultado = cloudinary.uploader.upload(
+            "data:image/jpeg;base64," + base64.b64encode(saida.getvalue()).decode(),
+            folder=f"mercadinhosys/{pasta}/{estab_id}",
+            public_id=uuid.uuid4().hex,
+            resource_type="image",
+        )
+    except Exception as erro:
+        current_app.logger.error(f"Upload de foto de produto falhou: {erro}")
+        return jsonify({"success": False, "message": "Não foi possível enviar a foto agora. Tente de novo."}), 502
+    url = resultado.get("secure_url")
+    if not url:
+        return jsonify({"success": False, "message": "Não foi possível enviar a foto agora. Tente de novo."}), 502
+    return jsonify({"success": True, "imagem_url": url}), 201
 
 
 # ============================================
@@ -5294,7 +5354,51 @@ _IMPORT_PRODUTOS_ALIASES = {
     "quantidade": "estoque", "estoque_inicial": "estoque",
     "numero_lote": "lote",
     "validade": "data_validade",
+    "familia_produto": "familia", "familia_de_produto": "familia",
 }
+
+# NCM → família quando a planilha não traz a coluna "familia".
+_IMPORT_CAPITULOS_VESTUARIO = ("61", "62", "63", "64")
+_IMPORT_CAPITULOS_ELETRO = ("84", "85")
+
+
+def _imp_familia_por_texto():
+    """Chave ("perfumaria_higiene") e nome ("Perfumaria e Higiene"), sem maiúscula nem acento."""
+    mapa = {}
+    for chave, info in FAMILIAS_PRODUTO.items():
+        for texto in (chave, chave.replace("_", " "), info.get("nome") or ""):
+            if texto:
+                mapa[_imp_chave_categoria(texto)] = chave
+    return mapa
+
+
+def _imp_resolver_familia(texto_familia, ncm, mix) -> str:
+    """Família da linha: a da coluna "familia" ou, sem ela, a inferida pelo NCM.
+
+    A inferência só escolhe família que está no mix da loja; fora disso vale a
+    família padrão do segmento (1ª do mix), como no cadastro individual.
+    """
+    from app.services.fiscal.tributacao import eh_pis_cofins_monofasico
+
+    texto = _imp_chave_categoria(texto_familia)
+    if texto:
+        chave = _imp_familia_por_texto().get(texto)
+        if chave is None:
+            disponiveis = ", ".join(FAMILIAS_PRODUTO[c]["nome"] for c in mix if c in FAMILIAS_PRODUTO)
+            raise ValueError(f"família '{texto_familia}' não existe. Use uma destas: {disponiveis}")
+        if chave not in mix:
+            raise ValueError(f"a família '{FAMILIAS_PRODUTO[chave]['nome']}' não faz parte do mix desta loja")
+        return chave
+
+    candidata = None
+    if ncm:
+        if eh_pis_cofins_monofasico(ncm):
+            candidata = "perfumaria_higiene"
+        elif ncm[:2] in _IMPORT_CAPITULOS_VESTUARIO:
+            candidata = "vestuario"
+        elif ncm[:2] in _IMPORT_CAPITULOS_ELETRO:
+            candidata = "eletro"
+    return candidata if candidata in mix else mix[0]
 
 
 def _imp_sem_acento(texto) -> str:
@@ -5409,6 +5513,7 @@ def _imp_ler_linha(v: dict) -> dict:
         "lote": v.get("lote", "").strip()[:40],
         "data_validade": _imp_data(v.get("data_validade")),
         "ncm": _imp_ncm(v.get("ncm")),
+        "familia": v.get("familia", "").strip(),
     }
 
 
@@ -5418,7 +5523,7 @@ def importar_produtos_csv():
     """Importa produtos em massa via CSV (modal "Importar Planilha").
 
     Colunas: nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;
-    unidade;estoque;lote;data_validade e, opcional, ncm. Aceita separador ';' ou ',', UTF-8
+    unidade;estoque;lote;data_validade e, opcionais, ncm e familia. Aceita separador ';' ou ',', UTF-8
     (com ou sem BOM) ou Windows-1252 (Excel pt-BR) e números com vírgula.
 
     Cada linha é gravada num savepoint: erro numa linha não desfaz as outras, e só conta
@@ -5426,6 +5531,12 @@ def importar_produtos_csv():
     cabeçalho é a linha 1). Código de barras ou código interno repetido na planilha ou já
     cadastrado na loja (mesmo em produto excluído) é recusado com o nome do produto dono.
     Categoria é casada sem diferenciar maiúsculas nem acento.
+
+    Família e fiscal seguem o cadastro individual: a coluna "familia" (chave ou nome, sem
+    diferenciar maiúscula nem acento) ou, sem ela, o NCM decide (monofásico → perfumaria;
+    capítulos 61-64 → vestuário; 84/85 → eletro, se estiver no mix; senão a família padrão
+    do segmento). A família define perfil fiscal, CFOP, CSOSN/CST e alíquota sugeridos; ST
+    nunca é marcada pela importação. Produto com EAN novo entra no Catálogo Mestre.
 
     Estoque inicial segue o cadastro individual: quantidade + MovimentacaoEstoque de entrada.
     Lote (ProdutoLote) só nasce quando a planilha informa a validade; sem validade não se
@@ -5483,7 +5594,7 @@ def importar_produtos_csv():
                 "success": False,
                 "message": f"Cabeçalho não reconhecido: falta(m) a(s) coluna(s) {', '.join(faltando)}. "
                            f"A 1ª linha da planilha deve ser: {_IMPORT_PRODUTOS_CABECALHO} "
-                           "(ncm é opcional). Baixe o modelo no próprio modal.",
+                           "(ncm e familia são opcionais). Baixe o modelo no próprio modal.",
             }), 400
 
         # Estado da loja lido sem o filtro de soft-delete: as constraints únicas valem também
@@ -5510,6 +5621,19 @@ def importar_produtos_csv():
             .order_by(CategoriaProduto.deleted_at.isnot(None), CategoriaProduto.id)
         ).scalars():
             categorias.setdefault(_imp_chave_categoria(cat.nome), cat)
+
+        estabelecimento = _resolver_estabelecimento(estabelecimento_id)
+        mix_loja = mix_permitido_para_estabelecimento(estabelecimento)
+        contexto_por_familia = {}
+
+        def _contexto_fiscal(familia):
+            """Mesmo caminho do cadastro individual (_resolver_contexto_produto), 1x por família."""
+            if familia not in contexto_por_familia:
+                _, familia_ok, _, perfil = _resolver_contexto_produto(
+                    estabelecimento_id, {"familia_produto": familia}, tipo_item="produto")
+                contexto_por_familia[familia] = (
+                    familia_ok, perfil, sugestao_fiscal_para_familia(familia_ok, tipo_item="produto"))
+            return contexto_por_familia[familia]
 
         hoje = hoje_local()
         importados, erros, linhas_lidas = 0, [], 0
@@ -5539,6 +5663,9 @@ def importar_produtos_csv():
                     raise ValueError(f"código interno {interno} repetido — já aparece na linha {internos_na_planilha[interno]}")
                 if interno and interno in internos_da_loja:
                     raise ValueError(f"código interno {interno} já está cadastrado no produto '{internos_da_loja[interno]}'")
+
+                familia, perfil_fiscal, fiscal = _contexto_fiscal(
+                    _imp_resolver_familia(d["familia"], d["ncm"], mix_loja))
 
                 chave_cat = _imp_chave_categoria(d["categoria"])
                 with db.session.begin_nested():
@@ -5574,9 +5701,20 @@ def importar_produtos_csv():
                         data_validade=validade,
                         controlar_validade=validade is not None,
                         ativo=True,
+                        tipo_item="produto",
+                        familia_produto=familia,
+                        perfil_fiscal=perfil_fiscal,
+                        cfop_padrao=fiscal["cfop_padrao_sugerido"],
+                        cst_icms=fiscal["cst_icms_sugerido"],
+                        csosn=fiscal["csosn_sugerido"],
+                        icms_aliquota=Decimal(str(fiscal["icms_aliquota_sugerida"])),
+                        icms_st=False,
                     )
                     db.session.add(produto)
                     db.session.flush()
+
+                    registrar_produto_se_novo(produto, estabelecimento, via="csv")
+                    db.session.flush()  # falha do catálogo cai neste savepoint, não na próxima linha
 
                     lote = None
                     if estoque > 0 and validade is not None:

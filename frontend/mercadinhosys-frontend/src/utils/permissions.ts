@@ -45,7 +45,7 @@ export type Modulo =
     | 'fornecedores' | 'clientes' | 'sfa' | 'sfa_gestao' | 'delivery'
     | 'despesas' | 'fiscal' | 'auditoria' | 'funcionarios' | 'rh'
     | 'rh_gestao' | 'ponto' | 'relatorios' | 'configuracoes' | 'compras'
-    | 'consultor';
+    | 'consultor' | 'entrada_nfe';
 
 /** Níveis com acesso a cada módulo (Regras de Acesso do produto). */
 export const MODULOS_POR_NIVEL: Record<Modulo, number[]> = {
@@ -62,6 +62,9 @@ export const MODULOS_POR_NIVEL: Record<Modulo, number[]> = {
     delivery:      [1, 2, 4, 5, 6],
     despesas:      [1, 2],
     fiscal:        [1, 2],
+    // Entrada de estoque pela nota do FORNECEDOR (XML / QR Code da NFC-e / chave do DANFE):
+    // só lê documento já autorizado, não emite nada nem exige certificado.
+    entrada_nfe:   [1, 2, 4],
     auditoria:     [1],
     funcionarios:  [1, 2, 3],
     // RH & Ponto: TODOS acessam a página, mas quem não é Admin/Gerente/RH
@@ -79,7 +82,7 @@ export const MODULOS_POR_NIVEL: Record<Modulo, number[]> = {
 /** Módulos incluídos no Plano Grátis. */
 export const MODULOS_PLANO_GRATIS: Modulo[] = [
     'dashboard', 'pdv', 'gestao_caixa', 'produtos',
-    'fornecedores', 'clientes', 'configuracoes',
+    'fornecedores', 'clientes', 'configuracoes', 'entrada_nfe',
 ];
 
 const PLANOS_PRO = ['pro', 'pago', 'premium', 'elite', 'advanced', 'enterprise', 'master', 'profissional', 'professional'];
@@ -114,6 +117,7 @@ export const ROTA_MODULO: Record<string, Modulo> = {
     '/delivery': 'delivery',
     '/expenses': 'despesas',
     '/fiscal': 'fiscal',
+    '/entrada-nfe': 'entrada_nfe',
     '/auditoria': 'auditoria',
     '/employees': 'funcionarios',
     '/rh': 'rh',

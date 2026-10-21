@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, ShoppingCart, Users, Package, Menu as MenuIcon, X, LogOut, Settings, CreditCard, BarChart3, Navigation, FileText, Briefcase, UserCog, Clock, Truck, Receipt, DollarSign, Building2, Activity, Target, MapPin, ShoppingBag, Play } from 'lucide-react';
+import { Home, ShoppingCart, Users, Package, Menu as MenuIcon, X, LogOut, Settings, CreditCard, BarChart3, Navigation, FileText, Briefcase, UserCog, Clock, Truck, Receipt, FileInput, DollarSign, Building2, Activity, Target, MapPin, ShoppingBag, Play } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import EstablishmentSelector from '../EstablishmentSelector';
 import { authService } from '../../features/auth/authService';
@@ -20,6 +20,7 @@ const allMenuItems = [
     { to: '/sfa', icon: MapPin, label: 'SFA (Externo)' },
     { to: '/sfa/gestao', icon: MapPin, label: 'Gestão SFA' },
     { to: '/delivery', icon: Navigation, label: 'Entregas' },
+    { to: '/entrada-nfe', icon: FileInput, label: 'Entrada de Nota' },
     { to: '/fiscal', icon: Receipt, label: 'Fiscal' },
     { to: '/expenses', icon: FileText, label: 'Despesas' },
     { to: '/reports', icon: BarChart3, label: 'Relatórios' },

@@ -129,7 +129,12 @@ def test_implantacao_loja_mista_ponta_a_ponta(client, session):
     por_ncm = {str(i.get("codigo_ncm")): i for i in itens}
     assert por_ncm["33030010"]["icms_situacao_tributaria"] == "500", por_ncm["33030010"]
     assert por_ncm["33030010"]["cfop"] == "5405", por_ncm["33030010"]
-    assert por_ncm["61091000"]["icms_situacao_tributaria"] != "500", por_ncm["61091000"]
+    # Camiseta: a importação pôs a família vestuário pelo NCM (cap. 61), que sugere CSOSN 500;
+    # sem ST marcada, o CFOP segue 5102 do cadastro.
+    camiseta_db = p("Camiseta Preta M")
+    assert camiseta_db.familia_produto == "vestuario", camiseta_db.familia_produto
+    assert por_ncm["61091000"]["icms_situacao_tributaria"] == camiseta_db.csosn, por_ncm["61091000"]
+    assert por_ncm["61091000"]["cfop"] == "5102", por_ncm["61091000"]
     assert all(i.get("pis_situacao_tributaria") == "49" for i in itens), itens
 
     # Passo 12: sem estoque é recusado com motivo claro

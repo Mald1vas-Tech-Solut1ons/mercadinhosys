@@ -35,6 +35,7 @@ const LandingPage = lazy(() => import('../features/landing/LandingPage'));
 const EstabelecimentosPage = lazy(() => import('../features/estabelecimentos/EstabelecimentosPage'));
 const DeliveryPage = lazy(() => import('../features/delivery/DeliveryPage'));
 const FiscalPage = lazy(() => import('../features/fiscal/FiscalPage'));
+const EntradaNFePage = lazy(() => import('../features/fiscal/EntradaNFePage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
 const MasterCatalogPage = lazy(() => import('../features/catalogo-mestre/MasterCatalogPage'));
 const ConsultorPage = lazy(() => import('../pages/ConsultorPage').then(module => ({ default: module.ConsultorPage })));
@@ -97,6 +98,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="sales" element={<ModuleGuard modulo="vendas"><SalesPage /></ModuleGuard>} />
                     <Route path="expenses" element={<ModuleGuard modulo="despesas"><ExpensesPage /></ModuleGuard>} />
                     <Route path="fiscal" element={<ModuleGuard modulo="fiscal"><FiscalPage /></ModuleGuard>} />
+                    <Route path="entrada-nfe" element={<ModuleGuard modulo="entrada_nfe"><EntradaNFePage /></ModuleGuard>} />
                     <Route path="auditoria" element={<ModuleGuard modulo="auditoria"><MonitorPage /></ModuleGuard>} />
                     <Route path="sfa" element={<ModuleGuard modulo="sfa"><SFADashboard /></ModuleGuard>} />
                     <Route path="sfa/clientes" element={<ModuleGuard modulo="sfa"><SFAClientes /></ModuleGuard>} />

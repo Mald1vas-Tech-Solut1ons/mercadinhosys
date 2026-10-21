@@ -4970,7 +4970,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: MODAL DE PRODUTO ESTRELA COM PLANO DE AÇÃO */}
       {modalProdutoEstrela && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-yellow-50 to-orange-50">
@@ -5173,7 +5173,7 @@ const DashboardPage: React.FC = () => {
 
       {/* 🔥 NOVO: MODAL DE PRODUTO LENTO COM ESTRATÉGIAS DE LIQUIDAÇÃO */}
       {modalProdutoLento && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
             {/* Header */}
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 bg-linear-to-r from-red-50 to-pink-50">

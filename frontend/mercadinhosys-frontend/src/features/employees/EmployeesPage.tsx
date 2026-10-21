@@ -1196,7 +1196,7 @@ export default function EmployeesPage() {
 
             {/* Modal Criar/Editar Funcionário */}
             {modalAberto && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -1566,7 +1566,7 @@ export default function EmployeesPage() {
 
             {/* Modal Detalhes do Funcionário */}
             {modalDetalhesAberto && funcionarioSelecionado && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90dvh] overflow-y-auto my-auto">
                         <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">

@@ -6,6 +6,12 @@ Entrada (compra):
 - POST /api/fiscal/entrada/importar    → efetiva a importação (estoque, custo, contas a pagar)
 - GET  /api/fiscal/entrada             → lista as notas de entrada já importadas
 - GET  /api/fiscal/entrada/<id>/xml    → baixa o XML guardado
+- GET  /api/fiscal/entrada/chave/<chave> → consulta pela chave (DANFE/QR Code) se a nota já entrou
+- POST /api/fiscal/entrada/qrcode       → prévia da NFC-e lida pelo QR Code (SEFAZ-SP, sem certificado)
+- POST /api/fiscal/entrada/qrcode/importar → importa a NFC-e do QR Code (mesmas regras do XML)
+
+A entrada de nota de compra só LÊ o documento já autorizado do fornecedor: vale em
+qualquer plano e sem certificado digital (ver middleware/access_control.py).
 """
 from flask import Blueprint, request, jsonify, current_app, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -14,6 +20,8 @@ from app.models import db, NotaFiscalEntrada, DocumentoFiscal, Venda, Estabeleci
 from app.utils.query_helpers import get_authorized_establishment_id
 from app.services.fiscal.xml_parser import parse_nfe_xml, XMLNotaError
 from app.services.fiscal import entrada_service
+from app.services.fiscal import nfce_qrcode
+from app.services.fiscal.chave_acesso import extrair_chave, validar as validar_chave, ChaveInvalida
 from app.services.fiscal import emissao_service
 from app.decorators.rbac import resource_required
 
@@ -116,6 +124,110 @@ def entrada_xml(nota_id):
     except Exception as e:
         current_app.logger.error(f"Erro em entrada_xml: {e}")
         return jsonify({"success": False, "error": "Falha ao obter XML"}), 500
+
+
+def _url_qrcode_da_request() -> str:
+    body = request.get_json(silent=True) or {}
+    return str(body.get("url_qrcode") or request.form.get("url_qrcode") or "").strip()
+
+
+@fiscal_bp.route("/entrada/qrcode", methods=["POST"])
+@resource_required('entrada_xml')
+def entrada_qrcode_preview():
+    """Lê a NFC-e pelo QR Code (consulta pública SEFAZ-SP) e devolve a mesma prévia do XML."""
+    try:
+        estab_id = get_authorized_establishment_id()
+        if not estab_id or str(estab_id).lower() == 'all':
+            return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
+        parsed = nfce_qrcode.ler_nfce_por_qrcode(_url_qrcode_da_request())
+        pv = entrada_service.preview(parsed, estab_id)
+        pv["origem"] = "qrcode"
+        return jsonify({"success": True, "preview": pv}), 200
+    except nfce_qrcode.QRCodeErro as e:
+        return jsonify({"success": False, "error": str(e)}), e.status
+    except Exception as e:
+        current_app.logger.error(f"Erro em entrada_qrcode_preview: {e}")
+        return jsonify({"success": False, "error": "Falha ao ler a NFC-e"}), 500
+
+
+@fiscal_bp.route("/entrada/qrcode/importar", methods=["POST"])
+@resource_required('entrada_xml')
+def entrada_qrcode_importar():
+    """Importa a NFC-e lida pelo QR Code com as MESMAS regras do XML.
+
+    A página é buscada de novo na SEFAZ: os itens nunca vêm do navegador.
+    """
+    try:
+        estab_id = get_authorized_establishment_id()
+        if not estab_id or str(estab_id).lower() == 'all':
+            return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
+        body = request.get_json(silent=True) or {}
+        pedido_id = body.get("pedido_id")
+        if pedido_id is not None:
+            if not str(pedido_id).isdigit() or int(pedido_id) <= 0:
+                raise entrada_service.ImportacaoError('Pedido inválido.')
+            pedido_id = int(pedido_id)
+        parsed = nfce_qrcode.ler_nfce_por_qrcode(_url_qrcode_da_request())
+        resultado = entrada_service.importar(
+            parsed, None, estab_id, int(get_jwt_identity()),
+            pedido_id=pedido_id, compra_avulsa=bool(body.get("compra_avulsa")))
+        return jsonify({"success": True, "message": "Nota importada com sucesso", "resultado": resultado}), 201
+    except nfce_qrcode.QRCodeErro as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), e.status
+    except entrada_service.ImportacaoError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro em entrada_qrcode_importar: {e}")
+        return jsonify({"success": False, "error": "Falha ao importar a nota"}), 500
+
+
+MSG_NOTA_NAO_IMPORTADA ="Nota ainda não importada. Envie o XML (o fornecedor manda por e-mail) para dar entrada."
+
+
+@fiscal_bp.route("/entrada/chave/<string:chave>", methods=["GET"])
+@resource_required('entrada_xml')
+def entrada_por_chave(chave):
+    """Consulta pela chave lida do DANFE (código de barras) ou do QR Code da NFC-e.
+
+    Diz se a nota já entrou NESTA loja e devolve os dados que a própria chave traz
+    (UF, emitente, modelo, série, número). Aceita a chave pura ou o texto lido
+    (URL do QR Code com ``p=``/``chNFe=``), desde que URL-encoded.
+
+    TODO(SEFAZ): baixar o XML pela chave (NFeDistribuicaoDFe + manifestação do
+    destinatário "Ciência da Operação") exige o certificado digital A1 do CNPJ da
+    loja e acesso ao Ambiente Nacional. Sem certificado, a entrada continua sendo
+    pelo XML que o fornecedor envia por e-mail; esta rota só orienta o operador.
+    """
+    try:
+        estab_id = get_authorized_establishment_id()
+        if not estab_id or str(estab_id).lower() == 'all':
+            return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
+        bruto = request.args.get("texto") or chave
+        extraida = extrair_chave(bruto)
+        if not extraida:
+            return jsonify({"success": False, "error": "Não encontrei os 44 dígitos da chave de acesso no código lido."}), 400
+        try:
+            dados = validar_chave(extraida)
+        except ChaveInvalida as e:
+            return jsonify({"success": False, "error": str(e)}), 400
+        nota = NotaFiscalEntrada.query.filter_by(estabelecimento_id=estab_id, chave_acesso=extraida).first()
+        if nota:
+            return jsonify({
+                "success": True, "ja_importada": True, "chave": dados,
+                "nota": nota.to_dict(),
+                "mensagem": f"Nota {nota.numero}/{nota.serie} já deu entrada nesta loja.",
+            }), 200
+        return jsonify({
+            "success": True, "ja_importada": False, "chave": dados, "nota": None,
+            "mensagem": MSG_NOTA_NAO_IMPORTADA,
+            "download_sefaz_disponivel": False,
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Erro em entrada_por_chave: {e}")
+        return jsonify({"success": False, "error": "Falha ao consultar a chave"}), 500
 
 
 # ===================== EMISSÃO (saída) — NFC-e =====================

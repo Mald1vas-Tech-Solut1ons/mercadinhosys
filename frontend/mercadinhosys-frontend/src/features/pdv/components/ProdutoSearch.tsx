@@ -281,7 +281,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                                             {/* Código de barras */}
                                             {(produto as any).codigo_barras && (
                                                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                                                    Code: {(produto as any).codigo_barras}
+                                                    Código: {(produto as any).codigo_barras}
                                                 </span>
                                             )}
 

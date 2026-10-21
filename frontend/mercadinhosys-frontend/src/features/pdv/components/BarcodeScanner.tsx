@@ -9,7 +9,7 @@ interface BarcodeScannerProps {
 }
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
-    const [modoEntrada, setModoEntrada] = useState<'camera' | 'manual'>('manual');
+    const [modoEntrada, setModoEntrada] = useState<'camera' | 'manual'>('camera');
     const [codigoManual, setCodigoManual] = useState('');
     const [erro, setErro] = useState<string | null>(null);
     const [cameraAtiva, setCameraAtiva] = useState(false);
@@ -25,9 +25,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
     const candidateRef = useRef<string>('');
     const candidateTimeRef = useRef<number>(0);
 
-    // Validação matemática do EAN-13 e EAN-8
+    // Validação matemática do EAN-13 / EAN-8 / UPC-A (12 dígitos, mantido como lido).
     const isValidEAN = (ean: string): boolean => {
-        if (!ean || (ean.length !== 8 && ean.length !== 13)) return false;
+        if (!ean || !/^\d+$/.test(ean)) return false;
         if (ean.length === 13) {
             let sum = 0;
             for (let i = 0; i < 12; i++) {
@@ -36,15 +36,25 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
             const check = (10 - (sum % 10)) % 10;
             return check === parseInt(ean[12], 10);
         }
-        if (ean.length === 8) {
+        if (ean.length === 8 || ean.length === 12) {
+            // EAN-8 e UPC-A usam o mesmo peso: posições ímpares x3, pares x1
+            const n = ean.length - 1;
             let sum = 0;
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < n; i++) {
                 sum += parseInt(ean[i], 10) * (i % 2 === 0 ? 3 : 1);
             }
             const check = (10 - (sum % 10)) % 10;
-            return check === parseInt(ean[7], 10);
+            return check === parseInt(ean[n], 10);
         }
         return false;
+    };
+
+    // Code-128 (etiquetas de roupa/eletrônicos): alfanumérico de 4 a 30 caracteres.
+    const isValidCode128 = (code: string): boolean => /^[A-Za-z0-9-]{4,30}$/.test(code);
+
+    const isCodigoValido = (code: string, format?: string): boolean => {
+        if (format === 'code_128') return isValidCode128(code);
+        return isValidEAN(code);
     };
 
     // Este componente só é montado enquanto o scanner estiver aberto (sem prop isOpen),
@@ -96,7 +106,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
                     readers: [
                         "ean_reader",
                         "ean_8_reader",
-                        "upc_reader"
+                        "upc_reader",
+                        "code_128_reader"
                     ],
                     multiple: false
                 },
@@ -112,7 +123,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
                 const now = Date.now();
                 const code = data.codeResult?.code;
 
-                if (!code || !isValidEAN(code)) return;
+                if (!code || !isCodigoValido(code, data.codeResult?.format)) return;
 
                 // Debounce de 2s para o mesmo código (para não floodar quando já aceitou)
                 if (code === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
@@ -155,6 +166,13 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
             setIsScanning(false);
         }
     };
+
+    // Abre direto na câmera; "Manual" continua disponível no seletor.
+    useEffect(() => {
+        const t = setTimeout(iniciarCamera, 100);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Mudar modo
     const handleModoChange = (modo: 'camera' | 'manual') => {
@@ -238,7 +256,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
                         <form onSubmit={handleEnviarManual} className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                    Código de Barras (EAN/UPC)
+                                    Código de Barras (EAN/UPC/Code-128)
                                 </label>
                                 <input
                                     type="text"

@@ -50,22 +50,15 @@ def saldo_em_aberto(cliente) -> Decimal:
 def validar_sem_atraso(cliente, hoje=None, valor_novo=None):
     """Recusa venda a prazo para cliente com título vencido além da tolerância
     ou cuja nova compra, somada aos títulos em aberto, exceda o limite de crédito."""
-    vencidos = titulos_vencidos(cliente, hoje)
-    if vencidos:
-        total = sum((Decimal(str(t.valor_atual)) for t in vencidos), Decimal('0'))
-        mais_antigo = min(t.data_vencimento for t in vencidos)
-        dias = (_hoje(hoje) - mais_antigo).days
-        raise ValueError(
-            f'Cliente com {len(vencidos)} título(s) vencido(s), R$ {total:.2f}, o mais antigo há {dias} dias. '
-            f'Regularize o atraso antes de vender a prazo; pagamento à vista é permitido.')
+    # Mensagens sem valores: a tela do caixa fica à vista do cliente e da fila.
+    if titulos_vencidos(cliente, hoje):
+        raise ValueError('Venda a prazo não autorizada: cliente com pagamento em atraso. '
+                         'Pagamento à vista é permitido; detalhes com o gerente.')
     if valor_novo and valor_novo > 0:
         limite = Decimal(str(cliente.limite_credito or 0))
-        em_aberto = saldo_em_aberto(cliente)
-        novo = Decimal(str(valor_novo))
-        if em_aberto + novo > limite:
-            raise ValueError(
-                f'Limite de crédito excedido: em aberto R$ {em_aberto:.2f} + nova compra R$ {novo:.2f} > '
-                f'limite R$ {limite:.2f}.')
+        if saldo_em_aberto(cliente) + Decimal(str(valor_novo)) > limite:
+            raise ValueError('Venda a prazo não autorizada: limite de crédito do cliente excedido. '
+                             'Pagamento à vista é permitido; detalhes com o gerente.')
 
 
 def calcular_score(cliente, hoje=None) -> dict:

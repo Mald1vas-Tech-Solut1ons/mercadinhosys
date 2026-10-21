@@ -6,7 +6,7 @@ import {
     Unlock,
     Wallet
 } from 'lucide-react';
-import { formatCurrency, formatDateTime } from '../../../utils/formatters';
+import { formatDateTime } from '../../../utils/formatters';
 
 interface CaixaHeaderProps {
     funcionarioNome?: string;
@@ -23,7 +23,6 @@ const CaixaHeader: React.FC<CaixaHeaderProps> = ({
     funcionarioRole = 'Caixa',
     caixaNumero,
     caixaAberto = false,
-    saldoAtualCaixa,
     dataAberturaCaixa,
     onOpenCaixaManager,
 }) => {
@@ -122,7 +121,7 @@ const CaixaHeader: React.FC<CaixaHeaderProps> = ({
                             </p>
                             {caixaAberto && (
                                 <p className="text-xs text-blue-100 mt-1">
-                                    {dataAberturaCaixa ? `Aberto em ${formatDateTime(dataAberturaCaixa)}` : 'Turno ativo'}{typeof saldoAtualCaixa === 'number' ? ` • Saldo atual ${formatCurrency(saldoAtualCaixa)}` : ''}
+                                    {dataAberturaCaixa ? `Aberto em ${formatDateTime(dataAberturaCaixa)}` : 'Turno ativo'}
                                 </p>
                             )}
                         </div>

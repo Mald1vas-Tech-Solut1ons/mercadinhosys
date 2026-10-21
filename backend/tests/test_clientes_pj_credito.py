@@ -180,7 +180,7 @@ def test_tolerancia_de_atraso_antes_de_bloquear(session, loja):
     _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=3))
     validar_sem_atraso(cliente)  # dentro da tolerância de 5 dias
     _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=9))
-    with pytest.raises(ValueError, match="vencido"):
+    with pytest.raises(ValueError, match="atraso"):
         validar_sem_atraso(cliente)
     assert len(titulos_vencidos(cliente)) == 1
 
@@ -189,7 +189,7 @@ def test_limite_bloqueia_fiado_que_soma_titulos_em_aberto(session, loja):
     cliente = _cliente(session, loja)
     _titulo(session, loja, cliente, Decimal("700"), hoje_local() + timedelta(days=10))
     validar_sem_atraso(cliente, valor_novo=Decimal("300"))
-    with pytest.raises(ValueError, match="Limite de crédito excedido"):
+    with pytest.raises(ValueError, match="limite de crédito do cliente excedido"):
         validar_sem_atraso(cliente, valor_novo=Decimal("300.01"))
     validar_sem_atraso(cliente)
 
@@ -227,7 +227,7 @@ def test_pdv_bloqueia_fiado_de_cliente_em_atraso_mas_aceita_a_vista(client, sess
     _titulo(session, loja, cliente, 100, hoje_local() - timedelta(days=15))
     bloqueada = _venda_fiado(client, loja, cliente)
     assert bloqueada.status_code in (400, 409, 422), bloqueada.get_json()
-    assert "vencido" in str(bloqueada.get_json()).lower()
+    assert "atraso" in str(bloqueada.get_json()).lower()
 
     a_vista = client.post("/api/pdv/finalizar", headers=loja["headers"], json={
         "cliente_id": cliente.id, "subtotal": 100, "total": 100, "desconto": 0,

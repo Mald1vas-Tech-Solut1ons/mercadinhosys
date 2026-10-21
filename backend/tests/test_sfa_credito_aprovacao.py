@@ -79,7 +79,7 @@ def test_pedido_a_prazo_acima_do_limite_e_recusado(client, session, ctx):
     pedido = _pedido(client, ctx, "30 Dias")
     resposta = _aprovar(client, ctx, pedido)
     assert resposta.status_code == 400
-    assert "Limite de crédito excedido" in resposta.get_json()["message"]
+    assert "limite de crédito" in resposta.get_json()["message"].lower()
     session.expire_all()
     assert session.get(PedidoVenda, pedido.id).status == "pendente"
 
@@ -89,7 +89,7 @@ def test_pedido_a_prazo_de_cliente_em_atraso_e_recusado_mesmo_dentro_do_limite(c
     pedido = _pedido(client, ctx, "30 Dias", quantidade=5)  # R$ 50, dentro do limite de R$ 100
     resposta = _aprovar(client, ctx, pedido)
     assert resposta.status_code == 400
-    assert "vencido" in resposta.get_json()["message"].lower()
+    assert "atraso" in resposta.get_json()["message"].lower()
     session.expire_all()
     assert session.get(PedidoVenda, pedido.id).status == "pendente"
 

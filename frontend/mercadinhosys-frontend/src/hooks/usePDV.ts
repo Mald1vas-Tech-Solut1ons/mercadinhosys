@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Produto, Cliente } from '../types';
 import { pdvService, ConfiguracoesPDV, CaixaPDV } from '../features/pdv/pdvService';
 import { showToast } from '../utils/toast';
@@ -279,12 +279,20 @@ export const usePDV = () => {
 
     const totalPago = round(pagamentos.reduce((sum, p) => sum + p.valor, 0));
 
-    const troco = (() => {
-        // O troco é calculado se o total pago exceder o total da venda,
-        // mas tecnicamente só aplicamos para Dinheiro. 
-        // Em multi-pagamento, verificamos se há excedente geral.
-        return totalPago > total ? round(totalPago - total) : 0;
-    })();
+    // Troco só sobre o excedente pago em dinheiro.
+    const excedente = totalPago > total ? totalPago - total : 0;
+    const totalDinheiro = pagamentos.reduce((sum, p) => (p.forma === 'dinheiro' ? sum + p.valor : sum), 0);
+    const troco = round(Math.min(excedente, totalDinheiro));
+
+    const totalAnteriorRef = useRef({ sessao: sessaoAtivaId, total });
+    useEffect(() => {
+        // Pagamentos lançados para outro total ficariam inválidos (ex.: fiado maior que a venda).
+        const anterior = totalAnteriorRef.current;
+        if (anterior.sessao === sessaoAtivaId && total !== anterior.total && pagamentos.length > 0) {
+            setPagamentos([]);
+        }
+        totalAnteriorRef.current = { sessao: sessaoAtivaId, total };
+    }, [total, sessaoAtivaId, pagamentos.length, setPagamentos]);
 
     // Adicionar produto ao carrinho
     // Retorna false quando o item foi recusado antes de ir ao carrinho (produto vencido).

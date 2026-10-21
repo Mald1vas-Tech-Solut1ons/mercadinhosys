@@ -312,7 +312,7 @@ def test_cliente_em_atraso_nao_reserva_a_prazo_mas_reserva_a_vista(client, sessi
     _vencido(session, ctx)
     a_prazo = _pedido(client, ctx, quantidade=2)
     recusado = _post(client, ctx, a_prazo, "reservar")
-    assert recusado.status_code == 400 and "vencido" in recusado.get_json()["message"].lower()
+    assert recusado.status_code == 400 and "atraso" in recusado.get_json()["message"].lower()
     a_vista = _pedido(client, ctx, quantidade=2, condicao="A Vista")
     assert _post(client, ctx, a_vista, "reservar").status_code == 200
 
@@ -322,7 +322,7 @@ def test_credito_e_conferido_de_novo_na_expedicao(client, session, ctx):
     assert _post(client, ctx, pedido, "reservar").status_code == 200
     _vencido(session, ctx)  # o cliente atrasou depois da reserva
     barrada = _post(client, ctx, pedido, "expedir")
-    assert barrada.status_code == 400 and "vencido" in barrada.get_json()["message"].lower()
+    assert barrada.status_code == 400 and "atraso" in barrada.get_json()["message"].lower()
     assert _item(session, pedido).quantidade_atendida == 0 and Venda.query.filter(Venda.tipo_venda == "sfa").count() == 0
 
 
@@ -342,7 +342,7 @@ def test_limite_de_credito_vale_para_a_parte_expedida(client, session, ctx):
     cabe = _post(client, ctx, pedido, "expedir", {"itens": [{"item_id": item.id, "quantidade": 4}]})  # R$ 40
     assert cabe.status_code == 200, cabe.get_json()
     nao_cabe = _post(client, ctx, pedido, "expedir", {"itens": [{"item_id": item.id, "quantidade": 1}]})  # +10 > 45
-    assert nao_cabe.status_code == 400 and "Limite de crédito" in nao_cabe.get_json()["message"]
+    assert nao_cabe.status_code == 400 and "limite de crédito" in nao_cabe.get_json()["message"].lower()
 
 
 # ───────────────────────── leitura: fila, separação e catálogo ─────────────────────────

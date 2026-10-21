@@ -101,9 +101,10 @@ export const usePDV = () => {
             const caixa = await pdvService.getCaixaAtual();
             setCaixaAberto(caixa);
             return caixa;
-        } catch (error) {
+        } catch (error: any) {
             console.error('Erro ao atualizar status do caixa:', error);
-            setCaixaAberto(null);
+            // Falha de rede não fecha o caixa na tela: mantém o último estado conhecido.
+            if (error?.response) setCaixaAberto(null);
             return null;
         }
     }, []);

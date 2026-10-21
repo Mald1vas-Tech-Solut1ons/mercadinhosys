@@ -1198,6 +1198,11 @@ def cancelar_venda(venda_id):
         venda = query.populate_existing().with_for_update().first_or_404()
         if venda.status == "cancelada":
             return jsonify({"error": "Esta venda já está cancelada"}), 400
+        from app.models import DevolucaoVenda
+        if DevolucaoVenda.query.filter_by(venda_id=venda.id, estabelecimento_id=venda.estabelecimento_id).first():
+            # O cancelamento estornaria de novo o estoque e o dinheiro que a devolução já devolveu.
+            return jsonify({"error": "Venda com devolução registrada não pode ser cancelada; "
+                                     "devolva o restante pelo pós-venda"}), 409
 
         # ===== Autorização OBRIGATÓRIA (PIN de 4-6 dígitos OU senha de admin) =====
         # Apenas admin (nível 1) e gerente (nível 2) podem autorizar cancelamentos.

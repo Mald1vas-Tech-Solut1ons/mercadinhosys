@@ -69,6 +69,7 @@ FREE_PLAN_BLOCKED_PREFIXES: tuple[str, ...] = (
     "/api/fiscal",
     "/api/consultor",
     "/api/sfa",
+    "/api/crm",
     "/api/rh",
     "/api/ponto",
     "/api/delivery",

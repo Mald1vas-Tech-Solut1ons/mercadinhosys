@@ -45,7 +45,7 @@ export type Modulo =
     | 'fornecedores' | 'clientes' | 'sfa' | 'sfa_gestao' | 'delivery'
     | 'despesas' | 'fiscal' | 'auditoria' | 'funcionarios' | 'rh'
     | 'rh_gestao' | 'ponto' | 'relatorios' | 'configuracoes' | 'compras'
-    | 'consultor';
+    | 'consultor' | 'crm';
 
 /** Níveis com acesso a cada módulo (Regras de Acesso do produto). */
 export const MODULOS_POR_NIVEL: Record<Modulo, number[]> = {
@@ -74,6 +74,8 @@ export const MODULOS_POR_NIVEL: Record<Modulo, number[]> = {
     // Página aberta a todos; as ABAS são filtradas por nível (getSettingsTabs).
     configuracoes: [1, 2, 3, 4, 5, 6],
     consultor:     [1, 2, 3], // Limitar chat completo para cargos de gerência
+    // CRM e pós-venda: página aberta a quem atende cliente; as abas seguem o nível (CRMPage).
+    crm:           [1, 2, 4, 5],
 };
 
 /** Módulos incluídos no Plano Grátis. */
@@ -121,6 +123,7 @@ export const ROTA_MODULO: Record<string, Modulo> = {
     '/reports': 'relatorios',
     '/settings': 'configuracoes',
     '/consultor': 'consultor',
+    '/crm': 'crm',
 };
 
 export function canAccessRoute(rota: string, user?: UsuarioLogado | null): boolean {

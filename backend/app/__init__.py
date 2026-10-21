@@ -898,6 +898,14 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar SFA: {e}")
 
+    # CRM comercial e pós-venda
+    try:
+        from app.routes.crm import crm_bp
+        app.register_blueprint(crm_bp, url_prefix="/api/crm")
+        logger.info("✅ Blueprint CRM registrado em /api/crm")
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar CRM: {e}")
+
     # Dashboard Científico já é tratado via dashboard_bp centralizado
     pass
 

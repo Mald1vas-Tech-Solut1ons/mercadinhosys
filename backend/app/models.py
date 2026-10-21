@@ -2859,3 +2859,230 @@ class ConsultorInteracao(db.Model, MultiTenantMixin):
             "duracao_ms": self.duracao_ms,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# ==========================================
+# CRM comercial e pós-venda
+# ==========================================
+# Leads e oportunidades pertencem a um responsável (vendedor vê só os seus); atividades guardam o
+# follow-up; consentimento é um histórico append-only (LGPD); campanha só alcança quem consentiu.
+
+class CrmLead(db.Model, MultiTenantMixin, SoftDeleteMixin):
+    """Prospect da loja (não confundir com ``Lead``, que é a captura da landing do SaaS)."""
+    __tablename__ = "crm_leads"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    nome = db.Column(db.String(150), nullable=False)
+    empresa = db.Column(db.String(150))
+    documento = db.Column(db.String(18))
+    telefone = db.Column(db.String(30))
+    email = db.Column(db.String(120))
+    cidade = db.Column(db.String(100))
+    estado = db.Column(db.String(2))
+    origem = db.Column(db.String(40), nullable=False, default="manual")
+    # novo -> contatado -> qualificado -> convertido | descartado
+    status = db.Column(db.String(20), nullable=False, default="novo", index=True)
+    responsavel_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=False, index=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), index=True)
+    motivo_descarte = db.Column(db.String(255))
+    observacoes = db.Column(db.Text)
+    convertido_em = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+    responsavel = db.relationship("Funcionario", foreign_keys=[responsavel_id])
+    cliente = db.relationship("Cliente", foreign_keys=[cliente_id])
+
+
+class CrmOportunidade(db.Model, MultiTenantMixin, SoftDeleteMixin):
+    """Negócio em andamento com valor e etapa; ganho liga ao pedido B2B que o materializou."""
+    __tablename__ = "crm_oportunidades"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    titulo = db.Column(db.String(150), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("crm_leads.id"), index=True)
+    responsavel_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=False, index=True)
+    # prospeccao -> qualificacao -> proposta -> negociacao -> ganha | perdida
+    etapa = db.Column(db.String(20), nullable=False, default="prospeccao", index=True)
+    valor_estimado = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    probabilidade = db.Column(db.Integer)  # vazio = padrão da etapa
+    data_prevista_fechamento = db.Column(db.Date)
+    pedido_venda_id = db.Column(db.Integer, db.ForeignKey("pedidos_venda.id"), index=True)
+    valor_ganho = db.Column(db.Numeric(19, 4))
+    motivo_perda = db.Column(db.String(255))
+    concorrente = db.Column(db.String(100))
+    fechada_em = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+    responsavel = db.relationship("Funcionario", foreign_keys=[responsavel_id])
+    cliente = db.relationship("Cliente", foreign_keys=[cliente_id])
+    lead = db.relationship("CrmLead", foreign_keys=[lead_id])
+    __table_args__ = (db.CheckConstraint("cliente_id IS NOT NULL OR lead_id IS NOT NULL", name="ck_oportunidade_conta"),)
+
+
+class CrmAtividade(db.Model, MultiTenantMixin):
+    """Ligação, visita, mensagem ou tarefa com prazo; o follow-up é a atividade aberta mais próxima."""
+    __tablename__ = "crm_atividades"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    tipo = db.Column(db.String(20), nullable=False, default="tarefa")
+    assunto = db.Column(db.String(150), nullable=False)
+    descricao = db.Column(db.Text)
+    vencimento = db.Column(db.DateTime, index=True)  # UTC naive, como o restante do banco
+    concluida_em = db.Column(db.DateTime)
+    resultado = db.Column(db.String(255))
+    responsavel_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=False, index=True)
+    criado_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("crm_leads.id"), index=True)
+    oportunidade_id = db.Column(db.Integer, db.ForeignKey("crm_oportunidades.id"), index=True)
+    chamado_id = db.Column(db.Integer, db.ForeignKey("crm_chamados.id"), index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    responsavel = db.relationship("Funcionario", foreign_keys=[responsavel_id])
+
+
+class CrmConsentimento(db.Model, MultiTenantMixin):
+    """Histórico append-only: o estado vigente é o registro mais recente por pessoa, canal e finalidade."""
+    __tablename__ = "crm_consentimentos"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("crm_leads.id"), index=True)
+    canal = db.Column(db.String(20), nullable=False)
+    finalidade = db.Column(db.String(30), nullable=False, default="marketing")
+    concedido = db.Column(db.Boolean, nullable=False)
+    origem = db.Column(db.String(40), nullable=False)
+    evidencia = db.Column(db.String(255))
+    registrado_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    registrado_em = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    __table_args__ = (db.CheckConstraint("cliente_id IS NOT NULL OR lead_id IS NOT NULL", name="ck_consentimento_titular"),)
+
+
+class CrmCampanha(db.Model, MultiTenantMixin):
+    __tablename__ = "crm_campanhas"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    nome = db.Column(db.String(150), nullable=False)
+    canal = db.Column(db.String(20), nullable=False, default="whatsapp")
+    mensagem = db.Column(db.Text, nullable=False)
+    filtros = db.Column(db.JSON)
+    janela_conversao_dias = db.Column(db.Integer, nullable=False, default=7)
+    # rascunho -> ativa (público congelado) -> encerrada
+    status = db.Column(db.String(20), nullable=False, default="rascunho")
+    criado_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    iniciada_em = db.Column(db.DateTime)
+    encerrada_em = db.Column(db.DateTime)
+    envios = db.relationship("CrmCampanhaEnvio", backref="campanha", cascade="all, delete-orphan", lazy=True)
+
+
+class CrmCampanhaEnvio(db.Model, MultiTenantMixin):
+    __tablename__ = "crm_campanha_envios"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    campanha_id = db.Column(db.Integer, db.ForeignKey("crm_campanhas.id", ondelete="CASCADE"), nullable=False, index=True)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), nullable=False, index=True)
+    destino = db.Column(db.String(120), nullable=False)
+    # pendente -> enviado -> respondido | falhou | descadastrado
+    status = db.Column(db.String(20), nullable=False, default="pendente")
+    enviado_em = db.Column(db.DateTime)
+    respondido_em = db.Column(db.DateTime)
+    registrado_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    observacao = db.Column(db.String(255))
+    cliente = db.relationship("Cliente", foreign_keys=[cliente_id])
+    __table_args__ = (db.UniqueConstraint("campanha_id", "cliente_id", name="uq_campanha_envio_cliente"),)
+
+
+class CrmRegraComissao(db.Model, MultiTenantMixin):
+    """Percentual sobre o faturamento líquido; vendedor vazio = padrão para vendedores sem regra própria."""
+    __tablename__ = "crm_regras_comissao"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    vendedor_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), index=True)
+    percentual = db.Column(db.Numeric(5, 2), nullable=False)
+    ativo = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
+
+class CrmComissaoFechamento(db.Model, MultiTenantMixin):
+    """Competência fechada é imutável: ajustes posteriores entram no mês em que acontecem."""
+    __tablename__ = "crm_comissao_fechamentos"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    vendedor_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=False, index=True)
+    competencia = db.Column(db.String(7), nullable=False)  # AAAA-MM
+    base_vendas = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    base_cancelamentos = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    base_devolucoes = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    base_liquida = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    percentual = db.Column(db.Numeric(5, 2), nullable=False)
+    valor_comissao = db.Column(db.Numeric(19, 4), nullable=False)
+    detalhes = db.Column(db.JSON)
+    fechado_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    fechado_em = db.Column(db.DateTime, default=utcnow, nullable=False)
+    __table_args__ = (db.UniqueConstraint("estabelecimento_id", "vendedor_id", "competencia", name="uq_comissao_vendedor_competencia"),)
+
+
+class CrmChamado(db.Model, MultiTenantMixin):
+    """Ocorrência de pós-venda (reclamação, avaria, troca, devolução, garantia) com prazo de atendimento."""
+    __tablename__ = "crm_chamados"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    numero = db.Column(db.String(20), nullable=False)
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id"), nullable=False, index=True)
+    venda_id = db.Column(db.Integer, db.ForeignKey("vendas.id"), index=True)
+    tipo = db.Column(db.String(20), nullable=False, default="reclamacao")
+    prioridade = db.Column(db.String(10), nullable=False, default="media")
+    # aberto -> em_atendimento -> aguardando_cliente -> resolvido -> fechado
+    status = db.Column(db.String(25), nullable=False, default="aberto", index=True)
+    assunto = db.Column(db.String(150), nullable=False)
+    descricao = db.Column(db.Text)
+    responsavel_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), index=True)
+    aberto_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"))
+    sla_vencimento = db.Column(db.DateTime, nullable=False)
+    primeira_resposta_em = db.Column(db.DateTime)
+    resolvido_em = db.Column(db.DateTime)
+    fechado_em = db.Column(db.DateTime)
+    resolucao = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+    cliente = db.relationship("Cliente", foreign_keys=[cliente_id])
+    __table_args__ = (db.UniqueConstraint("estabelecimento_id", "numero", name="uq_chamado_estab_numero"),)
+
+
+class DevolucaoVenda(db.Model, MultiTenantMixin):
+    """Devolução parcial ou troca de itens de uma venda, com o lote de onde cada unidade saiu."""
+    __tablename__ = "devolucoes_venda"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    venda_id = db.Column(db.Integer, db.ForeignKey("vendas.id"), nullable=False, index=True)
+    chamado_id = db.Column(db.Integer, db.ForeignKey("crm_chamados.id"), index=True)
+    tipo = db.Column(db.String(10), nullable=False, default="devolucao")  # devolucao | troca
+    motivo = db.Column(db.String(255), nullable=False)
+    destino = db.Column(db.String(15), nullable=False, default="reintegrar")  # reintegrar | avaria
+    forma_reembolso = db.Column(db.String(20), nullable=False)
+    valor_total = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    custo_total = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    custo_reposicao = db.Column(db.Numeric(19, 4), nullable=False, default=0)
+    funcionario_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=False)
+    caixa_id = db.Column(db.Integer, db.ForeignKey("caixas.id"))
+    idempotency_key = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+    itens = db.relationship("DevolucaoVendaItem", backref="devolucao", cascade="all, delete-orphan", lazy=True)
+    venda = db.relationship("Venda", backref=db.backref("devolucoes", lazy=True))
+    __table_args__ = (db.UniqueConstraint("estabelecimento_id", "idempotency_key", name="uq_devolucao_idempotencia"),)
+
+
+class DevolucaoVendaItem(db.Model, MultiTenantMixin):
+    __tablename__ = "devolucao_venda_itens"
+    id = db.Column(db.Integer, primary_key=True)
+    estabelecimento_id = TenantID()
+    devolucao_id = db.Column(db.Integer, db.ForeignKey("devolucoes_venda.id", ondelete="CASCADE"), nullable=False, index=True)
+    venda_item_id = db.Column(db.Integer, db.ForeignKey("venda_itens.id"), nullable=False, index=True)
+    produto_id = db.Column(db.Integer, db.ForeignKey("produtos.id"), nullable=False, index=True)
+    lote_id = db.Column(db.Integer, db.ForeignKey("produto_lotes.id"), index=True)
+    quantidade = db.Column(db.Numeric(10, 3), nullable=False)
+    valor_unitario = db.Column(db.Numeric(19, 4), nullable=False)
+    valor_total = db.Column(db.Numeric(19, 4), nullable=False)
+    custo_unitario = db.Column(db.Numeric(19, 4), nullable=False, default=0)

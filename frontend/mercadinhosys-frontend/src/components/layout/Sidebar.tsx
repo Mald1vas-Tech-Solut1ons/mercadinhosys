@@ -42,6 +42,7 @@ const menuItems = [
     { to: '/sales', icon: CreditCard, label: 'Vendas' },
     { to: '/sfa', icon: MapPin, label: 'Força de Vendas' },
     { to: '/sfa/gestao', icon: MapPin, label: 'Gestão SFA' },
+    { to: '/crm', icon: Target, label: 'CRM & Pós-venda' },
     { to: '/delivery', icon: Navigation, label: 'Logística & Entregas' },
     { to: '/expenses', icon: FileText, label: 'Despesas' },
     { to: '/fiscal', icon: Receipt, label: 'Fiscal' },

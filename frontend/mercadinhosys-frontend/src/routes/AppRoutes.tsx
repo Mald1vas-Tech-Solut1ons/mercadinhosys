@@ -51,6 +51,7 @@ const SFAManagement = lazy(() => import('../features/sfa/SFAManagement'));
 const SFAClientes = lazy(() => import('../features/sfa/SFAClientes'));
 const SFAClienteForm = lazy(() => import('../features/sfa/SFAClienteForm'));
 const SFAProdutos = lazy(() => import('../features/sfa/SFAProdutos'));
+const CRMPage = lazy(() => import('../features/crm/CRMPage'));
 
 
 
@@ -105,6 +106,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="sfa/pedido" element={<ModuleGuard modulo="sfa"><SFAPedido /></ModuleGuard>} />
                     <Route path="sfa/pedido/:id" element={<ModuleGuard modulo="sfa"><SFAPedido /></ModuleGuard>} />
                     <Route path="sfa/gestao" element={<ModuleGuard modulo="sfa_gestao"><SFAManagement /></ModuleGuard>} />
+                    <Route path="crm" element={<ModuleGuard modulo="crm"><CRMPage /></ModuleGuard>} />
                     <Route path="employees" element={<ModuleGuard modulo="funcionarios"><EmployeesPage /></ModuleGuard>} />
                     <Route path="rh" element={<ModuleGuard modulo="rh"><RHPage /></ModuleGuard>} />
                     <Route path="ponto" element={<ModuleGuard modulo="ponto"><PontoPage /></ModuleGuard>} />

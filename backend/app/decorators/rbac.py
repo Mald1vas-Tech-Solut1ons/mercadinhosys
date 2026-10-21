@@ -73,6 +73,12 @@ RBAC_MATRIX: dict[str, set[int]] = {
     # SFA
     "sfa":           {1, 2, 5},
     "sfa_gestao":    {1, 2},
+    # CRM comercial: vendedor vê só a própria carteira e o que é responsável (escopo nas rotas)
+    "crm":           {1, 2, 5},
+    "crm_gestao":    {1, 2},           # campanhas, regras e fechamento de comissão
+    "pos_venda":     {1, 2, 4, 5},     # chamados; vendedor só da carteira
+    "consentimento": {1, 2, 4, 5},
+    "devolucoes":    {1, 2},           # devolução e troca movem estoque e dinheiro
     # Dashboard
     "dashboard":     {1, 2, 3},
     # Configurações do sistema

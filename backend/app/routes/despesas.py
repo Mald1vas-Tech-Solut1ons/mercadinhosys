@@ -1070,7 +1070,8 @@ def resumo_financeiro():
         if not estabelecimento_id:
             return jsonify({"error": "Estabelecimento não identificado"}), 400
 
-        hoje = date.today()
+        from app.utils.timezone import hoje_local
+        hoje = hoje_local()  # dia da loja; o servidor roda em UTC
         data_inicio_str = request.args.get('data_inicio')
         data_fim_str = request.args.get('data_fim')
 
@@ -1182,9 +1183,17 @@ def resumo_financeiro():
         _config = (Configuracao.query.filter_by(estabelecimento_id=estabelecimento_id).first()
                    if str(estabelecimento_id).lower() != 'all' else None)
         aliquota_impostos = float(_config.aliquota_impostos_venda) if _config and _config.aliquota_impostos_venda is not None else None
-        impostos_venda = receita_bruta * (aliquota_impostos or 0.0) / 100.0
-        receita_liquida = receita_bruta - impostos_venda
-        lucro_bruto = receita_liquida - vendas.get("cogs", 0.0)
+        # Devoluções de venda entram na data em que aconteceram: saem da receita; o custo do que voltou
+        # vendável sai do CMV e o custo das unidades dadas em troca entra nele.
+        from app.services.devolucao_service import ajustes_dre
+        from app.utils.timezone import local_date_to_utc_naive
+        ajustes = ajustes_dre(estabelecimento_id, local_date_to_utc_naive(dt_inicio),
+                              local_date_to_utc_naive(dt_fim, fim_do_dia=True))
+        devolucoes_venda = ajustes["devolucoes"]
+        custo_mercadoria = vendas.get("cogs", 0.0) - ajustes["cmv_estornado"] + ajustes["custo_trocas"]
+        impostos_venda = (receita_bruta - devolucoes_venda) * (aliquota_impostos or 0.0) / 100.0
+        receita_liquida = receita_bruta - devolucoes_venda - impostos_venda
+        lucro_bruto = receita_liquida - custo_mercadoria
 
         return jsonify({
             "success": True,
@@ -1198,9 +1207,10 @@ def resumo_financeiro():
             # lucro líquido. Agora: operacionais (sem espelhos) + pessoal, uma vez.
             "dre_consolidado": {
                 "receita_bruta": receita_bruta,
+                "devolucoes": devolucoes_venda,
                 "impostos_sobre_vendas": impostos_venda,
                 "receita_liquida": receita_liquida,
-                "custo_mercadoria": vendas.get("cogs", 0.0),
+                "custo_mercadoria": custo_mercadoria,
                 "lucro_bruto": lucro_bruto,
                 "despesas_pessoal": custo_folha_total,
                 "despesas_operacionais": despesas_operacionais,

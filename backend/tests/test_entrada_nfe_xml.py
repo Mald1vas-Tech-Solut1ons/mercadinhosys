@@ -211,7 +211,8 @@ def test_entrada_por_xml_ponta_a_ponta(client, session, loja):
     assert liq.preco_custo == Decimal("140.0000")  # (300 - 20 de desconto) / 2
     assert cam.codigo_barras is None and cam.quantidade == Decimal("12") and cam.preco_custo == Decimal("29.9000")
     assert cast.unidade_medida == "KG" and cast.quantidade == Decimal("2.350")
-    assert cast.preco_custo == Decimal("89.9000")
+    # Custo de aquisição inclui o ICMS-ST pago ao fornecedor: (211,27 + 34,65) / 2,35 kg
+    assert cast.preco_custo == Decimal("104.6468")
     forn = session.query(Fornecedor).filter_by(estabelecimento_id=estab_id, cnpj=CNPJ_FORNECEDOR).one()
     assert {liq.fornecedor_id, cam.fornecedor_id, cast.fornecedor_id} == {forn.id}
 
@@ -229,7 +230,7 @@ def test_entrada_por_xml_ponta_a_ponta(client, session, loja):
     assert len(movs) == 4
     por_prod = {m.produto_id: m for m in movs}
     assert por_prod[arroz.id].quantidade_anterior == Decimal("10") and por_prod[arroz.id].quantidade_atual == Decimal("15")
-    assert por_prod[cast.id].quantidade == Decimal("2.350") and por_prod[cast.id].custo_unitario == Decimal("89.9000")
+    assert por_prod[cast.id].quantidade == Decimal("2.350") and por_prod[cast.id].custo_unitario == Decimal("104.6468")
     assert por_prod[liq.id].custo_unitario == Decimal("140.0000")
     assert all(chave in (m.observacoes or "") for m in movs)
 

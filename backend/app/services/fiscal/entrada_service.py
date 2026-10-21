@@ -225,16 +225,32 @@ def tributacao_revenda(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _custo_unitario(item: Dict[str, Any]) -> Decimal:
-    """Custo líquido por unidade comercial: (vProd - vDesc) / qCom."""
-    qtd = Decimal(str(item["quantidade"]))
+def quantidade_estoque(item: Dict[str, Any]) -> tuple[Decimal, str]:
+    """Quantidade e unidade que entram no estoque.
+
+    NF-e: uCom/qCom é como o fornecedor vendeu (1 CX); uTrib/qTrib costuma ser a unidade
+    (12 UN). Quando a tributável é outra unidade e maior, ela é a que vai para a gôndola.
+    """
+    qtd = Decimal(str(item.get("quantidade") or 0))
     if not qtd.is_finite() or qtd <= 0:
         raise ImportacaoError(f"Quantidade inválida no item '{item.get('descricao')}'.")
-    desconto = Decimal(str(item.get("desconto") or 0))
-    if desconto > 0:
-        liquido = Decimal(str(item["valor_total"])) - desconto
-        return (liquido / qtd).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
-    return Decimal(str(item["valor_unitario"]))
+    unidade = (item.get("unidade") or "").upper() or "UN"
+    qtd_trib = Decimal(str(item.get("quantidade_tributavel") or 0))
+    unidade_trib = (item.get("unidade_tributavel") or "").upper()
+    if qtd_trib.is_finite() and qtd_trib > 0 and unidade_trib and unidade_trib != unidade and qtd_trib > qtd:
+        return qtd_trib, unidade_trib
+    return qtd, unidade
+
+
+def _custo_unitario(item: Dict[str, Any]) -> Decimal:
+    """Custo de aquisição: produtos − desconto + frete + seguro + outras + IPI + ICMS-ST, por unidade de estoque."""
+    qtd, _unidade = quantidade_estoque(item)
+
+    def _d(campo: str) -> Decimal:
+        return Decimal(str(item.get(campo) or 0))
+
+    total = _d("valor_total") - _d("desconto") + _d("frete") + _d("seguro") + _d("outras") + _d("ipi") + _d("icms_st")
+    return (total / qtd).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
 
 def _get_or_create_categoria_importacao(estab_id: int) -> CategoriaProduto:
@@ -295,11 +311,13 @@ def preview(parsed: Dict[str, Any], estab_id: int) -> Dict[str, Any]:
             "ean": it["ean"],
             "codigo": it["codigo"],
             "ncm": it["ncm"],
-            "unidade": it.get("unidade"),
+            "unidade": quantidade_estoque(it)[1],
+            "unidade_compra": it.get("unidade"),
+            "quantidade_compra": float(it["quantidade"]),
             "cfop_fornecedor": it.get("cfop"),
             "icms_st": mercadoria_veio_com_st(it),
-            "quantidade": float(it["quantidade"]),
-            "valor_unitario": float(it["valor_unitario"]),
+            "quantidade": float(quantidade_estoque(it)[0]),
+            "valor_unitario": float(_custo_unitario(it)),
             "valor_total": float(it["valor_total"]),
             "produto_existente": prod is not None,
             "produto_id": prod.id if prod else None,
@@ -358,7 +376,7 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
     produtos_atualizados = 0
 
     for it in parsed["itens"]:
-        qtd = Decimal(str(it["quantidade"]))
+        qtd, unidade_estoque = quantidade_estoque(it)
         custo_unit = _custo_unitario(it)
         prod = _produto_existente(estab_id, it.get("ean"), it.get("codigo"), lock=True,
                                   fornecedor_id=forn.id if forn else None, por_fornecedor=True)
@@ -386,7 +404,7 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
                 codigo_barras=ean,
                 codigo_interno=codigo_interno,
                 nome=(it["descricao"] or "Produto importado")[:100],
-                unidade_medida=(it.get("unidade") or "UN")[:20],
+                unidade_medida=unidade_estoque[:20],
                 quantidade=Decimal("0"),
                 preco_custo=custo_unit,
                 preco_venda=preco_venda,

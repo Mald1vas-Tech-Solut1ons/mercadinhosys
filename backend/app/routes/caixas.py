@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.decorators.plan_guards import permission_required
@@ -280,6 +281,9 @@ def registrar_movimentacao():
         )
         
         # Atualizar saldo atual do caixa
+        if tipo == "sangria" and Decimal(str(valor)) > Decimal(str(caixa.saldo_atual or 0)):
+            db.session.rollback()
+            return jsonify({"success": False, "error": f"Sangria maior que o dinheiro em caixa (R$ {float(caixa.saldo_atual or 0):.2f})."}), 400
         if tipo == "sangria":
             caixa.saldo_atual = float(caixa.saldo_atual) - valor
         else:

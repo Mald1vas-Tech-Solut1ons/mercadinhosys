@@ -140,7 +140,7 @@ export const productsService = {
             lotes: any[];
             total_lotes: number;
             total_quantidade: number;
-        }>(`/pedidos-compra/produtos/${produtoId}/lotes-disponiveis`);
+        }>(`/produtos/${produtoId}/lotes-disponiveis`);
         return response.data;
     },
 

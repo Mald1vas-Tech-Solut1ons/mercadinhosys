@@ -2,11 +2,12 @@ from datetime import datetime, timedelta
 from app import db
 from sqlalchemy import func
 from app.models import PedidoCompra, Fornecedor, ContaPagar, Produto
+from app.services.consultor.contextos._datas import hoje_local, ini, fim
 
 def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto de Compras para o consultor IA."""
     agora = datetime.now()
-    hoje = agora.date()
+    hoje = hoje_local()
     mes_atual_inicio = hoje.replace(day=1)
     
     contexto = {}
@@ -27,8 +28,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
         func.sum(PedidoCompra.total).label("volume_total")
     ).join(PedidoCompra).filter(
         PedidoCompra.status.in_(['concluido', 'parcial']),
-        PedidoCompra.data_pedido >= mes_atual_inicio,
-        PedidoCompra.data_pedido <= hoje
+        PedidoCompra.data_pedido >= ini(mes_atual_inicio),
+        PedidoCompra.data_pedido <= fim(hoje)
     )
     if estabelecimento_id != 'all':
         q_top_fornecedores = q_top_fornecedores.filter(PedidoCompra.estabelecimento_id == estabelecimento_id)

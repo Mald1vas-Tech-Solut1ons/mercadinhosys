@@ -27,7 +27,7 @@ import string
 from sqlalchemy import func
 from app.utils.smart_cache import get_cached_config, set_cached_config
 from app.utils.query_helpers import get_funcionario_safe, get_produto_safe, get_venda_safe, get_venda_itens_safe
-from app.decorators.plan_guards import normalize_plan
+from app.decorators.plan_guards import normalize_plan, plano_efetivo
 
 pdv_bp = Blueprint("pdv", __name__)
 
@@ -889,7 +889,7 @@ def finalizar_venda():
         tem_fiado = any((p.get("forma") or p.get("forma_pagamento", "")).lower() == "fiado" for p in pagamentos_data)
         is_local_admin = str(funcionario_data.get("role", "")).upper() == "ADMIN" or str(funcionario_data.get("cargo", "")).lower() in ["admin", "administrador"]
         if tem_fiado and not (is_saas_admin or is_local_admin):
-            plano_atual = normalize_plan(getattr(estabelecimento, "plano", "Gratuito"))
+            plano_atual = plano_efetivo(getattr(estabelecimento, "plano", "Gratuito"), getattr(estabelecimento, "plano_status", None))
             if plano_atual != "Pro":
                 return jsonify({
                     "error": "FUNCIONALIDADE_RESTRITA",

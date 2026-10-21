@@ -666,7 +666,7 @@ def criar_venda_entrega_unificada():
     custo histórico no item, crédito do fiado e dinheiro no caixa de quem vendeu.
     Pagamento "entrega" fica pendente para acerto na entrega.
     """
-    from app.decorators.plan_guards import normalize_plan
+    from app.decorators.plan_guards import normalize_plan, plano_efetivo
     from app.models import Auditoria, ContaReceber, Estabelecimento, Pagamento
     from app.services.estoque_service import registrar_saida
     from app.utils.checkout_locking import lock_checkout, validate_credit, validate_pricing
@@ -724,7 +724,7 @@ def criar_venda_entrega_unificada():
         validate_pricing(operador, itens, desconto, est_id)
         if tem_fiado and not operador.is_super_admin and str(operador.role or "").upper() != "ADMIN":
             estabelecimento = Estabelecimento.query.get(est_id)
-            if normalize_plan(getattr(estabelecimento, "plano", "Gratuito")) != "Pro":
+            if plano_efetivo(getattr(estabelecimento, "plano", "Gratuito"), getattr(estabelecimento, "plano_status", None)) != "Pro":
                 db.session.rollback()
                 return jsonify({"success": False, "error": "Seu plano não permite vendas no FIADO/VALE."}), 403
 

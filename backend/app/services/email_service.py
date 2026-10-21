@@ -588,9 +588,8 @@ class EmailService:
         
         logger.info(f"📧 [EMAIL BOAS-VINDAS] Enviando para: {to_email}")
         logger.info(f"Subject: {subject}")
-        # Log completo apenas em ambientes controlados por segurança
-        logger.info(f"Body: {content}")
-        
+        # O corpo traz a senha: nunca vai para o log.
+
         return True
 
     @staticmethod

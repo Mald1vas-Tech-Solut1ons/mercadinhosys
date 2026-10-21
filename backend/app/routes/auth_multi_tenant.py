@@ -27,12 +27,10 @@ def get_main_connection():
         return None
     return psycopg2.connect(main_url)
 
-def normalize_plan_name(p):
-    """Garante retorno apenas de Pro ou Gratuito no motor de auth"""
-    s = str(p or 'Gratuito').lower().strip()
-    if any(x in s for x in ['pro', 'premium', 'elite', 'advanced', 'enterprise', 'master', 'pago', 'profissional', 'professional']):
-        return 'Pro'
-    return 'Gratuito'
+def normalize_plan_name(p, plano_status=None):
+    """Garante retorno apenas de Pro ou Gratuito no motor de auth (trial em vigor = Pro)."""
+    from app.decorators.plan_guards import plano_efetivo
+    return plano_efetivo(p, plano_status)
 
 @auth_bp.route('/bootstrap', methods=['POST'])
 def bootstrap_admin():
@@ -124,7 +122,7 @@ def login():
                     'estabelecimento_nome': estab.nome_fantasia if estab else "MercadinhoSys",
                     'database_name': 'local',
                     'user_id': funcionario_local.id,
-                    'plano': normalize_plan_name(estab.plano) if estab else 'Gratuito',
+                    'plano': normalize_plan_name(estab.plano, estab.plano_status) if estab else 'Gratuito',
                     'plano_status': estab.plano_status if estab else 'ativo'
                 }
                 
@@ -147,7 +145,7 @@ def login():
                             'cargo': getattr(funcionario_local, 'cargo', 'Administrador'),
                             'is_super_admin': is_super,
                             'estabelecimento_id': "all" if is_super else funcionario_local.estabelecimento_id,
-                            'plano': normalize_plan_name(estab.plano) if estab else 'Gratuito',
+                            'plano': normalize_plan_name(estab.plano, estab.plano_status) if estab else 'Gratuito',
                             'plano_status': estab.plano_status if estab else 'ativo',
                             'permissoes': funcionario_local.permissoes
                         }
@@ -177,7 +175,7 @@ def login():
             'estabelecimento_nome': estabelecimento_nome,
             'database_name': database_name,
             'user_id': user_id,
-            'plano': normalize_plan_name(plano_estab),
+            'plano': normalize_plan_name(plano_estab, plano_status_estab),
             'plano_status': plano_status_estab or 'ativo'
         }
         
@@ -206,7 +204,7 @@ def login():
                     'role': "ADMIN" if is_super else role,
                     'cargo': 'Administrador' if is_super else 'Funcionário',
                     'status': 'ativo',
-                    'plano': normalize_plan_name(plano_estab) if not is_super else 'Pro',
+                    'plano': normalize_plan_name(plano_estab, plano_status_estab) if not is_super else 'Pro',
                     'plano_status': plano_status_estab if not is_super else 'ativo',
                     'is_super_admin': is_super,
                     'estabelecimento_id': "all" if is_super else estabelecimento_id,
@@ -340,7 +338,7 @@ def get_current_user():
                 'estabelecimento_nome': estab_nome,
                 'estabelecimento_razao_social': estab_razao,
                 'estabelecimento_cnpj': estab_cnpj,
-                'plano': normalize_plan_name(plano),
+                'plano': normalize_plan_name(plano, plano_status),
                 'plano_status': plano_status
             }
         }), 200

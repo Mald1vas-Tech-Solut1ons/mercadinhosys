@@ -5,6 +5,7 @@ from app import db
 from app.models import Despesa, ContaPagar, Venda
 from app.services.rh_calculator_service import calcular_custo_folha_detalhado
 from app.utils.financeiro_constants import sem_categorias_integradas
+from app.services.consultor.contextos._datas import hoje_local, ini, fim
 
 
 def _sem_categorias_integradas(query):
@@ -15,7 +16,7 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     Retorna apenas dados puros e determinísticos.
     """
     agora = datetime.now()
-    hoje = agora.date()
+    hoje = hoje_local()
     mes_atual_inicio = hoje.replace(day=1)
     
     # Mês anterior
@@ -31,8 +32,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     # 1. Receita (Vendas) do mês atual
     q_vendas = db.session.query(func.sum(Venda.total)).filter(
         Venda.status != 'cancelada',
-        Venda.data_venda >= mes_atual_inicio,
-        Venda.data_venda <= hoje
+        Venda.data_venda >= ini(mes_atual_inicio),
+        Venda.data_venda <= fim(hoje)
     )
     if estabelecimento_id != 'all':
         q_vendas = q_vendas.filter(Venda.estabelecimento_id == estabelecimento_id)

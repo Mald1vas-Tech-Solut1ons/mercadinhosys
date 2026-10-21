@@ -23,7 +23,7 @@ from app.models import (
     Pagamento,
 )
 from flask_jwt_extended import jwt_required, get_jwt
-from app.decorators.plan_guards import permission_required, normalize_plan
+from app.decorators.plan_guards import permission_required, normalize_plan, plano_efetivo
 from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id, get_dow_extract, get_hour_extract
 from sqlalchemy import or_, func, distinct, select
 from collections import defaultdict
@@ -846,7 +846,7 @@ def criar_venda():
         is_local_admin = str(func_dados.get("role", "")).upper() == "ADMIN" or str(func_dados.get("cargo", "")).lower() in ["admin", "administrador"]
 
         if tem_restrito and not (is_saas_admin or is_local_admin):
-            plano_atual = normalize_plan(getattr(estabelecimento, "plano", "Gratuito"))
+            plano_atual = plano_efetivo(getattr(estabelecimento, "plano", "Gratuito"), getattr(estabelecimento, "plano_status", None))
             if plano_atual != "Pro":
                 return jsonify({"error": "FUNCIONALIDADE_RESTRITA", "message": "Seu plano não permite vendas no FIADO/VALE."}), 403
             if not cliente_id:

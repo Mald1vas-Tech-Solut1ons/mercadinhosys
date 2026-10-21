@@ -24,7 +24,7 @@ from flask import request, jsonify, current_app, g
 from flask_jwt_extended import verify_jwt_in_request, get_jwt
 
 from app.decorators.rbac import RBAC_MATRIX, NIVEL_LABELS, nivel_do_role
-from app.decorators.plan_guards import normalize_plan
+from app.decorators.plan_guards import normalize_plan, plano_efetivo
 
 # (prefixo, recurso) — o mais específico deve vir antes do genérico.
 PREFIX_RESOURCE: list[tuple[str, str]] = [
@@ -102,7 +102,7 @@ def _plano_do_estabelecimento(tid):
     if plano is None:
         from app.models import Estabelecimento
         est = Estabelecimento.query.get(tid)
-        plano = (est.plano if est else "Gratuito") or "Gratuito"
+        plano = plano_efetivo(est.plano, est.plano_status) if est else "Gratuito"
         cache.set(key, plano, timeout=60)
     return plano
 

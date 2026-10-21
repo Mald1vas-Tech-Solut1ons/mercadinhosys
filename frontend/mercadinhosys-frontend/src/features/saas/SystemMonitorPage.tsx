@@ -90,6 +90,7 @@ const SystemMonitorPage: React.FC = () => {
         nome_admin: '',
         email_admin: '',
         username: '',
+        senha: '',
         cpf_admin: '',
         celular_admin: ''
     });
@@ -154,16 +155,17 @@ const SystemMonitorPage: React.FC = () => {
         if (!isValidCNPJ(formData.cnpj)) return toast.error('CNPJ da loja é inválido!');
         if (!isValidCPF(formData.cpf_admin)) return toast.error('CPF do administrador é inválido!');
         if (!isValidEmail(formData.email_loja) || !isValidEmail(formData.email_admin)) return toast.error('E-mail fornecido é inválido!');
+        if ((formData.senha || '').length < 6) return toast.error('A senha deve ter ao menos 6 caracteres!');
         
         setSubmitting(true);
         try {
             const res = await apiClient.post('/onboarding/registrar', formData);
             if (res.data.success) {
-                toast.success('Conta criada e credenciais enviadas por e-mail!');
+                toast.success('Conta criada! Entregue ao cliente o usuário e a senha definidos.');
                 setIsModalOpen(false);
                 setFormData({
                     nome_fantasia: '', cnpj: '', telefone_loja: '', email_loja: '',
-                    nome_admin: '', email_admin: '', username: '', cpf_admin: '', celular_admin: ''
+                    nome_admin: '', email_admin: '', username: '', senha: '', cpf_admin: '', celular_admin: ''
                 });
                 fetchData();
             }
@@ -699,7 +701,19 @@ const SystemMonitorPage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">E-mail para Receber Senha *</label>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Senha de Acesso (mín. 6) *</label>
+                                        <input
+                                            required
+                                            type="password"
+                                            minLength={6}
+                                            autoComplete="new-password"
+                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700"
+                                            value={formData.senha}
+                                            onChange={e => setFormData({ ...formData, senha: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">E-mail do Administrador *</label>
                                         <input
                                             required
                                             type="email"
@@ -734,7 +748,7 @@ const SystemMonitorPage: React.FC = () => {
                             <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100 flex gap-3 items-start">
                                 <Info className="text-amber-500 shrink-0 mt-0.5" size={18} />
                                 <p className="text-[10px] text-amber-800 font-bold leading-tight">
-                                    AVISO: Após clicar em criar, o sistema enviará um e-mail com a senha temporária imediatamente para o administrador responsável. Certifique-se de que o e-mail está correto.
+                                    AVISO: O sistema não envia a senha por e-mail. Anote o usuário e a senha definidos acima e entregue ao responsável da loja.
                                 </p>
                             </div>
 

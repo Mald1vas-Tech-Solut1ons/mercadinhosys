@@ -69,24 +69,16 @@ def registrar_conta():
                 pass
 
         # Senha definida pelo próprio cliente (self-service). Sem senha → gera temporária.
+        # A senha é obrigatória: o envio de credenciais por e-mail não existe de fato, então uma
+        # senha gerada pelo sistema nunca chegaria ao dono e a conta ficaria inacessível.
         senha_escolhida = (data.get("senha") or "").strip()
-        if senha_escolhida:
-            if len(senha_escolhida) < 6:
-                return jsonify({"success": False, "error": "A senha deve ter ao menos 6 caracteres."}), 400
-            senha_temporaria = senha_escolhida
-            senha_foi_gerada = False
-        else:
-            import secrets
-            import string
-            caracteres = string.ascii_letters + string.digits + "@#$*"
-            senha_temporaria = ''.join(secrets.choice(caracteres) for _ in range(12))
-            senha_foi_gerada = True
+        if len(senha_escolhida) < 6:
+            return jsonify({"success": False, "error": "Defina uma senha com ao menos 6 caracteres."}), 400
+        senha_temporaria = senha_escolhida
+        senha_foi_gerada = False
 
         # Não logamos a senha do cliente — apenas o evento.
-        current_app.logger.info(
-            f"🔑 [ONBOARDING] Nova conta trial: {username} "
-            f"(senha {'gerada' if senha_foi_gerada else 'definida pelo cliente'})"
-        )
+        current_app.logger.info(f"🔑 [ONBOARDING] Nova conta trial: {username}")
 
         # Início da Transação Atômica
         try:

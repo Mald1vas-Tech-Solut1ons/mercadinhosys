@@ -353,7 +353,35 @@ def create_app(config_name=None):
 
     # CORS - Configuração COMPLETA para produção
     import re
-    
+
+    # Cabeçalhos de segurança HTTP em TODAS as respostas da API (LGPD + hardening).
+    # camera/geolocation ficam (self): o PontoPage usa câmera e o PortalEntregador
+    # usa GPS no navegador — bloquear quebraria funcionalidades reais.
+    SECURITY_HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(self), microphone=(), geolocation=(self)",
+    }
+
+    @app.after_request
+    def apply_security_headers(response):
+        # "Server: gunicorn" expõe Tecnologia/versão (fingerprinting). Remove.
+        response.headers.remove("Server") if "Server" in response.headers else None
+        # CSP ATIVA, calibrada para a demo: permissiva (connect-src https:/wss:,
+        # img https:, unsafe-inline/eval) para zero bloqueio; aperto estrito no backlog.
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; "
+            "media-src 'self' blob:; connect-src 'self' https: wss:; "
+            "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
+        )
+        for key, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(key, value)
+        return response
+
     # Configuração de CORS - Robusta para Vercel/Render e Local
     cors_origins = None
     if app.config.get("CORS_ORIGINS"):

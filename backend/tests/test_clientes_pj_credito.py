@@ -148,7 +148,7 @@ def test_atualizacao_troca_pf_para_pj_exige_cnpj(client, session, loja, validado
 def test_score_sem_historico_e_neutro_e_nao_vira_bom_pagador(session, loja):
     cliente = _cliente(session, loja)
     resultado = calcular_score(cliente)
-    assert resultado["score"] == 500 and resultado["risco"] == "BAIXO"
+    assert resultado["score"] == 500 and resultado["risco"] == "SEM_HISTORICO"
     assert resultado["bom_pagador"] is False
 
 
@@ -183,6 +183,27 @@ def test_tolerancia_de_atraso_antes_de_bloquear(session, loja):
     with pytest.raises(ValueError, match="vencido"):
         validar_sem_atraso(cliente)
     assert len(titulos_vencidos(cliente)) == 1
+
+
+def test_limite_bloqueia_fiado_que_soma_titulos_em_aberto(session, loja):
+    cliente = _cliente(session, loja)
+    _titulo(session, loja, cliente, Decimal("700"), hoje_local() + timedelta(days=10))
+    validar_sem_atraso(cliente, valor_novo=Decimal("300"))
+    with pytest.raises(ValueError, match="Limite de crédito excedido"):
+        validar_sem_atraso(cliente, valor_novo=Decimal("300.01"))
+    validar_sem_atraso(cliente)
+
+
+def test_score_ignora_atraso_dentro_da_tolerancia(session, loja):
+    cliente = _cliente(session, loja)
+    _titulo(session, loja, cliente, Decimal("100"), hoje_local() - timedelta(days=3))
+    r = calcular_score(cliente)
+    assert r["titulos_vencidos_em_aberto"] == 0
+    assert r["risco"] == "SEM_HISTORICO"
+    _titulo(session, loja, cliente, Decimal("100"), hoje_local() - timedelta(days=9))
+    r = calcular_score(cliente)
+    assert r["titulos_vencidos_em_aberto"] == 1
+    assert r["risco"] in ("MEDIO", "ALTO")
 
 
 def test_recalcular_credito_grava_no_cliente(session, loja):

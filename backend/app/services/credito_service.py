@@ -17,6 +17,7 @@ from app.utils.timezone import hoje_local
 # Dias de atraso tolerados antes de bloquear nova venda a prazo.
 DIAS_TOLERANCIA_ATRASO = 5
 SCORE_NEUTRO = 500
+RISCO_SEM_HISTORICO = 'SEM_HISTORICO'
 
 
 def _hoje(hoje=None) -> date:
@@ -35,8 +36,20 @@ def titulos_vencidos(cliente, hoje=None, tolerancia=DIAS_TOLERANCIA_ATRASO):
     return [t for t in abertos if t.data_vencimento and t.data_vencimento.toordinal() < limite]
 
 
-def validar_sem_atraso(cliente, hoje=None):
-    """Recusa venda a prazo para cliente com título vencido além da tolerância."""
+def saldo_em_aberto(cliente) -> Decimal:
+    """Soma dos títulos em aberto, com saldo, do cliente."""
+    abertos = ContaReceber.query.filter(
+        ContaReceber.cliente_id == cliente.id,
+        ContaReceber.estabelecimento_id == cliente.estabelecimento_id,
+        ContaReceber.status == 'aberto',
+        ContaReceber.valor_atual > 0,
+    ).all()
+    return sum((Decimal(str(t.valor_atual)) for t in abertos), Decimal('0'))
+
+
+def validar_sem_atraso(cliente, hoje=None, valor_novo=None):
+    """Recusa venda a prazo para cliente com título vencido além da tolerância
+    ou cuja nova compra, somada aos títulos em aberto, exceda o limite de crédito."""
     vencidos = titulos_vencidos(cliente, hoje)
     if vencidos:
         total = sum((Decimal(str(t.valor_atual)) for t in vencidos), Decimal('0'))
@@ -45,6 +58,14 @@ def validar_sem_atraso(cliente, hoje=None):
         raise ValueError(
             f'Cliente com {len(vencidos)} título(s) vencido(s), R$ {total:.2f}, o mais antigo há {dias} dias. '
             f'Regularize o atraso antes de vender a prazo; pagamento à vista é permitido.')
+    if valor_novo and valor_novo > 0:
+        limite = Decimal(str(cliente.limite_credito or 0))
+        em_aberto = saldo_em_aberto(cliente)
+        novo = Decimal(str(valor_novo))
+        if em_aberto + novo > limite:
+            raise ValueError(
+                f'Limite de crédito excedido: em aberto R$ {em_aberto:.2f} + nova compra R$ {novo:.2f} > '
+                f'limite R$ {limite:.2f}.')
 
 
 def calcular_score(cliente, hoje=None) -> dict:
@@ -58,8 +79,9 @@ def calcular_score(cliente, hoje=None) -> dict:
     pagos = [t for t in titulos if t.status == 'pago' and t.data_recebimento and t.data_vencimento]
     pontuais = sum(1 for t in pagos if t.data_recebimento <= t.data_vencimento)
     atrasos = [max(0, (t.data_recebimento - t.data_vencimento).days) for t in pagos]
+    # Mesma tolerância do bloqueio: atraso dentro dela não pesa no score.
     vencidos_abertos = [t for t in titulos if t.status == 'aberto' and Decimal(str(t.valor_atual or 0)) > 0
-                        and t.data_vencimento and t.data_vencimento < hoje]
+                        and t.data_vencimento and (hoje - t.data_vencimento).days > DIAS_TOLERANCIA_ATRASO]
     atrasos += [(hoje - t.data_vencimento).days for t in vencidos_abertos]
     atraso_medio = (sum(atrasos) / len(atrasos)) if atrasos else 0.0
     maior_atraso = max((hoje - t.data_vencimento).days for t in vencidos_abertos) if vencidos_abertos else 0
@@ -79,9 +101,11 @@ def calcular_score(cliente, hoje=None) -> dict:
         }
         score = max(0, min(1000, sum(componentes.values())))
 
-    if vencidos_abertos and (score < 400 or maior_atraso > 60):
+    if not tem_historico:
+        risco = RISCO_SEM_HISTORICO
+    elif vencidos_abertos and (score < 400 or maior_atraso > 60):
         risco = 'ALTO'
-    elif vencidos_abertos or score < 700 and tem_historico:
+    elif vencidos_abertos or score < 700:
         risco = 'MEDIO'
     else:
         risco = 'BAIXO'

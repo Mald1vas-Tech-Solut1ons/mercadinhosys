@@ -632,7 +632,7 @@ def _validar_credito(cliente, valor, pedido, agora):
     if not cliente or condicao_a_vista(pedido.condicao_pagamento, valor, agora):
         return
     from app.services.credito_service import validar_sem_atraso
-    validar_sem_atraso(cliente)
+    validar_sem_atraso(cliente, valor_novo=valor)
     limite_disponivel = Decimal(str(cliente.limite_credito or 0)) - Decimal(str(cliente.saldo_devedor or 0))
     if valor > limite_disponivel:
         raise ValueError(f"Limite de crédito excedido. Disponível: R$ {limite_disponivel:.2f}, pedido: R$ {valor:.2f}")

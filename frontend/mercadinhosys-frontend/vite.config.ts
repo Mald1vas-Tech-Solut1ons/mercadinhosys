@@ -81,6 +81,22 @@ export default defineConfig(() => {
       port: 5173,           // porta INTERNA do container
       host: true,           // escuta em 0.0.0.0 (necessário no Docker)
       strictPort: true,
+      // Cabeçalhos de segurança no dev server (paridade com vercel.json / nginx.conf).
+      // camera/geolocation ficam (self): PontoPage usa câmera e PortalEntregador usa GPS.
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
+        // CSP ativa, permissiva (calibrada p/ demo): connect-src https:/wss: cobre API Oracle,
+        // Sentry, ViaCEP e futuras consultas externas. Backlog: apertar p/ allowlist explicita.
+        'Content-Security-Policy':
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+          "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; " +
+          "media-src 'self' blob:; connect-src 'self' https://mercadinhosys-api.144.22.151.18.sslip.io https://o4511655329923072.ingest.us.sentry.io; " +
+          "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
+      },
       // Detecta mudanças de arquivo dentro do Docker (Windows/WSL precisa de polling)
       watch: {
         usePolling: true,

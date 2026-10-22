@@ -17,7 +17,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func
 
 from app.models import (ContaReceber, PedidoVendaExpedicao, PedidoVendaExpedicaoItem, Produto, Venda, VendaItem, db)
-from app.utils.timezone import to_local
+from app.utils.timezone import now_utc, to_local
 from app.services.estoque_service import (controla_estoque, quantidade_em_quarentena, quantidade_valida,
                                           registrar_saida, reservado_no_produto)
 
@@ -185,7 +185,7 @@ def planejar_expedicao(pedido, selecao=None) -> PlanoExpedicao:
 def executar_expedicao(pedido, plano, cliente, *, agora=None):
     """Cria a venda da saída, baixa o estoque, grava a expedição e gera os títulos do que saiu."""
     from app.services.venda_service import VendaService
-    agora = agora or datetime.utcnow()
+    agora = agora or now_utc()
     sequencia = (db.session.query(func.coalesce(func.max(PedidoVendaExpedicao.sequencia), 0))
                  .filter(PedidoVendaExpedicao.pedido_id == pedido.id).scalar() or 0) + 1
     codigo_venda = f'VD-SFA-{pedido.id}-{sequencia}-{int(agora.timestamp())}'
@@ -300,7 +300,7 @@ def reabrir_expedicao(venda):
         item = PedidoVendaItem.query.filter_by(id=ei.pedido_item_id, estabelecimento_id=venda.estabelecimento_id).first()
         if item:
             item.quantidade_atendida = max(ZERO, _dec(item.quantidade_atendida) - _dec(ei.quantidade))
-    expedicao.cancelada_em = datetime.utcnow()
+    expedicao.cancelada_em = now_utc()
     db.session.flush()
     db.session.refresh(pedido)
     atualizar_status(pedido)

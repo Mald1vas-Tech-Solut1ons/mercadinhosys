@@ -9,6 +9,7 @@ from app.models import (
     db, StatusPedidoLogistica, AuditoriaQuilometragem,
     TurnoEntregador, ConfiguracaoLogistica, ChecklistVeiculo, Funcionario, Veiculo
 )
+from app.utils.timezone import now_utc
 
 logger = logging.getLogger(__name__)
 logistica_bp = Blueprint('logistica', __name__)
@@ -179,7 +180,7 @@ def listar_eventos_recentes():
                 "status": ev.status,
                 "latitude": ev.latitude,
                 "longitude": ev.longitude,
-                "timestamp": ev.timestamp.isoformat() if ev.timestamp else datetime.utcnow().isoformat()
+                "timestamp": ev.timestamp.isoformat() if ev.timestamp else now_utc().isoformat()
             }
             
     return jsonify({
@@ -326,7 +327,7 @@ def finalizar_turno():
     turno.distancia_percorrida = distancia
     turno.custo_combustivel = custo_combustivel
     turno.custo_manutencao = custo_manutencao
-    turno.horario_fim = datetime.utcnow()
+    turno.horario_fim = now_utc()
     turno.status = "fechado"
     
     db.session.commit()
@@ -463,7 +464,7 @@ def dashboard_metricas():
     filtro = request.args.get('filtro', 'hoje')
     
     from datetime import datetime, timedelta
-    agora = datetime.utcnow()
+    agora = now_utc()
     hoje_inicio = agora.replace(hour=0, minute=0, second=0, microsecond=0)
     
     if filtro == 'hoje':

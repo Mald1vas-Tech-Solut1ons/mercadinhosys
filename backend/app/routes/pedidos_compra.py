@@ -16,6 +16,7 @@ from app.decorators.decorator_jwt import funcionario_required
 from app.services.estoque_service import quantidade_valida
 from app.services.fornecedor_score import aplicar_metricas, calcular_metricas
 from app.utils.sale_validation import number
+from app.utils.timezone import now_utc
 
 pedidos_compra_bp = Blueprint('pedidos_compra', __name__)
 
@@ -205,7 +206,7 @@ def criar_pedido():
             fornecedor_id=data['fornecedor_id'],
             funcionario_id=user.id,
             numero_pedido=numero_pedido,
-            data_pedido=datetime.combine(data_pedido, datetime.min.time()) if data_pedido else datetime.utcnow(),
+            data_pedido=datetime.combine(data_pedido, datetime.min.time()) if data_pedido else now_utc(),
             data_previsao_entrega=data_previsao,
             horario_entrega=horario_entrega,
             condicao_pagamento=data.get('condicao_pagamento', fornecedor.forma_pagamento),

@@ -25,6 +25,7 @@ from app.models import (
     Despesa,
     SyncQueue,
 )
+from app.utils.timezone import now_utc
 
 sync_bp = Blueprint("sync", __name__)
 
@@ -142,7 +143,7 @@ def sync_health():
         idade_min = None
         sync_saudavel = False
         if hb and hb.last_run_at:
-            idade = (_dt.utcnow() - hb.last_run_at).total_seconds()
+            idade = (now_utc() - hb.last_run_at).total_seconds()
             idade_min = round(idade / 60, 1)
             # saudável se o último ciclo foi OK e ocorreu há menos de ~3 intervalos
             sync_saudavel = (hb.status == "ok") and (idade < interval * 3 + 600)

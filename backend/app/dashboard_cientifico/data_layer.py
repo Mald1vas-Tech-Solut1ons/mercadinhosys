@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy import func, desc, extract, case, and_, or_
 from decimal import Decimal, ROUND_HALF_UP
 from app.utils.custo import custo_efetivo
-from app.utils.timezone import local_date_to_utc_naive
+from app.utils.timezone import now_utc, local_date_to_utc_naive
 from app.models import (
     Venda, VendaItem, Produto, Cliente,
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
@@ -2348,7 +2348,7 @@ class DataLayer:
         Analítica de Força de Vendas (SFA):
         Calcula faturamento do período atual vs período passado, tendência e meta (projetada +10%).
         """
-        now = datetime.utcnow()
+        now = now_utc()
         start_current = now - timedelta(days=days)
         start_previous = start_current - timedelta(days=days)
 

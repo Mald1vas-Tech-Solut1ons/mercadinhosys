@@ -12,7 +12,7 @@ from app.models import (
     ChecklistVeiculo, ITENS_CHECKLIST_PADRAO,
 )
 from app.decorators.rbac import tenant_or_super_admin_required, resource_required
-from app.utils.timezone import hoje_local
+from app.utils.timezone import now_utc, hoje_local
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import json
@@ -414,7 +414,7 @@ def relatorio_conformidade():
 
         return jsonify({
             "success": True,
-            "gerado_em": datetime.utcnow().isoformat(),
+            "gerado_em": now_utc().isoformat(),
             "resumo": {
                 "total_motoristas": len(motoristas),
                 "total_veiculos": len(veiculos),

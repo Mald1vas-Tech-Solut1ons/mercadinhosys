@@ -7,12 +7,12 @@
  * - chave do DANFE (código de barras de 44 dígitos) — diz se a nota já entrou; os itens
  *   exigem o XML (baixar da SEFAZ pela chave exige certificado A1, fora do escopo).
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef, lazy } from 'react';
 import { Upload, Download, CheckCircle, RefreshCw, QrCode, ScanLine, AlertTriangle, X } from 'lucide-react';
 import { fiscalService, NotaEntrada, NotaEntradaPreview, ConsultaChave } from './fiscalService';
 import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
-import LerNotaModal from './LerNotaModal';
+const LerNotaModal = lazy(() => import('./LerNotaModal'));
 import { interpretarLeitura } from './chaveAcesso';
 
 const brl = (v: number) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -211,7 +211,9 @@ export default function EntradaNotaPanel({ abrirLeitor = false, textoCompartilha
             </div>
 
             {leitorAberto && (
-                <LerNotaModal onFechar={() => { leituraAtual.current++; setConsultando(false); setLeitorAberto(false); }} onLido={aoLer} carregando={consultando} />
+                <Suspense fallback={<div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40"><RefreshCw className="w-6 h-6 animate-spin text-white" /></div>}>
+                    <LerNotaModal onFechar={() => { leituraAtual.current++; setConsultando(false); setLeitorAberto(false); }} onLido={aoLer} carregando={consultando} />
+                </Suspense>
             )}
             {!leitorAberto && consultando && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40">

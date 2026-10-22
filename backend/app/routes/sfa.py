@@ -15,7 +15,7 @@ from uuid import uuid4
 import re
 import calendar as cal_lib
 from sqlalchemy import bindparam, func
-from app.utils.timezone import iso_local, local_date_to_utc_naive, to_local
+from app.utils.timezone import now_utc, iso_local, local_date_to_utc_naive, to_local
 
 bp = Blueprint("sfa", __name__)
 
@@ -498,7 +498,7 @@ def sync_pedidos():
                 condicao_pagamento=p_data.get("condicao_pagamento"),
                 observacoes=p_data.get("observacoes"),
                 offline_uuid=offline_uuid,
-                data_emissao=datetime.utcnow()
+                data_emissao=now_utc()
             )
             db.session.add(novo_pedido)
             db.session.flush()
@@ -662,7 +662,7 @@ def reservar_pedido(pedido_id):
             return jsonify({"status": "error", "message": "Pedido sem itens"}), 400
         cliente = _travar_cliente_e_produtos(estab_id, pedido)
         if pedido.status == "pendente":
-            _validar_credito(cliente, pedido.total, pedido, datetime.utcnow())
+            _validar_credito(cliente, pedido.total, pedido, now_utc())
         faltas = reservar(pedido, permitir_falta=bool(corpo.get("permitir_falta")))
         db.session.commit()
         return jsonify({"status": "success", "message": "Pedido reservado" if not faltas else "Reserva parcial: itens em falta ficam em carteira",
@@ -715,7 +715,7 @@ def expedir_pedido(pedido_id):
         if pedido.status not in ("aprovado", "parcial"):
             return jsonify({"status": "error", "message": "Reserve o pedido antes de expedir"}), 400
         cliente = _travar_cliente_e_produtos(estab_id, pedido)
-        agora = datetime.utcnow()
+        agora = now_utc()
         plano = planejar_expedicao(pedido, selecao)
         _validar_credito(cliente, plano.total, pedido, agora)
         venda, expedicao, parcelas = executar_expedicao(pedido, plano, cliente, agora=agora)
@@ -777,7 +777,7 @@ def aprovar_pedido(pedido_id):
             return jsonify({"status": "error", "message": "Pedido sem itens"}), 400
 
         cliente = _travar_cliente_e_produtos(estab_id, pedido)
-        agora = datetime.utcnow()
+        agora = now_utc()
         if pedido.status == "pendente":
             _validar_credito(cliente, pedido.total, pedido, agora)
         reservar(pedido)  # tudo ou nada: sem estoque livre, nada é reservado nem faturado

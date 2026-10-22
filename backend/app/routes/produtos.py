@@ -31,6 +31,7 @@ from app.models import (
     CatalogoMestre,
 )
 from app.utils import calcular_margem_lucro, formatar_codigo_barras
+from app.utils.timezone import now_utc
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import gerente_required, resource_required
@@ -482,7 +483,7 @@ def _cache_negativo_vigente(item):
     if item is None or item.status != "nao_encontrado":
         return False
     consultado = item.consultado_em or item.updated_at or item.created_at
-    return consultado is None or consultado >= datetime.utcnow() - timedelta(days=CACHE_NEGATIVO_DIAS)
+    return consultado is None or consultado >= now_utc() - timedelta(days=CACHE_NEGATIVO_DIAS)
 
 
 def _gravar_cache_negativo(ean):
@@ -495,7 +496,7 @@ def _gravar_cache_negativo(ean):
             item = CatalogoMestre(ean=ean)
             db.session.add(item)
         item.status = "nao_encontrado"
-        item.consultado_em = datetime.utcnow()
+        item.consultado_em = now_utc()
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -568,7 +569,7 @@ def _cosmos_para_catalogo(ean: str, j: dict) -> "CatalogoMestre":
     item.fonte = "cosmos"
     item.status = "encontrado"
     item.payload_json = _json.dumps(j)[:60000]
-    item.consultado_em = datetime.utcnow()
+    item.consultado_em = now_utc()
     return item
 
 
@@ -634,7 +635,7 @@ def _buscar_open_facts(ean: str):
         item.fonte = base.split("//")[1].split(".")[1]  # openfoodfacts / openbeautyfacts / ...
         item.status = "encontrado"
         item.payload_json = _json.dumps(p)[:60000]
-        item.consultado_em = datetime.utcnow()
+        item.consultado_em = now_utc()
         return item, True
     return None, todas_responderam
 
@@ -5563,7 +5564,7 @@ def importar_produtos_csv():
     import io
     from sqlalchemy import select
     from sqlalchemy.exc import IntegrityError
-    from app.utils.timezone import hoje_local
+    from app.utils.timezone import now_utc, hoje_local
 
     try:
         claims = get_jwt()

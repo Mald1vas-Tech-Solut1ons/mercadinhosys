@@ -33,7 +33,19 @@ export default defineConfig(() => {
 
   console.log('🔧 Vite proxy configurado para:', apiTarget);
 
+  const rollupOptions = {
+    output: {
+      manualChunks: {
+        vendor: ['react', 'react-dom', 'react-router-dom'],
+        charts: ['recharts'],
+        pdf: ['jspdf', 'html2canvas'],
+        excel: ['xlsx'],
+      },
+    },
+  };
+
   return {
+    build: { rollupOptions, chunkSizeWarningLimit: 900 },
     define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
     plugins: [
       react(),

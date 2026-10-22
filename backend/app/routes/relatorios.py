@@ -38,7 +38,7 @@ import zipfile
 from sqlalchemy import func, extract, and_, or_, cast, String, desc
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from app.decorators.plan_guards import plan_required
-from app.utils.timezone import fmt_local, iso_local
+from app.utils.timezone import now_utc, fmt_local, iso_local
 from collections import defaultdict
 from typing import Dict, List, Any, Tuple
 from app.utils.metrics_calculator import MetricsCalculator
@@ -129,10 +129,10 @@ def analise_rfm_clientes(estabelecimento_id: int, days: int = 180, data_inicio: 
     # "can't subtract offset-naive and offset-aware datetimes" (RFM e resumo davam 500).
     if data_inicio:
         if not data_fim:
-            data_fim = datetime.utcnow()
+            data_fim = now_utc()
     else:
         # Padrão: últimos X dias
-        data_fim = datetime.utcnow()
+        data_fim = now_utc()
         data_inicio = data_fim - timedelta(days=days)
     
     # Query otimizada: agrupa no banco de dados
@@ -163,7 +163,7 @@ def analise_rfm_clientes(estabelecimento_id: int, days: int = 180, data_inicio: 
         return []
     
     # Processar resultados (now naive UTC, coerente com o banco)
-    now = datetime.utcnow()
+    now = now_utc()
     clientes_rfm = []
 
     for row in resultados:

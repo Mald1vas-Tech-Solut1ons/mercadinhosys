@@ -15,6 +15,12 @@ _OFFSET_HORAS = int(os.getenv("APP_UTC_OFFSET_HOURS", "-3"))
 LOCAL_TZ = timezone(timedelta(hours=_OFFSET_HORAS))
 
 
+def now_utc():
+    """Substituto moderno de datetime.utcnow() (deprecado): instante UTC naive,
+    igual ao que o banco grava. Sem mudança semântica, sem DeprecationWarning."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def to_local(dt):
     """Converte um datetime UTC (naive ou aware) para o fuso local (aware)."""
     if dt is None:

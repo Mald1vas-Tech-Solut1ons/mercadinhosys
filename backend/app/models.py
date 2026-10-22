@@ -191,7 +191,7 @@ class TenantQuery(_BaseQuery):
 db = SQLAlchemy(query_class=TenantQuery, metadata=MetaData(naming_convention=naming_convention))
 
 def utcnow() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def normalizar_documento(doc: str) -> str:
     if not doc: return ""
@@ -2779,14 +2779,14 @@ class StatusPedidoLogistica(db.Model):
     status = db.Column(db.String(50), nullable=False) # SAIU_PARA_ENTREGA, CHEGOU_NO_LOCAL, CONCLUIDO
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=utcnow)
 
 class AuditoriaQuilometragem(db.Model):
     __tablename__ = "auditoria_quilometragem"
     id = db.Column(db.Integer, primary_key=True)
     estabelecimento_id = db.Column(db.Integer, db.ForeignKey('estabelecimentos.id'), nullable=False, index=True)
     funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False, index=True)
-    turno_data = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    turno_data = db.Column(db.Date, nullable=False, default=lambda: utcnow().date())
     pontos_gps = db.Column(db.JSON, nullable=True) # JSON array de coords offline
     distancia_total_km = db.Column(db.Float, default=0.0)
 
@@ -2808,8 +2808,8 @@ class TurnoEntregador(db.Model):
     estabelecimento_id = db.Column(db.Integer, db.ForeignKey('estabelecimentos.id'), nullable=False, index=True)
     funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False, index=True)
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=True, index=True)
-    data_turno = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
-    horario_inicio = db.Column(db.DateTime, default=datetime.utcnow)
+    data_turno = db.Column(db.Date, nullable=False, default=lambda: utcnow().date())
+    horario_inicio = db.Column(db.DateTime, default=utcnow)
     horario_fim = db.Column(db.DateTime, nullable=True)
     km_inicial = db.Column(db.Numeric(10, 2), nullable=False)
     km_final = db.Column(db.Numeric(10, 2), nullable=True)
@@ -2826,7 +2826,7 @@ class ManutencaoVeiculo(db.Model, MultiTenantMixin, SerializableMixin, AuditMixi
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=False, index=True)
     motorista_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=True, index=True)
     despesa_id = db.Column(db.Integer, db.ForeignKey('despesas.id'), nullable=True, index=True)
-    data_manutencao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    data_manutencao = db.Column(db.DateTime, default=utcnow, nullable=False)
     tipo_servico = db.Column(db.String(100), nullable=False) # Ex: Oleo, Pneus, Relacao, Eletrica
     descricao = db.Column(db.Text, nullable=True)
     km_atual = db.Column(db.Numeric(10, 2), nullable=False)

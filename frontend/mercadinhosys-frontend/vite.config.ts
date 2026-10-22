@@ -2,8 +2,28 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { execSync } from 'node:child_process'
 
 // https://vite.dev/config/
+// Versão do build: SHA do commit (Vercel ou git local) + data. Mesmo valor no bundle e em /version.json.
+function buildVersion(): string {
+  let sha = process.env.VERCEL_GIT_COMMIT_SHA || '';
+  if (!sha) {
+    try { sha = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { /* sem git */ }
+  }
+  const dia = new Date().toISOString().slice(0, 10);
+  return `${sha ? sha.slice(0, 7) : 'local'}-${dia}`;
+}
+const APP_VERSION = buildVersion();
+
+// Publica /version.json (sem cache) para o app detectar deploy novo sem depender do service worker.
+const versionJsonPlugin = () => ({
+  name: 'emit-version-json',
+  generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: string }) => void }) {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: APP_VERSION, builtAt: new Date().toISOString() }) });
+  },
+});
+
 export default defineConfig(() => {
   // VITE_API_TARGET é injetado pelo docker-compose.dev.yml como http://backend:5000
   // Se estivermos fora do Docker, 'backend' não será resolvido, então usamos localhost:5000 como fallback.
@@ -14,10 +34,13 @@ export default defineConfig(() => {
   console.log('🔧 Vite proxy configurado para:', apiTarget);
 
   return {
+    define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
     plugins: [
       react(),
+      versionJsonPlugin(),
       VitePWA({
-        registerType: 'autoUpdate',
+        // 'prompt': o SW novo fica em espera até o updateManager decidir o momento seguro de aplicar.
+        registerType: 'prompt',
         // Não injeta o registerSW automaticamente — controlamos manualmente
         // para evitar que erros de registro (ex: HTTP, escopo, Safari privado)
         // sejam propagados ao Sentry como erros críticos.
@@ -28,7 +51,7 @@ export default defineConfig(() => {
         workbox: {
           // Ignora chamadas de API e arquivos dinâmicos no cache do SW
           navigateFallback: '/index.html',
-          navigateFallbackDenylist: [/^\/api\//],
+          navigateFallbackDenylist: [/^\/api\//, /^\/version\.json$/],
           runtimeCaching: [
             {
               urlPattern: /^\/api\//,
@@ -36,7 +59,7 @@ export default defineConfig(() => {
             },
           ],
           cleanupOutdatedCaches: true,
-          skipWaiting: true,
+          skipWaiting: false,
           clientsClaim: true,
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png'],

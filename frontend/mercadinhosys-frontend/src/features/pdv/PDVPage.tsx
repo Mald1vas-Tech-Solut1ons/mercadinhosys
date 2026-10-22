@@ -359,7 +359,10 @@ const PDVPage: React.FC = () => {
                         </div>
                         {pendingCount > 0 && isOnline && (
                             <button
-                                onClick={() => processQueue().then(r => showToast.success(`${r.synced} venda(s) sincronizada(s)!`))}
+                                onClick={() => processQueue().then(r => {
+                                    if (r.failed > 0) showToast.error(`${r.failed} venda(s) não sincronizada(s): ${r.lastError || 'erro desconhecido'}`, { duration: 10000 });
+                                    else if (r.synced > 0) showToast.success(`${r.synced} venda(s) sincronizada(s)!`);
+                                })}
                                 disabled={isSyncing}
                                 className="flex items-center gap-1 bg-white/20 hover:bg-white/30 rounded-lg px-3 py-1 transition-all"
                             >

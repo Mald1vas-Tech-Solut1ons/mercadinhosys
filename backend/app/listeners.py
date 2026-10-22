@@ -2,8 +2,11 @@ from sqlalchemy import event, inspect
 import os
 from app.models import db, AuditoriaSincronia, Auditoria
 import json
+import logging
 from flask import g
 from datetime import datetime, date
+
+logger = logging.getLogger(__name__)
 
 # Tabelas que devem ser sincronizadas com a nuvem (Integridade de Dados)
 TABELAS_SINCRONIZAVEIS = [
@@ -177,5 +180,5 @@ def setup_listeners():
         event.listen(model_class, 'after_update', lambda m, c, t: registrar_evento_forense(m, c, t, 'UPDATE'))
         event.listen(model_class, 'after_delete', lambda m, c, t: registrar_evento_forense(m, c, t, 'DELETE'))
 
-    print("Muralha Forense: Listeners de Auditoria e Sincronia (Business Intelligence) ativados!")
+    logger.info("Muralha Forense: Listeners de Auditoria e Sincronia (Business Intelligence) ativados!")
 

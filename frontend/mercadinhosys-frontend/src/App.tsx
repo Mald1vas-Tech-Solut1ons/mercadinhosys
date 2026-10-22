@@ -12,6 +12,8 @@ import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useGlobalOverlayScrollLock } from './hooks/useBodyScrollLock';
 
+import UpdatePrompt from './pwa/UpdatePrompt';
+
 const App: React.FC = () => {
   // Trava automaticamente o scroll do body sempre que qualquer modal "fixed inset-0"
   // estiver montado em qualquer lugar do app — cobre todos os modais do sistema.
@@ -26,6 +28,7 @@ const App: React.FC = () => {
               <Router>
                 <DebugRoutes />
                 <AppRoutes />
+                <UpdatePrompt />
                 <Toaster
                   position="top-right"
                   reverseOrder={false}

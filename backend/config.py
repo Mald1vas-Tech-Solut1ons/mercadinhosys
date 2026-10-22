@@ -4,7 +4,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 from dotenv import load_dotenv
 
-# Configure logger for config module
+# config é importado antes da app factory: garante handler para os logs de import.
+# basicConfig é no-op se o root logger já estiver configurado.
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 basedir = Path(__file__).parent.absolute()
@@ -41,7 +43,7 @@ if not _cloud_enabled or _hybrid_mode == "offline":
     _sqlalchemy_database_uri = _local_sqlite_uri
     _db_source = "LOCAL_ONLY"
     reason = "CLOUD_ENABLED=false" if not _cloud_enabled else "HYBRID_MODE=offline"
-    print(f"[DB: HYBRID] Mode: {reason} | Using Local SQLite: {_sqlalchemy_database_uri}")
+    logger.info("[DB: HYBRID] Mode: %s | Using Local SQLite: %s", reason, _sqlalchemy_database_uri)
 else:
     # Tentar configurar Cloud (Postgres)
     if _database_url:
@@ -60,14 +62,14 @@ else:
         _db_source = "CLOUD_ENV"
         
         if _using_postgres:
-            print(f"[DB: HYBRID] Mode: ONLINE | Source: CLOUD (Postgres)")
+            logger.info("[DB: HYBRID] Mode: ONLINE | Source: CLOUD (Postgres)")
         else:
-            print(f"[DB: HYBRID] Mode: ONLINE | Source: CLOUD (SQLite via URL?)")
+            logger.info("[DB: HYBRID] Mode: ONLINE | Source: CLOUD (SQLite via URL?)")
     else:
         # Sem URL de nuvem configura automaticamente para local
         _sqlalchemy_database_uri = _local_sqlite_uri
         _db_source = "AUTO_LOCAL"
-        print(f"[DB: HYBRID] Mode: ONLINE | No Cloud URL found. Fallback to Local SQLite.")
+        logger.warning("[DB: HYBRID] Mode: ONLINE | No Cloud URL found. Fallback to Local SQLite.")
 
 class Config:
     _secret_key = os.environ.get("SECRET_KEY")

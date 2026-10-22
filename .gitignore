@@ -159,3 +159,7 @@ documents/
 
 # PWA dev service worker (gerado pelo vite-plugin-pwa) — nao versionar
 frontend/mercadinhosys-frontend/dev-dist/
+
+# Cobertura e artefatos de teste
+coverage/
+**/pytest-of-*/

@@ -3,7 +3,7 @@ import * as Sentry from '@sentry/react';
 import App from './App';
 import './index.css';
 import { initSentry } from './observability/sentry';
-import { registerServiceWorker } from './registerServiceWorker';
+import { startUpdateManager } from './pwa/updateManager';
 
 // Importar teste de conectividade (disponível no console como testConnection())
 import './utils/testConnection';
@@ -11,9 +11,8 @@ import './utils/testConnection';
 // Monitoramento de erros (no-op se VITE_SENTRY_DSN não estiver definido).
 initSentry();
 
-// Registro do PWA Service Worker com tratamento silencioso de erros.
-// A falha no registro (HTTP, Safari privado, etc.) não derruba o app.
-registerServiceWorker();
+// PWA: registro do SW + ciclo de atualização (deploys). Falhas não derrubam o app.
+startUpdateManager();
 
 // Fallback amigável quando algo quebra de forma irrecuperável na UI.
 function ErrorFallback() {

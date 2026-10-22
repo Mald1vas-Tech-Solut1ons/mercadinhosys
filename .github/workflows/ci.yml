@@ -60,6 +60,9 @@ jobs:
           pip install -r backend/requirements.txt
           pip install pytest pytest-cov
 
+      - name: Verify Dependency Drift
+        run: python backend/scripts/check_deps.py backend/requirements.txt
+
       - name: Run Pytest Test Suite
         env:
           FLASK_ENV: testing
@@ -96,6 +99,10 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./frontend/mercadinhosys-frontend
         run: npm ci
+
+      - name: Unit Tests (Vitest, PDV/fila offline)
+        working-directory: ./frontend/mercadinhosys-frontend
+        run: npm run test:coverage
 
       - name: Typecheck & Vite Build
         working-directory: ./frontend/mercadinhosys-frontend

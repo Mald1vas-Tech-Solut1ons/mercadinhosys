@@ -49,12 +49,13 @@ export function useOfflineQueue() {
   }, [refreshCount]);
 
   // Processa fila — tenta enviar cada venda para o backend
-  const processQueue = useCallback(async (): Promise<{ synced: number; failed: number }> => {
+  const processQueue = useCallback(async (): Promise<{ synced: number; failed: number; lastError?: string }> => {
     if (isSyncing) return { synced: 0, failed: 0 };
     setIsSyncing(true);
 
     let synced = 0;
     let failed = 0;
+    let lastError: string | undefined;
 
     try {
       const items = await db.vendas.toArray();
@@ -78,11 +79,17 @@ export function useOfflineQueue() {
             await db.vendas.delete(item.id);
             synced++;
             console.log(`✅ Venda offline sincronizada: ${item.id}`);
+          } else {
+            // 2xx sem confirmação: não deixa a venda presa em "syncing"
+            lastError = 'Resposta do servidor sem confirmação';
+            await db.vendas.update(item.id, { status: 'error', error_message: lastError });
+            failed++;
           }
         } catch (err: any) {
           // Erro de rede → deixa na fila para próxima tentativa
           const erroMsg = err?.response?.data?.message || err?.message || 'Erro de rede';
           const isNetworkError = !err?.response;
+          lastError = isNetworkError ? 'Sem conexão com o servidor' : erroMsg;
 
           if (isNetworkError) {
             // Sem internet ainda — atualiza status e sai do loop
@@ -102,7 +109,7 @@ export function useOfflineQueue() {
       await refreshCount();
     }
 
-    return { synced, failed };
+    return { synced, failed, lastError };
   }, [isSyncing, refreshCount]);
 
   // Monitora status de rede

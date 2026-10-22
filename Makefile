@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs clean test migrate seed backup restore
+.PHONY: help build up down restart logs clean test migrate seed backup restore deps-install deps-check test-frontend
 
 # Cores para output
 GREEN  := $(shell tput -Txterm setaf 2)
@@ -63,6 +63,19 @@ clean-all: ## Remove TUDO (cuidado!)
 		docker-compose down -v --remove-orphans; \
 		docker system prune -af --volumes; \
 	fi
+
+# ---- Ambiente local (fora do Docker) ----
+BACKEND_PY ?= backend/venv/Scripts/python.exe
+
+deps-install: ## Restaura o venv do backend exatamente conforme requirements.txt e valida
+	$(BACKEND_PY) -m pip install -r backend/requirements.txt
+	$(BACKEND_PY) backend/scripts/check_deps.py
+
+deps-check: ## Falha se o venv do backend divergir do requirements.txt (drift)
+	$(BACKEND_PY) backend/scripts/check_deps.py
+
+test-frontend: ## Vitest do frontend com cobertura dos modulos criticos (PDV/fila offline)
+	cd frontend/mercadinhosys-frontend && npm run test:coverage
 
 test: ## Roda todos os testes
 	@echo "${GREEN}Running tests...${RESET}"

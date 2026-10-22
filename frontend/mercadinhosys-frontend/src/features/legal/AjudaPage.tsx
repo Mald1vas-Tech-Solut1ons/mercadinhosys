@@ -62,6 +62,10 @@ const baseDeConhecimento = [
         a: 'O MercadinhoSys possui um banco de dados embutido no seu navegador. Se a internet cair, o caixa continua operando normalmente: lendo produtos, gerando cupons e finalizando vendas. Assim que a conexão for restabelecida, uma fila oculta (SyncQueue) enviará todas as transações pendentes para o servidor de forma segura e sem duplicidade.',
     },
     {
+        q: 'Meu produto não tem código de barras. Como imprimir a etiqueta?',
+        a: 'Em Produtos, clique em "Etiquetas", escolha os produtos e use o botão "Gerar código interno". O sistema cria um EAN-13 exclusivo da sua loja (começa com 20, faixa que a GS1 reserva para uso interno, então não conflita com produtos de mercado) e salva no cadastro. Depois é só imprimir, colar a etiqueta e bipar no PDV. Produtos com código do fabricante mantêm o código original. A geração é liberada para gerente e administrador.',
+    },
+    {
         q: 'Onde configuro o TEF ou maquininha de cartão?',
         a: 'Atualmente o MercadinhoSys opera como um ERP de conciliação administrativa. O caixa deve passar o cartão na maquininha física (PagSeguro, Cielo, etc.) e registrar no sistema a forma de pagamento (Crédito, Débito) e o status (Aprovado). O dinheiro vai diretamente para a conta bancária atrelada à sua maquininha.',
     },

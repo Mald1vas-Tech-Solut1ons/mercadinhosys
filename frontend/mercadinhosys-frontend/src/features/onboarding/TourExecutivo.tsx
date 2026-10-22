@@ -1,9 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, Barcode, Check } from 'lucide-react';
 
-const steps = [
+interface TourStep {
+    target: string;
+    title: string;
+    content: string;
+    route: string;
+    /** Selo curto acima do título (ex.: "Novo"). */
+    badge?: string;
+    /** Lista de pontos-chave exibida abaixo do texto. */
+    destaques?: string[];
+    /** Ícone de destaque no lugar do logo. */
+    Icon?: React.ComponentType<{ className?: string }>;
+}
+
+const steps: TourStep[] = [
     {
         target: '.tour-indicadores',
         title: 'Visão de Águia (Dashboard)',
@@ -14,6 +27,20 @@ const steps = [
         target: '.tour-produtos-upload',
         title: 'Gestão Inteligente de Estoque',
         content: 'Nunca mais perca vendas por falta de produto. O sistema alerta automaticamente quando o estoque mínimo é atingido. Você pode cadastrar milhares de itens em segundos arrastando sua planilha do Excel.',
+        route: '/products'
+    },
+    {
+        target: '.tour-produtos-etiquetas',
+        title: 'Etiquetas e Código de Barras Próprio',
+        badge: 'Produto sem código? Resolvido',
+        Icon: Barcode,
+        content: 'Granel, padaria, fracionado e artesanal não vêm com código de barras do fabricante. Aqui o sistema cria o código para você e já imprime a etiqueta pronta para a gôndola.',
+        destaques: [
+            'Ao abrir Etiquetas, produtos sem código aparecem marcados e o botão "Gerar código interno" cria um EAN-13 único para cada um.',
+            'O código nasce com o prefixo 20, faixa reservada pela GS1 para uso interno: vale só na sua loja e nunca conflita com produtos de mercado.',
+            'Fica salvo no cadastro do produto. É só colar a etiqueta e bipar no PDV, sem digitar nada.',
+            'Produtos que já têm código do fabricante mantêm o deles. A geração é liberada para gerente e administrador.'
+        ],
         route: '/products'
     },
     {
@@ -79,6 +106,14 @@ const TourExecutivo: React.FC = () => {
     const [run, setRun] = useState(false);
     const [stepIndex, setStepIndex] = useState(0);
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+    const [tooltipH, setTooltipH] = useState(220);
+    const tooltipRef = useRef<HTMLDivElement>(null);
+    const tooltipW = Math.min(450, window.innerWidth - 40);
+
+    // Mede o card real (passos com lista são mais altos) para posicioná-lo sem cortar.
+    useLayoutEffect(() => {
+        if (tooltipRef.current) setTooltipH(tooltipRef.current.offsetHeight);
+    }, [stepIndex, targetRect, run]);
 
     // Iniciar pelo botão da barra lateral
     useEffect(() => {
@@ -190,15 +225,22 @@ const TourExecutivo: React.FC = () => {
 
             {/* Tooltip Dinâmico */}
             {targetRect && (
-                <motion.div 
+                <motion.div
+                    ref={tooltipRef}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="absolute bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 w-[450px] pointer-events-auto border border-gray-100 dark:border-slate-700"
+                    className="absolute bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 pointer-events-auto border border-gray-100 dark:border-slate-700 overflow-y-auto"
                     style={{
-                        // Posiciona abaixo do elemento, se houver espaço. Senão, acima.
-                        top: targetRect.bottom + 20 > window.innerHeight - 200 ? targetRect.top - 200 : targetRect.bottom + 20,
+                        width: tooltipW,
+                        maxHeight: window.innerHeight - 40,
+                        // Abaixo do elemento se couber; senão acima; sempre dentro da tela.
+                        top: Math.max(20, Math.min(
+                            targetRect.bottom + 20 + tooltipH > window.innerHeight - 20
+                                ? targetRect.top - 20 - tooltipH
+                                : targetRect.bottom + 20,
+                            window.innerHeight - 20 - tooltipH)),
                         // Centraliza baseado no elemento
-                        left: Math.max(20, Math.min(targetRect.left + (targetRect.width / 2) - 225, window.innerWidth - 470))
+                        left: Math.max(20, Math.min(targetRect.left + (targetRect.width / 2) - tooltipW / 2, window.innerWidth - tooltipW - 20))
                     }}
                 >
                     <button 
@@ -208,12 +250,35 @@ const TourExecutivo: React.FC = () => {
                         <X className="w-5 h-5" />
                     </button>
                     
+                    {currentStep.badge && (
+                        <span className="inline-block mb-3 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 text-[11px] font-bold uppercase tracking-wider">
+                            {currentStep.badge}
+                        </span>
+                    )}
+
                     <div className="flex items-center gap-3 mb-4">
-                        <img src="/assets/logo.png" alt="MercadinhoSys Logo" className="w-8 h-8 object-contain" />
+                        {currentStep.Icon ? (
+                            <span className="flex items-center justify-center w-10 h-10 shrink-0 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                                <currentStep.Icon className="w-6 h-6" />
+                            </span>
+                        ) : (
+                            <img src="/assets/logo.png" alt="MercadinhoSys Logo" className="w-8 h-8 object-contain" />
+                        )}
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white pr-6">{currentStep.title}</h3>
                     </div>
-                    
-                    <p className="text-gray-600 dark:text-gray-300 mb-8">{currentStep.content}</p>
+
+                    <p className={`text-gray-600 dark:text-gray-300 ${currentStep.destaques ? 'mb-4' : 'mb-8'}`}>{currentStep.content}</p>
+
+                    {currentStep.destaques && (
+                        <ul className="mb-6 space-y-2.5 p-4 rounded-xl bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-700">
+                            {currentStep.destaques.map(d => (
+                                <li key={d} className="flex gap-2.5 text-sm text-gray-700 dark:text-gray-300">
+                                    <Check className="w-4 h-4 mt-0.5 shrink-0 text-emerald-500" />
+                                    <span>{d}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                     
                     <div className="flex items-center justify-between">
                         <span className="text-sm font-semibold text-gray-400">

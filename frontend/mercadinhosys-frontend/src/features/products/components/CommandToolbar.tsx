@@ -131,7 +131,7 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
 
         <button
           onClick={onLabels}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 rounded-xl transition-all text-sm font-medium"
+          className="tour-produtos-etiquetas flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 rounded-xl transition-all text-sm font-medium"
           title="Imprimir etiquetas com código de barras"
         >
           <Barcode className="w-4 h-4" />

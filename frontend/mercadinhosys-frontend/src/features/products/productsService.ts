@@ -27,6 +27,15 @@ export const productsService = {
         return response.data.produto;
     },
 
+    /** Sugestão de descrição via IA a partir do que já está no formulário. */
+    gerarDescricaoIA: async (dados: {
+        nome: string; categoria?: string; marca?: string; unidade_medida?: string;
+        tipo_item?: string; descricao_atual?: string;
+    }): Promise<string> => {
+        const response = await apiClient.post<{ success: boolean; descricao: string }>('/produtos/descricao-ia', dados);
+        return response.data.descricao;
+    },
+
     quickAdd: async (data: Partial<Produto>): Promise<Produto> => {
         const response = await apiClient.post<{ success: boolean; produto: Produto }>('/produtos/quick-add', data);
         return response.data.produto;

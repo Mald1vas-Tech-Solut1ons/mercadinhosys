@@ -174,18 +174,15 @@ def registrar_conta():
             # Confirmar tudo!
             db.session.commit()
 
-            # Só enviamos credenciais por e-mail quando a senha foi gerada pelo sistema.
+            # Senha gerada pelo sistema: o cliente cria a dele pelo link de ativação
+            # (o e-mail nunca leva senha).
             if senha_foi_gerada:
                 try:
-                    from app.services.email_service import email_service
-                    email_service.send_credentials_email(
-                        email_admin,
-                        nome_admin,
-                        senha_temporaria,
-                        nome_loja=novo_estabelecimento.nome_fantasia
-                    )
+                    from app.services.acesso_conta_service import enviar_ativacao
+                    enviar_ativacao(novo_admin, novo_estabelecimento.nome_fantasia)
                 except Exception as email_e:
-                    current_app.logger.warning(f"Conta criada, mas erro ao enviar e-mail: {str(email_e)}")
+                    db.session.rollback()
+                    current_app.logger.warning(f"Conta criada, mas o link de ativação falhou: {type(email_e).__name__}")
 
             return jsonify(sanitize_response({
                 "success": True,

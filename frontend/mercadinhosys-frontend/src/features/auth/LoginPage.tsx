@@ -27,8 +27,8 @@ export function LoginPage() {
   const mode = theme.palette.mode;
   const { login: authLogin } = useAuth();
 
-  // Estados do formulário
-  const [identifier, setIdentifier] = useState('');
+  // Estados do formulário (?usuario= vem da tela de ativação de conta)
+  const [identifier, setIdentifier] = useState(() => new URLSearchParams(window.location.search).get('usuario') || '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -145,7 +145,7 @@ export function LoginPage() {
                 onClose={() => setPaymentSuccess(false)}
               >
                 <strong>Assinatura realizada com sucesso!</strong><br />
-                Conta criada. Use a senha enviada por e-mail ou peça ao administrador.
+                Conta criada. Use o link de ativação enviado por e-mail para criar sua senha.
               </Alert>
             )}
 
@@ -222,6 +222,16 @@ export function LoginPage() {
                 }}
               >
                 {loading ? <CircularProgress size={26} color="inherit" /> : 'Entrar no Painel'}
+              </Button>
+
+              <Button
+                fullWidth
+                href="/definir-senha"
+                variant="text"
+                size="small"
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Esqueci minha senha
               </Button>
 
               {/* O botão "Criar administrador inicial" (bootstrap) saiu da tela de

@@ -107,3 +107,10 @@ export const checkPasswordStrength = (password: string): PasswordStrength => {
     return 'strong';
 };
 
+
+/** Senha de acesso: mesma regra do backend (acesso_conta_service.validar_forca_senha). */
+export const erroSenha = (senha: string): string | null => {
+    if (senha.length < 8) return 'A senha precisa ter pelo menos 8 caracteres.';
+    if (!/[A-Za-z]/.test(senha) || !/\d/.test(senha)) return 'A senha precisa ter letras e números.';
+    return null;
+};

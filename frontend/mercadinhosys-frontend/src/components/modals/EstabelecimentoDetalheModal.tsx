@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Building2, Users, Package, ShoppingBag, TrendingUp, MapPin, Phone, CreditCard, Settings, Edit2, Check, Loader2, Save } from 'lucide-react';
+import { X, Building2, Users, Package, ShoppingBag, TrendingUp, MapPin, Phone, CreditCard, Settings, Edit2, Check, Loader2, Save, KeyRound } from 'lucide-react';
+import toast from 'react-hot-toast';
+import LinkAcessoPainel, { LinkAcesso } from './LinkAcessoPainel';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../api/apiClient';
 import { isValidCNPJ } from '../../utils/validators';
@@ -27,6 +29,28 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState<any>({});
     const [isSaving, setIsSaving] = useState(false);
+
+    const [gerandoLink, setGerandoLink] = useState(false);
+    const [acesso, setAcesso] = useState<LinkAcesso | null>(null);
+
+    const enviarLinkAcesso = async () => {
+        setGerandoLink(true);
+        try {
+            const { data } = await apiClient.post(`/saas/tenants/${estabelecimento.id}/enviar-acesso`);
+            setAcesso({
+                loja: estabelecimento.nome_fantasia,
+                username: data.username,
+                email: data.email,
+                emailEnviado: Boolean(data.email_enviado),
+                link: data.link_ativacao,
+                telefone: estabelecimento.telefone,
+            });
+        } catch (error: any) {
+            toast.error(error?.response?.data?.error || 'Não foi possível gerar o link de acesso.');
+        } finally {
+            setGerandoLink(false);
+        }
+    };
 
     // Initial sync
     useEffect(() => {
@@ -475,6 +499,17 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
                             >
                                 Fechar
                             </button>
+                            {isSuperAdmin && !isEditing && (
+                                <button
+                                    onClick={enviarLinkAcesso}
+                                    disabled={gerandoLink}
+                                    title="Gera um novo link de ativação (o anterior deixa de valer) e envia por e-mail ao admin da loja"
+                                    className="px-4 py-2 border border-blue-600 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {gerandoLink ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                                    Enviar link de acesso
+                                </button>
+                            )}
                             {isSuperAdmin && (
                                 isEditing ? (
                                     <button
@@ -499,6 +534,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
                     </div>
                 </div>
             </div>
+            {acesso && <LinkAcessoPainel acesso={acesso} onClose={() => setAcesso(null)} />}
         </div>
     );
 };

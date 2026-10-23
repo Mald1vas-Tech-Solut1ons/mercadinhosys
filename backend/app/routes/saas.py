@@ -116,7 +116,7 @@ def tenant_onboarding():
         # Validação dos campos obrigatórios
         campos_obrigatorios = [
             'nome_fantasia', 'razao_social', 'telefone', 'email_estabelecimento',
-            'nome_admin', 'email_admin', 'senha_admin'
+            'nome_admin', 'email_admin'
         ]
         
         campos_faltantes = [campo for campo in campos_obrigatorios if not data.get(campo)]
@@ -240,7 +240,9 @@ def tenant_onboarding():
             })
         )
         
-        admin_funcionario.set_senha(data['senha_admin'])
+        # Senha é opcional: sem ela o dono cria a própria pelo link de ativação.
+        import secrets
+        admin_funcionario.set_senha(data.get('senha_admin') or secrets.token_urlsafe(24))
         db.session.add(admin_funcionario)
         db.session.flush()
         logger.info(f"✅ Administrador criado: {admin_funcionario.username}")
@@ -307,16 +309,15 @@ def tenant_onboarding():
         db.session.commit()
         logger.info(f"🎉 ONBOARDING CONCLUÍDO: {estabelecimento.nome_fantasia}")
 
-        # Enviar email de boas-vindas (assíncrono)
+        # E-mail de ativação com link de uso único (nunca a senha). O link também
+        # volta para o super admin: se o e-mail não chegar, ele manda por WhatsApp.
+        from app.services.acesso_conta_service import enviar_ativacao, url_app
         try:
-            email_service.send_welcome_email_tenant(
-                admin_funcionario.email, 
-                admin_funcionario.nome,
-                estabelecimento.nome_fantasia,
-                data['senha_admin']
-            )
+            ativacao = enviar_ativacao(admin_funcionario, estabelecimento.nome_fantasia)
         except Exception as e:
-            logger.warning(f"Erro ao enviar email de boas-vindas: {e}")
+            db.session.rollback()
+            logger.warning(f"Loja criada, mas o link de ativação falhou: {type(e).__name__}")
+            ativacao = {"enviado": False, "link": None}
 
         # Retorno sucesso com dados de acesso
         # Security: Sanitize response to ensure no password fields are exposed
@@ -346,7 +347,12 @@ def tenant_onboarding():
                 "acesso": {
                     "login": admin_funcionario.username,
                     "senha": "*****",  # Retorno mascarado por segurança
-                    "url_acesso": "https://app.mercadinhosys.com/login"
+                    "url_acesso": f"{url_app()}/login"
+                },
+                "ativacao": {
+                    "email_enviado": ativacao["enviado"],
+                    "link_ativacao": ativacao["link"],
+                    "validade_horas": 72
                 },
                 "recursos_criados": [
                     "Estabelecimento",
@@ -369,6 +375,42 @@ def tenant_onboarding():
             "error": "Falha ao provisionar ambiente do cliente",
             "details": str(e) if logger.isEnabledFor(logging.DEBUG) else "Erro interno. Contate o suporte."
         }), 500
+
+
+@saas_bp.route("/tenants/<int:id>/enviar-acesso", methods=["POST"])
+@super_admin_required
+@limiter.limit("10 per minute")
+def enviar_acesso_tenant(id):
+    """Gera um novo link de ativação para o admin da loja (invalida o anterior) e tenta enviar por e-mail."""
+    from app.models import allow_all_tenants
+    from app.services.acesso_conta_service import enviar_ativacao
+    estabelecimento = Estabelecimento.query.get(id)
+    if not estabelecimento:
+        return jsonify({"success": False, "error": "Estabelecimento não encontrado"}), 404
+    # Operação de plataforma: o super admin age sobre o admin de OUTRA loja.
+    with allow_all_tenants():
+        admin = (Funcionario.query.filter(Funcionario.estabelecimento_id == id, Funcionario.ativo.is_(True),
+                                          db.func.upper(Funcionario.role) == "ADMIN")
+                 .order_by(Funcionario.id.asc()).first())
+    if not admin or not admin.email:
+        return jsonify({"success": False, "error": "A loja não tem administrador ativo com e-mail"}), 400
+    try:
+        ativacao = enviar_ativacao(admin, estabelecimento.nome_fantasia)
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Falha ao gerar link de acesso da loja {id}: {type(e).__name__}")
+        return jsonify({"success": False, "error": "Não foi possível gerar o link agora"}), 500
+    logger.info(f"Link de acesso gerado para a loja {id} (e-mail enviado={ativacao['enviado']})")
+    return jsonify({
+        "success": True,
+        "email_enviado": ativacao["enviado"],
+        "email": admin.email,
+        "username": admin.username,
+        "link_ativacao": ativacao["link"],
+        "validade_horas": 72,
+        "message": ("Link enviado para " + admin.email) if ativacao["enviado"]
+                   else "E-mail não configurado ou falhou: copie o link e envie ao cliente.",
+    }), 200
 
 
 @saas_bp.route("/ativar-tenant/<int:id>", methods=["POST"])

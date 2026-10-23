@@ -652,3 +652,65 @@ def update_profile():
         db.session.rollback()
         current_app.logger.error(f"Erro ao atualizar perfil: {e}")
         return jsonify({"success": False, "error": "Falha ao atualizar perfil"}), 500
+
+
+@auth_bp.route("/password/reset-request", methods=["POST"])
+@limiter.limit("5 per minute", key_func=get_remote_address)
+def password_reset_request():
+    """Envia o link de redefinição de senha. Resposta igual exista ou não o e-mail (sem enumeração)."""
+    from app.services.acesso_conta_service import enviar_redefinicao, VALIDADE, REDEFINICAO
+    resposta_padrao = {
+        "success": True,
+        "message": "Se o e-mail estiver cadastrado, você receberá um link para criar uma nova senha.",
+        "expires_in": int(VALIDADE[REDEFINICAO].total_seconds()),
+    }
+    data = request.get_json(silent=True) or {}
+    email = str(data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"success": False, "error": "Email é obrigatório", "code": "EMAIL_REQUIRED"}), 400
+    try:
+        funcionario = Funcionario.query.filter(
+            db.func.lower(Funcionario.email) == email, Funcionario.ativo.is_(True)
+        ).first()
+        if funcionario:
+            enviar_redefinicao(funcionario)
+        return jsonify(resposta_padrao), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro na solicitação de reset de senha: {type(e).__name__}")
+        return jsonify({"success": False, "error": "Erro ao processar solicitação", "code": "RESET_REQUEST_ERROR"}), 500
+
+
+@auth_bp.route("/senha/token/<token>", methods=["GET"])
+@limiter.limit("30 per minute", key_func=get_remote_address)
+def senha_validar_token(token):
+    """Diz se o link ainda vale e para quem é (só o primeiro nome e a loja), para a tela /definir-senha."""
+    from app.services.acesso_conta_service import token_valido
+    registro = token_valido(token)
+    if not registro:
+        return jsonify({"success": False, "error": "Link inválido ou expirado. Peça um novo link.", "code": "TOKEN_INVALIDO"}), 400
+    funcionario = registro.funcionario
+    estabelecimento = Estabelecimento.query.get(funcionario.estabelecimento_id)
+    return jsonify({
+        "success": True,
+        "finalidade": registro.finalidade,
+        "nome": (funcionario.nome or "").split(" ")[0],
+        "username": funcionario.username,
+        "loja": estabelecimento.nome_fantasia if estabelecimento else None,
+    }), 200
+
+
+@auth_bp.route("/senha/definir", methods=["POST"])
+@limiter.limit("10 per minute", key_func=get_remote_address)
+def senha_definir():
+    """Ativa a conta / redefine a senha a partir do link de uso único."""
+    from app.services.acesso_conta_service import definir_senha
+    data = request.get_json(silent=True) or {}
+    try:
+        funcionario = definir_senha(str(data.get("token") or ""), str(data.get("nova_senha") or ""))
+    except ValueError as erro:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(erro)}), 400
+    current_app.logger.info(f"Senha definida por link de uso único (funcionario_id={funcionario.id})")
+    return jsonify({"success": True, "username": funcionario.username,
+                    "message": "Senha criada. Agora é só entrar com seu usuário e a nova senha."}), 200

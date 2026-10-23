@@ -519,6 +519,71 @@ import os
 
 logger = logging.getLogger(__name__)
 
+RESEND_URL = "https://api.resend.com/emails"
+
+
+def enviar_email_transacional(destino: str, assunto: str, corpo_html: str, corpo_texto: str) -> bool:
+    """Envia um e-mail transacional (ativação, redefinição de senha).
+
+    Ordem: Resend (RESEND_API_KEY + EMAIL_FROM com domínio verificado) → SMTP
+    (MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD) → nada. Retorna False sem levantar
+    erro quando não há provedor; o chamador decide o plano B (ex.: link no painel).
+    Nunca registra o corpo no log: ele carrega o link de acesso.
+    """
+    remetente = os.getenv("EMAIL_FROM") or _resolve_mail_setting("MAIL_DEFAULT_SENDER")
+    api_key = (os.getenv("RESEND_API_KEY") or "").strip()
+    if api_key:
+        if not remetente:
+            logger.error("E-mail não enviado: RESEND_API_KEY definida sem EMAIL_FROM.")
+            return False
+        import requests
+        try:
+            resposta = requests.post(
+                RESEND_URL,
+                headers={"Authorization": "Bearer " + api_key, "Content-Type": "application/json"},
+                json={"from": remetente, "to": [destino], "subject": assunto,
+                      "html": corpo_html, "text": corpo_texto},
+                timeout=15,
+            )
+        except requests.RequestException:
+            logger.warning("E-mail não enviado: falha de rede com o Resend.")
+            return False
+        if resposta.status_code in (200, 201):
+            logger.info("E-mail transacional enviado via Resend: %s", assunto)
+            return True
+        logger.warning("E-mail não enviado: Resend respondeu HTTP %s.", resposta.status_code)
+        return False
+
+    servidor = _resolve_mail_setting("MAIL_SERVER", "smtp.gmail.com")  # mesmo padrão do cupom fiscal
+    usuario = _resolve_mail_setting("MAIL_USERNAME")
+    senha = _resolve_mail_setting("MAIL_PASSWORD")
+    if servidor and usuario and senha:
+        mensagem = MIMEMultipart("alternative")
+        mensagem["Subject"] = assunto
+        mensagem["From"] = remetente or usuario
+        mensagem["To"] = destino
+        mensagem.attach(MIMEText(corpo_texto, "plain", "utf-8"))
+        mensagem.attach(MIMEText(corpo_html, "html", "utf-8"))
+        try:
+            porta = int(_resolve_mail_setting("MAIL_PORT", 587))
+            if _resolve_mail_setting("MAIL_USE_SSL", False):
+                conexao = smtplib.SMTP_SSL(servidor, porta, context=ssl.create_default_context(), timeout=15)
+            else:
+                conexao = smtplib.SMTP(servidor, porta, timeout=15)
+                conexao.starttls(context=ssl.create_default_context())
+            with conexao:
+                conexao.login(usuario, senha)
+                conexao.sendmail(mensagem["From"], [destino], mensagem.as_string())
+        except (smtplib.SMTPException, OSError):
+            logger.warning("E-mail não enviado: falha no SMTP %s.", servidor)
+            return False
+        logger.info("E-mail transacional enviado via SMTP: %s", assunto)
+        return True
+
+    logger.warning("E-mail não enviado (nenhum provedor configurado): %s", assunto)
+    return False
+
+
 class EmailService:
     """
     Serviço centralizado para envio de comunicações por e-mail.
@@ -555,89 +620,6 @@ class EmailService:
         # Aqui entraria a lógica real do SendGrid:
         # sg = SendGridAPIClient(os.environ.get('SENDGRID_API_KEY'))
         # response = sg.send(message)
-        
-        return True
-
-    @staticmethod
-    def send_credentials_email(to_email, nome_usuario, senha_temporaria, nome_loja="Sua Loja"):
-        """
-        Envia e-mail profissional de boas-vindas com as credenciais de acesso.
-        """
-        subject = f"🚀 Seu Mercadinho está pronto para decolar! | Acesso ao MercadinhoSys"
-        
-        content = f"""
-        Olá {nome_usuario},
-
-        É um prazer ter o {nome_loja} como nosso parceiro! Você acaba de contratar um ecossistema de gestão inteligente projetado para maximizar seus lucros e organizar sua operação.
-
-        Como medida de segurança, nós geramos automaticamente suas credenciais de acesso iniciais.
-        Por favor, utilize as informações abaixo para entrar no sistema:
-
-        URL de Acesso: https://mercadinhosys.vercel.app/login
-        E-mail/Usuário: {to_email}
-        Senha Temporária: {senha_temporaria}
-
-        (Recomendamos que você altere esta senha no seu primeiro acesso para total segurança).
-
-        🧭 PRÓXIMOS PASSOS:
-        Ao entrar, você verá o nosso Tour de Boas-Vindas. Ele te guiará nos primeiros passos de configuração.
-
-        Vamos crescer juntos?
-        Equipe Maldivas Sistemas
-        """
-        
-        logger.info(f"📧 [EMAIL BOAS-VINDAS] Enviando para: {to_email}")
-        logger.info(f"Subject: {subject}")
-        # O corpo traz a senha: nunca vai para o log.
-
-        return True
-
-    @staticmethod
-    def send_welcome_email_tenant(to_email, nome_usuario, nome_estabelecimento, senha_temporaria):
-        """
-        Envia e-mail profissional de boas-vindas para novo tenant SaaS.
-        """
-        subject = f"🎉 Seu MercadinhoSys está pronto! | {nome_estabelecimento}"
-        
-        content = f"""
-Olá {nome_usuario},
-
-Seja muito bem-vindo(a) ao MercadinhoSys!
-
-Temos o prazer de informar que seu estabelecimento "{nome_estabelecimento}" foi provisionado com sucesso em nossa plataforma SaaS.
-
-🔐 **Seus Dados de Acesso:**
-URL de Acesso: https://app.mercadinhosys.com/login
-E-mail/Usuário: {to_email}
-Senha Temporária: {senha_temporaria}
-
-⚠️ **Importante:** Por favor, altere sua senha no primeiro acesso para maior segurança.
-
-🚀 **O que foi criado para você:**
-• Estabelecimento configurado com plano Gratuito
-• Usuário Administrador com todas as permissões
-• Configurações básicas e horário comercial padrão
-• Caixa PDV-01 inicial
-• 3 categorias de produtos (Geral, Bebidas, Mercearia)
-
-📚 **Próximos Passos:**
-1. Faça seu primeiro login agora mesmo
-2. Altere sua senha temporária
-3. Cadastre seus primeiros produtos
-4. Comece a vender!
-
-Se precisar de ajuda, nossa equipe está disponível através do suporte@mercadinhosys.com
-
-Vamos alavancar seu negócio juntos! 💪
-
-Atenciosamente,
-Equipe MercadinhoSys
-        """
-        
-        logger.info(f"📧 [EMAIL ONBOARDING SaaS] Enviando para: {to_email}")
-        logger.info(f"Estabelecimento: {nome_estabelecimento}")
-        logger.info(f"Subject: {subject}")
-        logger.info(f"Body: {content[:200]}...")
         
         return True
 

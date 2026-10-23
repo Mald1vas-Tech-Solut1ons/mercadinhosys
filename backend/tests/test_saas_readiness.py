@@ -110,7 +110,10 @@ def test_onboarding_atomic_flow(client, session):
         "email_estabelecimento": "test@autostore.com",
         "nome_admin": "Admin Test",
         "email_admin": "admin@autostore.com",
-        "senha_admin": "SecurePass123!"
+        "cpf_admin": "52998224725",  # CPF válido (dígito verificador correto)
+        "senha_admin": "SecurePass123!",
+        "plano": "trial",
+        "trial_dias": 30
     }
     
     # We need a superadmin token to call onboarding
@@ -164,7 +167,10 @@ def test_onboarding_atomic_flow(client, session):
     with allow_all_tenants():
         stored_est = Est.query.filter_by(email="test@autostore.com").first()
         assert stored_est is not None
-        assert stored_est.plano == "Gratuito"
+        # Plano default do onboarding agora é TRIAL PRO: 30 dias grátis
+        assert stored_est.plano == "trial"
+        assert stored_est.plano_status == "experimental"
+        assert stored_est.vencimento_plano is not None
 
         stored_admin = Fun.query.filter_by(email="admin@autostore.com").first()
         assert stored_admin is not None

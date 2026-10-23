@@ -109,6 +109,16 @@ body {
   .dark body {
     @apply bg-gray-900 text-gray-100;
   }
+
+  /* Painéis que continuam claros no tema escuro: qualquer elemento com
+     bg-white SEM variante dark:* (modais, formulários, cards que assumem
+     tema claro) recebe texto escuro explícito. Sem isso, inputs/labels
+     herdam o texto claro do body (.dark body / CssBaseline MUI) e rendem
+     texto branco em fundo branco. Elementos com variantes dark:* próprias
+     são excluídos e continuam herdando o tema escuro normalmente. */
+  .dark .bg-white:not([class*="dark:bg-"]) {
+    color: #111827; /* gray-900 */
+  }
 }
 
 @layer components {

@@ -123,13 +123,20 @@ export default defineConfig(() => {
         'X-Frame-Options': 'SAMEORIGIN',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
         'Permissions-Policy': 'camera=(self), microphone=(), geolocation=(self)',
-        // CSP ativa, permissiva (calibrada p/ demo): connect-src https:/wss: cobre API Oracle,
-        // Sentry, ViaCEP e futuras consultas externas. Backlog: apertar p/ allowlist explicita.
+        // CSP de produção: idêntica a vercel.json e backend/app/__init__.py.
+        // script-src SEM 'unsafe-inline'/'unsafe-eval': o build não gera script inline
+        // (dist/index.html só referencia /assets/*.js) e não há eval em runtime
+        // (scanner usa BarcodeDetector/jsQR em canvas; etiquetas via document.write
+        // só têm <style>+SVG). worker-src blob: cobre PDF/CSV via URL.createObjectURL.
+        // connect-src é allowlist explícita: API Oracle, Sentry e ViaCEP.
+        // Exceção APENAS dev (aqui): Vite injeta o preamble do React-Refresh inline
+        // e o HMR usa WebSocket local — sem isso o dev quebra (produção não é afetada).
         'Content-Security-Policy':
           "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
           "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; " +
-          "media-src 'self' blob:; connect-src 'self' https://mercadinhosys-api.144.22.151.18.sslip.io https://o4511655329923072.ingest.us.sentry.io; " +
+          "media-src 'self' blob:; connect-src 'self' ws://localhost:* wss://localhost:* " +
+          "https://mercadinhosys-api.144.22.151.18.sslip.io https://o4511655329923072.ingest.us.sentry.io https://viacep.com.br; " +
           "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
       },
       // Detecta mudanças de arquivo dentro do Docker (Windows/WSL precisa de polling)

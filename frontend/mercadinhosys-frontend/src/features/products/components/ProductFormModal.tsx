@@ -7,6 +7,10 @@ import { showToast } from '../../../utils/toast';
 import { Produto } from '../../../types';
 import { RegrasFiscais, TipoItem } from '../../../types/viewSchema';
 import { productsService } from '../productsService';
+import {
+    calcularModoMercado, calcularModoVenda,
+    validarDescontoMercadoPct, validarMargemAlvoVendaPct,
+} from '../utils/precificacaoReversa';
 import { cosmosService } from '../../../services/cosmosService';
 import { useViewSchema, schemaHelpers } from '../../../services/viewSchemaService';
 import BarcodeScanner from '../../pdv/components/BarcodeScanner';
@@ -99,6 +103,13 @@ const emptyForm = {
     preco_custo: 0,
     preco_venda: 0,
     margem_lucro: 30,
+    // Precificação reversa (Fase A): 'custo' é o modo padrão; 'mercado'/'venda'
+    // estimam o custo no servidor — o campo custo vira somente leitura com selo.
+    modo_precificacao: 'custo' as 'custo' | 'mercado' | 'venda',
+    preco_referencia_mercado: 0,
+    desconto_mercado_pct: null as number | null,   // null = usa default da loja
+    margem_alvo_venda_pct: null as number | null,  // null = usa default da loja
+    fonte_referencia_mercado: 'outro' as 'shopee' | 'mercado_livre' | 'outro',
     quantidade: 0,
     quantidade_minima: 10,
     ativo: true,
@@ -177,6 +188,11 @@ const ProductFormModal = ({
                 preco_custo: produto.preco_custo || 0,
                 preco_venda: produto.preco_venda || 0,
                 margem_lucro: produto.margem_lucro || 30,
+                modo_precificacao: 'custo',
+                preco_referencia_mercado: (produto as any).preco_referencia_mercado || 0,
+                desconto_mercado_pct: null,   // em edição recalcula de novo a partir do ref salvo
+                margem_alvo_venda_pct: null,  // null = usa default da loja de novo
+                fonte_referencia_mercado: ((produto as any).fonte_referencia_mercado || 'outro'),
                 quantidade: produto.quantidade || 0,
                 quantidade_minima: produto.quantidade_minima || 10,
                 ativo: produto.ativo ?? true,
@@ -329,6 +345,24 @@ const ProductFormModal = ({
     const field = (key: keyof typeof emptyForm, value: any) =>
         setFormData(prev => ({ ...prev, [key]: value }));
 
+    // Pré-visualização do custo estimado (modos mercado/venda): mesma matemática
+    // do servidor (precificacao_reversa.py) — só para exibição; o servidor
+    // recalcula com Decimal no salvar. Zerado para serviço e modo custo.
+    const ehModoEstimado = !ehServico && formData.modo_precificacao !== 'custo';
+    const preview = useMemo(
+        () => ehModoEstimado
+            ? (formData.modo_precificacao === 'mercado'
+                ? calcularModoMercado({
+                    precoReferencia: formData.preco_referencia_mercado || null,
+                    descontoPct: formData.desconto_mercado_pct,
+                    margemAlvoVendaPct: formData.margem_alvo_venda_pct,
+                })
+                : calcularModoVenda(formData.preco_venda || null, formData.margem_alvo_venda_pct))
+            : { venda: 0, custo: 0, markup: 0, erro: null },
+        [ehModoEstimado, formData.modo_precificacao, formData.preco_referencia_mercado,
+         formData.desconto_mercado_pct, formData.margem_alvo_venda_pct, formData.preco_venda],
+    );
+
     const setAtributo = (chave: string, valor: any) =>
         setFormData(prev => ({ ...prev, atributos: { ...prev.atributos, [chave]: valor } }));
 
@@ -338,8 +372,35 @@ const ProductFormModal = ({
         // Validações obrigatórias
         if (!formData.nome.trim()) { showToast.error(ehServico ? 'Nome do serviço é obrigatório' : 'Nome do produto é obrigatório'); return; }
         if (!formData.categoria.trim()) { showToast.error('Categoria é obrigatória'); return; }
-        if (!ehServico && (!formData.preco_custo || formData.preco_custo <= 0)) { showToast.error('Preço de custo inválido'); return; }
-        if (!formData.preco_venda || formData.preco_venda <= 0) { showToast.error('Preço de venda inválido'); return; }
+        // Modos mercado/venda: o custo é ESTIMADO no servidor — não exigir custo
+        // digitado; exigir os insumos do modo em vez disso.
+        const custoEstimado = !ehServico && formData.modo_precificacao !== 'custo';
+        if (!ehServico && !custoEstimado && (!formData.preco_custo || formData.preco_custo <= 0)) { showToast.error('Preço de custo inválido'); return; }
+        if (custoEstimado && formData.modo_precificacao === 'mercado') {
+            if (!formData.preco_referencia_mercado || formData.preco_referencia_mercado <= 0) {
+                showToast.error('Informe o preço de referência do mercado');
+                return;
+            }
+            const erroMargem = validarMargemAlvoVendaPct(formData.margem_alvo_venda_pct);
+            if (formData.margem_alvo_venda_pct !== null && erroMargem) {
+                showToast.error(erroMargem);
+                return;
+            }
+            const erroDesconto = validarDescontoMercadoPct(formData.desconto_mercado_pct);
+            if (formData.desconto_mercado_pct !== null && erroDesconto) {
+                showToast.error(erroDesconto);
+                return;
+            }
+        }
+        if (custoEstimado && formData.modo_precificacao === 'venda') {
+            if (!formData.preco_venda || formData.preco_venda <= 0) { showToast.error('Preço de venda inválido'); return; }
+            const erroMargem = validarMargemAlvoVendaPct(formData.margem_alvo_venda_pct);
+            if (formData.margem_alvo_venda_pct !== null && erroMargem) {
+                showToast.error(erroMargem);
+                return;
+            }
+        }
+        if (!ehServico && !custoEstimado && (!formData.preco_venda || formData.preco_venda <= 0)) { showToast.error('Preço de venda inválido'); return; }
         if (!ehServico && formData.icms_st && formData.cest.length !== 7) {
             showToast.error('Produto com ICMS por substituição tributária (ST) precisa do CEST com 7 dígitos. Peça ao contador ou veja na nota do fornecedor.');
             return;
@@ -349,6 +410,15 @@ const ProductFormModal = ({
             ...formData,
             controlar_estoque: !ehServico,
         };
+        // Modo custo: insumos dos modos estimados fora do payload (servidor
+        // grava informado; payload com origem_custo é ignorado de qualquer jeito).
+        if (ehServico || formData.modo_precificacao === 'custo') {
+            delete payload.modo_precificacao;
+            delete payload.preco_referencia_mercado;
+            delete payload.desconto_mercado_pct;
+            delete payload.margem_alvo_venda_pct;
+            delete payload.fonte_referencia_mercado;
+        }
         if (ehServico) {
             payload.quantidade = 0;
             payload.quantidade_minima = 0;
@@ -704,7 +774,109 @@ const ProductFormModal = ({
                 {/* ── Seção 3: Precificação ── */}
                 <div>
                     <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Precificação e Lucro</h4>
+                    {/* Seletor de modo (precificação reversa, Fase A): só p/ produto físico.
+                        'custo' = tradicional (custo → margem → venda); 'mercado'/'venda' =
+                        a venda vem primeiro e o SERVIDOR estima o custo (nunca confiável). */}
+                    {!ehServico && (
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            {([
+                                { chave: 'custo', label: 'Tenho o custo', desc: 'Custo → venda' },
+                                { chave: 'venda', label: 'Defino a venda', desc: 'Venda → custo estimado' },
+                                { chave: 'mercado', label: 'Pelo mercado', desc: 'Referência → custo estimado' },
+                            ] as const).map(m => {
+                                const ativo = formData.modo_precificacao === m.chave;
+                                return (
+                                    <button key={m.chave} type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, modo_precificacao: m.chave }))}
+                                        className={`p-3 rounded-2xl border-2 text-left transition-all ${ativo
+                                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'}`}>
+                                        <span className={`block text-sm font-bold ${ativo ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>{m.label}</span>
+                                        <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{m.desc}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6 bg-blue-50/50 dark:bg-blue-900/10 rounded-2xl border border-blue-100/50 dark:border-blue-900/30">
+                    {formData.modo_precificacao === 'mercado' && !ehServico ? (
+                        <>
+                            <div>
+                                <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
+                                    Preço de referência no mercado (R$) *
+                                </label>
+                                <input type="number" step="0.01" min="0.01" required
+                                    value={formData.preco_referencia_mercado}
+                                    onChange={e => field('preco_referencia_mercado', parseFloat(e.target.value) || 0)}
+                                    className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
+                                    placeholder="Ex: 100,00 (Shopee/ML)" />
+                                <div className="mt-1">
+                                    <label className="block text-xs text-blue-700 dark:text-blue-400 mb-1">Onde viu esse preço</label>
+                                    <select value={formData.fonte_referencia_mercado}
+                                        onChange={e => field('fonte_referencia_mercado', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white">
+                                        <option value="shopee">Shopee</option>
+                                        <option value="mercado_livre">Mercado Livre</option>
+                                        <option value="outro">Outro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
+                                    Desconto vs. mercado (%)
+                                </label>
+                                <input type="number" step="0.01" min="0" max="99.99"
+                                    value={formData.desconto_mercado_pct ?? ''}
+                                    onChange={e => field('desconto_mercado_pct', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                    className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
+                                    placeholder="Padrão da loja" />
+                                <p className="text-xs text-blue-500 mt-1">Vazio = usa o padrão da loja (Configurações).</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
+                                    Margem alvo sobre a venda (%)
+                                </label>
+                                <input type="number" step="0.01" min="0.01" max="99.99"
+                                    value={formData.margem_alvo_venda_pct ?? ''}
+                                    onChange={e => field('margem_alvo_venda_pct', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                    className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
+                                    placeholder="Padrão da loja" />
+                                <p className="text-xs text-blue-500 mt-1">Vazio = usa o padrão da loja (Configurações).</p>
+                            </div>
+                            <div className="sm:col-span-3 flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                                <span className="text-sm text-amber-800 dark:text-amber-300">
+                                    <span className="font-bold">Previsão:</span> vender por{' '}
+                                    <strong>{preview.venda > 0 ? `R$ ${preview.venda.toFixed(2)}` : '—'}</strong> com custo estimado de{' '}
+                                    <strong>{preview.custo > 0 ? `R$ ${preview.custo.toFixed(2)}` : '—'}</strong>
+                                    {preview.erro && <span className="block text-xs text-amber-700 dark:text-amber-400 mt-0.5">{preview.erro}</span>}
+                                </span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-200 whitespace-nowrap">Custo estimado</span>
+                            </div>
+                        </>
+                    ) : formData.modo_precificacao === 'venda' && !ehServico ? (
+                        <>
+                            <div className="sm:col-span-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-sm text-amber-800 dark:text-amber-300">
+                                Você define o preço de venda e o sistema <strong>estima</strong> o custo pela margem alvo. Quando chegar a nota do fornecedor, atualize o custo real (ele volta a ser "informado").
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">Margem alvo sobre a venda (%)</label>
+                                <input type="number" step="0.01" min="0.01" max="99.99"
+                                    value={formData.margem_alvo_venda_pct ?? ''}
+                                    onChange={e => field('margem_alvo_venda_pct', e.target.value === '' ? null : parseFloat(e.target.value))}
+                                    className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
+                                    placeholder="Padrão da loja" />
+                                <p className="text-xs text-blue-500 mt-1">Vazio = usa o padrão da loja (Configurações).</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">Custo estimado</label>
+                                <div className="w-full px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-lg font-semibold text-amber-800 dark:text-amber-300">
+                                    {preview.custo > 0 ? `R$ ${preview.custo.toFixed(2)}` : '—'}
+                                </div>
+                                {preview.erro && <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">{preview.erro}</p>}
+                            </div>
+                        </>
+                    ) : (
+                        <>
                         <div>
                             <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
                                 {ehServico ? 'Custo do Serviço (R$)' : 'Preço de Custo (R$) *'}
@@ -737,6 +909,7 @@ const ProductFormModal = ({
                                 onBlur={() => { if (!precoVendaManual.current) calcularPrecoVenda(); }}
                                 className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`} />
                         </div>
+                        {ehServico || formData.modo_precificacao === 'custo' ? (
                         <div>
                             <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
                                 {ehServico ? 'Preço Cobrado (R$) *' : 'Preço de Venda (R$) *'}
@@ -752,6 +925,9 @@ const ProductFormModal = ({
                                 onBlur={calcularMargem}
                                 className="w-full px-4 py-3 bg-blue-600 text-white border-transparent rounded-xl outline-none focus:ring-4 focus:ring-blue-500/30 text-lg font-bold shadow-lg shadow-blue-500/20" />
                         </div>
+                        ) : null}
+                        </>
+                    )}
                     </div>
                 </div>
 

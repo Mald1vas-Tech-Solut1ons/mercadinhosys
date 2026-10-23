@@ -711,7 +711,14 @@ const ProductFormModal = ({
                             </label>
                             <input type="number" step="0.01" min={ehServico ? '0' : '0.01'} required={!ehServico}
                                 value={formData.preco_custo}
-                                onChange={e => field('preco_custo', parseFloat(e.target.value) || 0)}
+                                onChange={e => {
+                                    // Ao vivo: sem preço digitado, o preço acompanha custo × margem;
+                                    // com preço digitado, o preço fica e a margem se ajusta.
+                                    const custo = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => precoVendaManual.current && prev.preco_venda > 0
+                                        ? { ...prev, preco_custo: custo, margem_lucro: custo > 0 ? parseFloat((((prev.preco_venda - custo) / custo) * 100).toFixed(2)) : prev.margem_lucro }
+                                        : { ...prev, preco_custo: custo, preco_venda: parseFloat((custo * (1 + prev.margem_lucro / 100)).toFixed(2)) });
+                                }}
                                 onBlur={aoSairDoCusto}
                                 className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`} />
                             {ehServico && <p className="text-xs text-blue-500 mt-1">Peças/insumos consumidos. Pode ser zero.</p>}
@@ -723,7 +730,9 @@ const ProductFormModal = ({
                                 onChange={e => {
                                     // Editar a margem é pedir preço calculado por ela.
                                     precoVendaManual.current = false;
-                                    field('margem_lucro', parseFloat(e.target.value) || 0);
+                                    const margem = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({ ...prev, margem_lucro: margem,
+                                        preco_venda: parseFloat((prev.preco_custo * (1 + margem / 100)).toFixed(2)) }));
                                 }}
                                 onBlur={() => { if (!precoVendaManual.current) calcularPrecoVenda(); }}
                                 className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`} />
@@ -736,7 +745,9 @@ const ProductFormModal = ({
                                 value={formData.preco_venda}
                                 onChange={e => {
                                     precoVendaManual.current = true;
-                                    field('preco_venda', parseFloat(e.target.value) || 0);
+                                    const preco = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({ ...prev, preco_venda: preco,
+                                        margem_lucro: prev.preco_custo > 0 ? parseFloat((((preco - prev.preco_custo) / prev.preco_custo) * 100).toFixed(2)) : prev.margem_lucro }));
                                 }}
                                 onBlur={calcularMargem}
                                 className="w-full px-4 py-3 bg-blue-600 text-white border-transparent rounded-xl outline-none focus:ring-4 focus:ring-blue-500/30 text-lg font-bold shadow-lg shadow-blue-500/20" />

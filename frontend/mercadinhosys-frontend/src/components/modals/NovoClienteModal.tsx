@@ -4,6 +4,20 @@ import toast from 'react-hot-toast';
 import { API_CONFIG } from '../../api/apiConfig';
 import { formatCnpj, formatCpf, formatPhone, formatCep, buscarCep } from '../../utils/cepUtils';
 import { validarCPF } from '../../features/customers/components/inputMasks';
+import { erroSenha } from '../../utils/validators';
+import LinkAcessoPainel, { LinkAcesso } from './LinkAcessoPainel';
+
+const LinkAcessoFalhou: React.FC<{ loja: string; onClose: () => void }> = ({ loja, onClose }) => (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[210] p-4">
+    <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl">
+      <h3 className="text-lg font-bold text-gray-900 mb-2">{loja} foi criada</h3>
+      <p className="text-sm text-gray-600 mb-4">
+        Não foi possível gerar o link de ativação agora. Abra a loja na lista e use "Enviar link de acesso".
+      </p>
+      <button onClick={onClose} className="w-full py-2.5 rounded-lg bg-blue-600 text-white font-semibold">Entendi</button>
+    </div>
+  </div>
+);
 
 interface NovoClienteModalProps {
   isOpen: boolean;
@@ -44,6 +58,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
 }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [acesso, setAcesso] = useState<LinkAcesso | null>(null);
   const [formData, setFormData] = useState<FormData>({
     // Dados do Estabelecimento
     nome_fantasia: '',
@@ -118,12 +133,10 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       toast.error('Email do administrador é obrigatório');
       return false;
     }
-    if (!formData.senha_admin.trim()) {
-      toast.error('Senha é obrigatória');
-      return false;
-    }
-    if (formData.senha_admin.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres');
+    // Senha opcional: em branco, o cliente cria a dele pelo link de ativação.
+    const problemaSenha = formData.senha_admin ? erroSenha(formData.senha_admin) : null;
+    if (problemaSenha) {
+      toast.error(problemaSenha);
       return false;
     }
     if (formData.senha_admin !== formData.confirmar_senha) {
@@ -158,7 +171,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
         nome_admin: formData.nome_admin.trim(),
         email_admin: formData.email_admin.trim(),
         cpf_admin: formData.cpf_admin.replace(/\D/g, ''),
-        senha_admin: formData.senha_admin,
+        senha_admin: formData.senha_admin || undefined,
         plano: formData.tipo_acesso,          // 'trial' | 'gratuito'
         trial_dias: formData.tipo_acesso === 'trial'
           ? (parseInt(formData.trial_dias, 10) || 30)
@@ -178,23 +191,16 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
 
       if (data.success) {
         toast.success('Ambiente criado com sucesso!', { id: 'onboarding' });
-
-        // Mostrar dados de acesso
-        const acessoInfo = `
-          🎉 Cliente provisionado com sucesso!
-          
-          📋 Dados de Acesso:
-          Login: ${data.data.acesso.login}
-          Senha: ${data.data.acesso.senha}
-          URL: ${data.data.acesso.url_acesso}
-          
-          📧 Enviamos os dados por email para: ${data.data.administrador.email}
-        `;
-
-        toast.success(acessoInfo, { duration: 8000 });
-
         onSuccess();
-        onClose();
+        // O painel de acesso fica aberto até o super admin mandar o link (o modal fecha junto).
+        setAcesso({
+          loja: data.data.estabelecimento.nome_fantasia,
+          username: data.data.acesso.login,
+          email: data.data.administrador.email,
+          emailEnviado: Boolean(data.data.ativacao?.email_enviado),
+          link: data.data.ativacao?.link_ativacao || '',
+          telefone: formData.telefone,
+        });
         resetForm();
       } else {
         toast.error(data.error || 'Erro ao criar ambiente', { id: 'onboarding' });
@@ -245,6 +251,16 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  if (acesso) {
+    if (!acesso.link) {
+      // Loja criada, mas o link falhou: o detalhe da loja tem "Enviar link de acesso".
+      return (
+        <LinkAcessoFalhou loja={acesso.loja} onClose={() => { setAcesso(null); onClose(); }} />
+      );
+    }
+    return <LinkAcessoPainel acesso={acesso} onClose={() => { setAcesso(null); onClose(); }} />;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4 overflow-y-auto" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
@@ -568,21 +584,25 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Senha *
+                      Senha (opcional)
                     </label>
                     <input
                       type="password"
                       value={formData.senha_admin}
                       onChange={(e) => handleInputChange('senha_admin', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Em branco: o cliente cria pelo link"
+                      autoComplete="new-password"
                       disabled={isLoading}
                     />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Recomendado deixar em branco: enviamos um link de ativação para o cliente criar a própria senha.
+                    </p>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirmar Senha *
+                      Confirmar Senha
                     </label>
                     <input
                       type="password"

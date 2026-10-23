@@ -622,6 +622,23 @@ class Funcionario(db.Model, MultiTenantMixin, UserMixin, SoftDeleteMixin, Serial
         data["salario"] = float(self.salario) if self.salario else (float(self.salario_base) if self.salario_base else 0.0)
         return data
 
+class TokenSenha(db.Model):
+    """Link de uso único para ativar a conta ou redefinir a senha.
+
+    Guarda só o SHA-256 do token: quem lê o banco não consegue montar o link.
+    Sem MultiTenantMixin de propósito — é consultado antes do login, pelo hash.
+    """
+    __tablename__ = "tokens_senha"
+    id = db.Column(db.Integer, primary_key=True)
+    funcionario_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id", ondelete="CASCADE"), nullable=False, index=True)
+    finalidade = db.Column(db.String(20), nullable=False)  # 'ativacao' | 'redefinicao'
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    expira_em = db.Column(db.DateTime, nullable=False)
+    usado_em = db.Column(db.DateTime)
+    criado_em = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    funcionario = db.relationship("Funcionario", foreign_keys=[funcionario_id])
+
 class FuncionarioPreferencias(db.Model, MultiTenantMixin):
     __tablename__ = "funcionarios_preferencias"
     id = db.Column(db.Integer, primary_key=True)

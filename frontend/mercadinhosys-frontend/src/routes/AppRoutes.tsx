@@ -12,6 +12,7 @@ const MainLayout = lazy(() => import('../components/layout/MainLayout'));
 const ConnectionTest = lazy(() => import('../components/ConnectionTest'));
 const LoginPage = lazy(() => import('../features/auth/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = lazy(() => import('../features/auth/RegisterPage').then(module => ({ default: module.RegisterPage })));
+const DefinirSenhaPage = lazy(() => import('../features/auth/DefinirSenhaPage'));
 const DashboardPage = lazy(() => import('../features/dashboard/DashboardPage'));
 const PDVPage = lazy(() => import('../features/pdv/PDVPage'));
 const ProductsPage = lazy(() => import('../features/products/ProductsPage'));
@@ -77,6 +78,8 @@ const AppRoutes: React.FC = () => {
                 <Route path="/login" element={isAuthenticated ? <Navigate to={getTargetRoute()} replace /> : <LoginPage />} />
                 <Route path="/register" element={isAuthenticated ? <Navigate to={getTargetRoute()} replace /> : <RegisterPage />} />
                 <Route path="/test" element={<ConnectionTest />} />
+                {/* Link do e-mail (ativar conta / redefinir senha) e "Esqueci minha senha": público mesmo logado. */}
+                <Route path="/definir-senha" element={<DefinirSenhaPage />} />
 
                 {/* Públicas — institucionais */}
                 <Route path="/termos" element={<TermosPage />} />

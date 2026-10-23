@@ -214,11 +214,20 @@ window.addEventListener('load', function () { setTimeout(function () { window.fo
 }
 
 export function printLabels(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): boolean {
-  const w = window.open('', '_blank', 'width=900,height=700');
-  if (!w) return false; // popup bloqueado
-  w.document.open();
-  w.document.write(buildLabelsHtml(itens, layout, opcoes, nomeLoja));
-  w.document.close();
-  w.focus();
+  // Página via blob: e não about:blank + document.write — o popup about:blank
+  // HERDA a CSP do opener (script-src 'self' em produção bloqueia o script de
+  // auto-print e o onclick do botão "Imprimir": a janela abre e o botão não faz
+  // nada). Página blob: tem origem própria e não herda a CSP do opener.
+  const html = buildLabelsHtml(itens, layout, opcoes, nomeLoja);
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  const w = window.open(url, '_blank', 'width=900,height=700');
+  if (!w) {
+    URL.revokeObjectURL(url); // popup bloqueado
+    return false;
+  }
+  // Libera o blob depois da janela carregar: o navegador mantém a página viva
+  // (a URL só deixa de ser válida para ABERTURA futura, não para a já aberta).
+  w.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
+  setTimeout(() => URL.revokeObjectURL(url), 60_000); // fallback se load não disparar
   return true;
 }

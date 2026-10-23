@@ -761,17 +761,19 @@ const ProductFormModal = ({
                         <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Controle de Estoque</h4>
                         <div className={sectionClass}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {!editMode && (
-                                    <div>
-                                        <label className={labelClass}>Estoque inicial</label>
-                                        <input type="number" min="0" step="any" value={formData.quantidade || ''} placeholder="0"
-                                            onChange={e => field('quantidade', Math.max(0, parseFloat(e.target.value) || 0))}
-                                            className={inputClass} />
-                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            Quanto já tem na loja agora. Com estoque zero o PDV não vende (salvo se a loja permitir venda sem estoque).
-                                        </p>
-                                    </div>
-                                )}
+                                <div>
+                                    <label className={labelClass}>
+                                        {editMode ? 'Estoque Atual' : 'Estoque inicial'}
+                                    </label>
+                                    <input type="number" min="0" step="any" value={formData.quantidade || ''} placeholder="0"
+                                        onChange={e => field('quantidade', Math.max(0, parseFloat(e.target.value) || 0))}
+                                        className={inputClass} />
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {editMode
+                                            ? 'Alterar aqui registra a diferença como movimentação de estoque (ajuste manual).'
+                                            : 'Quanto já tem na loja agora. Com estoque zero o PDV não vende (salvo se a loja permitir venda sem estoque).'}
+                                    </p>
+                                </div>
                                 {visivel('quantidade_minima') && (
                                     <div>
                                         <label className={labelClass}>Qtd. Mínima (Alerta)</label>

@@ -554,7 +554,7 @@ def enviar_email_transacional(destino: str, assunto: str, corpo_html: str, corpo
         logger.warning("E-mail não enviado: Resend respondeu HTTP %s.", resposta.status_code)
         return False
 
-    servidor = _resolve_mail_setting("MAIL_SERVER")
+    servidor = _resolve_mail_setting("MAIL_SERVER", "smtp.gmail.com")  # mesmo padrão do cupom fiscal
     usuario = _resolve_mail_setting("MAIL_USERNAME")
     senha = _resolve_mail_setting("MAIL_PASSWORD")
     if servidor and usuario and senha:

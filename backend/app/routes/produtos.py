@@ -35,6 +35,8 @@ from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import gerente_required, resource_required
 from app.services.catalogo_mestre_service import registrar_produto_se_novo
+from app.middleware.rate_limit import limiter
+from app.utils.ia_copiloto import ia_disponivel, gerar_texto
 from app.services.fiscal.tributacao import cest_valido
 from app.services.view_schema_service import (
     FAMILIAS_PRODUTO,
@@ -815,6 +817,63 @@ def upload_imagem_produto():
     if not url:
         return jsonify({"success": False, "message": "Não foi possível enviar a foto agora. Tente de novo."}), 502
     return jsonify({"success": True, "imagem_url": url}), 201
+
+
+# ============================================
+# DESCRIÇÃO DO PRODUTO COM IA (Groq)
+# ============================================
+
+def _campo_ia(data, chave, limite=120):
+    """Texto do formulário limpo e cortado: vai para o prompt, então nada de payload gigante."""
+    return " ".join(str(data.get(chave) or "").split())[:limite]
+
+
+@produtos_bp.route("/descricao-ia", methods=["POST"])
+@funcionario_required
+@permission_required("produtos")
+@limiter.limit("15 per minute")
+def gerar_descricao_ia():
+    """Sugere a descrição do produto a partir do que o lojista já preencheu.
+
+    Usa só os dados do formulário (nome, categoria, marca, unidade) — não lê
+    banco nem expõe dado de outra loja. A IA é instruída a não inventar
+    ingrediente, peso, validade ou preço. Sem GROQ_API_KEY: 503 e o campo
+    continua editável à mão como sempre.
+    """
+    if not ia_disponivel():
+        return jsonify({"success": False, "message": "IA não configurada no servidor."}), 503
+
+    data = request.get_json(silent=True) or {}
+    nome = _campo_ia(data, "nome")
+    if len(nome) < 3:
+        return jsonify({"success": False, "message": "Preencha o nome do produto antes de gerar a descrição."}), 400
+
+    eh_servico = data.get("tipo_item") == "servico"
+    linhas = [f"- Nome: {nome}"]
+    for chave, rotulo in (("categoria", "Categoria"), ("marca", "Marca"), ("unidade_medida", "Unidade de venda")):
+        valor = _campo_ia(data, chave, 60)
+        if valor:
+            linhas.append(f"- {rotulo}: {valor}")
+    rascunho = _campo_ia(data, "descricao_atual", 400)
+    if rascunho:
+        linhas.append(f"- Anotação do lojista (aproveite as informações dela): {rascunho}")
+
+    system_prompt = (
+        "Você escreve descrições curtas de produtos para o cadastro de um pequeno varejo brasileiro "
+        "(mercadinho, loja de bairro). A descrição aparece no sistema e pode ir para catálogo online. "
+        "Regras: português do Brasil, 1 a 2 frases, no máximo 240 caracteres, tom objetivo e simpático. "
+        "Diga o que é o produto e para que serve. NUNCA invente peso, volume, ingredientes, validade, "
+        "preço, origem ou certificações que não estejam nos dados. Sem emojis, sem hashtags, sem aspas. "
+        "Retorne APENAS o texto da descrição."
+    )
+    tipo = "serviço" if eh_servico else "produto"
+    user_prompt = f"Dados do {tipo}:\n" + "\n".join(linhas) + "\n\nEscreva a descrição agora."
+
+    descricao = gerar_texto(system_prompt, user_prompt, max_tokens=400)
+    if not descricao:
+        return jsonify({"success": False, "message": "IA indisponível agora. Tente novamente em instantes."}), 502
+    descricao = descricao.strip().strip('"“”').strip()[:500]
+    return jsonify({"success": True, "descricao": descricao})
 
 
 # ============================================

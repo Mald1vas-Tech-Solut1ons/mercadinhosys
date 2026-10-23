@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2 } from 'lucide-react';
+import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2, Loader2 } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import FotoUpload from '../../../components/ui/FotoUpload';
 import SchemaField from '../../../components/schema/SchemaField';
@@ -120,6 +120,7 @@ const ProductFormModal = ({
     const [showScanner, setShowScanner] = useState(false);
     const [isSearchingCosmos, setIsSearchingCosmos] = useState(false);
     const [showForceSync, setShowForceSync] = useState(false);
+    const [gerandoDescricao, setGerandoDescricao] = useState(false);
     // true quando o preço de venda foi digitado pelo usuário (ou veio do produto
     // em edição): mexer no custo passa a recalcular a MARGEM, não o preço.
     const precoVendaManual = useRef(false);
@@ -279,6 +280,31 @@ const ProductFormModal = ({
             showToast.success('Código interno gerado. Ele já sai na etiqueta e passa no leitor do PDV.');
         } catch {
             showToast.error('Não foi possível gerar o código agora.');
+        }
+    };
+
+    // O que o lojista já escreveu na descrição vai junto: a IA aproveita e melhora.
+    const gerarDescricaoIA = async () => {
+        if (formData.nome.trim().length < 3) {
+            showToast.error(ehServico ? 'Preencha o nome do serviço primeiro.' : 'Preencha o nome do produto primeiro.');
+            return;
+        }
+        setGerandoDescricao(true);
+        try {
+            const descricao = await productsService.gerarDescricaoIA({
+                nome: formData.nome,
+                categoria: formData.categoria,
+                marca: formData.marca,
+                unidade_medida: formData.unidade_medida,
+                tipo_item: formData.tipo_item,
+                descricao_atual: formData.descricao,
+            });
+            setFormData(prev => ({ ...prev, descricao }));
+            showToast.success('Descrição gerada pela IA. Revise antes de salvar.');
+        } catch (err: any) {
+            showToast.error(err?.response?.data?.message || 'Não foi possível gerar a descrição agora.');
+        } finally {
+            setGerandoDescricao(false);
         }
     };
 
@@ -760,7 +786,17 @@ const ProductFormModal = ({
                                 </div>
                             )}
                             <div>
-                                <label className={labelClass}>Descrição / Observações</label>
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                    <label className={`${labelClass} mb-0`}>Descrição / Observações</label>
+                                    <button type="button" onClick={gerarDescricaoIA} disabled={gerandoDescricao}
+                                        title="A IA escreve a descrição usando o nome, categoria e marca. Revise antes de salvar."
+                                        className="shrink-0 py-1 px-2.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60 disabled:cursor-wait">
+                                        {gerandoDescricao
+                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            : <Sparkles className="w-3.5 h-3.5" />}
+                                        {gerandoDescricao ? 'Gerando...' : 'Gerar com IA'}
+                                    </button>
+                                </div>
                                 <textarea value={formData.descricao} rows={3}
                                     onChange={e => field('descricao', e.target.value)}
                                     className={`${inputClass} resize-none`} placeholder="Informações adicionais..." />

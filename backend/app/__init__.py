@@ -368,14 +368,17 @@ def create_app(config_name=None):
     def apply_security_headers(response):
         # "Server: gunicorn" expõe Tecnologia/versão (fingerprinting). Remove.
         response.headers.remove("Server") if "Server" in response.headers else None
-        # CSP ATIVA, calibrada para a demo: permissiva (connect-src https:/wss:,
-        # img https:, unsafe-inline/eval) para zero bloqueio; aperto estrito no backlog.
+        # CSP ATIVA, idêntica a vercel.json e vite.config.ts (produção): script-src SEM
+        # unsafe-inline/eval (build não gera script inline; não há eval em runtime);
+        # connect-src em allowlist explícita: API Oracle, Sentry, ViaCEP.
         response.headers.setdefault(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "default-src 'self'; script-src 'self'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; "
-            "media-src 'self' blob:; connect-src 'self' https: wss:; "
+            "media-src 'self' blob:; connect-src 'self' "
+            "https://mercadinhosys-api.144.22.151.18.sslip.io "
+            "https://o4511655329923072.ingest.us.sentry.io https://viacep.com.br; "
             "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
         )
         for key, value in SECURITY_HEADERS.items():

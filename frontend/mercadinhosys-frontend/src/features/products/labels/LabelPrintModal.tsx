@@ -5,6 +5,7 @@ import { showToast } from '../../../utils/toast';
 import { mensagemErro } from '../../../utils/mensagemErro';
 import { Produto } from '../../../types';
 import { productsService } from '../productsService';
+import { settingsService } from '../../settings/settingsService';
 import { LABEL_LAYOUTS, LabelItem, LabelLayoutId, LabelOptions, buildLabelsHtml, printLabels, precoBR } from './labelPrint';
 
 interface LabelPrintModalProps {
@@ -24,7 +25,7 @@ interface ConfigSalva extends LabelOptions {
 
 const CHAVE_CONFIG = 'mercadinhosys.etiquetas.config';
 const CONFIG_PADRAO: ConfigSalva = {
-    layoutId: 'termica-40x25', mostrarNome: true, mostrarPreco: true, ajusteTopoMm: 0, ajusteEsquerdaMm: 0,
+    layoutId: 'termica-40x25', mostrarLoja: true, mostrarNome: true, mostrarPreco: true, ajusteTopoMm: 0, ajusteEsquerdaMm: 0,
 };
 
 const lerConfig = (): ConfigSalva => {
@@ -47,6 +48,20 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
     const [buscando, setBuscando] = useState(false);
     const [gerando, setGerando] = useState(false);
     const [config, setConfig] = useState<ConfigSalva>(lerConfig);
+    const [nomeLoja, setNomeLoja] = useState('');
+
+    useEffect(() => {
+        if (!isOpen) return;
+        let ativo = true;
+        settingsService.getEstabelecimento()
+            .then(est => {
+                // Visão global (holding) não tem uma loja só para estampar na etiqueta
+                const nome = String(est?.id) === 'all' ? '' : (est?.nome_fantasia || est?.razao_social || '');
+                if (ativo) setNomeLoja(nome);
+            })
+            .catch(() => { /* etiqueta sai sem o nome da loja */ });
+        return () => { ativo = false; };
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -135,8 +150,8 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
         }))), [itens]);
 
     const previa = useMemo(
-        () => etiquetas.length ? buildLabelsHtml(etiquetas.slice(0, 3), layout, config) : '',
-        [etiquetas, layout, config]);
+        () => etiquetas.length ? buildLabelsHtml(etiquetas.slice(0, 3), layout, config, nomeLoja) : '',
+        [etiquetas, layout, config, nomeLoja]);
 
     const faltandoCodigo = itens.filter(i => semCodigo(i.produto));
     const porFolha = layout.colunas * layout.linhas;
@@ -161,7 +176,7 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
         if (etiquetas.some(e => !e.codigo)) {
             showToast.warning('Há produtos sem código: sairão marcados como SEM CÓDIGO.');
         }
-        if (!printLabels(etiquetas, layout, config)) {
+        if (!printLabels(etiquetas, layout, config, nomeLoja)) {
             showToast.error('O navegador bloqueou a janela de impressão. Libere pop-ups para este site.');
         }
     };
@@ -298,9 +313,14 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                                 </select>
                             </div>
                             <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" checked={config.mostrarLoja} className="w-4 h-4 rounded"
+                                    onChange={e => setConfig(c => ({ ...c, mostrarLoja: e.target.checked }))} />
+                                Mostrar nome da loja{nomeLoja && <span className="text-gray-400 truncate">({nomeLoja})</span>}
+                            </label>
+                            <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                                 <input type="checkbox" checked={config.mostrarNome} className="w-4 h-4 rounded"
                                     onChange={e => setConfig(c => ({ ...c, mostrarNome: e.target.checked }))} />
-                                Mostrar nome
+                                Mostrar nome do produto
                             </label>
                             <label className="flex items-center gap-3 text-sm font-medium text-gray-700 dark:text-gray-300">
                                 <input type="checkbox" checked={config.mostrarPreco} className="w-4 h-4 rounded"

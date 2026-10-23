@@ -44,6 +44,9 @@ export interface Configuracao {
     desconto_maximo_percentual: number;
     desconto_maximo_funcionario: number;
     aliquota_impostos_venda?: number | null; // % efetivo de impostos sobre vendas (DRE)
+    // Precificação pelo mercado (custo estimado) — defaults do modal de produto
+    desconto_mercado_padrao_pct?: number | null; // 0 ≤ x < 100
+    margem_alvo_venda_pct?: number | null;       // 0 < x < 100 (exclusive)
     arredondamento_valores: boolean;
     formas_pagamento: string[];
     motivos_estorno: string[];

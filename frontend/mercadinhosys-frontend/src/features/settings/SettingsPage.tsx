@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     Store, Settings, CreditCard, Printer,
     Shield, Bell, Upload, MapPin,
@@ -21,6 +21,7 @@ import { SyncDataButton } from './SyncDataButton';
 import { useTheme } from '../../theme/useTheme';
 import { authService } from '../auth/authService';
 import { getSettingsTabs } from '../../utils/permissions';
+import { validarDescontoMercadoPct, validarMargemAlvoVendaPct } from '../products/utils/precificacaoReversa';
 
 // Componentes de UI reutilizáveis (poderiam estar em arquivos separados)
 type SectionTitleProps = {
@@ -451,8 +452,30 @@ const SettingsPage: React.FC = () => {
         );
     };
 
+    // Erros dos pcts de precificação pelo mercado — MESMAS mensagens do backend
+    // (configuracao.py:138-140). null/vazio = não enviado = backend mantém default.
+    const erroDescontoMercado = useMemo(
+        () => (config.desconto_mercado_padrao_pct === null || config.desconto_mercado_padrao_pct === undefined
+            ? null
+            : validarDescontoMercadoPct(config.desconto_mercado_padrao_pct)),
+        [config.desconto_mercado_padrao_pct],
+    );
+    const erroMargemAlvo = useMemo(
+        () => (config.margem_alvo_venda_pct === null || config.margem_alvo_venda_pct === undefined
+            ? null
+            : validarMargemAlvoVendaPct(config.margem_alvo_venda_pct)),
+        [config.margem_alvo_venda_pct],
+    );
+
     const handleSave = async () => {
         try {
+            // Bloqueia o save se os pcts de precificação pelo mercado estiverem
+            // fora da faixa — MESMA regra do backend (configuracao.py):
+            // desconto 0 ≤ x < 100; margem sobre a venda 0 < x < 100.
+            if (erroDescontoMercado || erroMargemAlvo) {
+                showToast.error(erroDescontoMercado || erroMargemAlvo || 'Percentual inválido');
+                return;
+            }
             setSaving(true);
             // Removido showToast.info redundante
 
@@ -802,6 +825,37 @@ const SettingsPage: React.FC = () => {
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                                     Usada no DRE para separar receita bruta de receita líquida. Em branco, o lucro é mostrado antes dos impostos e o painel avisa. Confirme o percentual com a contabilidade.
+                                </p>
+                            </div>
+                            {/* Precificação pelo mercado (custo estimado): defaults usados
+                                pelo modal de produto nos modos "Pelo mercado" e "Defino a venda".
+                                Validação idêntica à do backend (configuracao.py A2). */}
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                                <InputField
+                                    label="Desconto padrão vs. mercado (%)"
+                                    type="number"
+                                    step="0.01"
+                                    value={config.desconto_mercado_padrao_pct ?? ''}
+                                    onChange={(e) => setConfig({ ...config, desconto_mercado_padrao_pct: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                    placeholder="Ex: 15,00"
+                                />
+                                {erroDescontoMercado && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{erroDescontoMercado}</p>}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    Quanto você vende abaixo do preço de referência da Shopee/Mercado Livre. 0 a 100% (exclusive). Usado quando o produto não traz desconto próprio.
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                                <InputField
+                                    label="Margem alvo sobre a venda (%)"
+                                    type="number"
+                                    step="0.01"
+                                    value={config.margem_alvo_venda_pct ?? ''}
+                                    onChange={(e) => setConfig({ ...config, margem_alvo_venda_pct: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                                    placeholder="Ex: 50,00"
+                                />
+                                {erroMargemAlvo && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{erroMargemAlvo}</p>}
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    Margem esperada sobre o preço de venda para estimar o custo (custo = venda − margem). 0% ou 100% é inválido. Usada quando o produto não traz margem própria.
                                 </p>
                             </div>
                         </div>

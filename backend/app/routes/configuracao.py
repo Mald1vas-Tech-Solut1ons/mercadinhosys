@@ -91,7 +91,9 @@ def atualizar_configuracoes():
             "estoque_minimo_padrao", "exibir_preco_tela", "mostrar_foto_produto_pdv", "permitir_venda_sem_estoque",
             "desconto_maximo_percentual", "desconto_maximo_funcionario", "arredondamento_valores",
             "tempo_sessao_minutos", "tentativas_senha_bloqueio", "alertas_email", "alertas_whatsapp",
-            "motivos_estorno", "aliquota_impostos_venda"
+            "motivos_estorno", "aliquota_impostos_venda",
+            # Precificação pelo mercado (custo estimado) — mesma validação do serviço A2.
+            "desconto_mercado_padrao_pct", "margem_alvo_venda_pct"
         ]
 
         # 1. Verifica se já existe configuração para este estabelecimento
@@ -120,6 +122,24 @@ def atualizar_configuracoes():
                         except (InvalidOperation, ValueError):
                             return jsonify({"success": False, "error": "Alíquota de impostos deve estar entre 0 e 100"}), 400
                         val = float(numero)
+                # Precificação pelo mercado: mesma regra do serviço precificacao_reversa
+                # (desconto 0 ≤ x < 100; margem sobre a venda 0 < x < 100 — 100% impossível).
+                if field in ("desconto_mercado_padrao_pct", "margem_alvo_venda_pct"):
+                    from decimal import Decimal, InvalidOperation
+                    try:
+                        numero = Decimal(str(val).replace(",", "."))
+                        if field == "desconto_mercado_padrao_pct":
+                            valido = numero.is_finite() and Decimal("0") <= numero < 100
+                        else:
+                            valido = numero.is_finite() and Decimal("0") < numero < 100
+                        if not valido:
+                            raise ValueError
+                    except (InvalidOperation, ValueError, TypeError):
+                        erro_pct = ("Desconto deve estar entre 0% e menos de 100%"
+                                    if field == "desconto_mercado_padrao_pct" else
+                                    "Margem sobre a venda deve estar entre 0% e 100% (exclusive); 100% é impossível: não sobraria custo")
+                        return jsonify({"success": False, "error": erro_pct}), 400
+                    val = float(numero)
                 # logo_url é VARCHAR(500) e a logo é gerenciada pelo endpoint
                 # dedicado (/logo). Um data-URI base64 aqui estoura a coluna e
                 # derruba o save inteiro — ignora valores longos por segurança.

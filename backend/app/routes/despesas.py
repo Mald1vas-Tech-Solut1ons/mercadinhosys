@@ -1186,6 +1186,12 @@ def resumo_financeiro():
         receita_liquida = receita_bruta - impostos_venda
         lucro_bruto = receita_liquida - vendas.get("cogs", 0.0)
 
+        # Transparência do custo estimado: o valor do CMV não muda — só informa
+        # quanto dele vem de custo estimado (origem != informado na venda).
+        cmv_estimado = float(vendas.get("cogs_estimado", 0.0) or 0.0)
+        cmv = float(vendas.get("cogs", 0.0) or 0.0)
+        cmv_estimado_pct = (cmv_estimado / cmv * 100.0) if cmv > 0 else 0.0
+
         return jsonify({
             "success": True,
             "periodo": {
@@ -1201,6 +1207,8 @@ def resumo_financeiro():
                 "impostos_sobre_vendas": impostos_venda,
                 "receita_liquida": receita_liquida,
                 "custo_mercadoria": vendas.get("cogs", 0.0),
+                "cmv_estimado": cmv_estimado,
+                "cmv_estimado_pct": round(cmv_estimado_pct, 2),
                 "lucro_bruto": lucro_bruto,
                 "despesas_pessoal": custo_folha_total,
                 "despesas_operacionais": despesas_operacionais,

@@ -240,9 +240,25 @@ def get_configuracao_safe(estab_id):
                 LIMIT 1
             """
             db = _get_db()
-            with db.session.begin_nested():
+            try:
                 row = db.session.execute(text(sql_fast), {"eid": estab_id}).fetchone()
-            
+            except Exception:
+                row = None
+            # Colunas novas (precificação pelo mercado) são lidas à parte: se a
+            # instalação ainda não migrou, ausência = default do sistema.
+            try:
+                row_extra = db.session.execute(text(
+                    "SELECT desconto_mercado_padrao_pct, margem_alvo_venda_pct "
+                    "FROM configuracoes WHERE estabelecimento_id = :eid LIMIT 1"
+                ), {"eid": estab_id}).fetchone()
+            except Exception:
+                row_extra = None
+            pct_extra = (
+                {"desconto_mercado_padrao_pct": float(row_extra[0]) if row_extra[0] is not None else 15.0,
+                 "margem_alvo_venda_pct": float(row_extra[1]) if row_extra[1] is not None else 50.0}
+                if row_extra else
+                {"desconto_mercado_padrao_pct": 15.0, "margem_alvo_venda_pct": 50.0}
+            )
             if row:
                 # Se sucesso, monta o dict direto (Fast!)
                 import json
@@ -283,6 +299,7 @@ def get_configuracao_safe(estab_id):
                     "alertas_whatsapp": bool(row[21]),
                     "motivos_estorno": motivos_estorno,
                     "mostrar_foto_produto_pdv": bool(row[23]),
+                    **pct_extra,
                 }
         except Exception as e_fast:
             # logger.debug(f"Fast path config falhou (provável schema drift): {e_fast}")
@@ -345,6 +362,11 @@ def get_configuracao_safe(estab_id):
         res["alertas_whatsapp"] = _fetch_col("alertas_whatsapp", False)
         
         res["motivos_estorno"] = _fetch_col("motivos_estorno")
+
+        # Precificação pelo mercado (custo estimado): se a instalação ainda não
+        # migrou, ausência da coluna = default do sistema.
+        res["desconto_mercado_padrao_pct"] = float(_fetch_col("desconto_mercado_padrao_pct", 15.0))
+        res["margem_alvo_venda_pct"] = float(_fetch_col("margem_alvo_venda_pct", 50.0))
 
         if isinstance(res["formas_pagamento"], str):
             import json

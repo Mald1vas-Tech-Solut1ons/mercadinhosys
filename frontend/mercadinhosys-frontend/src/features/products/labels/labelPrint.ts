@@ -80,19 +80,18 @@ export function formatoDoCodigo(codigo: string): 'EAN13' | 'EAN8' | 'CODE128' | 
   return 'CODE128';
 }
 
-export function barcodeSvg(codigo: string, alturaPx: number): string {
+export function barcodeSvg(codigo: string): string {
   const formato = formatoDoCodigo(codigo);
   if (!formato) return '';
   try {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    JsBarcode(svg, codigo.trim(), {
-      format: formato, width: 1.6, height: alturaPx, displayValue: true,
-      fontSize: 12, margin: 0, textMargin: 1,
-    });
-    // Sem tamanho fixo: o viewBox do JsBarcode deixa o SVG escalar pela etiqueta
+    // Só as barras: os dígitos vão em HTML embaixo, para o SVG poder esticar
+    // e ocupar a caixa exata sem distorcer o texto
+    JsBarcode(svg, codigo.trim(), { format: formato, width: 2, height: 50, displayValue: false, margin: 0 });
     svg.removeAttribute('width');
     svg.removeAttribute('height');
-    svg.setAttribute('style', 'width:100%;height:auto;max-height:100%');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('style', 'display:block;width:100%;height:100%');
     return svg.outerHTML;
   } catch {
     return '';
@@ -114,20 +113,37 @@ export function escapeHtml(s: string): string {
 
 const mm = (v: number) => `${Number(v.toFixed(3))}mm`;
 
+const valorBR = (v: number) =>
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+
 export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): string {
-  const lojaPt = layout.alturaMm <= 25 ? 5.5 : 6.5;
-  const nomePt = layout.alturaMm <= 25 ? 7 : 8.5;
-  const precoPt = layout.alturaMm <= 25 ? 10 : 13;
-  const alturaBarraPx = Math.round(layout.alturaMm * 1.6);
-  const pageSize = layout.folhaA4 ? '210mm 297mm' : `${layout.larguraMm}mm ${layout.alturaMm}mm`;
+  // Tipografia e blocos proporcionais à altura: o mesmo desenho serve do
+  // 38 × 21 da Pimaco ao 60 × 40 do rolo
+  const h = layout.alturaMm;
+  const lojaPt = Number((h * 0.2).toFixed(1));
+  const nomePt = Number((h * 0.27).toFixed(1));
+  const precoPt = Math.round(h * 0.5);
+  const digitosPt = Number(Math.max(4.5, h * 0.17).toFixed(1));
+  const rodapeMm = h * 0.42;
+  const pageSize = layout.folhaA4 ? '210mm 297mm' : `${layout.larguraMm}mm ${h}mm`;
+  const loja = opcoes.mostrarLoja ? nomeLoja.trim() : '';
 
   const conteudoEtiqueta = (item: LabelItem): string => {
     const partes: string[] = [];
-    if (opcoes.mostrarLoja && nomeLoja.trim()) partes.push(`<div class="loja">${escapeHtml(nomeLoja.trim())}</div>`);
-    if (opcoes.mostrarNome) partes.push(`<div class="nome">${escapeHtml(item.nome)}</div>`);
-    const svg = barcodeSvg(item.codigo || '', alturaBarraPx);
-    partes.push(svg ? `<div class="barra">${svg}</div>` : '<div class="barra semcod">SEM CÓDIGO</div>');
-    if (opcoes.mostrarPreco) partes.push(`<div class="preco">${precoBR(item.preco)}</div>`);
+    if (loja) partes.push(`<div class="loja">${escapeHtml(loja)}</div>`);
+    partes.push(`<div class="nome">${opcoes.mostrarNome ? escapeHtml(item.nome) : ''}</div>`);
+
+    const codigo = (item.codigo || '').trim();
+    const svg = barcodeSvg(codigo);
+    const blocoCodigo = svg
+      ? `<div class="codigo"><div class="barras">${svg}</div><div class="digitos">${escapeHtml(codigo)}</div></div>`
+      : '<div class="codigo semcod">SEM CÓDIGO</div>';
+    const valor = valorBR(item.preco);
+    // Preço longo (milhar) encolhe para não invadir o código de barras
+    const blocoPreco = opcoes.mostrarPreco
+      ? `<div class="preco${valor.length > 6 ? ' longo' : ''}"><span class="rs">R$</span>${valor}</div>`
+      : '';
+    partes.push(`<div class="rodape${opcoes.mostrarPreco ? '' : ' sem-preco'}">${blocoCodigo}${blocoPreco}</div>`);
     return partes.join('');
   };
 
@@ -163,12 +179,19 @@ export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes:
 @page { size: ${pageSize}; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
-.etq { width: ${layout.larguraMm}mm; height: ${layout.alturaMm}mm; overflow: hidden; padding: 1.2mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
-.loja { font-size: ${lojaPt}pt; font-weight: 700; line-height: 1.1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
-.nome { font-size: ${nomePt}pt; font-weight: 700; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; width: 100%; }
-.preco { font-weight: 800; font-size: ${precoPt}pt; }
-.barra { flex: 1; width: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.semcod { font-size: 7pt; color: #900; }
+.etq { width: ${layout.larguraMm}mm; height: ${h}mm; overflow: hidden; padding: 1.4mm 1.6mm; display: flex; flex-direction: column; }
+.loja { flex: none; font-size: ${lojaPt}pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 0.5mm; border-bottom: 0.25mm solid #000; }
+.nome { flex: 1; min-height: 0; margin-top: 0.8mm; font-size: ${nomePt}pt; font-weight: 700; line-height: 1.15; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rodape { flex: none; height: ${mm(rodapeMm)}; display: flex; align-items: flex-end; gap: 1.5mm; }
+/* 22mm mínimos: abaixo disso o módulo do EAN fica < 0,23mm e o leitor erra a 203 dpi */
+.codigo { width: max(52%, 22mm); flex: none; height: 100%; display: flex; flex-direction: column; }
+.sem-preco .codigo { width: 70%; margin: 0 auto; }
+.barras { flex: 1; min-height: 0; }
+.digitos { flex: none; font-size: ${digitosPt}pt; letter-spacing: 0.08em; text-align: center; line-height: 1.2; }
+.semcod { justify-content: center; align-items: center; font-size: ${digitosPt}pt; font-weight: 700; border: 0.25mm dashed #000; }
+.preco { flex: 1; text-align: right; font-size: ${precoPt}pt; font-weight: 800; line-height: 0.95; letter-spacing: -0.02em; white-space: nowrap; }
+.preco.longo { font-size: ${Math.round(precoPt * 0.78)}pt; }
+.rs { font-size: 0.42em; font-weight: 700; vertical-align: 0.95em; margin-right: 0.12em; letter-spacing: 0; }
 .termica { page-break-after: always; }
 .termica:last-child { page-break-after: auto; }
 .folha { width: 210mm; height: 296.5mm; position: relative; overflow: hidden; page-break-after: always; }

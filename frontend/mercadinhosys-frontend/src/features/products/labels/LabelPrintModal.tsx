@@ -5,7 +5,7 @@ import { showToast } from '../../../utils/toast';
 import { mensagemErro } from '../../../utils/mensagemErro';
 import { Produto } from '../../../types';
 import { productsService } from '../productsService';
-import { settingsService } from '../../settings/settingsService';
+import settingsService from '../../settings/settingsService';
 import { LABEL_LAYOUTS, LabelItem, LabelLayoutId, LabelOptions, buildLabelsHtml, printLabels, precoBR } from './labelPrint';
 
 interface LabelPrintModalProps {

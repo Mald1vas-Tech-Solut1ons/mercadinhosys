@@ -710,7 +710,7 @@ const ProductFormModal = ({
                                 {ehServico ? 'Custo do Serviço (R$)' : 'Preço de Custo (R$) *'}
                             </label>
                             <input type="number" step="0.01" min={ehServico ? '0' : '0.01'} required={!ehServico}
-                                value={formData.preco_custo}
+                                value={formData.preco_custo || ''} placeholder="0"
                                 onChange={e => {
                                     // Ao vivo: sem preço digitado, o preço acompanha custo × margem;
                                     // com preço digitado, o preço fica e a margem se ajusta.
@@ -742,7 +742,7 @@ const ProductFormModal = ({
                                 {ehServico ? 'Preço Cobrado (R$) *' : 'Preço de Venda (R$) *'}
                             </label>
                             <input type="number" step="0.01" min="0.01" required
-                                value={formData.preco_venda}
+                                value={formData.preco_venda || ''} placeholder="0"
                                 onChange={e => {
                                     precoVendaManual.current = true;
                                     const preco = parseFloat(e.target.value) || 0;
@@ -764,7 +764,7 @@ const ProductFormModal = ({
                                 {!editMode && (
                                     <div>
                                         <label className={labelClass}>Estoque inicial</label>
-                                        <input type="number" min="0" step="any" value={formData.quantidade}
+                                        <input type="number" min="0" step="any" value={formData.quantidade || ''} placeholder="0"
                                             onChange={e => field('quantidade', Math.max(0, parseFloat(e.target.value) || 0))}
                                             className={inputClass} />
                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -775,7 +775,7 @@ const ProductFormModal = ({
                                 {visivel('quantidade_minima') && (
                                     <div>
                                         <label className={labelClass}>Qtd. Mínima (Alerta)</label>
-                                        <input type="number" min="0" value={formData.quantidade_minima}
+                                        <input type="number" min="0" value={formData.quantidade_minima || ''} placeholder="0"
                                             onChange={e => field('quantidade_minima', parseFloat(e.target.value) || 0)}
                                             className={inputClass} />
                                     </div>

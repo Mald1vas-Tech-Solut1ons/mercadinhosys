@@ -169,10 +169,19 @@ body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff;
 .termica:last-child { page-break-after: auto; }
 .folha { width: 210mm; height: 296.5mm; position: relative; overflow: hidden; page-break-after: always; }
 .folha:last-child { page-break-after: auto; }
+.barra-acao { position: fixed; top: 8px; right: 8px; }
+.barra-acao button { font: 700 14px Arial, sans-serif; padding: 10px 18px; background: #4f46e5; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
+@media print { .barra-acao { display: none; } }
 </style>
 </head>
 <body>
+<div class="barra-acao"><button type="button" onclick="window.print()">Imprimir</button></div>
 ${corpo}
+<script>
+// A própria janela dispara a impressão depois de carregar: chamar print() do
+// opener falha em silêncio no Chrome quando o popup ainda não está em foco
+window.addEventListener('load', function () { setTimeout(function () { window.focus(); window.print(); }, 300); });
+</script>
 </body>
 </html>`;
 }
@@ -183,7 +192,6 @@ export function printLabels(itens: LabelItem[], layout: LabelLayout, opcoes: Lab
   w.document.open();
   w.document.write(buildLabelsHtml(itens, layout, opcoes));
   w.document.close();
-  // Dá tempo do SVG renderizar antes de abrir a impressão
-  setTimeout(() => { w.focus(); w.print(); }, 350);
+  w.focus();
   return true;
 }

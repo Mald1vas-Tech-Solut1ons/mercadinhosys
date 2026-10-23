@@ -278,11 +278,31 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                                        <span className="text-sm text-gray-600 dark:text-gray-400">Vencimento</span>
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Vencimento do Plano</span>
                                         <span className="text-sm font-medium text-gray-900 dark:text-white">
-                                            {estabelecimento.vencimento_assinatura ? formatDate(estabelecimento.vencimento_assinatura) : 'Não definido'}
+                                            {estabelecimento.vencimento_plano ? formatDate(estabelecimento.vencimento_plano) : 'Não definido'}
                                         </span>
                                     </div>
+                                    {isSuperAdmin && (
+                                        <div className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                            <span className="text-sm text-gray-600 dark:text-gray-400">Prolongar / Editar Vencimento do Trial</span>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="date"
+                                                    className="px-2 py-1 text-sm border rounded bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                                                    value={formData.vencimento_plano ? String(formData.vencimento_plano).slice(0, 10) : ''}
+                                                    onChange={e => handleInputChange('vencimento_plano', e.target.value)}
+                                                />
+                                                <button
+                                                    onClick={handleSave}
+                                                    className="p-1.5 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-md transition-colors"
+                                                    title="Salvar vencimento"
+                                                >
+                                                    <Save size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

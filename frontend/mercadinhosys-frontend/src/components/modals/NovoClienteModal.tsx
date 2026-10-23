@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Building2, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_CONFIG } from '../../api/apiConfig';
+import { formatCnpj, formatCpf, formatPhone, formatCep, buscarCep } from '../../utils/cepUtils';
+import { validarCPF } from '../../features/customers/components/inputMasks';
 
 interface NovoClienteModalProps {
   isOpen: boolean;
@@ -27,8 +29,12 @@ interface FormData {
   // Dados do Administrador
   nome_admin: string;
   email_admin: string;
+  cpf_admin: string;
   senha_admin: string;
   confirmar_senha: string;
+  // Plano de acesso
+  tipo_acesso: 'trial' | 'gratuito';
+  trial_dias: string;
 }
 
 const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
@@ -56,8 +62,12 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
     // Dados do Administrador
     nome_admin: '',
     email_admin: '',
+    cpf_admin: '',
     senha_admin: '',
-    confirmar_senha: ''
+    confirmar_senha: '',
+    // Plano de acesso: padrão = trial Pro por 30 dias
+    tipo_acesso: 'trial',
+    trial_dias: '30'
   });
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -94,6 +104,14 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
   const validateStep2 = () => {
     if (!formData.nome_admin.trim()) {
       toast.error('Nome do administrador é obrigatório');
+      return false;
+    }
+    if (!formData.cpf_admin.trim()) {
+      toast.error('CPF do administrador é obrigatório');
+      return false;
+    }
+    if (!validarCPF(formData.cpf_admin)) {
+      toast.error('CPF do administrador inválido');
       return false;
     }
     if (!formData.email_admin.trim()) {
@@ -139,7 +157,12 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
         estado: formData.estado.trim() || undefined,
         nome_admin: formData.nome_admin.trim(),
         email_admin: formData.email_admin.trim(),
-        senha_admin: formData.senha_admin
+        cpf_admin: formData.cpf_admin.replace(/\D/g, ''),
+        senha_admin: formData.senha_admin,
+        plano: formData.tipo_acesso,          // 'trial' | 'gratuito'
+        trial_dias: formData.tipo_acesso === 'trial'
+          ? (parseInt(formData.trial_dias, 10) || 30)
+          : undefined
       };
 
       const response = await fetch(`${API_CONFIG.BASE_URL}/saas/onboarding`, {
@@ -200,8 +223,11 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       estado: '',
       nome_admin: '',
       email_admin: '',
+      cpf_admin: '',
       senha_admin: '',
-      confirmar_senha: ''
+      confirmar_senha: '',
+      tipo_acesso: 'trial',
+      trial_dias: '30'
     });
     setCurrentStep(1);
   };
@@ -307,8 +333,9 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={formData.cnpj}
-                      onChange={(e) => handleInputChange('cnpj', e.target.value)}
+                      value={formatCnpj(formData.cnpj)}
+                      onChange={(e) => handleInputChange('cnpj', e.target.value.replace(/\D/g, '').slice(0, 14))}
+                      inputMode="numeric"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="00.000.000/0000-00"
                       disabled={isLoading}
@@ -321,8 +348,9 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
                     </label>
                     <input
                       type="text"
-                      value={formData.cpf}
-                      onChange={(e) => handleInputChange('cpf', e.target.value)}
+                      value={formatCpf(formData.cpf)}
+                      onChange={(e) => handleInputChange('cpf', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      inputMode="numeric"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="000.000.000-00"
                       disabled={isLoading}
@@ -335,8 +363,9 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
                     </label>
                     <input
                       type="tel"
-                      value={formData.telefone}
-                      onChange={(e) => handleInputChange('telefone', e.target.value)}
+                      value={formatPhone(formData.telefone)}
+                      onChange={(e) => handleInputChange('telefone', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      inputMode="tel"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="(00) 00000-0000"
                       disabled={isLoading}
@@ -358,6 +387,54 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
                   </div>
                 </div>
 
+                <div className="mt-6 border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Plano de Acesso</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className={`flex items-start gap-3 p-3 border rounded-md cursor-pointer ${formData.tipo_acesso === 'trial' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}>
+                      <input
+                        type="radio"
+                        name="tipo_acesso"
+                        checked={formData.tipo_acesso === 'trial'}
+                        onChange={() => handleInputChange('tipo_acesso', 'trial')}
+                        className="mt-1"
+                        disabled={isLoading}
+                      />
+                      <div>
+                        <span className="block text-sm font-medium text-gray-900">Trial Pro (recomendado)</span>
+                        <span className="block text-xs text-gray-500">Cliente usa tudo do Pro durante o período grátis. Depois bloqueia sozinho.</span>
+                        <div className="flex items-center gap-2 mt-2">
+                          <input
+                            type="number"
+                            min={1}
+                            max={365}
+                            value={formData.trial_dias}
+                            onChange={(e) => handleInputChange('trial_dias', e.target.value.replace(/\D/g, '').slice(0, 3))}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="30"
+                            disabled={isLoading || formData.tipo_acesso !== 'trial'}
+                          />
+                          <span className="text-xs text-gray-600">dias grátis (30 = 1 mês)</span>
+                        </div>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-3 p-3 border rounded-md cursor-pointer ${formData.tipo_acesso === 'gratuito' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}>
+                      <input
+                        type="radio"
+                        name="tipo_acesso"
+                        checked={formData.tipo_acesso === 'gratuito'}
+                        onChange={() => handleInputChange('tipo_acesso', 'gratuito')}
+                        className="mt-1"
+                        disabled={isLoading}
+                      />
+                      <div>
+                        <span className="block text-sm font-medium text-gray-900">Gratuito permanente</span>
+                        <span className="block text-xs text-gray-500">Limites do plano Gratuito: 100 produtos, 1 funcionário, sem módulos Pro.</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
                 <div className="mt-4 p-3 bg-blue-50 rounded-md">
                   <p className="text-sm text-blue-800">
                     <strong>Endereço (opcional):</strong> Pode preencher agora ou depois nas configurações
@@ -367,8 +444,27 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4">
                   <input
                     type="text"
-                    value={formData.cep}
-                    onChange={(e) => handleInputChange('cep', e.target.value)}
+                    value={formatCep(formData.cep)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 8);
+                      handleInputChange('cep', digits);
+                      // Autofill ViaCEP: com 8 dígitos completos, busca endereço
+                      if (digits.length === 8 && digits !== formData.cep) {
+                        buscarCep(digits).then((addr) => {
+                          if (addr) {
+                            setFormData(prev => ({
+                              ...prev,
+                              cep: digits,
+                              logradouro: addr.logradouro || prev.logradouro,
+                              bairro: addr.bairro || prev.bairro,
+                              cidade: addr.localidade || prev.cidade,
+                              estado: addr.uf || prev.estado
+                            }));
+                          }
+                        });
+                      }
+                    }}
+                    inputMode="numeric"
                     className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="CEP"
                     disabled={isLoading}
@@ -457,6 +553,21 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      CPF do Administrador *
+                    </label>
+                    <input
+                      type="text"
+                      value={formatCpf(formData.cpf_admin)}
+                      onChange={(e) => handleInputChange('cpf_admin', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                      inputMode="numeric"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="000.000.000-00"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Senha *
                     </label>
                     <input
@@ -487,7 +598,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
                 <div className="mt-6 p-4 bg-green-50 rounded-md">
                   <h4 className="font-medium text-green-900 mb-2">✨ Recursos que serão criados:</h4>
                   <ul className="text-sm text-green-800 space-y-1">
-                    <li>• Estabelecimento com plano Gratuito</li>
+                    <li>• Estabelecimento com {formData.tipo_acesso === 'trial' ? `Trial Pro por ${parseInt(formData.trial_dias, 10) || 30} dias` : 'plano Gratuito'}</li>
                     <li>• Usuário Administrador com todas as permissões</li>
                     <li>• Configurações básicas e horário comercial</li>
                     <li>• Caixa PDV-01 inicial</li>

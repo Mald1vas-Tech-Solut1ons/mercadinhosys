@@ -7,7 +7,7 @@ from app.models import (
 )
 from app.decorators.decorator_jwt import super_admin_required
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 import logging
 from app.services.email_service import email_service
 import json
@@ -135,11 +135,58 @@ def tenant_onboarding():
                 "error": "É necessário fornecer CNPJ ou CPF"
             }), 400
 
+        # CPF do administrador (dono): obrigatório e VALIDADO.
+        # Histórico: antes derivava documento[:11] do CNPJ — um CNPJ truncado
+        # nunca é um CPF válido e o @validates do Funcionario reprova dentro
+        # do commit, estourando 500 genérico ("Falha ao provisionar") sem
+        # dizer ao operador onde errou. Aceita dígitos crus ou formatado.
+        from app.utils.validators import normalizar_documento, validar_cpf
+        cpf_admin = normalizar_documento(data.get('cpf_admin') or '')
+        if not cpf_admin:
+            return jsonify({
+                "success": False,
+                "error": "Informe o CPF do administrador (dono da loja)"
+            }), 400
+        if not validar_cpf(cpf_admin):
+            return jsonify({
+                "success": False,
+                "error": "CPF do administrador inválido"
+            }), 400
+
         # Início da transação atômica
-        logger.info(f"🚀 Iniciando onboarding atômico: {data['nome_fantasia']}")
+
+        # Plano inicial: padrão agora é TRIAL PRO (experimental) com N dias
+        # grátis — configurável por chamada. Antes nascia 'Gratuito'/'ativo',
+        # travando a loja nos limites do plano grátis para sempre.
+        # IMPORTANTE: gravar plano='trial' cru (como no onboarding self-service);
+        # normalize_plan('trial') viraria 'Gratuito'. O liberador de módulos é o
+        # plano_efetivo(), que conta trial+experimental como Pro (plan_guards).
+        pedido_plano = str(data.get('plano') or 'trial').lower().strip()
+        em_trial = pedido_plano in ('trial', 'experimental') or data.get('plano_status') == 'experimental'
+        if em_trial:
+            plano_inicial = 'trial'
+            plano_status_inicial = 'experimental'
+        else:
+            plano_inicial = normalize_plan(pedido_plano)
+            plano_status_inicial = 'ativo'
+        try:
+            trial_dias = int(data.get('trial_dias')) if data.get('trial_dias') is not None else 30
+        except (TypeError, ValueError):
+            trial_dias = 30
+        if trial_dias < 1: trial_dias = 1
+        if trial_dias > 365: trial_dias = 365
+        if em_trial:
+            vencimento_plano_inicial = date.today() + timedelta(days=trial_dias)
+            if isinstance(data.get('vencimento_plano'), str) and data.get('vencimento_plano'):
+                try:
+                    vencimento_plano_inicial = datetime.strptime(data['vencimento_plano'], "%Y-%m-%d").date()
+                except ValueError:
+                    pass
+        else:
+            vencimento_plano_inicial = None
+        logger.info(f"🚀 Iniciando onboarding atômico: {data['nome_fantasia']} (plano={plano_inicial}, status={plano_status_inicial}, vence em {vencimento_plano_inicial})")
 
         # 1. Criar Estabelecimento
-        plano_inicial = normalize_plan(data.get('plano', 'Gratuito'))
 
         estabelecimento = Estabelecimento(
             nome_fantasia=data['nome_fantasia'].strip(),
@@ -148,7 +195,8 @@ def tenant_onboarding():
             telefone=data['telefone'].strip(),
             email=data['email_estabelecimento'].strip(),
             plano=plano_inicial,
-            plano_status='ativo',
+            plano_status=plano_status_inicial,
+            vencimento_plano=vencimento_plano_inicial,
             data_abertura=date.today(),
             ativo=True,
             regime_tributario='SIMPLES NACIONAL',
@@ -171,7 +219,7 @@ def tenant_onboarding():
             nome=data['nome_admin'].strip(),
             username=data['email_admin'].strip().split('@')[0],  # Usa parte do email como username
             email=data['email_admin'].strip(),
-            cpf=(data.get('cpf_admin') or documento[:11] or '00000000000'),
+            cpf=cpf_admin,
             data_nascimento=date(1990, 1, 1),
             celular=(data.get('celular_admin') or data['telefone'].strip()),
             role='ADMIN',
@@ -284,6 +332,7 @@ def tenant_onboarding():
                     "nome_fantasia": estabelecimento.nome_fantasia,
                     "plano": estabelecimento.plano,
                     "plano_status": estabelecimento.plano_status,
+                    "vencimento_plano": estabelecimento.vencimento_plano.isoformat() if estabelecimento.vencimento_plano else None,
                     "data_cadastro": estabelecimento.data_cadastro.isoformat() if estabelecimento.data_cadastro else None
                 },
                 "administrador": {
@@ -574,7 +623,20 @@ def update_estabelecimento_admin(id):
                     pass
             else:
                 estabelecimento.vencimento_assinatura = None
-                
+
+        # Vencimento do plano/trial (data pura): permite ao superadmin prolongar
+        # ou encerrar um trial sem mexer no status. Trial vencido bloqueia o
+        # tenant no middleware (experimental + vencimento < hoje → 403).
+        if "vencimento_plano" in data:
+            if data["vencimento_plano"]:
+                try:
+                    estabelecimento.vencimento_plano = datetime.strptime(data["vencimento_plano"], "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    return jsonify({"success": False, "error": "vencimento_plano inválido (use YYYY-MM-DD)"}), 400
+            else:
+                estabelecimento.vencimento_plano = None
+            _invalidar_cache_plano(id)
+
         db.session.commit()
         
         logger.info(f"🔄 DADOS ALTERADOS: Estabelecimento {id} atualizado pelo Super Admin.")

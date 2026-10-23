@@ -49,6 +49,7 @@ export interface LabelItem {
 }
 
 export interface LabelOptions {
+  mostrarLoja: boolean;
   mostrarNome: boolean;
   mostrarPreco: boolean;
   ajusteTopoMm: number;
@@ -113,7 +114,8 @@ export function escapeHtml(s: string): string {
 
 const mm = (v: number) => `${Number(v.toFixed(3))}mm`;
 
-export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions): string {
+export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): string {
+  const lojaPt = layout.alturaMm <= 25 ? 5.5 : 6.5;
   const nomePt = layout.alturaMm <= 25 ? 7 : 8.5;
   const precoPt = layout.alturaMm <= 25 ? 10 : 13;
   const alturaBarraPx = Math.round(layout.alturaMm * 1.6);
@@ -121,6 +123,7 @@ export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes:
 
   const conteudoEtiqueta = (item: LabelItem): string => {
     const partes: string[] = [];
+    if (opcoes.mostrarLoja && nomeLoja.trim()) partes.push(`<div class="loja">${escapeHtml(nomeLoja.trim())}</div>`);
     if (opcoes.mostrarNome) partes.push(`<div class="nome">${escapeHtml(item.nome)}</div>`);
     const svg = barcodeSvg(item.codigo || '', alturaBarraPx);
     partes.push(svg ? `<div class="barra">${svg}</div>` : '<div class="barra semcod">SEM CÓDIGO</div>');
@@ -161,6 +164,7 @@ export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes:
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
 .etq { width: ${layout.larguraMm}mm; height: ${layout.alturaMm}mm; overflow: hidden; padding: 1.2mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between; text-align: center; }
+.loja { font-size: ${lojaPt}pt; font-weight: 700; line-height: 1.1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
 .nome { font-size: ${nomePt}pt; font-weight: 700; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; width: 100%; }
 .preco { font-weight: 800; font-size: ${precoPt}pt; }
 .barra { flex: 1; width: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; }
@@ -186,11 +190,11 @@ window.addEventListener('load', function () { setTimeout(function () { window.fo
 </html>`;
 }
 
-export function printLabels(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions): boolean {
+export function printLabels(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): boolean {
   const w = window.open('', '_blank', 'width=900,height=700');
   if (!w) return false; // popup bloqueado
   w.document.open();
-  w.document.write(buildLabelsHtml(itens, layout, opcoes));
+  w.document.write(buildLabelsHtml(itens, layout, opcoes, nomeLoja));
   w.document.close();
   w.focus();
   return true;

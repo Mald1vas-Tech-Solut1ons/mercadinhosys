@@ -154,6 +154,7 @@ def registrar_conta():
                 data_admissao=date.today(),
                 username=username,
                 role="ADMIN",
+                nivel_acesso=1,  # sem isso cai no default 4 (Caixa) e o PIN/gates de gerente recusam o dono
                 status="ativo",
                 ativo=True,
                 permissoes_json=json.dumps(permissoes_admin)

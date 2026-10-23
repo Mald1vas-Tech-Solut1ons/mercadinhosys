@@ -521,6 +521,7 @@ def guest_demo():
                 senha=generate_password_hash(secrets.token_urlsafe(32)),  # conta demo entra só pela rota /demo, nunca por senha
                 ativo=True,
                 role="ADMIN",
+                nivel_acesso=1,
                 is_super_admin=False
             )
             db.session.add(demo_admin)

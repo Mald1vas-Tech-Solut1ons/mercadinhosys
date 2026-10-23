@@ -1826,6 +1826,7 @@ def guest_demo():
 
                 ativo=True,
                 role="ADMIN",
+                nivel_acesso=1,
                 is_super_admin=False
             )
 

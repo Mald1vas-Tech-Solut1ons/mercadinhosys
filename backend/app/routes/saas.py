@@ -223,6 +223,7 @@ def tenant_onboarding():
             data_nascimento=date(1990, 1, 1),
             celular=(data.get('celular_admin') or data['telefone'].strip()),
             role='ADMIN',
+            nivel_acesso=1,  # sem isso cai no default 4 (Caixa) e o PIN/gates de gerente recusam o dono
             cargo='Proprietário',
             salario_base=0.0,  # Define zero para proprietário inicial
             status='ativo',

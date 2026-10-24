@@ -280,6 +280,14 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                 </td>
                                 <td className="px-5 py-3 text-right tabular-nums text-gray-500 dark:text-slate-400 font-medium">
                                     {formatCurrency(produto.preco_custo)}
+                                    {(produto.origem_custo === 'estimado' || produto.origem_custo === 'rateio_lote') && (
+                                        <span
+                                            className="ml-1 inline-flex items-center rounded bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400"
+                                            title="Custo calculado a partir do preço de venda"
+                                        >
+                                            estimado
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-5 py-3 text-right tabular-nums text-gray-900 dark:text-white font-bold">
                                     {formatCurrency(produto.preco_venda)}

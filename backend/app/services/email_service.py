@@ -558,12 +558,14 @@ def enviar_email_transacional(destino: str, assunto: str, corpo_html: str, corpo
     usuario = _resolve_mail_setting("MAIL_USERNAME")
     senha = _resolve_mail_setting("MAIL_PASSWORD")
     if servidor and usuario and senha:
-        mensagem = MIMEMultipart("alternative")
+        # EmailMessage + send_message codificam acentos no assunto/corpo; sendmail(str) exige ASCII.
+        from email.message import EmailMessage
+        mensagem = EmailMessage()
         mensagem["Subject"] = assunto
         mensagem["From"] = remetente or usuario
         mensagem["To"] = destino
-        mensagem.attach(MIMEText(corpo_texto, "plain", "utf-8"))
-        mensagem.attach(MIMEText(corpo_html, "html", "utf-8"))
+        mensagem.set_content(corpo_texto)
+        mensagem.add_alternative(corpo_html, subtype="html")
         try:
             porta = int(_resolve_mail_setting("MAIL_PORT", 587))
             if _resolve_mail_setting("MAIL_USE_SSL", False):
@@ -573,7 +575,7 @@ def enviar_email_transacional(destino: str, assunto: str, corpo_html: str, corpo
                 conexao.starttls(context=ssl.create_default_context())
             with conexao:
                 conexao.login(usuario, senha)
-                conexao.sendmail(mensagem["From"], [destino], mensagem.as_string())
+                conexao.send_message(mensagem)
         except (smtplib.SMTPException, OSError):
             logger.warning("E-mail não enviado: falha no SMTP %s.", servidor)
             return False

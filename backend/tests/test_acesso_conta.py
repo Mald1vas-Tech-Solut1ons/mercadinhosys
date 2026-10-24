@@ -205,7 +205,9 @@ def test_envio_transacional_via_gmail_smtp(app, monkeypatch):
         def __exit__(self, *a): return False
         def starttls(self, context): enviados[-1]["tls"] = True
         def login(self, user, pwd): enviados[-1]["login"] = user
-        def sendmail(self, de, para, corpo): enviados[-1].update(de=de, para=para, corpo=corpo)
+        def send_message(self, msg):
+            corpo = msg.as_bytes()  # o que antes estourava UnicodeEncodeError com acento
+            enviados[-1].update(para=[msg["To"]], corpo=corpo.decode("utf-8"), assunto=str(msg["Subject"]))
 
     config = {"MAIL_USERNAME": "loja@gmail.com", "MAIL_PASSWORD": "x" * 16, "MAIL_DEFAULT_SENDER": "loja@gmail.com"}
     monkeypatch.delenv("RESEND_API_KEY", raising=False)
@@ -213,7 +215,9 @@ def test_envio_transacional_via_gmail_smtp(app, monkeypatch):
     monkeypatch.setattr(email_service, "_resolve_mail_setting", lambda key, default=None: config.get(key, default))
     monkeypatch.setattr(email_service.smtplib, "SMTP", FakeSMTP)
     with app.app_context():
-        assert email_service.enviar_email_transacional("vera@exemplo.test", "Ative sua conta", "<p>oi</p>", "oi") is True
+        assert email_service.enviar_email_transacional(
+            "vera@exemplo.test", "Ative sua conta — Capraro Saldão", "<p>Olá, ação</p>", "Olá, ação") is True
     assert enviados[0]["host"] == "smtp.gmail.com" and enviados[0]["port"] == 587 and enviados[0]["tls"]
     assert enviados[0]["login"] == "loja@gmail.com" and enviados[0]["para"] == ["vera@exemplo.test"]
     assert "text/html" in enviados[0]["corpo"] and "text/plain" in enviados[0]["corpo"]
+    assert enviados[0]["assunto"] == "Ative sua conta — Capraro Saldão"

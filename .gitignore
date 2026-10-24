@@ -163,3 +163,17 @@ frontend/mercadinhosys-frontend/dev-dist/
 # Cobertura e artefatos de teste
 coverage/
 **/pytest-of-*/
+
+# ==================== RUIDO DO WINDOWS/EXPLORER (nunca versionar) =============
+**/desktop.ini
+* (1).*
+* (2).*
+* (1)
+* (2)
+backend/pip-build-tracker-*/
+backend/pip-ephem-wheel-cache-*/
+backend/pip-install-*/
+backend/app/tests/
+output/
+.claude/worktrees/
+.continue/mcpServers/

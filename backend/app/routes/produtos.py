@@ -21,6 +21,7 @@ from app.models import (
     Estabelecimento,
     Fornecedor,
     CategoriaProduto,
+    Configuracao,
     MovimentacaoEstoque,
     Venda,
     VendaItem,
@@ -247,13 +248,22 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
     tipo_item = "servico" if data.get("tipo_item") == "servico" else "produto"
     estabelecimento = _resolver_estabelecimento(estabelecimento_id)
 
+    # Modo de precificação: custo (padrão, comportamento atual) | mercado | venda.
+    # Em mercado/venda o servidor calcula preço de venda e custo a partir dos
+    # insumos; não exige preco_custo/preco_venda no payload.
+    modo = (data.get("modo_precificacao") or "custo").strip().lower()
+    if modo not in ("custo", "mercado", "venda"):
+        erros.append("Modo de precificação inválido: use custo, mercado ou venda")
+
     # Campos obrigatórios
-    campos_obrigatorios = ["nome", "categoria", "preco_venda"]
+    campos_obrigatorios = ["nome", "categoria"]
+    if modo == "custo":
+        campos_obrigatorios.append("preco_venda")
     for campo in campos_obrigatorios:
         valor = data.get(campo)
         if valor is None or str(valor).strip() == "":
             erros.append(f'O campo {campo.replace("_", " ").title()} é obrigatório')
-    if data.get("preco_custo") in (None, ""):
+    if modo == "custo" and data.get("preco_custo") in (None, ""):
         erros.append("O campo Preco Custo é obrigatório")
 
     # Validação de código de barras único (apenas se estabelecimento_id for fornecido)
@@ -295,8 +305,48 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
         except:
             erros.append("Preço de venda inválido")
 
-    # Validação se preço de venda é maior que custo
-    if data.get("preco_custo") not in (None, "") and data.get("preco_venda") not in (None, ""):
+    if modo == "mercado" and data.get("preco_referencia_mercado") not in (None, ""):
+        try:
+            ref = Decimal(str(data["preco_referencia_mercado"]))
+            if ref <= 0:
+                erros.append("Preço de referência do mercado deve ser maior que zero")
+        except:
+            erros.append("Preço de referência do mercado inválido")
+    if modo == "mercado":
+        ref = data.get("preco_referencia_mercado")
+        if ref in (None, ""):
+            erros.append("Informe o preço de referência do mercado")
+        fonte = (data.get("fonte_referencia_mercado") or "outro").strip().lower()
+        if fonte not in Produto.FONTES_MERCADO:
+            erros.append("Fonte de referência inválida: use shopee, mercado_livre ou outro")
+        if data.get("desconto_mercado_pct") not in (None, ""):
+            try:
+                d = Decimal(str(data["desconto_mercado_pct"]))
+                if not (Decimal("0") <= d < 100):
+                    erros.append("Desconto deve estar entre 0% e menos de 100%")
+            except:
+                erros.append("Desconto inválido")
+        if data.get("margem_alvo_venda_pct") not in (None, ""):
+            try:
+                m = Decimal(str(data["margem_alvo_venda_pct"]))
+                if not (Decimal("0") < m < 100):
+                    erros.append("Margem sobre a venda deve estar entre 0% e 100% (exclusive); 100% é impossível: não sobraria custo")
+            except:
+                erros.append("Margem sobre a venda inválida")
+
+    if modo == "venda" and data.get("preco_venda") in (None, ""):
+        erros.append("Informe o preço de venda")
+    if modo == "venda" and data.get("margem_alvo_venda_pct") not in (None, ""):
+        try:
+            m = Decimal(str(data["margem_alvo_venda_pct"]))
+            if not (Decimal("0") < m < 100):
+                erros.append("Margem sobre a venda deve estar entre 0% e 100% (exclusive); 100% é impossível: não sobraria custo")
+        except:
+            erros.append("Margem sobre a venda inválida")
+
+    # Validação se preço de venda é maior que custo — nos modos mercado/venda a
+    # regra vale DEPOIS do cálculo (garantida pelo serviço: margem > 0 ⇒ venda > custo)
+    if modo == "custo" and data.get("preco_custo") not in (None, "") and data.get("preco_venda") not in (None, ""):
         try:
             preco_custo = Decimal(str(data["preco_custo"]))
             preco_venda = Decimal(str(data["preco_venda"]))
@@ -1295,6 +1345,14 @@ def listar_produtos():
             elif estoque_status == "normal":
                 query = query.filter(Produto.quantidade > Produto.quantidade_minima)
 
+        # 6.5 Filtro de origem do custo (precificação reversa) — whitelist dos três valores.
+        origem_custo_filtro = request.args.get("origem_custo")
+        if origem_custo_filtro:
+            origem_custo_filtro = origem_custo_filtro.strip().lower()
+            if origem_custo_filtro not in Produto.ORIGENS_CUSTO:
+                return jsonify({"error": "origem_custo inválida: use informado, estimado ou rateio_lote"}), 400
+            query = query.filter(Produto.origem_custo == origem_custo_filtro)
+
         # 7. Busca Textual
         if busca:
             busca_termo = f"%{busca}%"
@@ -1998,11 +2056,85 @@ def criar_produto():
 
         preco_custo = safe_decimal(data.get("preco_custo"), "0")
         preco_venda = safe_decimal(data.get("preco_venda"), "0")
-        margem = (
-            ((preco_venda - preco_custo) / preco_custo * 100)
-            if preco_custo > 0
-            else Decimal("0")
-        )
+        origem_custo = "informado"
+        preco_referencia_mercado = None
+        fonte_referencia_mercado = None
+        referencia_mercado_em = None
+
+        # Precificação reversa: o servidor recalcula venda e custo a partir dos
+        # insumos; nunca confia em preco_custo/preco_venda vindos do cliente.
+        modo_precificacao = (data.get("modo_precificacao") or "custo").strip().lower()
+        if modo_precificacao in ("mercado", "venda"):
+            from app.services.precificacao_reversa import (
+                venda_pelo_mercado, custo_pela_venda, markup_de,
+            )
+            config_loja = Configuracao.query.filter_by(
+                estabelecimento_id=estabelecimento_id
+            ).first()
+            desconto_padrao = (
+                Decimal(str(config_loja.desconto_mercado_padrao_pct))
+                if config_loja and config_loja.desconto_mercado_padrao_pct is not None
+                else Decimal("15")
+            )
+            margem_padrao = (
+                Decimal(str(config_loja.margem_alvo_venda_pct))
+                if config_loja and config_loja.margem_alvo_venda_pct is not None
+                else Decimal("50")
+            )
+
+            if modo_precificacao == "mercado":
+                ref = Decimal(str(data.get("preco_referencia_mercado")))
+                desconto = (
+                    Decimal(str(data.get("desconto_mercado_pct")))
+                    if data.get("desconto_mercado_pct") not in (None, "")
+                    else desconto_padrao
+                )
+                margem_venda = (
+                    Decimal(str(data.get("margem_alvo_venda_pct")))
+                    if data.get("margem_alvo_venda_pct") not in (None, "")
+                    else margem_padrao
+                )
+                preco_venda = venda_pelo_mercado(ref, desconto)
+                preco_custo = custo_pela_venda(preco_venda, margem_venda)
+                preco_referencia_mercado = ref
+                fonte_referencia_mercado = (
+                    (data.get("fonte_referencia_mercado") or "outro").strip().lower()
+                )
+                if data.get("referencia_mercado_em"):
+                    referencia_mercado_em = datetime.strptime(
+                        str(data["referencia_mercado_em"])[:10], "%Y-%m-%d"
+                    ).date()
+                else:
+                    referencia_mercado_em = date.today()
+                preco_ref_fmt = f"R$ {ref.quantize(Decimal('0.01')):f}"
+                fonte_fmt = (fonte_referencia_mercado or "outro").replace("_", " ")
+                motivo_modo = (
+                    f"precificação pelo mercado ({fonte_fmt}, ref. {preco_ref_fmt}, -{desconto}%)"
+                )
+            else:  # modo "venda"
+                preco_venda = Decimal(str(data.get("preco_venda"))).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                margem_venda = (
+                    Decimal(str(data.get("margem_alvo_venda_pct")))
+                    if data.get("margem_alvo_venda_pct") not in (None, "")
+                    else margem_padrao
+                )
+                preco_custo = custo_pela_venda(preco_venda, margem_venda)
+                motivo_modo = (
+                    f"precificação pela venda (venda R$ {preco_venda:f}, margem {margem_venda}%)"
+                )
+
+            origem_custo = "estimado"
+            margem = markup_de(preco_custo, preco_venda)
+        else:
+            # Modo custo (ou ausente): payload com origem_custo é ignorado; grava informado.
+            margem = (
+                ((preco_venda - preco_custo) / preco_custo * 100)
+                if preco_custo > 0
+                else Decimal("0")
+            )
+            motivo_modo = None
 
         codigo_barras_novo = clean_nullable_str(data.get("codigo_barras"))
         codigo_interno_novo = clean_nullable_str(data.get("codigo_interno"))
@@ -2083,6 +2215,10 @@ def criar_produto():
             preco_custo=preco_custo,
             preco_venda=preco_venda,
             margem_lucro=margem,
+            origem_custo=origem_custo,
+            preco_referencia_mercado=preco_referencia_mercado,
+            fonte_referencia_mercado=fonte_referencia_mercado,
+            referencia_mercado_em=referencia_mercado_em,
             ncm=clean_nullable_str(re.sub(r"\D", "", data.get("ncm", "")), 8) or "",
             origem=safe_int(data.get("origem"), 0),
             cest=clean_nullable_str(re.sub(r"\D", "", data.get("cest", "")), 7),
@@ -2145,7 +2281,8 @@ def criar_produto():
             preco_venda_novo=produto.preco_venda,
             margem_nova=produto.margem_lucro,
             motivo="Cadastro inicial do produto",
-            observacoes=f"Produto cadastrado por {claims.get('nome')}",
+            observacoes=f"Produto cadastrado por {claims.get('nome')}"
+            + (f" — {motivo_modo}" if motivo_modo else ""),
         )
         db.session.add(historico_inicial)
 
@@ -2420,18 +2557,86 @@ def atualizar_produto(id):
         else:
             produto.margem_lucro = 0
 
+        # Precificação reversa no PUT: modo mercado/venda recalcula venda e custo
+        # no servidor a partir dos insumos; nunca confia nos valores do cliente.
+        modo_precificacao = (data.get("modo_precificacao") or "").strip().lower()
+        motivo_modo_put = None
+        if modo_precificacao in ("mercado", "venda"):
+            from app.services.precificacao_reversa import (
+                venda_pelo_mercado, custo_pela_venda, markup_de,
+            )
+            config_loja = Configuracao.query.filter_by(
+                estabelecimento_id=estabelecimento_id
+            ).first()
+            desconto_padrao = (
+                Decimal(str(config_loja.desconto_mercado_padrao_pct))
+                if config_loja and config_loja.desconto_mercado_padrao_pct is not None
+                else Decimal("15")
+            )
+            margem_padrao = (
+                Decimal(str(config_loja.margem_alvo_venda_pct))
+                if config_loja and config_loja.margem_alvo_venda_pct is not None
+                else Decimal("50")
+            )
+
+            if modo_precificacao == "mercado":
+                ref = Decimal(str(data.get("preco_referencia_mercado")))
+                desconto = (
+                    Decimal(str(data.get("desconto_mercado_pct")))
+                    if data.get("desconto_mercado_pct") not in (None, "")
+                    else desconto_padrao
+                )
+                margem_venda = (
+                    Decimal(str(data.get("margem_alvo_venda_pct")))
+                    if data.get("margem_alvo_venda_pct") not in (None, "")
+                    else margem_padrao
+                )
+                produto.preco_venda = venda_pelo_mercado(ref, desconto)
+                produto.preco_custo = custo_pela_venda(produto.preco_venda, margem_venda)
+                produto.preco_referencia_mercado = ref
+                produto.fonte_referencia_mercado = (
+                    (data.get("fonte_referencia_mercado") or "outro").strip().lower()
+                )
+                if data.get("referencia_mercado_em"):
+                    produto.referencia_mercado_em = datetime.strptime(
+                        str(data["referencia_mercado_em"])[:10], "%Y-%m-%d"
+                    ).date()
+                else:
+                    produto.referencia_mercado_em = date.today()
+                preco_ref_fmt = f"R$ {ref.quantize(Decimal('0.01')):f}"
+                fonte_fmt = (produto.fonte_referencia_mercado or "outro").replace("_", " ")
+                motivo_modo_put = (
+                    f"precificação pelo mercado ({fonte_fmt}, ref. {preco_ref_fmt}, -{desconto}%)"
+                )
+            else:  # modo "venda"
+                produto.preco_venda = Decimal(str(data.get("preco_venda"))).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                margem_venda = (
+                    Decimal(str(data.get("margem_alvo_venda_pct")))
+                    if data.get("margem_alvo_venda_pct") not in (None, "")
+                    else margem_padrao
+                )
+                produto.preco_custo = custo_pela_venda(produto.preco_venda, margem_venda)
+                motivo_modo_put = (
+                    f"precificação pela venda (venda R$ {produto.preco_venda:f}, margem {margem_venda}%)"
+                )
+
+            produto.origem_custo = "estimado"
+            produto.margem_lucro = markup_de(produto.preco_custo, produto.preco_venda)
+
         # Registrar histórico de preços se houve alteração
         preco_alterado = False
         motivo_alteracao = []
-        
-        if "preco_custo" in data and abs(produto.preco_custo - preco_custo_anterior) > Decimal("0.01"):
+
+        if abs(produto.preco_custo - preco_custo_anterior) > Decimal("0.01"):
             preco_alterado = True
             motivo_alteracao.append("custo")
-        
-        if "preco_venda" in data and abs(produto.preco_venda - preco_venda_anterior) > Decimal("0.01"):
+
+        if abs(produto.preco_venda - preco_venda_anterior) > Decimal("0.01"):
             preco_alterado = True
             motivo_alteracao.append("venda")
-        
+
         if preco_alterado:
             motivo = f"Atualização de preço ({', '.join(motivo_alteracao)})"
             historico = HistoricoPrecos(
@@ -2446,6 +2651,23 @@ def atualizar_produto(id):
                 margem_nova=produto.margem_lucro or Decimal("0"),
                 motivo=motivo,
                 observacoes=f"Produto atualizado por {claims.get('nome')}"
+                + (f" — {motivo_modo_put}" if motivo_modo_put else ""),
+            )
+            db.session.add(historico)
+        elif motivo_modo_put:
+            # Mesmo sem mudança líquida de preço, registra a mudança de modo.
+            historico = HistoricoPrecos(
+                estabelecimento_id=estabelecimento_id,
+                produto_id=produto.id,
+                funcionario_id=int(get_jwt_identity()),
+                preco_custo_anterior=preco_custo_anterior,
+                preco_venda_anterior=preco_venda_anterior,
+                margem_anterior=margem_anterior or Decimal("0"),
+                preco_custo_novo=produto.preco_custo,
+                preco_venda_novo=produto.preco_venda,
+                margem_nova=produto.margem_lucro or Decimal("0"),
+                motivo=f"Atualização de preço ({', '.join(motivo_alteracao) or 'sem mudança'})",
+                observacoes=f"Produto atualizado por {claims.get('nome')} — {motivo_modo_put}",
             )
             db.session.add(historico)
 

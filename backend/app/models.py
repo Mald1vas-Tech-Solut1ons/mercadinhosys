@@ -505,6 +505,11 @@ class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     alerta_estoque_minimo = db.Column(db.Boolean, default=True)
     dias_alerta_validade = db.Column(db.Integer, default=30)
     estoque_minimo_padrao = db.Column(db.Integer, default=10)
+    # ---- Precificação pelo mercado (custo estimado) ----
+    # Desconto aplicado sobre o preço de referência e margem alvo SOBRE A VENDA
+    # (não confundir com margem_lucro do produto, que é markup sobre o custo).
+    desconto_mercado_padrao_pct = db.Column(db.Numeric(5, 2), nullable=False, server_default="15.00")
+    margem_alvo_venda_pct = db.Column(db.Numeric(5, 2), nullable=False, server_default="50.00")
     tempo_sessao_minutos = db.Column(db.Integer, default=30)
     tentativas_senha_bloqueio = db.Column(db.Integer, default=3)
     alertas_email = db.Column(db.Boolean, default=False)
@@ -1110,6 +1115,17 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     preco_custo = db.Column(db.Numeric(19, 4), nullable=False)
     preco_venda = db.Column(db.Numeric(19, 4), nullable=False)
     margem_lucro = db.Column(db.Numeric(19, 4), nullable=True)
+    # ---- Precificação reversa (custo estimado pelo mercado) ----
+    # informado: custo real digitado pela loja | estimado: calculado a partir do
+    # preço de venda | rateio_lote: rateado de um lote fechado (Fase B).
+    # Custo estimado NUNCA se passa por custo real: todo número derivado dele é
+    # marcado como estimado (produto, venda e DRE).
+    ORIGENS_CUSTO = ("informado", "estimado", "rateio_lote")
+    FONTES_MERCADO = ("shopee", "mercado_livre", "outro")
+    origem_custo = db.Column(db.String(20), nullable=False, server_default="informado")
+    preco_referencia_mercado = db.Column(db.Numeric(19, 4), nullable=True)
+    fonte_referencia_mercado = db.Column(db.String(20), nullable=True)
+    referencia_mercado_em = db.Column(db.Date, nullable=True)
     ncm = db.Column(db.String(8))
     origem = db.Column(db.Integer, default=0)
     # ---- Campos fiscais (NFC-e / NF-e) ----
@@ -1200,6 +1216,12 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         if self.preco_venda and self.preco_custo and self.preco_custo > 0:
             self.margem_lucro = (self.preco_venda - self.preco_custo) / self.preco_custo * 100
         else: self.margem_lucro = 0
+        # Transição de origem quando chega custo real (Fase A, A4): estoque anterior
+        # <= 0 significa que TODO o custo do produto agora é real → informado.
+        # Com estoque estimado (> 0) a média ainda contém parte estimada → mantém.
+        origem_anterior = getattr(self, "origem_custo", "informado")
+        if origem_anterior and origem_anterior != "informado" and qtd_atual <= 0:
+            self.origem_custo = "informado"
         if registrar_historico and funcionario_id and abs(self.preco_custo - custo_anterior) > Decimal("0.01"):
             historico_kwargs = dict(
                 estabelecimento_id=self.estabelecimento_id, produto_id=self.id, funcionario_id=funcionario_id,
@@ -1762,6 +1784,9 @@ class VendaItem(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     custo_unitario = db.Column(db.Numeric(19, 4))
     margem_item = db.Column(db.Numeric(19, 4))
     margem_lucro_real = db.Column(db.Numeric(19, 4))
+    # True quando, no momento da venda, o produto tinha origem_custo != "informado"
+    # (custo estimado). Marca o CMV como estimado no DRE.
+    custo_estimado = db.Column(db.Boolean, nullable=False, server_default="0")
     venda = db.relationship("Venda", back_populates="itens")
     produto = db.relationship("Produto", backref=db.backref("itens_venda", lazy=True))
     __table_args__ = (db.Index("ix_venda_item_venda", "venda_id"), db.Index("ix_venda_item_produto", "produto_id"),

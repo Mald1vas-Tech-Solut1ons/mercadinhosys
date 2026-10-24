@@ -151,7 +151,13 @@ class DataLayer:
             # Query CMV (Custo)
             query_cogs = db.session.query(
                 func.date(Venda.data_venda).label('data'),
-                func.sum(custo_efetivo() * VendaItem.quantidade).label('cogs')
+                func.sum(custo_efetivo() * VendaItem.quantidade).label('cogs'),
+                # Custo estimado = parcela do CMV de itens cujo produto tinha
+                # origem != informado no momento da venda (snapshot custo_estimado).
+                func.sum(case(
+                    (VendaItem.custo_estimado == True, (custo_efetivo()) * VendaItem.quantidade),
+                    else_=Decimal("0")
+                )).label('cogs_estimado')
             ).join(VendaItem, Venda.id == VendaItem.venda_id).outerjoin(
                 Produto, Produto.id == VendaItem.produto_id
             ).filter(
@@ -216,6 +222,7 @@ class DataLayer:
                 d_str = str(r.data)
                 if d_str in mapa_dias:
                     mapa_dias[d_str]["cogs"] = float(r.cogs or 0)
+                    mapa_dias[d_str]["cogs_estimado"] = float(r.cogs_estimado or 0)
                     
             # Preencher Despesas (operacionais + rateio diário da folha real)
             for r in resultados_despesas:
@@ -1773,7 +1780,12 @@ class DataLayer:
             # Use COALESCE to fall back to produtos.preco_custo when custo_unitario is NULL
             from sqlalchemy import case as sa_case
             q_cogs = db.session.query(
-                func.sum(custo_efetivo() * VendaItem.quantidade)
+                func.sum(custo_efetivo() * VendaItem.quantidade),
+                # Parcela do CMV com custo estimado (snapshot custo_estimado do item).
+                func.sum(sa_case(
+                    (VendaItem.custo_estimado == True, custo_efetivo() * VendaItem.quantidade),
+                    else_=0
+                ))
             ).join(
                 Venda, Venda.id == VendaItem.venda_id
             ).outerjoin(
@@ -1784,22 +1796,24 @@ class DataLayer:
                 Venda.status != 'cancelada'
             )
             if estabelecimento_id != 'all': q_cogs = q_cogs.filter(Venda.estabelecimento_id == estabelecimento_id)
-            cogs = q_cogs.scalar() or 0.0
+            cogs, cogs_estimado = q_cogs.first() or (None, None)
 
             # 4. Gross Profit
             revenue = float(revenue)
-            cogs = float(cogs)
+            cogs = float(cogs or 0.0)
+            cogs_estimado = float(cogs_estimado or 0.0)
             gross_profit = revenue - cogs
 
             return {
                 "revenue": revenue,
                 "cogs": cogs,
+                "cogs_estimado": cogs_estimado,
                 "gross_profit": gross_profit,
                 "count": int(count)
             }
         except Exception as e:
             logger.error(f"ERRO CRÍTICO em get_sales_financials: {e}", exc_info=True)
-            return {"revenue": 0.0, "cogs": 0.0, "gross_profit": 0.0, "count": 0}
+            return {"revenue": 0.0, "cogs": 0.0, "cogs_estimado": 0.0, "gross_profit": 0.0, "count": 0}
     @staticmethod
     @provide_session
     def get_consolidated_financial_summary(db, estabelecimento_id: int, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
@@ -1809,7 +1823,7 @@ class DataLayer:
         """
         # Estrutura padrão para evitar 500 se algo falhar
         result = {
-            "vendas": {"revenue": 0.0, "cogs": 0.0, "gross_profit": 0.0, "count": 0, "total_recebido": 0.0},
+            "vendas": {"revenue": 0.0, "cogs": 0.0, "cogs_estimado": 0.0, "gross_profit": 0.0, "count": 0, "total_recebido": 0.0},
             "despesas": {"total": 0.0, "recorrentes": 0.0, "despesas_pessoal": 0.0,
                          "despesas_operacionais": 0.0, "despesas_caixa": 0.0},
             "contas_pagar": {

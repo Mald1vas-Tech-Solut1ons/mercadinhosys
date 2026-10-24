@@ -1035,6 +1035,8 @@ def finalizar_venda():
                     preco_unitario=preco_unitario,
                     total_item=total_item,
                     custo_unitario=custo_unitario,
+                    # Snapshot da origem: marca o CMV como estimado no DRE.
+                    custo_estimado=(getattr(produto, "origem_custo", "informado") != "informado"),
                     margem_lucro_real=to_decimal((preco_unitario - custo_unitario) * quantidade, precision=2)
                 )
                 db.session.add(novo_item)

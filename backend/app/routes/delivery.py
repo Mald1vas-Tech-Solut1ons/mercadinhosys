@@ -790,6 +790,8 @@ def criar_venda_entrega_unificada():
                 preco_unitario=preco,
                 total_item=total_item,
                 custo_unitario=custo,
+                # Snapshot da origem: marca o CMV como estimado no DRE.
+                custo_estimado=(getattr(prod, "origem_custo", "informado") != "informado"),
                 margem_lucro_real=((preco - custo) * quantidade).quantize(cent),
             )
             db.session.add(v_item)

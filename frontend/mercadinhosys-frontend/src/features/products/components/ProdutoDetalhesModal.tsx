@@ -101,7 +101,17 @@ const ProdutoDetalhesModal = ({ produto, onClose }: ProdutoDetalhesModalProps) =
                                 <p className="text-lg font-black text-gray-900 dark:text-white">{formatCurrency(produto.preco_venda)}</p>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                                <p className="text-[9px] text-gray-400 font-black uppercase mb-1">Margem Real</p>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <p className="text-[9px] text-gray-400 font-black uppercase mb-1">Margem Real</p>
+                                    {(produto.origem_custo === 'estimado' || produto.origem_custo === 'rateio_lote') && (
+                                        <span
+                                            className="rounded bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400"
+                                            title="Custo calculado a partir do preço de venda"
+                                        >
+                                            estimado
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-lg font-black text-green-600 dark:text-green-400">{produto.margem_lucro || 0}%</p>
                             </div>
                             <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">

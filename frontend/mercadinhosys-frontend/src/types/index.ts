@@ -176,6 +176,12 @@ export interface Produto {
     preco_custo: number;
     preco_venda: number;
     margem_lucro?: number;
+    /** Precificação reversa (Fase A): origem do custo gravado. */
+    origem_custo?: 'informado' | 'estimado' | 'rateio_lote';
+    /** Referência de mercado (modo mercado). Preço público — pode ir para vendedor. */
+    preco_referencia_mercado?: number | null;
+    fonte_referencia_mercado?: 'shopee' | 'mercado_livre' | 'outro' | null;
+    referencia_mercado_em?: string | null;
     total_vendido?: number;
     quantidade_vendida?: number;
     frequencia_venda?: number;

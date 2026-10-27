@@ -203,6 +203,18 @@ def test_atributo_cor_nas_familias_nao_alimentares(client, session):
     assert session.get(Produto, r.get_json()["produto"]["id"]).atributos == {"cor": "Vermelho"}
 
 
+def test_comprovante_mostra_hora_da_loja_e_nao_utc():
+    from app.routes.pdv import _data_venda_local
+    utc_naive = datetime(2026, 10, 27, 19, 10, 0)  # como o banco grava (UTC)
+    assert _data_venda_local(utc_naive, "SP") == "27/10/2026 16:10:00"
+    assert _data_venda_local(utc_naive, "AM") == "27/10/2026 15:10:00"
+    assert _data_venda_local(utc_naive, None) == "27/10/2026 16:10:00"
+    # Virada do dia: 01h UTC ainda é o dia anterior na loja.
+    assert _data_venda_local(datetime(2026, 10, 28, 1, 30), "SP") == "27/10/2026 22:30:00"
+    assert _data_venda_local("2026-10-27T19:10:00Z", "SP") == "27/10/2026 16:10:00"
+    assert _data_venda_local("2026-10-27T16:10:00-03:00", "SP") == "27/10/2026 16:10:00"
+
+
 def test_produto_eletro_com_st_sai_csosn_500_cfop_5405(client, session):
     ctx = _ctx(session, "mercearia")
     r = client.post("/api/produtos/", headers=ctx["headers"], json={

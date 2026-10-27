@@ -87,8 +87,11 @@ export function barcodeSvg(codigo: string): string {
   try {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     // Só as barras: os dígitos vão em HTML embaixo, para o SVG poder esticar
-    // e ocupar a caixa exata sem distorcer o texto
-    JsBarcode(svg, codigo.trim(), { format: formato, width: 2, height: 50, displayValue: false, margin: 0 });
+    // e ocupar a caixa exata sem distorcer o texto.
+    // margin 22 = 11 módulos (width 2) de zona branca em cada lado: o mínimo do
+    // EAN-13 (11 à esquerda). Sem ela o leitor não acha o início do código. Como
+    // a margem faz parte do SVG, ela escala junto com as barras.
+    JsBarcode(svg, codigo.trim(), { format: formato, width: 2, height: 50, displayValue: false, margin: 22 });
     svg.removeAttribute('width');
     svg.removeAttribute('height');
     svg.setAttribute('preserveAspectRatio', 'none');
@@ -119,13 +122,15 @@ const valorBR = (v: number) =>
 
 export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): string {
   // Tipografia e blocos proporcionais à altura: o mesmo desenho serve do
-  // 38 × 21 da Pimaco ao 60 × 40 do rolo
+  // 38 × 21 da Pimaco ao 60 × 40 do rolo. O código de barras ocupa a LARGURA
+  // TODA (com zona branca) numa faixa própria embaixo: dividir a linha com o
+  // preço deixava o módulo do EAN abaixo do que o leitor lê.
   const h = layout.alturaMm;
-  const lojaPt = Number((h * 0.2).toFixed(1));
-  const nomePt = Number((h * 0.27).toFixed(1));
-  const precoPt = Math.round(h * 0.5);
-  const digitosPt = Number(Math.max(4.5, h * 0.17).toFixed(1));
-  const rodapeMm = h * 0.42;
+  const lojaPt = Number((h * 0.17).toFixed(1));
+  const nomePt = Number((h * 0.24).toFixed(1));
+  const precoPt = Number((h * 0.42).toFixed(1));
+  const digitosPt = Number(Math.max(5, h * 0.17).toFixed(1));
+  const codigoMm = h * 0.42;
   const pageSize = layout.folhaA4 ? '210mm 297mm' : `${layout.larguraMm}mm ${h}mm`;
   const loja = opcoes.mostrarLoja ? nomeLoja.trim() : '';
 
@@ -139,12 +144,10 @@ export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes:
     const blocoCodigo = svg
       ? `<div class="codigo"><div class="barras">${svg}</div><div class="digitos">${escapeHtml(codigo)}</div></div>`
       : '<div class="codigo semcod">SEM CÓDIGO</div>';
-    const valor = valorBR(item.preco);
-    // Preço longo (milhar) encolhe para não invadir o código de barras
-    const blocoPreco = opcoes.mostrarPreco
-      ? `<div class="preco${valor.length > 6 ? ' longo' : ''}"><span class="rs">R$</span>${valor}</div>`
-      : '';
-    partes.push(`<div class="rodape${opcoes.mostrarPreco ? '' : ' sem-preco'}">${blocoCodigo}${blocoPreco}</div>`);
+    if (opcoes.mostrarPreco) {
+      partes.push(`<div class="preco"><span class="rs">R$</span>${valorBR(item.preco)}</div>`);
+    }
+    partes.push(blocoCodigo);
     return partes.join('');
   };
 
@@ -180,19 +183,19 @@ export function buildLabelsHtml(itens: LabelItem[], layout: LabelLayout, opcoes:
 @page { size: ${pageSize}; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; }
-.etq { width: ${layout.larguraMm}mm; height: ${h}mm; overflow: hidden; padding: 1.4mm 1.6mm; display: flex; flex-direction: column; }
-.loja { flex: none; font-size: ${lojaPt}pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 0.5mm; border-bottom: 0.25mm solid #000; }
-.nome { flex: 1; min-height: 0; margin-top: 0.8mm; font-size: ${nomePt}pt; font-weight: 700; line-height: 1.15; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.rodape { flex: none; height: ${mm(rodapeMm)}; display: flex; align-items: flex-end; gap: 1.5mm; }
-/* 22mm mínimos: abaixo disso o módulo do EAN fica < 0,23mm e o leitor erra a 203 dpi */
-.codigo { width: max(52%, 22mm); flex: none; height: 100%; display: flex; flex-direction: column; }
-.sem-preco .codigo { width: 70%; margin: 0 auto; }
+/* Arredondamento mm→px gerava barra de rolagem na prévia, comendo a borda da etiqueta */
+html, body { overflow: hidden; }
+.etq { width: ${layout.larguraMm}mm; height: ${h}mm; overflow: hidden; padding: 1.2mm 1.6mm; display: flex; flex-direction: column; }
+.loja { flex: none; font-size: ${lojaPt}pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; text-align: center; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-bottom: 0.4mm; border-bottom: 0.25mm solid #000; }
+.nome { flex: 1; min-height: 0; margin-top: 0.6mm; font-size: ${nomePt}pt; font-weight: 700; line-height: 1.1; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.preco { flex: none; text-align: center; font-size: ${precoPt}pt; font-weight: 800; line-height: 1; letter-spacing: -0.02em; white-space: nowrap; margin: 0.3mm 0 0.5mm; }
+.rs { font-size: 0.5em; font-weight: 700; vertical-align: 0.6em; margin-right: 0.15em; letter-spacing: 0; }
+/* Largura toda da etiqueta (zona branca já dentro do SVG). Teto de 50mm: acima
+   disso o EAN passa de ~130% do tamanho nominal sem ganho de leitura. */
+.codigo { flex: none; width: 100%; max-width: 50mm; margin: 0 auto; height: ${mm(codigoMm)}; display: flex; flex-direction: column; }
 .barras { flex: 1; min-height: 0; }
-.digitos { flex: none; font-size: ${digitosPt}pt; letter-spacing: 0.08em; text-align: center; line-height: 1.2; }
+.digitos { flex: none; font-size: ${digitosPt}pt; letter-spacing: 0.12em; text-align: center; line-height: 1.15; }
 .semcod { justify-content: center; align-items: center; font-size: ${digitosPt}pt; font-weight: 700; border: 0.25mm dashed #000; }
-.preco { flex: 1; text-align: right; font-size: ${precoPt}pt; font-weight: 800; line-height: 0.95; letter-spacing: -0.02em; white-space: nowrap; }
-.preco.longo { font-size: ${Math.round(precoPt * 0.78)}pt; }
-.rs { font-size: 0.42em; font-weight: 700; vertical-align: 0.95em; margin-right: 0.12em; letter-spacing: 0; }
 .termica { page-break-after: always; }
 .termica:last-child { page-break-after: auto; }
 .folha { width: 210mm; height: 296.5mm; position: relative; overflow: hidden; page-break-after: always; }

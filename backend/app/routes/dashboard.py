@@ -398,29 +398,41 @@ def dashboard_alertas():
         from datetime import date, timedelta
         from sqlalchemy import or_, and_
         from app.models import Produto
-        
+        from app.utils.query_helpers import get_configuracao_safe
+
         estabelecimento_id = get_establishment_id()
         hoje = date.today()
-        limite_validade = hoje + timedelta(days=30)
-        
+
+        # Respeita Configurações > Estoque da loja: alerta de estoque mínimo e
+        # controle de validade desligados = nenhum alerta daquele tipo.
+        config = get_configuracao_safe(estabelecimento_id) or {}
+        alertar_ruptura = bool(config.get("alerta_estoque_minimo", True))
+        alertar_validade = bool(config.get("controlar_validade", True))
+        dias_validade = int(config.get("dias_alerta_validade") or 30)
+        limite_validade = hoje + timedelta(days=dias_validade)
+
+        if not alertar_ruptura and not alertar_validade:
+            return jsonify({"success": True, "alertas": [], "total": 0})
+
         query = Produto.query.filter_by(ativo=True)
         if str(estabelecimento_id).lower() != 'all':
             query = query.filter_by(estabelecimento_id=estabelecimento_id)
-            
-        produtos = query.filter(
-            or_(
-                Produto.quantidade <= Produto.quantidade_minima,
-                and_(Produto.controlar_validade == True, Produto.data_validade.isnot(None), Produto.data_validade <= limite_validade)
-            )
-        ).all()
-        
+
+        condicoes = []
+        if alertar_ruptura:
+            condicoes.append(Produto.quantidade <= Produto.quantidade_minima)
+        if alertar_validade:
+            condicoes.append(and_(Produto.controlar_validade == True, Produto.data_validade.isnot(None), Produto.data_validade <= limite_validade))
+
+        produtos = query.filter(or_(*condicoes)).all()
+
         alertas = []
         for p in produtos:
             # Garante valores padrão em caso nulo
             qtd = p.quantidade if p.quantidade is not None else 0
             qtd_min = p.quantidade_minima if p.quantidade_minima is not None else 0
-            
-            if qtd <= qtd_min:
+
+            if alertar_ruptura and qtd <= qtd_min:
                 alertas.append({
                     "id": f"r_{p.id}",
                     "tipo": "ruptura",
@@ -429,7 +441,7 @@ def dashboard_alertas():
                     "estoque_minimo": float(qtd_min)
                 })
             
-            if p.controlar_validade and p.data_validade:
+            if alertar_validade and p.controlar_validade and p.data_validade:
                 if p.data_validade < hoje:
                     alertas.append({
                         "id": f"v_{p.id}",
@@ -452,7 +464,7 @@ def dashboard_alertas():
             
         alertas.sort(key=lambda x: get_priority(x))
         
-        return jsonify({"success": True, "alertas": alertas[:50]})
+        return jsonify({"success": True, "alertas": alertas[:50], "total": len(alertas)})
     except Exception as e:
         logger.error(f"Erro ao buscar alertas operacionais: {e}")
         return jsonify({"success": False, "alertas": []}), 500

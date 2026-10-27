@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, Clock, PackageX } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Clock, PackageX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,7 +15,10 @@ export interface AlertaItem {
 const AlertsPanel: React.FC = () => {
     const navigate = useNavigate();
     const [alertas, setAlertas] = useState<AlertaItem[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    // Sanfona fechada por padrão: o dashboard abre nos números, não na lista.
+    const [aberto, setAberto] = useState(false);
 
     useEffect(() => {
         const fetchAlertas = async () => {
@@ -23,7 +26,9 @@ const AlertsPanel: React.FC = () => {
             try {
                 const { apiClient } = await import('../../../api/apiClient');
                 const res = await apiClient.get('/dashboard/alertas');
-                setAlertas(res.data.alertas || []);
+                const lista: AlertaItem[] = res.data.alertas || [];
+                setAlertas(lista);
+                setTotal(res.data.total ?? lista.length);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -45,23 +50,47 @@ const AlertsPanel: React.FC = () => {
 
     if (alertas.length === 0) return null;
 
+    const qtd = (tipo: AlertaItem['tipo']) => alertas.filter(a => a.tipo === tipo).length;
+    const resumo = [
+        { n: qtd('vencido'), rotulo: 'vencido(s)', cor: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
+        { n: qtd('ruptura'), rotulo: 'estoque crítico', cor: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+        { n: qtd('vencimento'), rotulo: 'a vencer', cor: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
+    ].filter(r => r.n > 0);
+
     return (
-        <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-orange-200 dark:border-orange-900 shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <AlertTriangle className="w-24 h-24 text-orange-500" />
-            </div>
-            
-            <div className="flex items-center gap-3 mb-6 relative z-10">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-orange-200 dark:border-orange-900 shadow-sm overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setAberto(v => !v)}
+                aria-expanded={aberto}
+                className="w-full p-5 flex flex-wrap items-center gap-3 text-left hover:bg-orange-50/50 dark:hover:bg-orange-900/10 transition-colors"
+            >
                 <div className="p-3 bg-orange-100 dark:bg-orange-900/30 text-orange-600 rounded-xl">
                     <AlertTriangle className="w-5 h-5" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-black text-slate-800 dark:text-white">Alertas Operacionais</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Ruptura de estoque e vencimentos</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                        {resumo.map(r => (
+                            <span key={r.rotulo} className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.cor}`}>
+                                {r.n} {r.rotulo}
+                            </span>
+                        ))}
+                        {total > alertas.length && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400 self-center">
+                                exibindo {alertas.length} de {total}
+                            </span>
+                        )}
+                    </div>
                 </div>
-            </div>
+                <span className="flex items-center gap-1 text-xs font-bold text-slate-500 dark:text-slate-400">
+                    {aberto ? 'Ocultar' : 'Ver itens'}
+                    <ChevronDown className={`w-5 h-5 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                </span>
+            </button>
 
-            <div className="space-y-3 relative z-10">
+            {aberto && (
+            <div className="space-y-3 px-5 pb-5">
                 <AnimatePresence>
                     {alertas.map(alerta => (
                         <motion.div
@@ -110,6 +139,7 @@ const AlertsPanel: React.FC = () => {
                     ))}
                 </AnimatePresence>
             </div>
+            )}
         </div>
     );
 };

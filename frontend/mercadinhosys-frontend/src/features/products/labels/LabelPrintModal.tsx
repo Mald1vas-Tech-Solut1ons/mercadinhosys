@@ -176,9 +176,7 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
         if (etiquetas.some(e => !e.codigo)) {
             showToast.warning('Há produtos sem código: sairão marcados como SEM CÓDIGO.');
         }
-        if (!printLabels(etiquetas, layout, config, nomeLoja)) {
-            showToast.error('O navegador bloqueou a janela de impressão. Libere pop-ups para este site.');
-        }
+        printLabels(etiquetas, layout, config, nomeLoja);
     };
 
     const inputClass = 'w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 dark:text-white';

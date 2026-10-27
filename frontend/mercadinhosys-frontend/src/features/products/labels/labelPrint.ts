@@ -1,4 +1,5 @@
 import JsBarcode from 'jsbarcode';
+import { printHtml } from '../../../utils/printHtml';
 
 export type LabelLayoutId =
   | 'termica-40x25'
@@ -196,38 +197,16 @@ body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff;
 .termica:last-child { page-break-after: auto; }
 .folha { width: 210mm; height: 296.5mm; position: relative; overflow: hidden; page-break-after: always; }
 .folha:last-child { page-break-after: auto; }
-.barra-acao { position: fixed; top: 8px; right: 8px; }
-.barra-acao button { font: 700 14px Arial, sans-serif; padding: 10px 18px; background: #4f46e5; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
-@media print { .barra-acao { display: none; } }
 </style>
 </head>
 <body>
-<div class="barra-acao"><button type="button" onclick="window.print()">Imprimir</button></div>
 ${corpo}
-<script>
-// A própria janela dispara a impressão depois de carregar: chamar print() do
-// opener falha em silêncio no Chrome quando o popup ainda não está em foco
-window.addEventListener('load', function () { setTimeout(function () { window.focus(); window.print(); }, 300); });
-</script>
 </body>
 </html>`;
 }
 
-export function printLabels(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): boolean {
-  // Página via blob: e não about:blank + document.write — o popup about:blank
-  // HERDA a CSP do opener (script-src 'self' em produção bloqueia o script de
-  // auto-print e o onclick do botão "Imprimir": a janela abre e o botão não faz
-  // nada). Página blob: tem origem própria e não herda a CSP do opener.
-  const html = buildLabelsHtml(itens, layout, opcoes, nomeLoja);
-  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-  const w = window.open(url, '_blank', 'width=900,height=700');
-  if (!w) {
-    URL.revokeObjectURL(url); // popup bloqueado
-    return false;
-  }
-  // Libera o blob depois da janela carregar: o navegador mantém a página viva
-  // (a URL só deixa de ser válida para ABERTURA futura, não para a já aberta).
-  w.addEventListener('load', () => URL.revokeObjectURL(url), { once: true });
-  setTimeout(() => URL.revokeObjectURL(url), 60_000); // fallback se load não disparar
-  return true;
+export function printLabels(itens: LabelItem[], layout: LabelLayout, opcoes: LabelOptions, nomeLoja = ''): void {
+  // Sem script no HTML: a mesma string serve à prévia (iframe srcDoc) e à
+  // impressão, e não dispara print() sozinha dentro da prévia
+  printHtml(buildLabelsHtml(itens, layout, opcoes, nomeLoja));
 }

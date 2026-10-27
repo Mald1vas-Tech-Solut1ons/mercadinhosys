@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/formatters';
 import { mensagemErro } from '../../../utils/mensagemErro';
+import { printHtml } from '../../../utils/printHtml';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import PinDialog from '../../../components/modals/PinDialog';
 
@@ -28,7 +29,7 @@ const FORMA_LABELS: Record<string, { label: string; emoji: string; color: string
     outros: { label: 'Outros', emoji: '📦', color: 'text-slate-400' },
 };
 
-/** Escapa texto vindo do banco antes de ir para o HTML do relatório (document.write). */
+/** Escapa texto vindo do banco antes de ir para o HTML do relatório impresso. */
 const esc = (v: unknown): string => String(v ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -96,14 +97,12 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
     };
 
     /**
-     * Escreve o relatório numa janela JÁ aberta no clique (abrir depois do
-     * await do fechamento faz o navegador bloquear o pop-up). Devolve false se
-     * não houver janela — aí o toast diz a verdade em vez de "enviado".
+     * Abre o diálogo de impressão do relatório (iframe oculto: sem pop-up, que
+     * o navegador bloqueia depois do await do fechamento).
      * Todo valor interpolado passa por esc() (nome do operador, formas etc.
      * vêm do banco).
      */
-    const imprimirRelatorioCaixa = (win: Window | null, resumo: any, caixa: any, valorContado: number): boolean => {
-        if (!win || win.closed) return false;
+    const imprimirRelatorioCaixa = (resumo: any, caixa: any, valorContado: number) => {
         const fmt = (v: unknown) => {
             const n = paraNumero(v);
             return `R$ ${(Number.isFinite(n) ? n : 0).toFixed(2).replace('.', ',')}`;
@@ -159,47 +158,25 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
   <div class="kv"><span class="label">Contado pelo operador</span><span class="value">${fmt(valorContado)}</span></div>
 </div>
 <div class="dif">Diferença: ${diferenca >= 0 ? '+' : ''}${fmt(diferenca)}</div>
-<script>window.onload=()=>window.print()</script>
 </body></html>`;
 
-        try {
-            win.document.open();
-            win.document.write(html);
-            win.document.close();
-            return true;
-        } catch {
-            return false;
-        }
+        printHtml(html);
     };
 
     const handleFechamento = async (e: React.FormEvent) => {
         e.preventDefault();
         const val = parseFloat(valorFechamento.replace(',', '.'));
         if (isNaN(val) || valorFechamento.trim() === '') return showToast.error('Informe o valor em dinheiro no caixa.');
-        // Abre a janela do relatório AGORA, ainda dentro do clique: depois do
-        // await o navegador trata como pop-up e bloqueia.
-        let janela: Window | null = null;
-        try {
-            janela = window.open('', '_blank', 'width=700,height=900');
-            janela?.document.write('<p style="font-family:Arial,sans-serif;padding:20px">Fechando o caixa…</p>');
-        } catch {
-            janela = null;
-        }
         try {
             setLoading(true);
             const resp = await pdvService.fecharCaixa(val);
             // Imprimir relatório com os dados retornados pelo backend
             const resumoFinal = resp?.resumo_fechamento || resumoCaixa;
-            const impresso = imprimirRelatorioCaixa(janela, resumoFinal, caixaAtual, val);
+            imprimirRelatorioCaixa(resumoFinal, caixaAtual, val);
             setCaixaAtual(null);
-            if (impresso) {
-                showToast.success('Caixa fechado! Relatório aberto para impressão.');
-            } else {
-                showToast.warning('Caixa fechado. O navegador bloqueou a janela do relatório: libere pop-ups para este site para imprimir nos próximos fechamentos.', { duration: 8000 });
-            }
+            showToast.success('Caixa fechado! Relatório enviado para impressão.');
             onClose();
         } catch (err: any) {
-            try { janela?.close(); } catch { /* janela já fechada */ }
             showToast.error(mensagemErro(err, 'Erro ao fechar caixa'));
         } finally { setLoading(false); }
     };

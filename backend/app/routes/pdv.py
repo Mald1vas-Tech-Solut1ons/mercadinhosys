@@ -42,6 +42,28 @@ class InsuficientStockError(Exception):
 
 # ==================== FUNÇÕES AUXILIARES ====================
 
+def _data_venda_local(data_venda, uf=None) -> str:
+    """Data/hora da venda no fuso da loja, para comprovante e cupom.
+
+    O banco grava data_venda em UTC naive: formatar direto imprimia a hora 3h
+    adiantada (venda às 16h saía 19h no cupom). Naive = UTC; string ISO com
+    offset é respeitada; sem data, usa o instante atual — sempre no fuso da UF.
+    """
+    from app.utils.timezone import fuso_da_uf
+    fuso = fuso_da_uf(uf)
+    dt = data_venda
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except ValueError:
+            return dt
+    if not hasattr(dt, "astimezone"):
+        dt = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(fuso).strftime("%d/%m/%Y %H:%M:%S")
+
+
 def _resolver_nome_operador(venda_data: dict) -> str:
     funcionario_id = venda_data.get("funcionario_id") if venda_data else None
     if funcionario_id:
@@ -1453,33 +1475,7 @@ def enviar_cupom_email():
         doc_fiscal = DocumentoFiscal.query.filter_by(venda_id=venda_id).first()
         qr_code = doc_fiscal.qr_code if doc_fiscal and doc_fiscal.qr_code else None
         
-        # Melhoria na extração e formatação da data (Extreme Precision)
-        data_venda = venda_data.get("data_venda")
-        data_str = ""
-        
-        try:
-            if data_venda:
-                # Se for string (fallback), tenta converter ou usa direto
-                if isinstance(data_venda, str):
-                    try:
-                        from datetime import datetime
-                        dt = datetime.fromisoformat(data_venda.replace("Z", "+00:00"))
-                        data_str = dt.strftime("%d/%m/%Y %H:%M:%S")
-                    except:
-                        data_str = data_venda
-                # Se for objeto datetime (ideal)
-                elif hasattr(data_venda, "strftime"):
-                    data_str = data_venda.strftime("%d/%m/%Y %H:%M:%S")
-                else:
-                    data_str = str(data_venda)
-            else:
-                # Fallback final: Data atual
-                from datetime import datetime
-                data_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        except Exception as dt_err:
-            current_app.logger.warning(f"Erro ao formatar data da venda {venda_id}: {dt_err}")
-            from datetime import datetime
-            data_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        data_str = _data_venda_local(venda_data.get("data_venda"), (estabelecimento_data or {}).get("estado"))
 
         # Construção de endereço completo (Resiliente e Profissional)
         end_parts = [
@@ -1638,25 +1634,7 @@ def obter_comprovante_venda(venda_id):
             "percentual_tributos": round(percentual_tributos, 2),
         }
 
-        # Melhoria na extração e formatação da data (Paridade Masterclass)
-        data_venda = venda_data.get("data_venda")
-        data_str = ""
-        try:
-            if data_venda:
-                if isinstance(data_venda, str):
-                    try:
-                        dt = datetime.fromisoformat(data_venda.replace("Z", "+00:00"))
-                        data_str = dt.strftime("%d/%m/%Y %H:%M:%S")
-                    except:
-                        data_str = data_venda
-                elif hasattr(data_venda, "strftime"):
-                    data_str = data_venda.strftime("%d/%m/%Y %H:%M:%S")
-                else:
-                    data_str = str(data_venda)
-            else:
-                data_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        except:
-            data_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        data_str = _data_venda_local(venda_data.get("data_venda"), (estabelecimento_data or {}).get("estado"))
 
         return jsonify({
             "success": True,
@@ -1738,8 +1716,7 @@ def imprimir_venda_html(venda_id):
         # Formatação de Moeda e Data (Padrão Elite)
         from app.services.email_service import _format_moeda, render_template_string
         
-        data_venda = venda_data.get("data_venda")
-        data_str = data_venda.strftime("%d/%m/%Y %H:%M:%S") if hasattr(data_venda, "strftime") else str(data_venda)
+        data_str = _data_venda_local(venda_data.get("data_venda"), (estabelecimento_data or {}).get("estado"))
 
         # Usar o mesmo template Masterclass do email_service para garantir branding perfeito
         from app.services.email_service import EmailService

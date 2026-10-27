@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -425,7 +425,8 @@ def obter_resumo_caixa_atual():
                 "total_sangrias": round(total_sangrias, 2),
                 "total_suprimentos": round(total_suprimentos, 2),
                 "por_forma_pagamento": dict(totais_por_forma),
-                "data_abertura": caixa.data_abertura.isoformat() if caixa.data_abertura else None,
+                # Marca UTC (como o to_dict): sem offset o navegador lia como hora local, 3h adiantada
+                "data_abertura": caixa.data_abertura.replace(tzinfo=timezone.utc).isoformat() if caixa.data_abertura else None,
             }
         }), 200
     except Exception as e:

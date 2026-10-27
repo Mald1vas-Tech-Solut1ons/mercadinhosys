@@ -91,17 +91,26 @@ export default defineConfig(() => {
             method: 'GET',
             params: { title: 'title', text: 'text', url: 'url' },
           },
+          // Os PNGs precisam ter EXATAMENTE o tamanho declarado: o Chrome do
+          // desktop descarta ícone fora do tamanho e instala com uma letra "M".
           icons: [
             {
               src: 'pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
+              purpose: 'any'
             },
             {
               src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any maskable'
+              purpose: 'any'
+            },
+            {
+              src: 'pwa-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         }

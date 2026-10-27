@@ -128,10 +128,6 @@ export default function DashboardPageV2() {
       </div>
 
       <InsightCard especialista="geral" titulo="Consultor M-IA - Inteligência do Negócio" className="mb-6 tour-ia-consultor" />
-      
-      <div className="mb-6">
-        <AlertsPanel />
-      </div>
 
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
           (snap + sangria até as bordas) para nunca cortar/embaralhar os rótulos. */}
@@ -191,6 +187,11 @@ export default function DashboardPageV2() {
             {activeTab === 'rh' && <RHTab data={data} onRefresh={loadData} />}
           </div>
         )}
+      </div>
+
+      {/* Alertas operacionais no rodapé, recolhidos: quem quiser ver os itens expande. */}
+      <div className="mt-8">
+        <AlertsPanel />
       </div>
 
     </div>

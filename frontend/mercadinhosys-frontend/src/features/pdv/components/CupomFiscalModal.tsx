@@ -3,6 +3,7 @@ import { Printer, X, Eye } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { pdvService, ComprovanteVendaResponse } from '../pdvService';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { printHtml } from '../../../utils/printHtml';
 
 interface CupomFiscalModalProps {
     aberto: boolean;
@@ -43,9 +44,7 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
     const handleImprimir = () => {
         if (!cupomRef.current) return;
         const conteudo = cupomRef.current.innerHTML;
-        const janela = window.open('', '_blank', 'width=400,height=700');
-        if (!janela) return;
-        janela.document.write(`<!DOCTYPE html>
+        printHtml(`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8"/>
@@ -71,11 +70,6 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
 </head>
 <body>${conteudo}</body>
 </html>`);
-        janela.document.close();
-        setTimeout(() => {
-            janela.print();
-            janela.close();
-        }, 300);
     };
 
     if (!aberto) return null;

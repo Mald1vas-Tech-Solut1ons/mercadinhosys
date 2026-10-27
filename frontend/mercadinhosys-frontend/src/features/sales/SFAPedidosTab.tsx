@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 import { escapeHtml } from '../../utils/escapeHtml';
+import { printHtml } from '../../utils/printHtml';
 import { Check, X, Search, Clock, MapPin, PackageCheck, Truck, ClipboardList } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent } from '../../components/ui/card';
@@ -93,22 +94,16 @@ export default function SFAPedidosTab() {
         try {
             const res = await apiClient.get(`/sfa/pedidos/${detalhe.id}/separacao`);
             const linhas: any[] = res.data?.data?.itens || [];
-            // Tudo que vem do banco passa por escapeHtml: a janela de impressão tem a mesma origem do app.
+            // Tudo que vem do banco passa por escapeHtml: o documento impresso tem a mesma origem do app.
             const corpo = linhas.map(l => `<tr><td>${escapeHtml(l.produto_nome)}</td><td>${escapeHtml(l.codigo_barras)}</td>
                 <td style="text-align:right">${qtd(l.reservado)} ${escapeHtml(l.unidade)}</td>
                 <td>${(l.lotes || []).map((x: any) => `${escapeHtml(x.lote)} (${qtd(x.quantidade)}${x.validade ? ' · val. ' + escapeHtml(x.validade) : ''})`).join('<br>') || '-'}</td>
                 <td style="text-align:right">${qtd(l.em_falta)}</td></tr>`).join('');
-            const janela = window.open('', '_blank');
-            if (!janela) {
-                showToast.error('O navegador bloqueou a janela de impressão');
-                return;
-            }
-            janela.document.write(`<html><head><title>Separação ${escapeHtml(detalhe.codigo)}</title>
+            // Iframe oculto: o pop-up aberto depois do await era bloqueado pelo navegador
+            printHtml(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Separação ${escapeHtml(detalhe.codigo)}</title>
                 <style>body{font-family:sans-serif;padding:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:6px;font-size:13px;text-align:left}</style></head>
                 <body><h2>Separação · ${escapeHtml(detalhe.codigo)}</h2><p>${escapeHtml(detalhe.cliente_nome)}</p>
                 <table><thead><tr><th>Produto</th><th>Código</th><th>Separar</th><th>Lotes (validade mais curta primeiro)</th><th>Em falta</th></tr></thead><tbody>${corpo}</tbody></table></body></html>`);
-            janela.document.close();
-            janela.print();
         } catch (error: any) {
             showToast.error(error?.response?.data?.message || 'Não foi possível montar a lista de separação');
         }

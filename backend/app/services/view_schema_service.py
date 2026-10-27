@@ -144,6 +144,7 @@ FAMILIAS_PRODUTO = {
         "segmento_base": "mercearia",
         "flags_override": {"usa_validade": False, "usa_lotes": False},
         "campos_ocultos": ["controlar_validade"],
+        "campos_habilitados": ["cor"],
         "exemplos": {
             "nome": "Ex: Embalagem Hambúrguer Kraft G",
             "categoria": "Ex: Delivery, Marmitas, Copos...",
@@ -156,6 +157,7 @@ FAMILIAS_PRODUTO = {
         "segmento_base": "generico",
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_embalagens": True},
         "campos_ocultos": ["controlar_validade"],
+        "campos_habilitados": ["cor"],
         "exemplos": {
             "nome": "Ex: Assadeira Redonda Antiaderente",
             "categoria": "Ex: Panelas, Formas, Organização...",
@@ -166,6 +168,7 @@ FAMILIAS_PRODUTO = {
         "nome": "Perfumaria e Higiene",
         "descricao": "Perfumes, cosméticos, higiene pessoal e bucal.",
         "segmento_base": "mercearia",
+        "campos_habilitados": ["cor"],
         "exemplos": {
             "nome": "Ex: Shampoo Hidratante 350ml",
             "categoria": "Ex: Perfumes, Cabelos, Higiene Bucal...",
@@ -174,14 +177,14 @@ FAMILIAS_PRODUTO = {
     },
     "eletro": {
         "nome": "Eletro e Eletroportáteis",
-        "descricao": "Eletrodomésticos e eletroportáteis: voltagem, garantia e modelo.",
+        "descricao": "Eletrodomésticos, eletroportáteis e eletrônicos: voltagem, garantia, modelo e cor.",
         "segmento_base": "generico",
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": False},
         "campos_ocultos": ["controlar_validade"],
-        "campos_habilitados": ["voltagem_eletro", "garantia_meses", "modelo", "potencia_w"],
+        "campos_habilitados": ["voltagem_eletro", "garantia_meses", "modelo", "potencia_w", "cor"],
         "exemplos": {
             "nome": "Ex: Liquidificador 600W 2L",
-            "categoria": "Ex: Portáteis, Cozinha, Climatização...",
+            "categoria": "Ex: Portáteis, Cozinha, Eletrônicos, Climatização...",
             "marca": "Ex: Mondial",
         },
     },
@@ -191,6 +194,7 @@ FAMILIAS_PRODUTO = {
         "segmento_base": "construcao",
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": False},
         "campos_ocultos": ["controlar_validade"],
+        "campos_habilitados": ["cor"],
         "exemplos": {
             "nome": "Ex: Fita Isolante 20m",
             "categoria": "Ex: Elétrica, Hidráulica, Ferragens...",
@@ -204,7 +208,7 @@ FAMILIAS_PRODUTO = {
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": False},
         "campos_ocultos": ["controlar_validade", "largura_mm", "espessura_mm", "comprimento_m",
                             "diametro_pol", "raio_mm"],
-        "campos_habilitados": ["voltagem_v", "amperagem_a", "potencia_w"],
+        "campos_habilitados": ["voltagem_v", "amperagem_a", "potencia_w", "cor"],
         "exemplos": {
             "nome": "Ex: Disjuntor Bipolar 25A",
             "categoria": "Ex: Elétrica, Iluminação, Fiação...",
@@ -218,7 +222,7 @@ FAMILIAS_PRODUTO = {
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": False},
         "campos_ocultos": ["controlar_validade", "largura_mm", "espessura_mm",
                             "diametro_pol", "raio_mm"],
-        "campos_habilitados": ["diametro_hidraulico_mm", "pressao_maxima_bar", "material_tubo", "comprimento_m"],
+        "campos_habilitados": ["diametro_hidraulico_mm", "pressao_maxima_bar", "material_tubo", "comprimento_m", "cor"],
         "exemplos": {
             "nome": "Ex: Tubo PVC Água 25mm 6m",
             "categoria": "Ex: Hidráulica, Esgoto, Conexões...",
@@ -232,7 +236,7 @@ FAMILIAS_PRODUTO = {
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": False},
         "campos_ocultos": ["controlar_validade", "largura_mm", "espessura_mm", "comprimento_m",
                             "diametro_pol", "raio_mm", "peso_kg"],
-        "campos_habilitados": ["tipo_rosca", "comprimento_parafuso_mm", "material_ferragem", "tipo_cabeca"],
+        "campos_habilitados": ["tipo_rosca", "comprimento_parafuso_mm", "material_ferragem", "tipo_cabeca", "cor"],
         "exemplos": {
             "nome": "Ex: Parafuso Chipboard 6x40mm",
             "categoria": "Ex: Parafusos, Dobradiças, Cadeados...",
@@ -256,6 +260,7 @@ FAMILIAS_PRODUTO = {
         "nome": "Autopeças",
         "descricao": "Peças e componentes automotivos ou de moto em tenant dedicado.",
         "segmento_base": "autopecas",
+        "campos_habilitados": ["cor"],
     },
 }
 
@@ -327,6 +332,17 @@ CAMPOS_PADRAO = [
      "permite_custom": True, "ordem": 130},
     {"chave": "tecido", "label": "Tecido / Material", "tipo": "text", "grupo": "atributos",
      "origem": "atributo", "segmentos": ["vestuario"], "placeholder": "Ex: Algodão, Jeans, Poliéster", "ordem": 140},
+
+    # ---- Cor única do item (bazar, eletro, construção, autopeças...) ----
+    # Vestuário usa a grade "cores" (multiselect); aqui é UMA cor por produto —
+    # a panela vermelha e a branca são SKUs (e códigos de barras) diferentes.
+    # segmentos=[]: só aparece via `campos_habilitados` das famílias não alimentares.
+    {"chave": "cor", "label": "Cor", "tipo": "select", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": ["Preto", "Branco", "Prata", "Inox", "Cinza", "Azul", "Vermelho", "Verde", "Amarelo",
+                "Laranja", "Rosa", "Roxo", "Marrom", "Bege", "Dourado", "Transparente", "Colorido"],
+     "permite_custom": True, "placeholder": "Selecione ou digite a cor",
+     "aplica_tipo_item": ["produto"], "ordem": 150},
 
     # ---- Construção: embalagem e dimensões ----
     {"chave": "embalagem", "label": "Tipo de Embalagem", "tipo": "select", "grupo": "atributos",

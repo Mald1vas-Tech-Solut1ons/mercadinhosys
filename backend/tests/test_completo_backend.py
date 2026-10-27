@@ -183,6 +183,26 @@ def test_schema_eletro_tem_voltagem_garantia_e_modelo(session):
     assert not {"voltagem_eletro", "garantia_meses", "modelo"} & {c["chave"] for c in alimento["campos"]}
 
 
+def test_atributo_cor_nas_familias_nao_alimentares(client, session):
+    ctx = _ctx(session, "generico")
+    for familia in ("bazar", "eletro", "embalagem_descartavel", "perfumaria_higiene", "construcao_leve",
+                    "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem"):
+        campos = {c["chave"]: c for c in resolver_view_schema(ctx["estab"], familia_produto=familia)["campos"]}
+        assert "cor" in campos, familia
+        assert campos["cor"]["tipo"] == "select" and campos["cor"]["permite_custom"] is True
+    # Comida não tem cor; vestuário segue com a grade "cores".
+    for familia in ("alimento", "bebida", "vestuario"):
+        chaves = {c["chave"] for c in resolver_view_schema(ctx["estab"], familia_produto=familia)["campos"]}
+        assert "cor" not in chaves, familia
+
+    r = client.post("/api/produtos/", headers=ctx["headers"], json={
+        "nome": "Assadeira Redonda 28cm", "categoria": "Bazar", "preco_custo": 20, "preco_venda": 39.9,
+        "familia_produto": "bazar", "atributos": {"cor": "Vermelho"},
+    })
+    assert r.status_code == 201, r.get_data(as_text=True)
+    assert session.get(Produto, r.get_json()["produto"]["id"]).atributos == {"cor": "Vermelho"}
+
+
 def test_produto_eletro_com_st_sai_csosn_500_cfop_5405(client, session):
     ctx = _ctx(session, "mercearia")
     r = client.post("/api/produtos/", headers=ctx["headers"], json={

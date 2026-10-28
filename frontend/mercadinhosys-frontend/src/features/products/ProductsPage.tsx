@@ -1058,6 +1058,7 @@ const ProductsPage: React.FC = () => {
         <ProdutoDetalhesModal
           produto={selectedProduct}
           onClose={() => { setShowDetailModal(false); setSelectedProduct(null); }}
+          onGradeAlterada={loadProdutos}
         />
       )}
     </div>

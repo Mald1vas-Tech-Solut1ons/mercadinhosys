@@ -163,3 +163,6 @@ frontend/mercadinhosys-frontend/dev-dist/
 # Cobertura e artefatos de teste
 coverage/
 **/pytest-of-*/
+
+# Windows / Google Drive
+desktop.ini

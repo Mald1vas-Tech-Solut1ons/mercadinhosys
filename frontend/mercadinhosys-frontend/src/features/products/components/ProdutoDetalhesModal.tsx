@@ -17,13 +17,21 @@ import {
 import { Produto, ProdutoLote } from '../../../types';
 import { formatCurrency, formatDate, fixImageUrl } from '../../../utils/formatters';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
+import GradePanel from './GradePanel';
 
 interface ProdutoDetalhesModalProps {
     produto: Produto;
     onClose: () => void;
+    onGradeAlterada?: () => void;
 }
 
-const ProdutoDetalhesModal = ({ produto, onClose }: ProdutoDetalhesModalProps) => {
+// Famílias vendidas por número/tamanho; variação de grade sempre mostra a grade do modelo.
+const FAMILIAS_COM_GRADE = ['calcados', 'vestuario'];
+
+const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDetalhesModalProps) => {
+    const atributos = (produto.atributos || {}) as Record<string, any>;
+    const mostrarGrade = FAMILIAS_COM_GRADE.includes(produto.familia_produto || '') || !!(produto as any).produto_pai_id;
+    const lista = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
     const [currentLoteIdx, setCurrentLoteIdx] = useState(0);
     const lotes = produto.lotes || [];
     const historico = produto.historico_precos || [];
@@ -171,6 +179,15 @@ const ProdutoDetalhesModal = ({ produto, onClose }: ProdutoDetalhesModalProps) =
                         </div>
                     </div>
                 </div>
+
+                {mostrarGrade && produto.id && (
+                    <GradePanel
+                        produtoId={produto.id}
+                        numerosSugeridos={lista(atributos.numeracao).length ? lista(atributos.numeracao) : lista(atributos.tamanhos)}
+                        coresSugeridas={lista(atributos.cores)}
+                        onAlterada={onGradeAlterada}
+                    />
+                )}
 
                 {/* 2. Rastreabilidade de Lotes (Carousel) */}
                 <div className="space-y-4">

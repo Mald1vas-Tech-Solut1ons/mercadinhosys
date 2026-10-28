@@ -11,6 +11,7 @@ interface Celula {
     quantidade: number;
     quantidade_minima: number;
     codigo_interno: string;
+    vendidos: number;
 }
 
 interface Grade {
@@ -19,6 +20,7 @@ interface Grade {
     cores: string[];
     celulas: Celula[];
     total: number;
+    total_vendidos?: number;
 }
 
 const NUMEROS_ADULTO = ['33', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44'];
@@ -116,6 +118,8 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
         return <div className="flex items-center gap-2 text-xs text-gray-400"><Loader2 className="w-4 h-4 animate-spin" /> Carregando grade...</div>;
     }
 
+    // Giro por número: destaca o que mais vende, para comprar a grade certa.
+    const maisVendido = Math.max(0, ...(grade?.celulas || []).map((c) => c.vendidos || 0));
     const numerosOrdenados = [...numeros].sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
 
     return (
@@ -123,7 +127,7 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
             <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
                     <Grid3x3 className="w-4 h-4 text-emerald-500" /> Grade por Número
-                    {temGrade && <span className="ml-2 normal-case tracking-normal font-bold text-gray-500 dark:text-gray-400">· {grade!.total} un no total</span>}
+                    {temGrade && <span className="ml-2 normal-case tracking-normal font-bold text-gray-500 dark:text-gray-400">· {grade!.total} un em estoque · {grade!.total_vendidos ?? 0} vendidas</span>}
                 </h3>
                 {!editando && (
                     <button onClick={abrirFormulario}
@@ -155,6 +159,9 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
                                         return (
                                             <td key={n} className={`px-3 py-2 font-black ${cor}`} title={`${cel.nome} · ${cel.codigo_interno}`}>
                                                 {cel.quantidade}
+                                                <span className={`block text-[10px] font-semibold ${cel.vendidos > 0 && cel.vendidos === maisVendido ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                                    {cel.vendidos} vend.
+                                                </span>
                                             </td>
                                         );
                                     })}
@@ -163,7 +170,7 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
                         </tbody>
                     </table>
                     <p className="px-3 py-2 text-[10px] text-gray-400 border-t border-gray-100 dark:border-gray-800">
-                        Vermelho = esgotado · amarelo = no mínimo. Cada número é vendido e tem estoque ajustado pela lista de produtos.
+                        Número grande = estoque; embaixo, quanto já vendeu (verde = o mais vendido). Vermelho = esgotado · amarelo = no mínimo.
                     </p>
                 </div>
             )}

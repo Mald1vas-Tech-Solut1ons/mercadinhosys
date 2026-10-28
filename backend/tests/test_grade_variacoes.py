@@ -78,6 +78,9 @@ def test_vende_por_numero_e_baixa_so_aquele_numero(client, session, ctx):
     assert _vender(client, ctx, n38["id"], 2).status_code == 201
     grade = client.get(f"/api/produtos/{n38['id']}/grade", headers=ctx["headers"]).get_json()["grade"]
     assert {c["numeracao"]: c["quantidade"] for c in grade["celulas"]} == {"37": 1, "38": 1}
+    # Giro por número: o 38 vendeu 2, o 37 nada.
+    assert {c["numeracao"]: c["vendidos"] for c in grade["celulas"]} == {"37": 0, "38": 2}
+    assert grade["total_vendidos"] == 2
 
 
 def test_modelo_nao_vende_nem_aparece_na_lista(client, session, ctx):

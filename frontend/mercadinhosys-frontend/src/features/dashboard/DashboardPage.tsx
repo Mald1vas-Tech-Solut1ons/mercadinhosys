@@ -12,6 +12,8 @@ import { isPlanoGratis } from '../../utils/permissions';
 import { InsightCard } from '../../components/consultor/InsightCard';
 import AlertsPanel from './components/AlertsPanel';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
+import { dataLocalISO } from '../../utils/dataLocal';
+import type { PeriodoDashboard } from './components/PorQueMudou';
 
 export default function DashboardPageV2() {
   const [activeTab, setActiveTab] = useState('executive');
@@ -55,6 +57,11 @@ export default function DashboardPageV2() {
       setLoading(false);
     }
   };
+
+  // Período em dias da loja: alimenta a comparação e os links dos cards (Vendas no mesmo período).
+  const periodo: PeriodoDashboard | undefined = daysFilter === 'custom'
+    ? (startDate && endDate ? { de: startDate, ate: endDate } : undefined)
+    : { de: dataLocalISO(new Date(Date.now() - (daysFilter - 1) * 86400000)), ate: dataLocalISO() };
 
   // Plano Grátis: apenas a Visão Executiva (Regras do Plano Grátis)
   const planoGratis = isPlanoGratis(authService.getCurrentUser());
@@ -180,7 +187,7 @@ export default function DashboardPageV2() {
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-            {activeTab === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} />}
+            {activeTab === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} />}
             {activeTab === 'sales' && <SalesSfaTab data={data} />}
             {activeTab === 'inventory' && <InventoryTab data={data} />}
             {activeTab === 'financial' && <FinancialTab data={data} />}

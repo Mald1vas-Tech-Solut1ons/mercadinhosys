@@ -4,14 +4,19 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveCo
 import { formatCurrency } from '../../../../utils/formatters';
 import { useTheme } from '../../../../theme/useTheme';
 import { chartColors } from '../../../../utils/chartColors';
+import PorQueMudou, { type PeriodoDashboard } from '../PorQueMudou';
 
 interface ExecutiveTabProps {
   data: any;
   onNavigateToTab?: (tabId: string) => void;
+  periodo?: PeriodoDashboard;
 }
 
-export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProps) {
+export default function ExecutiveTab({ data, onNavigateToTab, periodo }: ExecutiveTabProps) {
   const navigate = useNavigate();
+  // Card clicável: abre a lista que formou o número, no mesmo período.
+  const abrirVendas = () => navigate(periodo ? `/sales?de=${periodo.de}&ate=${periodo.ate}` : '/sales');
+  const cardClicavel = 'cursor-pointer transition-shadow hover:ring-2 hover:ring-blue-400/60 focus:outline-none focus:ring-2 focus:ring-blue-500';
   const { mode } = useTheme();
   const cc = chartColors(mode === 'dark');
 
@@ -89,7 +94,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         
         {/* Faturamento */}
-        <div className="bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group">
+        <div role="button" tabIndex={0} title="Abrir as vendas do período" aria-label="Abrir as vendas do período" onClick={abrirVendas} onKeyDown={(e) => { if (e.key === 'Enter') (abrirVendas)(); }} className={`bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group ${cardClicavel}`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
@@ -118,7 +123,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
         </div>
 
         {/* Lucro Líquido */}
-        <div className="bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group">
+        <div role="button" tabIndex={0} title="Abrir o financeiro" aria-label="Abrir o financeiro" onClick={() => onNavigateToTab?.('financial')} onKeyDown={(e) => { if (e.key === 'Enter') (() => onNavigateToTab?.('financial'))(); }} className={`bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group ${cardClicavel}`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
@@ -144,7 +149,7 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
         </div>
 
         {/* Ticket Médio */}
-        <div className="bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group">
+        <div role="button" tabIndex={0} title="Abrir as vendas do período" aria-label="Abrir as vendas do período" onClick={abrirVendas} onKeyDown={(e) => { if (e.key === 'Enter') (abrirVendas)(); }} className={`bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group ${cardClicavel}`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
@@ -203,6 +208,8 @@ export default function ExecutiveTab({ data, onNavigateToTab }: ExecutiveTabProp
         </div>
 
       </div>
+
+      {periodo && <PorQueMudou periodo={periodo} />}
 
       {/* Gráficos Estratégicos Executivos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

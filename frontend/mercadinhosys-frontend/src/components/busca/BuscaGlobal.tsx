@@ -45,6 +45,7 @@ const BuscaGlobal: React.FC = () => {
     const [q, setQ] = useState('');
     const [carregando, setCarregando] = useState(false);
     const [dados, setDados] = useState<any>(null);
+    const [falhou, setFalhou] = useState(false);
     const [ativo, setAtivo] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const pedidoRef = useRef(0);
@@ -74,9 +75,10 @@ const BuscaGlobal: React.FC = () => {
         const t = setTimeout(async () => {
             try {
                 const { data } = await apiClient.get('/busca', { params: { q: termo, limite: 6 } });
-                if (id === pedidoRef.current) setDados(data);
+                if (id === pedidoRef.current) { setDados(data); setFalhou(false); }
             } catch {
-                if (id === pedidoRef.current) setDados(null);
+                // Falha do servidor não é "não achou": mostra o erro para ninguém concluir que o item não existe.
+                if (id === pedidoRef.current) { setDados(null); setFalhou(true); }
             } finally {
                 if (id === pedidoRef.current) setCarregando(false);
             }
@@ -162,7 +164,12 @@ const BuscaGlobal: React.FC = () => {
                             Digite o nome, bipe o código de barras ou use palavras como <b>vencendo</b> e <b>sem estoque</b>.
                         </p>
                     )}
-                    {q.trim().length >= 2 && !carregando && itens.length === 0 && (
+                    {q.trim().length >= 2 && !carregando && falhou && (
+                        <p className="px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400">
+                            Não foi possível buscar agora (falha no servidor). Tente de novo em instantes.
+                        </p>
+                    )}
+                    {q.trim().length >= 2 && !carregando && !falhou && itens.length === 0 && (
                         <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">Nada encontrado para “{q}”.</p>
                     )}
                     {itens.map((item, i) => {

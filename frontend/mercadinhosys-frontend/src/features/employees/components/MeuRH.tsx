@@ -6,6 +6,7 @@ import { showToast } from '../../../components/elements/Toast';
 import HoleriteModal from './HoleriteModal';
 import RetrospectivaWrapped from './RetrospectivaWrapped';
 import type { HoleriteBreakdown } from '../folhaService';
+import { dataLocalISO, dataDoDia } from '../../../utils/dataLocal';
 
 /**
  * Autoatendimento de RH & Ponto (Regra de Acesso): todo funcionário — mesmo
@@ -48,7 +49,7 @@ function limitesDoMes(mesISO: string) {
     const [ano, mes] = mesISO.split('-').map(Number);
     const inicio = new Date(ano, mes - 1, 1);
     const fim = new Date(ano, mes, 0); // dia 0 do mês seguinte = último dia deste mês
-    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    const fmt = (d: Date) => dataLocalISO(d);
     return { inicio: fmt(inicio), fim: fmt(fim) };
 }
 
@@ -300,7 +301,7 @@ export default function MeuRH() {
                                 <div key={r.data} className="p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={() => setExpandedDay(expandedDay === r.data ? null : r.data)}>
                                     <div className="flex items-center justify-between">
                                         <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                                            {new Date(r.data).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}
+                                            {dataDoDia(r.data).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}
                                             {' — '}{r.entrada || '--:--'} às {r.saida || '--:--'}
                                         </p>
                                         {expandedDay === r.data ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
@@ -380,7 +381,7 @@ export default function MeuRH() {
                         <div key={j.id} className="py-3">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{j.tipo === 'atraso' ? 'Atraso' : 'Ausência'} — {new Date(j.data).toLocaleDateString('pt-BR')}</p>
+                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">{j.tipo === 'atraso' ? 'Atraso' : 'Ausência'} — {dataDoDia(j.data).toLocaleDateString('pt-BR')}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">{j.motivo}</p>
                                     {j.documento_url && (
                                         <ProtectedDocumentLink url={j.documento_url} className="inline-flex items-center gap-1 mt-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">

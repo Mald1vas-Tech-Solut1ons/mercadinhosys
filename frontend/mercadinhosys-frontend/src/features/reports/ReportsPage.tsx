@@ -46,6 +46,7 @@ import { salesService } from '../sales/salesService';
 import { productsService } from '../products/productsService';
 import { pontoService } from '../ponto/pontoService';
 import { apiClient } from '../../api/apiClient';
+import { dataLocalISO, dataDoDia } from '../../utils/dataLocal';
 
 // ==================== INTERFACES ====================
 
@@ -98,8 +99,8 @@ const ReportsPage: React.FC = () => {
     const navigate = useNavigate();
 
     const [dateRange, setDateRange] = useState<DateRange>({
-        startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0]
+        startDate: dataLocalISO(new Date(new Date().setDate(new Date().getDate() - 30))),
+        endDate: dataLocalISO(new Date())
     });
 
     const [loadingReport, setLoadingReport] = useState<string | null>(null);
@@ -321,7 +322,7 @@ const ReportsPage: React.FC = () => {
             const data = response.data.vendas.map((venda: any) => {
                 let dataFormatada = '';
                 try {
-                    dataFormatada = venda.data_formatada || (venda.data_venda ? format(new Date(venda.data_venda), 'dd/MM/yyyy HH:mm') : format(new Date(venda.data), 'dd/MM/yyyy HH:mm'));
+                    dataFormatada = venda.data_formatada || (venda.data_venda ? format(new Date(venda.data_venda), 'dd/MM/yyyy HH:mm') : format(dataDoDia(venda.data), 'dd/MM/yyyy HH:mm'));
                 } catch { dataFormatada = 'Data inválida'; }
                 return {
                     'Código': venda.codigo || '-',

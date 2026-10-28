@@ -51,6 +51,7 @@ import CustomersCommandToolbar from './components/CustomersCommandToolbar';
 import CustomersAdvancedFiltersModal, { StatusFilter, SegmentFilter } from './components/CustomersAdvancedFiltersModal';
 import PinDialog from '../../components/modals/PinDialog';
 import { InsightCard } from '../../components/consultor/InsightCard';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 type CRMTab = 'overview' | 'recovery' | 'campaigns' | 'portfolio';
 type CampaignKey = 'reactivation' | 'vip' | 'debt' | 'promotion';
@@ -834,7 +835,7 @@ const CustomersPage: React.FC = () => {
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `crm-clientes_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute('download', `crm-clientes_${dataLocalISO(new Date())}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -846,7 +847,7 @@ const CustomersPage: React.FC = () => {
         const ws = XLSX.utils.json_to_sheet(exportRows);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'CRM Clientes');
-        XLSX.writeFile(wb, `crm-clientes_${new Date().toISOString().split('T')[0]}.xlsx`);
+        XLSX.writeFile(wb, `crm-clientes_${dataLocalISO(new Date())}.xlsx`);
         handleExportClose();
         showToast.success('Excel CRM exportado com sucesso');
     };
@@ -878,7 +879,7 @@ const CustomersPage: React.FC = () => {
             styles: { fontSize: 8 },
         });
 
-        doc.save(`crm-clientes_${new Date().toISOString().split('T')[0]}.pdf`);
+        doc.save(`crm-clientes_${dataLocalISO(new Date())}.pdf`);
         handleExportClose();
         showToast.success('PDF CRM exportado com sucesso');
     };

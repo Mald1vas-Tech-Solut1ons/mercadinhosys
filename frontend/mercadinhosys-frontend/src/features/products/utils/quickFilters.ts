@@ -1,4 +1,5 @@
 import { Produto } from '../../../types';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 /**
  * Calcula classificação ABC baseada em FATURAMENTO (Análise de Pareto)
@@ -92,7 +93,7 @@ export const aplicarFiltroRapido = (produtos: Produto[], filtro: string | null, 
                 if (!p.data_validade) return false;
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
-                const validade = new Date(p.data_validade);
+                const validade = dataDoDia(p.data_validade);
                 validade.setHours(0, 0, 0, 0);
                 const dias = Math.floor((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
                 return dias >= 0 && dias <= 30;
@@ -103,7 +104,7 @@ export const aplicarFiltroRapido = (produtos: Produto[], filtro: string | null, 
                 if (!p.data_validade) return false;
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
-                const validade = new Date(p.data_validade);
+                const validade = dataDoDia(p.data_validade);
                 validade.setHours(0, 0, 0, 0);
                 return validade < hoje;
             });
@@ -125,7 +126,7 @@ export const calcularContadoresFiltros = (produtos: Produto[], todosProdutos: Pr
         if (!p.data_validade) return null;
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
-        const validade = new Date(p.data_validade);
+        const validade = dataDoDia(p.data_validade);
         validade.setHours(0, 0, 0, 0);
         return Math.floor((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
     };

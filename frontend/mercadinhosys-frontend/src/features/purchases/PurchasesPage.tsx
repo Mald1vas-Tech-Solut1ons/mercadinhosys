@@ -17,6 +17,7 @@ import PurchaseOrderModal from '../products/components/PurchaseOrderModal';
 import ReceivePurchaseModal from '../products/components/ReceivePurchaseModal';
 import PurchaseOrderDetailsModal from '../products/components/PurchaseOrderDetailsModal';
 import { InsightCard as ConsultorInsightCard } from '../../components/consultor/InsightCard';
+import { dataDoDia } from '../../utils/dataLocal';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────
 interface DashboardStats {
@@ -339,7 +340,7 @@ const PurchasesPage: React.FC = () => {
       ]);
       const now = new Date();
       const startMes = new Date(now.getFullYear(), now.getMonth(), 1);
-      const recMes = resRec.pedidos.filter(p => p.data_recebimento && new Date(p.data_recebimento) >= startMes);
+      const recMes = resRec.pedidos.filter(p => p.data_recebimento && dataDoDia(p.data_recebimento) >= startMes);
       setStats({
         pendentes: resPend.paginacao.total_itens,
         recebidos_mes: recMes.length,

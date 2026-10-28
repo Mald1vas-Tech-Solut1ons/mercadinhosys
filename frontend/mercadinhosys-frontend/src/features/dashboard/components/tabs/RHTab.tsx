@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Users, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/formatters';
 import DetailsModal from '../DetailsModal';
+import { dataDoDia } from '../../../../utils/dataLocal';
 
 interface RHTabProps {
   data: any;
@@ -139,7 +140,7 @@ export default function RHTab({ data, onRefresh }: RHTabProps) {
                           </span>
                         </td>
                         <td className="p-4 text-gray-600 dark:text-slate-300 max-w-xs truncate" title={just.motivo}>{just.motivo}</td>
-                        <td className="p-4 text-gray-500 dark:text-slate-400">{new Date(just.data).toLocaleDateString('pt-BR')}</td>
+                        <td className="p-4 text-gray-500 dark:text-slate-400">{dataDoDia(just.data).toLocaleDateString('pt-BR')}</td>
                         <td className="p-4 text-center flex items-center justify-center gap-2">
                           {just.documento_url && (
                             <ProtectedDocumentLink url={just.documento_url}

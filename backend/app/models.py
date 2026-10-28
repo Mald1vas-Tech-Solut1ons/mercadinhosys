@@ -1159,6 +1159,10 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     familia_produto = db.Column(db.String(40))
     perfil_fiscal = db.Column(db.String(40))
     atributos_json = db.Column(db.Text, default="{}")         # atributos dinâmicos por segmento (cor, tamanho, dimensões...)
+    # ---- Grade (services/grade_service.py): cada número/cor é um Produto vendável ----
+    produto_pai_id = db.Column(db.Integer, db.ForeignKey("produtos.id"), nullable=True, index=True)
+    atributos_variante = db.Column(db.Text, nullable=True)    # {"numeracao": "38", "cor": "Preto"}
+    eh_grade_modelo = db.Column(db.Boolean, nullable=False, server_default=db.false(), default=False)
     ativo = db.Column(db.Boolean, default=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
     categoria = db.relationship("CategoriaProduto", backref=db.backref("produtos", lazy=True))
@@ -1427,6 +1431,11 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         data.pop("atributos_json", None)
         data["atributos"] = self.atributos
         data["tipo_item"] = self.tipo_item or "produto"
+        try:
+            data["atributos_variante"] = json.loads(self.atributos_variante) if self.atributos_variante else None
+        except (ValueError, TypeError):
+            data["atributos_variante"] = None
+        data["eh_grade_modelo"] = bool(self.eh_grade_modelo)
         data["controlar_estoque"] = self.controlar_estoque is not False
         # Marca derivada do NCM (Lei 10.147/2000) para segregar a receita no PGDAS.
         from app.services.fiscal.tributacao import eh_pis_cofins_monofasico

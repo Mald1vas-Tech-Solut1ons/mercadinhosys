@@ -4,13 +4,15 @@ from datetime import datetime, timedelta
 from flask import current_app
 from app import db
 from app.models import DashboardMetrica, Venda, Produto, Estabelecimento, allow_all_tenants
+from app.utils.query_helpers import get_local_date
+from app.utils.timezone import hoje_local
 
 
 def calcular_metricas_diarias():
     """Job diário que calcula métricas do dashboard de TODAS as lojas. Por ser
     cross-tenant e rodar fora de request, explicita o acesso global via
     allow_all_tenants (sem ele, o filtro de tenant falharia fechado)."""
-    hoje = datetime.now().date()
+    hoje = hoje_local()
 
     with allow_all_tenants():
         _calcular_metricas_todas_lojas(hoje)
@@ -26,7 +28,7 @@ def _calcular_metricas_todas_lojas(hoje):
             db.session.query(db.func.sum(Venda.total))
             .filter(
                 Venda.estabelecimento_id == estab.id,
-                db.func.date(Venda.created_at) == hoje,
+                get_local_date(Venda.created_at) == hoje,
             )
             .scalar()
             or 0
@@ -34,7 +36,7 @@ def _calcular_metricas_todas_lojas(hoje):
 
         # Calcular quantidade de vendas
         qtd_vendas = Venda.query.filter(
-            Venda.estabelecimento_id == estab.id, db.func.date(Venda.created_at) == hoje
+            Venda.estabelecimento_id == estab.id, get_local_date(Venda.created_at) == hoje
         ).count()
 
         # Buscar ou criar métrica

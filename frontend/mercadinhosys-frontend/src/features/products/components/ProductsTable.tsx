@@ -3,6 +3,7 @@ import { Edit, Trash2, Archive, ShoppingCart, FileText, ChevronLeft, ChevronRigh
 import { Produto } from '../../../types';
 import { formatCurrency } from '../../../utils/formatters';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 /** Miniatura do produto com fallback gracioso e zoom ao clicar — precisa de
  * estado próprio por linha (erro de carregamento), por isso vive em seu
@@ -246,13 +247,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                     {produto.data_validade ? (
                                         (() => {
                                             const hoje = new Date();
-                                            const validade = new Date(produto.data_validade);
+                                            const validade = dataDoDia(produto.data_validade);
                                             const dias = Math.floor((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 
                                             if (dias < 0) {
                                                 return (
                                                     <div className="flex flex-col">
-                                                        <span className="text-rose-500 font-medium tabular-nums">{new Date(produto.data_validade).toLocaleDateString('pt-BR')}</span>
+                                                        <span className="text-rose-500 font-medium tabular-nums">{dataDoDia(produto.data_validade).toLocaleDateString('pt-BR')}</span>
                                                         <span className="text-[9px] text-rose-500/70 uppercase tracking-widest font-bold">Vencido</span>
                                                     </div>
                                                 );
@@ -260,7 +261,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                             if (dias <= 30) {
                                                 return (
                                                     <div className="flex flex-col">
-                                                        <span className="text-amber-500 font-medium tabular-nums">{new Date(produto.data_validade).toLocaleDateString('pt-BR')}</span>
+                                                        <span className="text-amber-500 font-medium tabular-nums">{dataDoDia(produto.data_validade).toLocaleDateString('pt-BR')}</span>
                                                         <span className="text-[9px] text-amber-500/70 uppercase tracking-widest font-bold">{dias} Dias</span>
                                                     </div>
                                                 );
@@ -268,7 +269,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                             return (
                                                 <div className="flex flex-col">
                                                     <span className="text-emerald-500 font-medium tabular-nums">
-                                                        {new Date(produto.data_validade).toLocaleDateString('pt-BR')}
+                                                        {dataDoDia(produto.data_validade).toLocaleDateString('pt-BR')}
                                                     </span>
                                                     <span className="text-[9px] text-emerald-500/70 uppercase tracking-widest font-bold">No Prazo</span>
                                                 </div>
@@ -391,7 +392,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                 <div className="flex flex-col bg-gray-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-gray-200 dark:border-slate-800">
                                     <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Lote / Validade</span>
                                     <span className="font-medium text-gray-600 dark:text-slate-300">
-                                        {produto.lote ? <span className="text-blue-400">{produto.lote}</span> : '-'} / {produto.data_validade ? new Date(produto.data_validade).toLocaleDateString('pt-BR') : '-'}
+                                        {produto.lote ? <span className="text-blue-400">{produto.lote}</span> : '-'} / {produto.data_validade ? dataDoDia(produto.data_validade).toLocaleDateString('pt-BR') : '-'}
                                     </span>
                                 </div>
                                 <div className="flex flex-col bg-gray-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-gray-200 dark:border-slate-800">

@@ -5,6 +5,7 @@ import autoTable from 'jspdf-autotable';
 import { apiClient } from '../../../api/apiClient';
 import { showToast } from '../../../components/elements/Toast';
 import folhaService, { RescisaoData, TipoRescisao, RescisaoRegistro } from '../folhaService';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 /**
  * Wizard de Demissão (Rescisão) — Admin/Gerente/RH.
@@ -173,8 +174,8 @@ export default function RescisaoWizard() {
         doc.text(`Colaborador: ${nome}`, 14, y);
         doc.setFont('helvetica', 'normal');
         doc.text(`Cargo: ${cargo || '—'}`, 14, y + 6);
-        doc.text(`Admissão: ${new Date(res.data_admissao).toLocaleDateString('pt-BR')}`, 14, y + 12);
-        doc.text(`Demissão: ${new Date(res.data_demissao).toLocaleDateString('pt-BR')}   |   Motivo: ${tipoLabel}`, 14, y + 18);
+        doc.text(`Admissão: ${dataDoDia(res.data_admissao).toLocaleDateString('pt-BR')}`, 14, y + 12);
+        doc.text(`Demissão: ${dataDoDia(res.data_demissao).toLocaleDateString('pt-BR')}   |   Motivo: ${tipoLabel}`, 14, y + 18);
         y += 26;
 
         autoTable(doc, {
@@ -276,7 +277,7 @@ export default function RescisaoWizard() {
                                         {historico.map(r => (
                                             <tr key={r.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/60">
                                                 <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">{nomeHist(r)}{r.cargo ? <span className="block text-xs font-normal text-gray-400">{r.cargo}</span> : null}</td>
-                                                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{new Date(r.data_demissao).toLocaleDateString('pt-BR')}</td>
+                                                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{dataDoDia(r.data_demissao).toLocaleDateString('pt-BR')}</td>
                                                 <td className="px-4 py-3"><span className="px-2.5 py-1 text-xs font-bold rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">{TIPOS.find(t => t.valor === r.tipo_rescisao)?.titulo || r.tipo_rescisao}</span></td>
                                                 <td className="px-4 py-3 text-right font-black text-emerald-600 dark:text-emerald-400">{fmtMoeda(r.total_liquido)}</td>
                                                 <td className="px-4 py-3 text-right">
@@ -335,7 +336,7 @@ export default function RescisaoWizard() {
                         </select>
                         {funcionarioSel && (
                             <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Admissão: {funcionarioSel.data_admissao ? new Date(funcionarioSel.data_admissao).toLocaleDateString('pt-BR') : '—'}
+                                Admissão: {funcionarioSel.data_admissao ? dataDoDia(funcionarioSel.data_admissao).toLocaleDateString('pt-BR') : '—'}
                                 {funcionarioSel.salario_base != null && ` · Salário base: ${fmtMoeda(Number(funcionarioSel.salario_base))}`}
                             </div>
                         )}
@@ -424,7 +425,7 @@ export default function RescisaoWizard() {
                         <div className="flex items-center justify-between flex-wrap gap-3">
                             <div>
                                 <h3 className="font-bold text-gray-900 dark:text-white">{funcionarioSel?.nome}</h3>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">{TIPOS.find(t => t.valor === resultado.tipo_rescisao)?.titulo} · demissão em {new Date(resultado.data_demissao).toLocaleDateString('pt-BR')}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{TIPOS.find(t => t.valor === resultado.tipo_rescisao)?.titulo} · demissão em {dataDoDia(resultado.data_demissao).toLocaleDateString('pt-BR')}</p>
                             </div>
                             {registrada && <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold"><CheckCircle2 className="w-4 h-4" /> Registrada</span>}
                         </div>
@@ -461,7 +462,7 @@ export default function RescisaoWizard() {
                             <Wallet className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
                             <div>
                                 <span className="font-bold block text-sm text-emerald-900 dark:text-emerald-200">Impacto Financeiro Automático</span>
-                                <span>Ao registrar a rescisão, o valor de <strong>{fmtMoeda(resultado.total_liquido_estimado || resultado.total_proventos)}</strong> será automaticamente lançado no módulo de <strong>Despesas (Rescisão Trabalhista)</strong> com data de vencimento em {new Date(resultado.data_demissao).toLocaleDateString('pt-BR')}.</span>
+                                <span>Ao registrar a rescisão, o valor de <strong>{fmtMoeda(resultado.total_liquido_estimado || resultado.total_proventos)}</strong> será automaticamente lançado no módulo de <strong>Despesas (Rescisão Trabalhista)</strong> com data de vencimento em {dataDoDia(resultado.data_demissao).toLocaleDateString('pt-BR')}.</span>
                             </div>
                         </div>
 

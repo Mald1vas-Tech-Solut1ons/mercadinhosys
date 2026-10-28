@@ -10,6 +10,7 @@ import { apiClient } from '../../../api/apiClient';
 import { formatCurrency } from '../../../utils/formatters';
 import { showToast } from '../../../utils/toast';
 import BarcodeScanner from '../../pdv/components/BarcodeScanner';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface PurchaseOrderModalProps {
   isOpen: boolean;
@@ -50,7 +51,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
   const ehEAN = (v: string) => /^\d{8,14}$/.test(v.trim());
 
   // Form data
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = dataLocalISO(new Date());
   const [formData, setFormData] = useState({
     fornecedor_id: 0,
     condicao_pagamento: '',

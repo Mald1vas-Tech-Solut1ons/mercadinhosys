@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, TrendingUp, Clock, Percent, Calendar, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 interface SupplierIntelligenceModalProps {
   isOpen: boolean;
@@ -222,7 +223,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                               </span>
                             </div>
                             <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                              Recebido em {new Date(item.data).toLocaleDateString('pt-BR')}
+                              Recebido em {dataDoDia(item.data).toLocaleDateString('pt-BR')}
                             </div>
                             <div className="text-xs text-gray-500 mt-1">
                               Valor: R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}

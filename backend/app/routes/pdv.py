@@ -27,6 +27,7 @@ import string
 from sqlalchemy import func
 from app.utils.smart_cache import get_cached_config, set_cached_config
 from app.utils.query_helpers import get_funcionario_safe, get_produto_safe, get_venda_safe, get_venda_itens_safe
+from app.utils.timezone import fmt_local
 from app.decorators.plan_guards import normalize_plan, plano_efetivo
 
 pdv_bp = Blueprint("pdv", __name__)
@@ -1217,7 +1218,7 @@ def finalizar_venda():
                 "venda": {
                     "id": nova_venda.id,
                     "codigo": codigo_venda,
-                    "data": data_venda.strftime("%d/%m/%Y %H:%M"),
+                    "data": fmt_local(data_venda),
                     "total": float(total),
                     "nfce_status": nfce_status,
                     "nfce_mensagem": nfce_mensagem,

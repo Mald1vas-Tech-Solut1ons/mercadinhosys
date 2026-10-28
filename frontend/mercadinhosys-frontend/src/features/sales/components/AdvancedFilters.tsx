@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface FilterProps {
     filtros: any;
@@ -30,24 +31,24 @@ export default function AdvancedFilters({
             case "hoje":
                 onFilterChange({
                     ...filtros,
-                    data_inicio: hoje.toISOString().split("T")[0],
-                    data_fim: hoje.toISOString().split("T")[0],
+                    data_inicio: dataLocalISO(hoje),
+                    data_fim: dataLocalISO(hoje),
                 });
                 break;
             case "semana":
                 dataInicio.setDate(hoje.getDate() - 7);
                 onFilterChange({
                     ...filtros,
-                    data_inicio: dataInicio.toISOString().split("T")[0],
-                    data_fim: hoje.toISOString().split("T")[0],
+                    data_inicio: dataLocalISO(dataInicio),
+                    data_fim: dataLocalISO(hoje),
                 });
                 break;
             case "mes":
                 dataInicio.setMonth(hoje.getMonth() - 1);
                 onFilterChange({
                     ...filtros,
-                    data_inicio: dataInicio.toISOString().split("T")[0],
-                    data_fim: hoje.toISOString().split("T")[0],
+                    data_inicio: dataLocalISO(dataInicio),
+                    data_fim: dataLocalISO(hoje),
                 });
                 break;
             case "alto_valor":

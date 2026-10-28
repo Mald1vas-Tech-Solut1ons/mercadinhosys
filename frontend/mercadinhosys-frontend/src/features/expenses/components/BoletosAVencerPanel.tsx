@@ -16,6 +16,7 @@ import {
 import { BoletoFornecedor, purchaseOrderService } from '../../products/purchaseOrderService';
 import { formatCurrency, formatDate } from '../../../utils/formatters';
 import { showToast } from '../../../utils/toast';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface BoletosAVencerPanelProps {
   className?: string;
@@ -692,7 +693,7 @@ export const ModalPagamentoBoleto: React.FC<ModalPagamentoBoletoProps> = ({ bole
   const [paymentKey] = useState(() => crypto.randomUUID());
   const [formaPagamento, setFormaPagamento] = useState('pix');
   const [valorPago, setValorPago] = useState(boleto.valor_atual.toString());
-  const [dataPagamento, setDataPagamento] = useState(new Date().toISOString().split('T')[0]);
+  const [dataPagamento, setDataPagamento] = useState(dataLocalISO(new Date()));
   const [observacoes, setObservacoes] = useState('');
   const [processando, setProcessando] = useState(false);
 

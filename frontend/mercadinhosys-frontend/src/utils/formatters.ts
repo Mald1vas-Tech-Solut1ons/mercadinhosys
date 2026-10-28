@@ -10,7 +10,11 @@ export const formatCurrency = (value: number): string => {
 export const formatDate = (date: string | Date | null | undefined): string => {
     if (!date) return '---';
     try {
-        const d = new Date(date);
+        // Data pura (validade, vencimento) é um dia do calendário: "2026-10-27" lido como UTC
+        // virava 26/10 às 21h no Brasil. Com hora, o instante é convertido para o horário local.
+        const d = typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+            ? new Date(`${date}T00:00:00`)
+            : new Date(date);
         if (isNaN(d.getTime())) return '---';
         return new Intl.DateTimeFormat('pt-BR').format(d);
     } catch (e) {

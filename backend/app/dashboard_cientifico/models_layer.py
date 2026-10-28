@@ -11,7 +11,7 @@ import logging
 import numpy as np
 from sqlalchemy import func
 from app.models import Venda, VendaItem, Produto
-from app.utils.query_helpers import _get_db
+from app.utils.query_helpers import _get_db, get_local_date
 
 logger = logging.getLogger(__name__)
 
@@ -737,13 +737,13 @@ class PracticalModels:
                 # 4) Variedade de produtos x faturamento diário
                 try:
                     q = db.session.query(
-                        func.date(Venda.data_venda).label('data'),
+                        get_local_date(Venda.data_venda).label('data'),
                         func.count(func.distinct(VendaItem.produto_id)).label('produtos_unicos'),
                         func.sum(VendaItem.total_item).label('faturamento')
                     ).join(VendaItem, Venda.id == VendaItem.venda_id).filter(
                         Venda.data_venda >= start_date, Venda.status == 'finalizada'
                     )
-                    rows = _scope(q, Venda).group_by(func.date(Venda.data_venda)).all()
+                    rows = _scope(q, Venda).group_by(get_local_date(Venda.data_venda)).all()
                     result, why = PracticalModels._pearson(
                         [r.produtos_unicos for r in rows], [r.faturamento for r in rows],
                         PracticalModels.MIN_PAIRS_PRODUCT_MIX, "Variedade de produtos x Faturamento diário",

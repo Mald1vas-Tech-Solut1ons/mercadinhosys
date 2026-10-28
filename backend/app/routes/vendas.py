@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, Response, current_app
 from app import db
-from app.utils.timezone import fmt_local, hoje_local, local_date_to_utc_naive
+from app.utils.timezone import fmt_local, hoje_local, local_date_to_utc_naive, to_local
 from app.models import (
     Venda,
     VendaItem,
@@ -24,7 +24,7 @@ from app.models import (
 )
 from flask_jwt_extended import jwt_required, get_jwt
 from app.decorators.plan_guards import permission_required, normalize_plan, plano_efetivo
-from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id, get_dow_extract, get_hour_extract
+from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id, get_dow_extract, get_hour_extract, get_local_date
 from sqlalchemy import or_, func, distinct, select
 from collections import defaultdict
 import random
@@ -449,7 +449,7 @@ def estatisticas_vendas():
         ticket_medio = total_valor / total_vendas_count if total_vendas_count > 0 else 0
         itens_por_venda = total_itens_venda / total_vendas_count if total_vendas_count > 0 else 0
 
-        campo_data_dia = func.date(func.coalesce(Venda.data_venda, Venda.created_at))
+        campo_data_dia = get_local_date(func.coalesce(Venda.data_venda, Venda.created_at))
         vendas_por_dia_res = db.session.query(
             campo_data_dia.label("data"),
             func.count(Venda.id).label("quantidade"),
@@ -627,7 +627,7 @@ def relatorio_diario():
 
         vendas_por_hora = defaultdict(lambda: {"quantidade": 0, "total": 0})
         for v in vendas:
-            hora = v.created_at.hour
+            hora = to_local(v.created_at).hour
             vendas_por_hora[hora]["quantidade"] += 1
             vendas_por_hora[hora]["total"] += float(v.total)
 
@@ -661,7 +661,7 @@ def relatorio_diario():
                         "funcionario": v.funcionario.nome if v.funcionario else "Não Informado",
                         "total": float(v.total),
                         "forma_pagamento": (v.pagamentos[0].forma_pagamento if v.pagamentos else "N/A"),
-                        "hora": v.created_at.strftime("%H:%M"),
+                        "hora": fmt_local(v.created_at, "%H:%M"),
                         "quantidade_itens": len(v.itens),
                     }
                     for v in vendas
@@ -697,13 +697,13 @@ def analise_tendencia():
 
         if periodo == "diario":
             vendas_por_dia = db.session.query(
-                func.date(Venda.created_at).label("data"),
+                get_local_date(Venda.created_at).label("data"),
                 func.count(Venda.id).label("quantidade"),
                 func.sum(Venda.total).label("total"),
             ).filter(
                 Venda.estabelecimento_id == estabelecimento_id,
                 Venda.status == "finalizada"
-            ).group_by(func.date(Venda.created_at)).order_by(func.date(Venda.created_at).desc()).limit(30).all()
+            ).group_by(get_local_date(Venda.created_at)).order_by(get_local_date(Venda.created_at).desc()).limit(30).all()
             for vpd in vendas_por_dia:
                 resultados.append({
                     "periodo": vpd.data.strftime("%d/%m/%Y"),
@@ -1160,7 +1160,7 @@ def vendas_do_dia():
                     "funcionario": v.funcionario.nome if v.funcionario else "Não Informado",
                     "total": float(v.total),
                     "forma_pagamento": (v.pagamentos[0].forma_pagamento if v.pagamentos else "N/A"),
-                    "hora": v.created_at.strftime("%H:%M"),
+                    "hora": fmt_local(v.created_at, "%H:%M"),
                     "quantidade_itens": len(v.itens)
                 } for v in vendas_hoje
             ],
@@ -1365,7 +1365,7 @@ def exportar_vendas():
             formas = ", ".join(p.forma_pagamento for p in v.pagamentos) if v.pagamentos else "N/A"
             writer.writerow([
                 v.codigo,
-                v.data_venda.strftime("%d/%m/%Y %H:%M") if v.data_venda else "",
+                fmt_local(v.data_venda),
                 cliente_nome,
                 func_nome,
                 f"{float(v.subtotal):.2f}",
@@ -1407,7 +1407,7 @@ def comprovante_venda(venda_id):
             "CUPOM NÃO FISCAL".center(48),
             "=" * 48,
             f"Venda: {venda.codigo}",
-            f"Data: {venda.data_venda.strftime('%d/%m/%Y %H:%M') if venda.data_venda else 'N/A'}",
+            f"Data: {fmt_local(venda.data_venda) or 'N/A'}",
             f"Cliente: {cliente_nome}",
             f"Operador: {func_nome}",
             "-" * 48,

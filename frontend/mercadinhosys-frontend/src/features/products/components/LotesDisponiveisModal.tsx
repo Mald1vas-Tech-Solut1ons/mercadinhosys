@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Layers, AlertTriangle, CheckCircle, Clock, Package } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 interface Lote {
   id: number;
@@ -158,7 +159,7 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
                                 )}
                               </div>
                               <div className="text-xs text-gray-500 mt-0.5">
-                                Entrada: {new Date(lote.data_entrada).toLocaleDateString('pt-BR')}
+                                Entrada: {dataDoDia(lote.data_entrada).toLocaleDateString('pt-BR')}
                                 {lote.preco_custo > 0 && ` | Custo: R$ ${lote.preco_custo.toFixed(2)}`}
                               </div>
                             </div>

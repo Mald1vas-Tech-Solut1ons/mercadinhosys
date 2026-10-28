@@ -19,6 +19,7 @@ import { Produto } from '../../../types';
 import { MetricaSchema } from '../../../types/viewSchema';
 import { useViewSchema, schemaHelpers } from '../../../services/viewSchemaService';
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend as RechartsLegend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 interface ProductAnalyticsDashboardProps {
     produtos: Produto[];
@@ -276,7 +277,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
 
             produtos.forEach(p => {
                 if (p.data_validade) {
-                    const dataVal = new Date(p.data_validade);
+                    const dataVal = dataDoDia(p.data_validade);
                     dataVal.setHours(0, 0, 0, 0);
 
                     const diffTime = dataVal.getTime() - hoje.getTime();

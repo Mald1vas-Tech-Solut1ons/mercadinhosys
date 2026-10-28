@@ -136,6 +136,8 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
     """
     quantidade = quantidade_valida(quantidade)
     custo = custo_historico(produto)
+    if getattr(produto, 'eh_grade_modelo', False):
+        raise ValueError(f'{produto.nome} é o modelo da grade: venda o número escolhido.')
     if not controla_estoque(produto):
         return None, custo
     bloqueia = _bloqueia_vencido(produto)

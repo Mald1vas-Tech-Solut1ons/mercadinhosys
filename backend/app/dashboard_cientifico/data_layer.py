@@ -9,7 +9,7 @@ from app.models import (
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
     Despesa, ContaPagar, ContaReceber, JustificativaPonto
 )
-from app.utils.query_helpers import _get_db
+from app.utils.query_helpers import _get_db, get_local_date
 import logging
 from functools import wraps
 from app.services.rh_calculator_service import calcular_custo_folha_detalhado
@@ -84,7 +84,7 @@ class DataLayer:
                 func.count(Venda.id).label('total_vendas'),
                 func.sum(Venda.total).label('total_faturado'),
                 func.avg(Venda.total).label('ticket_medio'),
-                func.count(func.distinct(func.date(Venda.data_venda))).label('dias_com_venda')
+                func.count(func.distinct(get_local_date(Venda.data_venda))).label('dias_com_venda')
             ).filter(
                 Venda.data_venda >= start_d,
                 Venda.data_venda < end_exclusive,
@@ -135,22 +135,22 @@ class DataLayer:
             # db injetado pelo decorator
             # Query Vendas (Agrupa por dia)
             query_vendas = db.session.query(
-                func.date(Venda.data_venda).label('data'),
+                get_local_date(Venda.data_venda).label('data'),
                 func.sum(Venda.total).label('valor'),
                 func.count(Venda.id).label('qtd')
             ).filter(
-                func.date(Venda.data_venda) >= start_date,
+                get_local_date(Venda.data_venda) >= start_date,
                 Venda.status == 'finalizada'
             )
             
             if str(estabelecimento_id).lower() != 'all':
                 query_vendas = query_vendas.filter(Venda.estabelecimento_id == estabelecimento_id)
             
-            resultados_venda = query_vendas.group_by(func.date(Venda.data_venda)).all()
+            resultados_venda = query_vendas.group_by(get_local_date(Venda.data_venda)).all()
 
             # Query CMV (Custo)
             query_cogs = db.session.query(
-                func.date(Venda.data_venda).label('data'),
+                get_local_date(Venda.data_venda).label('data'),
                 func.sum(custo_efetivo() * VendaItem.quantidade).label('cogs'),
                 # Custo estimado = parcela do CMV de itens cujo produto tinha
                 # origem != informado no momento da venda (snapshot custo_estimado).
@@ -161,14 +161,14 @@ class DataLayer:
             ).join(VendaItem, Venda.id == VendaItem.venda_id).outerjoin(
                 Produto, Produto.id == VendaItem.produto_id
             ).filter(
-                func.date(Venda.data_venda) >= start_date,
+                get_local_date(Venda.data_venda) >= start_date,
                 Venda.status == 'finalizada'
             )
             
             if str(estabelecimento_id).lower() != 'all':
                 query_cogs = query_cogs.filter(Venda.estabelecimento_id == estabelecimento_id)
                 
-            resultados_cogs = query_cogs.group_by(func.date(Venda.data_venda)).all()
+            resultados_cogs = query_cogs.group_by(get_local_date(Venda.data_venda)).all()
 
             # Query Despesas (exclui espelhos — fonte primária é ContaPagar/folha)
             query_despesas = db.session.query(

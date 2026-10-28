@@ -29,6 +29,7 @@ import {
 } from './components/modals';
 import ResponsiveModal from '../../components/ui/ResponsiveModal';
 import { Button } from '../../components/ui/button';
+import { dataLocalISO, dataDoDia } from '../../utils/dataLocal';
 
 // TIPOS CIENTÍFICOS
 type ProdutoPrevisao = {
@@ -548,7 +549,7 @@ const DashboardPage: React.FC = () => {
           const randomVariation = Math.random() * 500;
           const val = 1500 + baseVariation + randomVariation;
           timeseriesFormatted.push({
-            data: d.toISOString().split('T')[0],
+            data: dataLocalISO(d),
             vendas: val,
             quantidade: Math.floor(val / 35),
             ticket_medio: 35,
@@ -1112,7 +1113,7 @@ const DashboardPage: React.FC = () => {
                       type="date"
                       value={dataInicio}
                       onChange={(e) => setDataInicio(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={dataLocalISO(new Date())}
                       className="w-full px-4 py-2 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-300"
                     />
                   </div>
@@ -1122,7 +1123,7 @@ const DashboardPage: React.FC = () => {
                       type="date"
                       value={dataFim}
                       onChange={(e) => setDataFim(e.target.value)}
-                      max={new Date().toISOString().split('T')[0]}
+                      max={dataLocalISO(new Date())}
                       min={dataInicio}
                       className="w-full px-4 py-2 bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-300 font-medium"
                     />
@@ -4791,7 +4792,7 @@ const DashboardPage: React.FC = () => {
                       rh.daily_ponto_summary.map((row, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 font-medium text-gray-900">
-                            {new Date(row.data).toLocaleDateString('pt-BR')}
+                            {dataDoDia(row.data).toLocaleDateString('pt-BR')}
                           </td>
                           <td className="px-4 py-3 text-gray-900">{row.funcionario}</td>
                           <td className="px-4 py-3 text-gray-900">{row.entrada}</td>
@@ -5436,14 +5437,14 @@ const DashboardPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
                 {modalVencimentoAberto?.produtos?.map((p: any, idx: number) => {
-                  const diasParaVencer = Math.ceil((new Date(p.data_validade).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                  const diasParaVencer = Math.ceil((dataDoDia(p.data_validade).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
                   return (
                     <tr key={idx} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{p.nome}</td>
                       <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{p.lote || 'N/D'}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-md text-xs font-bold ${diasParaVencer <= 7 ? 'bg-red-100 text-red-700' : diasParaVencer <= 15 ? 'bg-orange-100 text-orange-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                          {new Date(p.data_validade).toLocaleDateString('pt-BR')} ({diasParaVencer} dias)
+                          {dataDoDia(p.data_validade).toLocaleDateString('pt-BR')} ({diasParaVencer} dias)
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-medium">{p.quantidade}</td>

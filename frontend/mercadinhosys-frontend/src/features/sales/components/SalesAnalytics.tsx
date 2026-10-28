@@ -12,6 +12,7 @@ import {
     Legend,
     Filler,
 } from "chart.js";
+import { dataDoDia } from '../../../utils/dataLocal';
 
 ChartJS.register(
     CategoryScale,
@@ -48,7 +49,7 @@ export default function SalesAnalytics({
     // Gráfico de Tendência (Linha)
     const trendData = {
         labels: vendasPorDia.map((v) => {
-            const date = new Date(v.data);
+            const date = dataDoDia(v.data);
             return `${date.getDate()}/${date.getMonth() + 1}`;
         }),
         datasets: [

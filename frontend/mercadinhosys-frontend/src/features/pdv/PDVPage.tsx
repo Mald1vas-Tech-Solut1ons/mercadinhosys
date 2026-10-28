@@ -34,6 +34,7 @@ import MultiPaymentManager from './components/MultiPaymentManager';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 export interface VendaConcluida {
     id: number;
@@ -856,7 +857,7 @@ const PDVPage: React.FC = () => {
                                                             type="date"
                                                             value={dataVencimentoFiado}
                                                             onChange={e => setDataVencimentoFiado(e.target.value)}
-                                                            min={new Date().toISOString().split('T')[0]}
+                                                            min={dataLocalISO(new Date())}
                                                             className="w-full p-3 rounded-xl border border-orange-300 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-orange-400"
                                                         />
                                                         <p className="text-[10px] text-orange-500 mt-1">Opcional. Padrão: 30 dias.</p>

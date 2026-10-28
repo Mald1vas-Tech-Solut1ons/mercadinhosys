@@ -248,6 +248,35 @@ FAMILIAS_PRODUTO = {
         "descricao": "Roupas, calçados e acessórios com grade e atributos têxteis.",
         "segmento_base": "vestuario",
     },
+    "calcados": {
+        "nome": "Calçados",
+        "descricao": "Tênis, sapatos, sandálias, chinelos e botas: numeração, tipo e material.",
+        "segmento_base": "vestuario",
+        "campos_ocultos": ["tamanhos", "tecido"],
+        "campos_habilitados": ["numeracao", "tipo_calcado", "material_calcado", "modelo"],
+        "exemplos": {
+            "nome": "Ex: Tênis Corrida Masculino Preto",
+            "categoria": "Ex: Tênis, Sandálias, Chinelos, Infantil...",
+            "marca": "Ex: Olympikus",
+        },
+    },
+    # Suplemento é alimento para a lei (RDC 243/2018), mas o lojista vende como
+    # seção própria, parecida com farmácia: validade e lote obrigatórios.
+    "suplementos": {
+        "nome": "Suplementos e Nutrição",
+        "descricao": "Vitaminas, minerais, ômega 3, whey, creatina e colágeno: dose, forma e validade.",
+        "segmento_base": "mercearia",
+        "flags_override": {"usa_validade": True, "usa_lotes": True, "usa_embalagens": False},
+        "campos_ocultos": ["embalagem", "itens_por_embalagem"],
+        "campos_habilitados": ["forma_apresentacao", "nutriente_principal", "dose_porcao",
+                               "doses_por_embalagem", "concentracao_dose", "sabor", "alergenicos",
+                               "registro_anvisa"],
+        "exemplos": {
+            "nome": "Ex: Ômega 3 1000mg 120 cápsulas",
+            "categoria": "Ex: Vitaminas, Proteínas, Ômega...",
+            "marca": "Ex: Growth",
+        },
+    },
     "servico": {
         "nome": "Serviço",
         "descricao": "Itens não estocáveis cobrados como prestação de serviço.",
@@ -266,13 +295,13 @@ FAMILIAS_PRODUTO = {
 
 MIX_PADRAO_POR_SEGMENTO = {
     "mercearia": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
-                  "eletro"],
-    "vestuario": ["vestuario", "bebida", "perfumaria_higiene"],
+                  "eletro", "suplementos"],
+    "vestuario": ["vestuario", "calcados", "bebida", "perfumaria_higiene"],
     "construcao": ["construcao_leve", "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem"],
     "autopecas": ["autopecas", "servico"],
     "generico": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
                  "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem", "vestuario", "servico",
-                 "eletro"],
+                 "eletro", "calcados", "suplementos"],
 }
 
 PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
@@ -287,6 +316,8 @@ PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
     "construcao_hidraulica": "construcao_hidraulica",
     "construcao_ferragem": "construcao_ferragem",
     "vestuario": "vestuario_padrao",
+    "calcados": "calcados",
+    "suplementos": "suplementos",
     "servico": "servico",
     "autopecas": "autopecas_padrao",
 }
@@ -406,6 +437,52 @@ CAMPOS_PADRAO = [
     {"chave": "modelo", "label": "Modelo", "tipo": "text", "grupo": "atributos",
      "origem": "atributo", "segmentos": [], "placeholder": "Ex: L-99 FB",
      "aplica_tipo_item": ["produto"], "ordem": 292},
+
+    # ---- Calçados (só via campos_habilitados da família "calcados") ----
+    {"chave": "numeracao", "label": "Numeração", "tipo": "multiselect", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": [str(n) for n in range(15, 49)], "permite_custom": True,
+     "ajuda": "Números disponíveis deste modelo.", "aplica_tipo_item": ["produto"], "ordem": 293},
+    {"chave": "tipo_calcado", "label": "Tipo", "tipo": "select", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": ["Tênis", "Sapato", "Sandália", "Chinelo", "Bota", "Sapatilha", "Mocassim", "Tamanco", "Pantufa"],
+     "permite_custom": True, "aplica_tipo_item": ["produto"], "ordem": 294},
+    {"chave": "material_calcado", "label": "Material", "tipo": "select", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": ["Couro", "Sintético", "Tecido", "Borracha", "Camurça", "EVA"],
+     "permite_custom": True, "aplica_tipo_item": ["produto"], "ordem": 295},
+
+    # ---- Suplementos e Nutrição (só via campos_habilitados da família "suplementos") ----
+    {"chave": "forma_apresentacao", "label": "Forma", "tipo": "select", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": ["Cápsula", "Softgel", "Comprimido", "Pó", "Líquido", "Goma", "Sachê", "Barra"],
+     "aplica_tipo_item": ["produto"], "ordem": 340},
+    {"chave": "nutriente_principal", "label": "Nutriente Principal", "tipo": "select", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": ["Ômega 3", "Magnésio", "Vitamina D", "Vitamina C", "Complexo B", "Multivitamínico",
+                "Zinco", "Ferro", "Cálcio", "Whey Protein", "Creatina", "Colágeno", "Pré-treino",
+                "Termogênico", "Probiótico"],
+     "permite_custom": True, "aplica_tipo_item": ["produto"], "ordem": 341},
+    {"chave": "dose_porcao", "label": "Dose / Porção", "tipo": "text", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "placeholder": "Ex: 2 cápsulas, 30 g",
+     "aplica_tipo_item": ["produto"], "ordem": 342},
+    {"chave": "doses_por_embalagem", "label": "Doses por Embalagem", "tipo": "number", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "aplica_tipo_item": ["produto"], "ordem": 343},
+    {"chave": "concentracao_dose", "label": "Concentração por Dose", "tipo": "text", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "placeholder": "Ex: 1000 mg, 2000 UI",
+     "aplica_tipo_item": ["produto"], "ordem": 344},
+    {"chave": "sabor", "label": "Sabor", "tipo": "text", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "placeholder": "Ex: Chocolate, Sem sabor",
+     "aplica_tipo_item": ["produto"], "ordem": 345},
+    {"chave": "alergenicos", "label": "Alergênicos", "tipo": "multiselect", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [],
+     "opcoes": ["Contém glúten", "Contém lactose", "Contém soja", "Contém peixe", "Contém crustáceos",
+                "Contém amendoim", "Sem glúten", "Sem lactose"],
+     "aplica_tipo_item": ["produto"], "ordem": 346},
+    {"chave": "registro_anvisa", "label": "Registro / Notificação ANVISA", "tipo": "text", "grupo": "atributos",
+     "origem": "atributo", "segmentos": [], "placeholder": "Opcional",
+     "ajuda": "A maioria dos suplementos é dispensada de registro (RDC 243/2018).",
+     "aplica_tipo_item": ["produto"], "ordem": 347},
 
     # ---- Moto peças ----
     {"chave": "montadora", "label": "Montadora", "tipo": "select", "grupo": "atributos",
@@ -714,6 +791,29 @@ FISCAL_SUGERIDO_POR_FAMILIA = {
         "icms_aliquota_sugerida": 18.0,
         "observacao_fiscal": "Vestuário tem ICMS-ST em vários estados (ex.: parte do Sudeste) "
                               "— confirme com seu contador.",
+    },
+    "calcados": {
+        "csosn_sugerido": "102", "cst_icms_sugerido": "00", "cfop_padrao_sugerido": "5102",
+        "icms_aliquota_sugerida": 18.0,
+        "icms_st_a_confirmar": True,
+        "observacao_fiscal": "Calçados têm ICMS por substituição tributária (ST) em alguns estados: "
+                              "confirme com o contador; se tiver, marque \"ICMS recolhido por ST\" e informe o CEST.",
+        "ncm_exemplos": [
+            {"ncm": "6402", "descricao": "Borracha ou plástico (chinelo, tênis sintético)"},
+            {"ncm": "6403", "descricao": "Couro"},
+            {"ncm": "6404", "descricao": "Tecido (tênis de lona)"},
+        ],
+    },
+    "suplementos": {
+        "csosn_sugerido": "102", "cst_icms_sugerido": "00", "cfop_padrao_sugerido": "5102",
+        "icms_aliquota_sugerida": 18.0,
+        "icms_st_a_confirmar": True,
+        "observacao_fiscal": "Suplemento não tem a redução da cesta básica. Confirme com o contador se "
+                              "há ICMS-ST no seu estado. NCM 3004 é medicamento, não suplemento.",
+        "ncm_exemplos": [
+            {"ncm": "21069030", "descricao": "Suplemento (vitaminas, minerais, ômega 3)"},
+            {"ncm": "21061000", "descricao": "Concentrado proteico (whey)"},
+        ],
     },
     "servico": {
         "csosn_sugerido": "400", "cst_icms_sugerido": "40", "cfop_padrao_sugerido": "5102",

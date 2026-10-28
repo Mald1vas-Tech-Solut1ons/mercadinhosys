@@ -54,6 +54,7 @@ export interface Configuracao {
     // Estoque
     controlar_validade: boolean;
     alerta_estoque_minimo: boolean;
+    bloquear_venda_vencido?: boolean;
     dias_alerta_validade: number;
     estoque_minimo_padrao: number;
 

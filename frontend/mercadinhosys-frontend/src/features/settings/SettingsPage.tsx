@@ -142,7 +142,7 @@ const defaultConfig: Configuracao = {
     exibir_preco_tela: true, mostrar_foto_produto_pdv: false, permitir_venda_sem_estoque: false, desconto_maximo_percentual: 10,
     desconto_maximo_funcionario: 10, arredondamento_valores: true, formas_pagamento: [],
     motivos_estorno: ["Erro de digitação", "Desistência do cliente", "Produto avariado", "Cobrança duplicada", "Treinamento/Teste"],
-    controlar_validade: true, alerta_estoque_minimo: true, dias_alerta_validade: 30, estoque_minimo_padrao: 10,
+    controlar_validade: true, alerta_estoque_minimo: true, bloquear_venda_vencido: true, dias_alerta_validade: 30, estoque_minimo_padrao: 10,
     tempo_sessao_minutos: 30, tentativas_senha_bloqueio: 3, alertas_email: false, alertas_whatsapp: false
 };
 
@@ -1022,6 +1022,13 @@ const SettingsPage: React.FC = () => {
                                     description="Notificar quando produtos atingirem nível crítico"
                                     checked={config.alerta_estoque_minimo}
                                     onChange={(val: boolean) => setConfig({ ...config, alerta_estoque_minimo: val })}
+                                />
+
+                                <SwitchField
+                                    label="Bloquear Venda de Produto Vencido"
+                                    description="O caixa recusa item com validade vencida (ex.: suplementos, alimentos)"
+                                    checked={config.bloquear_venda_vencido ?? true}
+                                    onChange={(val: boolean) => setConfig({ ...config, bloquear_venda_vencido: val })}
                                 />
                             </div>
 

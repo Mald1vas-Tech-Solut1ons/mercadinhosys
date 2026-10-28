@@ -87,7 +87,7 @@ def atualizar_configuracoes():
         allowed_fields = [
             "logo_url", "cor_principal", "tema_escuro", "impressao_automatica",
             "tipo_impressora", "formas_pagamento", "emitir_nfe", "emitir_nfce",
-            "controlar_validade", "alerta_estoque_minimo", "dias_alerta_validade",
+            "controlar_validade", "alerta_estoque_minimo", "dias_alerta_validade", "bloquear_venda_vencido",
             "estoque_minimo_padrao", "exibir_preco_tela", "mostrar_foto_produto_pdv", "permitir_venda_sem_estoque",
             "desconto_maximo_percentual", "desconto_maximo_funcionario", "arredondamento_valores",
             "tempo_sessao_minutos", "tentativas_senha_bloqueio", "alertas_email", "alertas_whatsapp",

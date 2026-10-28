@@ -5657,7 +5657,10 @@ _IMPORT_PRODUTOS_ALIASES = {
 }
 
 # NCM → família quando a planilha não traz a coluna "familia".
-_IMPORT_CAPITULOS_VESTUARIO = ("61", "62", "63", "64")
+_IMPORT_CAPITULOS_VESTUARIO = ("61", "62", "63")
+_IMPORT_CAPITULOS_CALCADOS = ("64",)
+# 2106.10 = concentrado proteico (whey); 2106.90 = preparações/suplementos.
+_IMPORT_POSICOES_SUPLEMENTOS = ("2106",)
 _IMPORT_CAPITULOS_ELETRO = ("84", "85")
 
 
@@ -5693,6 +5696,10 @@ def _imp_resolver_familia(texto_familia, ncm, mix) -> str:
     if ncm:
         if eh_pis_cofins_monofasico(ncm):
             candidata = "perfumaria_higiene"
+        elif ncm[:2] in _IMPORT_CAPITULOS_CALCADOS:
+            candidata = "calcados" if "calcados" in mix else "vestuario"
+        elif ncm[:4] in _IMPORT_POSICOES_SUPLEMENTOS:
+            candidata = "suplementos"
         elif ncm[:2] in _IMPORT_CAPITULOS_VESTUARIO:
             candidata = "vestuario"
         elif ncm[:2] in _IMPORT_CAPITULOS_ELETRO:

@@ -505,6 +505,8 @@ class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     alerta_estoque_minimo = db.Column(db.Boolean, default=True)
     dias_alerta_validade = db.Column(db.Integer, default=30)
     estoque_minimo_padrao = db.Column(db.Integer, default=10)
+    # Caixa recusa produto vencido (lote vencido e produto sem lote com data passada).
+    bloquear_venda_vencido = db.Column(db.Boolean, nullable=False, server_default=db.true(), default=True)
     # ---- Precificação pelo mercado (custo estimado) ----
     # Desconto aplicado sobre o preço de referência e margem alvo SOBRE A VENDA
     # (não confundir com margem_lucro do produto, que é markup sobre o custo).

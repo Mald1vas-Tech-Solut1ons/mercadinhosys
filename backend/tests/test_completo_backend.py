@@ -95,17 +95,20 @@ def test_importacao_infere_familia_pelo_ncm_na_mercearia(client, session):
         assert prod.tipo_item == "produto"
 
 
-def test_importacao_no_generico_poe_vestuario_pelo_capitulo(client, session):
+def test_importacao_no_generico_separa_roupa_e_calcado_pelo_capitulo(client, session):
     ctx = _ctx(session, "generico")
     body = _importar(client, ctx, CABECALHO + "\n"
                      "Calca Jeans 40;Moda;55;119,90;;;;UN;4;;;62034200\n"
                      "Tenis Corrida 41;Calcados;90;199,90;;;;PAR;2;;;64041100\n")
     assert body["total_importados"] == 2, body
-    for nome in ("Calca Jeans 40", "Tenis Corrida 41"):
-        prod = _p(nome)
-        assert prod.familia_produto == "vestuario"
-        assert prod.perfil_fiscal == "vestuario_padrao"
-        assert prod.csosn == "500" and prod.cfop_padrao == "5102"
+    calca = _p("Calca Jeans 40")
+    assert calca.familia_produto == "vestuario"
+    assert calca.perfil_fiscal == "vestuario_padrao"
+    assert calca.csosn == "500" and calca.cfop_padrao == "5102"
+    tenis = _p("Tenis Corrida 41")
+    assert tenis.familia_produto == "calcados"
+    assert tenis.perfil_fiscal == "calcados"
+    assert tenis.csosn == "102" and tenis.cfop_padrao == "5102"
 
 
 def test_importacao_sem_eletro_no_mix_usa_familia_padrao(client, session):

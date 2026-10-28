@@ -31,6 +31,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
     {
         titulo: 'Geral',
         atalhos: [
+            { keys: ['Ctrl', 'K'], label: 'Buscar produto, cliente, venda, fornecedor ou tela' },
             { keys: ['?'], label: 'Mostrar/ocultar esta ajuda de atalhos' },
             { keys: ['Esc'], label: 'Fechar janelas e painéis abertos' },
         ],

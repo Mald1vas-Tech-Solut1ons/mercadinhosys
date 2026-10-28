@@ -210,7 +210,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
   };
 
   const handleDevolver = async () => {
-    if (window.confirm('ATENÇÃO: Você está prestes a DEVOLVER (recusar) este pedido por completo. Ele será marcado como devolvido e não entrará no estoque. Deseja continuar?')) {
+    if (await confirmar({ titulo: 'Devolver o pedido inteiro?', mensagem: 'Ele será marcado como devolvido e não entrará no estoque.', acao: 'Devolver pedido', perigo: true })) {
       setLoading(true);
       try {
         await purchaseOrderService.devolverPedido(pedido.id);
@@ -728,3 +728,4 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
 
 export default ReceivePurchaseModal;
 import { dataLocalISO } from '../../../utils/dataLocal';
+import { confirmar } from '../../../components/ui/Confirmacao';

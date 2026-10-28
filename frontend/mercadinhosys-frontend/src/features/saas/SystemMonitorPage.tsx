@@ -22,6 +22,7 @@ import { apiClient } from '../../api/apiClient';
 import { toast } from 'react-hot-toast';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { isValidCNPJ, isValidCPF, isValidEmail } from '../../utils/validators';
+import { confirmar } from '../../components/ui/Confirmacao';
 
 interface Log {
     id: number;
@@ -189,7 +190,7 @@ const SystemMonitorPage: React.FC = () => {
     };
 
     const deleteAccount = async (id: number, name: string) => {
-        if (!window.confirm(`TEM CERTEZA? Isso excluirá TODOS os dados da loja "${name}" permanentemente. Esta ação não pode ser desfeita.`)) return;
+        if (!(await confirmar({ titulo: `Excluir a loja "${name}"?`, mensagem: 'Todos os dados da loja serão apagados permanentemente. Esta ação não pode ser desfeita.', acao: 'Excluir permanentemente', perigo: true }))) return;
 
         try {
             const res = await apiClient.delete(`/saas/monitor/establishments/${id}`);

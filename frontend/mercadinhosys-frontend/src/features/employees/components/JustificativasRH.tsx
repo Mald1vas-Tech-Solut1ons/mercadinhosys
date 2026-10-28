@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Upload, Download, AlertCircle, CheckCircle, Clock, Filter, ThumbsUp, ThumbsDown, X } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
 import { dataDoDia } from '../../../utils/dataLocal';
+import { showToast } from '../../../utils/toast';
 
 interface Justificativa {
   id: number;
@@ -84,7 +85,7 @@ export default function JustificativasRH() {
 
   const handleSubmitJustificativa = async () => {
     if (!novaJustificativa.funcionario_id || !novaJustificativa.data || !novaJustificativa.motivo) {
-      alert('Preencha todos os campos obrigatórios');
+      showToast.warning('Preencha todos os campos obrigatórios');
       return;
     }
 
@@ -112,7 +113,7 @@ export default function JustificativasRH() {
       });
       loadJustificativas();
     } catch (err: any) {
-      alert('Erro ao salvar justificativa: ' + err.message);
+      showToast.error('Erro ao salvar justificativa: ' + err.message);
     }
   };
 
@@ -126,7 +127,7 @@ export default function JustificativasRH() {
   const handleResponderJustificativa = async () => {
     if (!justificativaSelecionada) return;
     if (acaoResposta === 'rejeitar' && !motivoRejeicao.trim()) {
-      alert('Informe o motivo da rejeição');
+      showToast.warning('Informe o motivo da rejeição');
       return;
     }
 
@@ -142,7 +143,7 @@ export default function JustificativasRH() {
       setJustificativaSelecionada(null);
       loadJustificativas();
     } catch (err: any) {
-      alert('Erro ao responder justificativa: ' + (err?.response?.data?.message || err.message));
+      showToast.error('Erro ao responder justificativa: ' + (err?.response?.data?.message || err.message));
     } finally {
       setRespondendo(false);
     }

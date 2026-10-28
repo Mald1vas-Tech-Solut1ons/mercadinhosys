@@ -2,61 +2,37 @@ import React from 'react';
 import toast, { ToastOptions } from 'react-hot-toast';
 
 /**
- * MercadinhoSys — Toast Premium (Apple Style)
- * Design com Glassmorphism, Blur e alta velocidade.
- * Foco exclusivo em performance e estética moderna.
+ * MercadinhoSys — aviso único do sistema (toast).
+ * Fundo sólido escuro com barra colorida por tipo: legível no tema claro e no escuro
+ * (o estilo anterior, texto branco sobre vidro translúcido, sumia sobre a página branca).
+ * O <Toaster> do App usa `estiloBaseToast`, então quem chama `toast()` direto fica igual.
  */
 
-const glassBase: React.CSSProperties = {
-    padding: '16px 24px',
-    borderRadius: '24px',
-    fontFamily: '"Outfit", "Inter", system-ui, sans-serif',
-    fontSize: '15px',
-    fontWeight: 700,
+export const estiloBaseToast: React.CSSProperties = {
+    padding: '12px 16px',
+    borderRadius: '12px',
+    fontFamily: '"Inter", system-ui, sans-serif',
+    fontSize: '14px',
+    fontWeight: 600,
     display: 'flex',
     alignItems: 'center',
-    gap: '14px',
-    backdropFilter: 'blur(20px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-    border: '1px solid rgba(255, 255, 255, 0.08)',
-    boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-    color: '#ffffff',
-    letterSpacing: '-0.3px',
+    gap: '10px',
+    background: '#0f172a',
+    color: '#f8fafc',
+    border: '1px solid #1e293b',
+    borderLeft: '4px solid #64748b',
+    boxShadow: '0 10px 30px -8px rgba(0, 0, 0, 0.45)',
+    maxWidth: '420px',
 };
+const glassBase = estiloBaseToast;
+
+const tema = (cor: string) => ({ style: { ...glassBase, borderLeft: `4px solid ${cor}` }, iconColor: cor });
 
 const themes = {
-    success: {
-        style: {
-            ...glassBase,
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.15) 100%)',
-            borderColor: 'rgba(52, 211, 153, 0.2)',
-        },
-        iconColor: '#34d399',
-    },
-    error: {
-        style: {
-            ...glassBase,
-            background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(185, 28, 28, 0.15) 100%)',
-            borderColor: 'rgba(248, 113, 113, 0.2)',
-        },
-        iconColor: '#f87171',
-    },
-    warning: {
-        style: {
-            ...glassBase,
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.15) 100%)',
-            borderColor: 'rgba(251, 191, 36, 0.2)',
-        },
-        iconColor: '#fbbf24',
-    },
-    info: {
-        style: {
-            ...glassBase,
-            background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.15) 100%)',
-            borderColor: 'rgba(96, 165, 250, 0.2)',
-        },
-        iconColor: '#60a5fa',
-    }
+    success: tema('#10b981'),
+    error: tema('#ef4444'),
+    warning: tema('#f59e0b'),
+    info: tema('#3b82f6'),
 };
 
 const Icon = {
@@ -118,7 +94,7 @@ export const showToast = {
     /** Vermelho — para Erros ou Deleções */
     error: (message: string, options?: ToastOptions) => {
         toast.error(message, {
-            duration: 4000,
+            duration: 6000,
             style: themes.error.style as React.CSSProperties,
             icon: Icon.error(themes.error.iconColor),
             ...options,

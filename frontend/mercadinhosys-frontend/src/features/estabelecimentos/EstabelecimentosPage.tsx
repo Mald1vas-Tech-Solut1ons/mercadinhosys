@@ -8,6 +8,7 @@ import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 import NovoClienteModal from '../../components/modals/NovoClienteModal';
 import EstabelecimentoDetalheModal from '../../components/modals/EstabelecimentoDetalheModal';
+import { confirmar } from '../../components/ui/Confirmacao';
 
 interface Estabelecimento {
     id: number;
@@ -235,7 +236,7 @@ const EstabelecimentosPage: React.FC = () => {
     };
 
     const handleInativar = async (est: Estabelecimento) => {
-        if (!window.confirm(`Inativar a conta "${est.nome_fantasia}"? O cliente perde o acesso até ser reativado.`)) return;
+        if (!(await confirmar({ titulo: `Inativar a conta "${est.nome_fantasia}"?`, mensagem: 'O cliente perde o acesso até ser reativado.', acao: 'Inativar conta', perigo: true }))) return;
         setProcessandoId(est.id);
         try {
             await apiClient.post(`/saas/inativar-tenant/${est.id}`);

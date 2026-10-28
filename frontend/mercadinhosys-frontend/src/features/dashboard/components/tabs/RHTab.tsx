@@ -4,6 +4,7 @@ import { Users, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
 import { formatCurrency } from '../../../../utils/formatters';
 import DetailsModal from '../DetailsModal';
 import { dataDoDia } from '../../../../utils/dataLocal';
+import { showToast } from '../../../../utils/toast';
 
 interface RHTabProps {
   data: any;
@@ -29,11 +30,11 @@ export default function RHTab({ data, onRefresh }: RHTabProps) {
       if (res.ok) {
         if (onRefresh) onRefresh();
       } else {
-        alert('Falha ao aprovar justificativa.');
+        showToast.error('Falha ao aprovar justificativa.');
       }
     } catch (err) {
       console.error(err);
-      alert('Erro ao aprovar justificativa.');
+      showToast.error('Erro ao aprovar justificativa.');
     } finally {
       setLoadingApprove(null);
     }

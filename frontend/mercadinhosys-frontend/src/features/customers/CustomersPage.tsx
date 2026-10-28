@@ -52,6 +52,7 @@ import CustomersAdvancedFiltersModal, { StatusFilter, SegmentFilter } from './co
 import PinDialog from '../../components/modals/PinDialog';
 import { InsightCard } from '../../components/consultor/InsightCard';
 import { dataLocalISO } from '../../utils/dataLocal';
+import { confirmar } from '../../components/ui/Confirmacao';
 
 type CRMTab = 'overview' | 'recovery' | 'campaigns' | 'portfolio';
 type CampaignKey = 'reactivation' | 'vip' | 'debt' | 'promotion';
@@ -329,6 +330,16 @@ const CustomersPage: React.FC = () => {
     const [selectedCampaign, setSelectedCampaign] = useState<CampaignKey>('reactivation');
     const [campaignCustomerId, setCampaignCustomerId] = useState<number | null>(null);
     const location = useLocation();
+
+    // ?busca= vem da busca global (Ctrl+K): abre a carteira já filtrada pelo cliente escolhido.
+    useEffect(() => {
+        const termo = new URLSearchParams(location.search).get('busca');
+        if (termo !== null) {
+            setSearchTerm(termo);
+            setActiveTab('portfolio');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
 
     // Gate de PIN para operações sensíveis
     const [pinAction, setPinAction] = useState<{ run: () => void; title: string; description: string } | null>(null);
@@ -737,7 +748,7 @@ const CustomersPage: React.FC = () => {
                             `• ${contas_a_receber} débitos em aberto\n\n` +
                             `Deseja desativar o cliente em vez de excluir?`;
 
-                        if (window.confirm(msg)) {
+                        if (await confirmar({ titulo: 'Cliente com registros vinculados', mensagem: msg, acao: 'Desativar cliente' })) {
                             try {
                                 await apiClient.patch(`/clientes/${cliente.id}/status`, { ativo: false });
                                 showToast.success(`Cliente "${cliente.nome}" desativado com sucesso`);

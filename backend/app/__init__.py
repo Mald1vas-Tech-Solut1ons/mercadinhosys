@@ -892,6 +892,14 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar delivery: {e}")
 
+    # Busca global (Ctrl+K)
+    try:
+        from app.routes.busca import busca_bp
+        app.register_blueprint(busca_bp, url_prefix="/api/busca")
+        logger.info("✅ Blueprint Busca global registrado em /api/busca")
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar busca global: {e}")
+
     # Onboarding SaaS
     try:
         from app.routes.onboarding import onboarding_bp

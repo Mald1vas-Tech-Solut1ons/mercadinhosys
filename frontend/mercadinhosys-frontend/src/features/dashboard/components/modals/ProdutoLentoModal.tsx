@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, DollarSign, Target, ChartBar, Lightbulb, Clock } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import ResponsiveModal from '../../../../components/ui/ResponsiveModal';
+import { showToast } from '../../../../utils/toast';
 
 interface ProdutoLentoData {
   id: number;
@@ -35,7 +36,7 @@ export const ProdutoLentoModal: React.FC<ProdutoLentoModalProps> = ({
   const handleCopyMessage = () => {
     const mensagem = `🔥 OFERTA ESPECIAL VIP!\n\n${produto.nome}\n💰 30% OFF - Só hoje!\n\nEstoque limitado. Aproveite!`;
     navigator.clipboard.writeText(mensagem);
-    alert('Mensagem copiada! Cole no WhatsApp dos seus clientes VIP.');
+    showToast.success('Mensagem copiada! Cole no WhatsApp dos seus clientes VIP.');
   };
 
   return (

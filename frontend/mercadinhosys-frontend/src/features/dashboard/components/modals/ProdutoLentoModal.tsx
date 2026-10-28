@@ -74,7 +74,7 @@ export const ProdutoLentoModal: React.FC<ProdutoLentoModalProps> = ({
               { label: 'Giro (KPI)', val: `${produto.giro_estoque.toFixed(2)}x`, color: 'text-purple-700 dark:text-purple-400' }
             ].map((item, i) => (
               <div key={i} className="space-y-1">
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{item.label}</p>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest dark:text-gray-400">{item.label}</p>
                 <p className={`text-xl font-black tabular-nums ${item.color}`}>{item.val}</p>
               </div>
             ))}
@@ -157,7 +157,7 @@ export const ProdutoLentoModal: React.FC<ProdutoLentoModalProps> = ({
               <div key={i} className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-center">
                 <span className="text-purple-600 font-black text-xl">{step.d}</span>
                 <p className="text-xs font-black uppercase text-gray-900 dark:text-gray-100 mt-1">{step.t}</p>
-                <p className="text-[10px] text-gray-500 font-medium mt-1 leading-tight">{step.s}</p>
+                <p className="text-[10px] text-gray-500 font-medium mt-1 leading-tight dark:text-gray-400">{step.s}</p>
               </div>
             ))}
           </div>

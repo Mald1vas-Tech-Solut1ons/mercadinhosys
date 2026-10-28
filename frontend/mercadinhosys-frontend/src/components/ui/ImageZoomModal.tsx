@@ -50,7 +50,7 @@ const ImageZoomModal: React.FC<ImageZoomModalProps> = ({ src, alt, onClose }) =>
                 <img
                     src={src}
                     alt={alt || 'Imagem do produto'}
-                    className="max-w-full max-h-[75dvh] rounded-2xl shadow-2xl object-contain bg-white"
+                    className="max-w-full max-h-[75dvh] rounded-2xl shadow-2xl object-contain bg-white dark:bg-gray-800"
                 />
                 {alt && (
                     <p className="mt-4 text-white font-semibold text-center text-sm sm:text-base px-4">

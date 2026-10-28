@@ -44,7 +44,7 @@ export const MeuVeiculoPanel: React.FC<MeuVeiculoPanelProps> = ({ veiculoId, kmA
                 <div className="w-16 h-16 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                     <Wrench className="w-8 h-8 text-gray-400" />
                 </div>
-                <p className="text-gray-500 font-medium">Nenhum veículo selecionado para este turno. Inicie um turno selecionando seu veículo para gerenciar a manutenção.</p>
+                <p className="text-gray-500 font-medium dark:text-gray-400">Nenhum veículo selecionado para este turno. Inicie um turno selecionando seu veículo para gerenciar a manutenção.</p>
             </div>
         );
     }
@@ -64,7 +64,7 @@ export const MeuVeiculoPanel: React.FC<MeuVeiculoPanelProps> = ({ veiculoId, kmA
                     <h2 className="text-4xl font-black mb-4">R$ {totalGasto.toFixed(2)}</h2>
                     <button
                         onClick={() => setModalOpen(true)}
-                        className="bg-white text-blue-800 px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 w-full shadow-lg hover:bg-blue-50 transition-colors"
+                        className="bg-white text-blue-800 px-5 py-3 rounded-xl font-bold flex items-center justify-center gap-2 w-full shadow-lg hover:bg-blue-50 transition-colors dark:bg-gray-800"
                     >
                         <Plus className="w-5 h-5" />
                         Lançar Gasto / Reparo
@@ -85,7 +85,7 @@ export const MeuVeiculoPanel: React.FC<MeuVeiculoPanelProps> = ({ veiculoId, kmA
                         ) : manutencoes.length === 0 ? (
                             <div className="bg-gray-50 dark:bg-gray-900 rounded-2xl p-6 text-center border border-dashed border-gray-200 dark:border-gray-700">
                                 <FileText className="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-                                <p className="text-gray-500 text-sm font-medium">Nenhum registro de manutenção encontrado para este veículo.</p>
+                                <p className="text-gray-500 text-sm font-medium dark:text-gray-400">Nenhum registro de manutenção encontrado para este veículo.</p>
                             </div>
                         ) : (
                             manutencoes.map((m, idx) => (
@@ -100,7 +100,7 @@ export const MeuVeiculoPanel: React.FC<MeuVeiculoPanelProps> = ({ veiculoId, kmA
                                     <div className="flex justify-between items-start mb-2 pl-2">
                                         <div>
                                             <h4 className="font-bold text-gray-900 dark:text-white text-base">{m.tipo_servico}</h4>
-                                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 dark:text-gray-400">
                                                 <CalendarDays className="w-3 h-3" /> {new Date(m.data_manutencao).toLocaleDateString()}
                                             </p>
                                         </div>

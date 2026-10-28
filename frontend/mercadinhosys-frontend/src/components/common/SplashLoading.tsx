@@ -7,9 +7,9 @@ export const SplashLoading: React.FC = () => {
             
             <div className="relative w-full max-w-[640px] h-[360px] flex flex-col items-center justify-center gap-5">
                 {/* Sparkles */}
-                <div className="absolute top-[84px] left-[218px] w-[10px] h-[10px] bg-white rounded-sm animate-msys-twinkle" style={{ animationDelay: '0.5s' }} />
-                <div className="absolute top-[130px] left-[190px] w-[7px] h-[7px] bg-white rounded-sm animate-msys-twinkle" style={{ animationDelay: '0.9s' }} />
-                <div className="absolute top-[96px] right-[210px] w-[8px] h-[8px] bg-white rounded-sm animate-msys-twinkle" style={{ animationDelay: '1.2s' }} />
+                <div className="absolute top-[84px] left-[218px] w-[10px] h-[10px] bg-white rounded-sm animate-msys-twinkle dark:bg-gray-800" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute top-[130px] left-[190px] w-[7px] h-[7px] bg-white rounded-sm animate-msys-twinkle dark:bg-gray-800" style={{ animationDelay: '0.9s' }} />
+                <div className="absolute top-[96px] right-[210px] w-[8px] h-[8px] bg-white rounded-sm animate-msys-twinkle dark:bg-gray-800" style={{ animationDelay: '1.2s' }} />
 
                 <img 
                     src="/assets/logo.png" 

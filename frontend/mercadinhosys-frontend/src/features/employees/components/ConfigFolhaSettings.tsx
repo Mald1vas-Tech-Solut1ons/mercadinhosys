@@ -55,7 +55,7 @@ export default function ConfigFolhaSettings() {
         }
     };
 
-    if (loading || !cfg) return <div className="py-12 text-center text-gray-500 text-sm">Carregando parâmetros…</div>;
+    if (loading || !cfg) return <div className="py-12 text-center text-gray-500 text-sm dark:text-gray-400">Carregando parâmetros…</div>;
 
     return (
         <div className="space-y-6">

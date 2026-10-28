@@ -252,7 +252,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                                                 alt={produto.nome}
                                                 loading="lazy"
                                                 onError={() => setFotosComErro(prev => new Set(prev).add(produto.id))}
-                                                className="w-14 h-14 rounded-xl object-cover border border-gray-200 dark:border-gray-700 bg-white"
+                                                className="w-14 h-14 rounded-xl object-cover border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800"
                                             />
                                         </button>
                                     ) : (

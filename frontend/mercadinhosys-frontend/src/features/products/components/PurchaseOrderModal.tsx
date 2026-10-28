@@ -449,7 +449,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
                           <div className="font-medium text-gray-800 dark:text-white flex items-center gap-2">
                             {produto.nome}
                             {(produto as any).codigo_barras && (
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500">
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-gray-400">
                                 {(produto as any).codigo_barras}
                               </span>
                             )}

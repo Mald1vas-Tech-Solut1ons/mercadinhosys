@@ -707,7 +707,7 @@ const AvisoDesktop: React.FC<{ user: any }> = ({ user }) => (
                     : window.location.origin}
             </p>
             {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-                <p className="text-[10px] text-gray-500 mt-2 font-medium">
+                <p className="text-[10px] text-gray-500 mt-2 font-medium dark:text-gray-400">
                     Dica: Como você está no "localhost", o celular não vai encontrar a página. 
                     Descubra o IP do seu computador na rede Wi-Fi (ex: 192.168.1.10) e digite no celular.
                 </p>

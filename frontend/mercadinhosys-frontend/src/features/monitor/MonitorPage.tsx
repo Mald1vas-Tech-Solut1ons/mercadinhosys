@@ -54,7 +54,7 @@ export default function MonitorPage() {
                 <div className="p-2.5 rounded-xl bg-primary-600 text-white"><Activity className="w-6 h-6" /></div>
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 dark:text-white">Monitor &amp; Auditoria</h1>
-                    <p className="text-sm text-slate-500">Quem fez o quê no seu sistema — {total} registro(s)</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Quem fez o quê no seu sistema — {total} registro(s)</p>
                 </div>
                 <button onClick={() => carregar(page)} className="ml-auto text-slate-400 hover:text-slate-600"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
             </div>
@@ -111,7 +111,7 @@ export default function MonitorPage() {
             {totalPaginas > 1 && (
                 <div className="flex items-center justify-center gap-3">
                     <button disabled={page <= 1} onClick={() => carregar(page - 1)} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-40">Anterior</button>
-                    <span className="text-sm text-slate-500">Página {page} de {totalPaginas}</span>
+                    <span className="text-sm text-slate-500 dark:text-gray-400">Página {page} de {totalPaginas}</span>
                     <button disabled={page >= totalPaginas} onClick={() => carregar(page + 1)} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-40">Próxima</button>
                 </div>
             )}

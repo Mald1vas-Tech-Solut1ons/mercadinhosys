@@ -150,10 +150,10 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
                 <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-800/50 shrink-0">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nova Entrega</h2>
-                        <p className="text-sm text-gray-500">Passo {step} de 2: {step === 1 ? 'Selecionar Venda' : 'Detalhes Operacionais'}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Passo {step} de 2: {step === 1 ? 'Selecionar Venda' : 'Detalhes Operacionais'}</p>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
-                        <X className="w-5 h-5 text-gray-500" />
+                        <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                     </button>
                 </div>
 
@@ -171,7 +171,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
 
                             <div className="space-y-2">
                                 {loading ? (
-                                    <div className="text-center py-12 text-gray-500 font-medium">Carregando vendas pendentes...</div>
+                                    <div className="text-center py-12 text-gray-500 font-medium dark:text-gray-400">Carregando vendas pendentes...</div>
                                 ) : vendas.length > 0 ? (
                                     vendas.map((venda) => (
                                         <button
@@ -185,7 +185,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-gray-900 dark:text-white text-lg">#{venda.codigo}</div>
-                                                    <div className="text-sm text-gray-500 font-medium">{venda.cliente?.nome || 'Consumidor Final'} • R$ {venda.total.toFixed(2)}</div>
+                                                    <div className="text-sm text-gray-500 font-medium dark:text-gray-400">{venda.cliente?.nome || 'Consumidor Final'} • R$ {venda.total.toFixed(2)}</div>
                                                     <div className="text-[10px] text-gray-400 mt-1 uppercase tracking-widest">{venda.itens.length} produtos</div>
                                                 </div>
                                             </div>
@@ -195,7 +195,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
                                 ) : (
                                     <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-800">
                                         <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                                        <p className="text-gray-500 font-medium">Nenhuma venda pendente encontrada</p>
+                                        <p className="text-gray-500 font-medium dark:text-gray-400">Nenhuma venda pendente encontrada</p>
                                     </div>
                                 )}
                             </div>
@@ -360,7 +360,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
                 <div className="p-6 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50 flex items-center justify-end gap-3 shrink-0">
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all"
+                        className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all dark:text-gray-400"
                     >
                         Cancelar
                     </button>

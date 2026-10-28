@@ -350,14 +350,14 @@ const VendasInteligentesPage: React.FC = () => {
         <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header Inteligente */}
-                <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100">
+                <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100 dark:bg-gray-800">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+                            <h1 className="text-3xl font-bold text-gray-900 flex items-center dark:text-gray-100">
                                 <Brain className="w-8 h-8 text-blue-600 mr-3" />
                                 Centro de Vendas Inteligente
                             </h1>
-                            <p className="text-gray-600 mt-2">
+                            <p className="text-gray-600 mt-2 dark:text-gray-300">
                                 Análise preditiva, cross-selling e otimização de receitas
                             </p>
                         </div>
@@ -365,7 +365,7 @@ const VendasInteligentesPage: React.FC = () => {
                             <select
                                 value={selectedPeriod}
                                 onChange={(e) => setSelectedPeriod(e.target.value as any)}
-                                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
                             >
                                 <option value="7">Últimos 7 dias</option>
                                 <option value="30">Últimos 30 dias</option>
@@ -382,11 +382,11 @@ const VendasInteligentesPage: React.FC = () => {
                 {/* KPIs Principais */}
                 {analiseVendas && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 dark:bg-gray-800">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">Total de Vendas</p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total de Vendas</p>
+                                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                                         {analiseVendas.desempenho_atual.total_vendas}
                                     </p>
                                     <div className="flex items-center mt-2">
@@ -402,11 +402,11 @@ const VendasInteligentesPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500">
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 dark:bg-gray-800">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">Receita Total</p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Receita Total</p>
+                                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                                         {formatarMoeda(analiseVendas.desempenho_atual.total_receita)}
                                     </p>
                                     <div className="flex items-center mt-2">
@@ -422,11 +422,11 @@ const VendasInteligentesPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500">
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-purple-500 dark:bg-gray-800">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">Ticket Médio</p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Ticket Médio</p>
+                                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                                         {formatarMoeda(analiseVendas.desempenho_atual.ticket_medio)}
                                     </p>
                                     <div className="flex items-center mt-2">
@@ -442,11 +442,11 @@ const VendasInteligentesPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500">
+                        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-orange-500 dark:bg-gray-800">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-600">Margem Média</p>
-                                    <p className="text-2xl font-bold text-gray-900">
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Margem Média</p>
+                                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                                         {analiseVendas.desempenho_atual.margem_media.toFixed(1)}%
                                     </p>
                                     <div className="flex items-center mt-2">
@@ -466,8 +466,8 @@ const VendasInteligentesPage: React.FC = () => {
 
                 {/* Oportunidades Inteligentes */}
                 {analiseVendas && (
-                    <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                    <div className="bg-white rounded-xl shadow-lg p-6 mb-8 dark:bg-gray-800">
+                        <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center dark:text-gray-100">
                             <Lightbulb className="w-6 h-6 text-yellow-500 mr-2" />
                             Oportunidades Identificadas pela IA
                         </h2>
@@ -481,7 +481,7 @@ const VendasInteligentesPage: React.FC = () => {
                                         }`}
                                 >
                                     <div className="flex items-start justify-between mb-3">
-                                        <h3 className="font-semibold text-gray-900">{oportunidade.titulo}</h3>
+                                        <h3 className="font-semibold text-gray-900 dark:text-gray-100">{oportunidade.titulo}</h3>
                                         <span className={`text-xs px-2 py-1 rounded-full ${oportunidade.prioridade === 'alta' ? 'bg-red-200 text-red-800' :
                                             oportunidade.prioridade === 'media' ? 'bg-yellow-200 text-yellow-800' :
                                                 'bg-blue-200 text-blue-800'
@@ -489,9 +489,9 @@ const VendasInteligentesPage: React.FC = () => {
                                             {oportunidade.prioridade.toUpperCase()}
                                         </span>
                                     </div>
-                                    <p className="text-sm text-gray-700 mb-3">{oportunidade.descricao}</p>
+                                    <p className="text-sm text-gray-700 mb-3 dark:text-gray-200">{oportunidade.descricao}</p>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-600">
+                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
                                             Impacto: {formatarMoeda(oportunidade.impacto_receita)}
                                         </span>
                                         <button className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center">
@@ -505,8 +505,8 @@ const VendasInteligentesPage: React.FC = () => {
                 )}
 
                 {/* Tabs de Análise */}
-                <div className="bg-white rounded-xl shadow-lg">
-                    <div className="border-b border-gray-200">
+                <div className="bg-white rounded-xl shadow-lg dark:bg-gray-800">
+                    <div className="border-b border-gray-200 dark:border-gray-700">
                         <nav className="flex space-x-8 px-6">
                             {[
                                 { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
@@ -520,7 +520,7 @@ const VendasInteligentesPage: React.FC = () => {
                                     className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${activeTab === tab.id
                                         ? 'border-blue-500 text-blue-600'
                                         : 'border-transparent text-gray-500 hover:text-gray-700'
-                                        }`}
+                                        } dark:text-gray-400`}
                                 >
                                     <tab.icon className="w-4 h-4" />
                                     <span>{tab.label}</span>
@@ -535,8 +535,8 @@ const VendasInteligentesPage: React.FC = () => {
                                 {/* Gráfico de Desempenho */}
                                 {dadosGraficoDesempenho && (
                                     <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendência de Vendas</h3>
-                                        <div className="bg-gray-50 rounded-lg p-4">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Tendência de Vendas</h3>
+                                        <div className="bg-gray-50 rounded-lg p-4 dark:bg-gray-900">
                                             <Line data={dadosGraficoDesempenho} options={{
                                                 responsive: true,
                                                 plugins: {
@@ -555,8 +555,8 @@ const VendasInteligentesPage: React.FC = () => {
                                 {/* Gráfico de Categorias */}
                                 {dadosGraficoCategorias && (
                                     <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Vendas por Categoria</h3>
-                                        <div className="bg-gray-50 rounded-lg p-4">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Vendas por Categoria</h3>
+                                        <div className="bg-gray-50 rounded-lg p-4 dark:bg-gray-900">
                                             <Doughnut data={dadosGraficoCategorias} options={{
                                                 responsive: true,
                                                 plugins: {
@@ -576,37 +576,37 @@ const VendasInteligentesPage: React.FC = () => {
 
                         {activeTab === 'produtos' && (
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Análise de Produtos com IA</h3>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Análise de Produtos com IA</h3>
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
+                                        <thead className="bg-gray-50 dark:bg-gray-900">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produto</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendas</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Faturamento</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Margem</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tendência</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cross-Sell</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Produto</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Categoria</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Vendas</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Faturamento</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Margem</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Tendência</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase dark:text-gray-400">Cross-Sell</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800">
                                             {produtosInteligentes.map((produto: ProdutoInteligente) => (
                                                 <tr key={produto.id}>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-medium text-gray-900">{produto.nome}</div>
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{produto.nome}</div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-gray-600">{produto.categoria}</span>
+                                                        <span className="text-sm text-gray-600 dark:text-gray-300">{produto.categoria}</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-gray-900">{produto.quantidade_vendida}</span>
+                                                        <span className="text-sm text-gray-900 dark:text-gray-100">{produto.quantidade_vendida}</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm font-medium text-gray-900">{formatarMoeda(produto.faturamento)}</span>
+                                                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatarMoeda(produto.faturamento)}</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <span className="text-sm text-gray-900">{produto.margem_lucro.toFixed(1)}%</span>
+                                                        <span className="text-sm text-gray-900 dark:text-gray-100">{produto.margem_lucro.toFixed(1)}%</span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <div className="flex items-center">
@@ -631,12 +631,12 @@ const VendasInteligentesPage: React.FC = () => {
 
                         {activeTab === 'clientes' && (
                             <div>
-                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Segmentação Inteligente de Clientes</h3>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Segmentação Inteligente de Clientes</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     {clientesInteligentes.map((cliente: ClienteInteligente) => (
-                                        <div key={cliente.id} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                                        <div key={cliente.id} className="bg-gray-50 rounded-lg p-6 border border-gray-200 dark:bg-gray-900 dark:border-gray-700">
                                             <div className="flex items-center justify-between mb-4">
-                                                <h4 className="font-semibold text-gray-900">{cliente.nome}</h4>
+                                                <h4 className="font-semibold text-gray-900 dark:text-gray-100">{cliente.nome}</h4>
                                                 <span className={`text-xs px-2 py-1 rounded-full`} style={{
                                                     backgroundColor: getCorPerfil(cliente.perfil) + '20',
                                                     color: getCorPerfil(cliente.perfil)
@@ -646,26 +646,26 @@ const VendasInteligentesPage: React.FC = () => {
                                             </div>
                                             <div className="space-y-3">
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">Total Compras:</span>
+                                                    <span className="text-sm text-gray-600 dark:text-gray-300">Total Compras:</span>
                                                     <span className="text-sm font-medium">{formatarMoeda(cliente.total_compras)}</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">Ticket Médio:</span>
+                                                    <span className="text-sm text-gray-600 dark:text-gray-300">Ticket Médio:</span>
                                                     <span className="text-sm font-medium">{formatarMoeda(cliente.ticket_medio)}</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">Frequência:</span>
+                                                    <span className="text-sm text-gray-600 dark:text-gray-300">Frequência:</span>
                                                     <span className="text-sm font-medium">{cliente.frequencia_compra}/sem</span>
                                                 </div>
                                                 <div className="flex justify-between">
-                                                    <span className="text-sm text-gray-600">Risco Churn:</span>
+                                                    <span className="text-sm text-gray-600 dark:text-gray-300">Risco Churn:</span>
                                                     <span className="text-sm font-medium" style={{ color: getCorRisco(cliente.risco_churn) }}>
                                                         {cliente.risco_churn.toUpperCase()}
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="mt-4 pt-4 border-t border-gray-200">
-                                                <div className="text-sm text-gray-600 mb-2">Recomendado:</div>
+                                            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                                <div className="text-sm text-gray-600 mb-2 dark:text-gray-300">Recomendado:</div>
                                                 <div className="flex flex-wrap gap-1">
                                                     {cliente.produtos_recomendados.map((produto: string, index: number) => (
                                                         <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
@@ -683,7 +683,7 @@ const VendasInteligentesPage: React.FC = () => {
                         {activeTab === 'previsoes' && analiseVendas && (
                             <div className="space-y-8">
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Previsão para Próxima Semana</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Previsão para Próxima Semana</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="bg-blue-50 rounded-lg p-4">
                                             <h4 className="font-medium text-blue-900 mb-2">Vendas Estimadas</h4>
@@ -711,7 +711,7 @@ const VendasInteligentesPage: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Projeção Mensal</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 mb-4 dark:text-gray-100">Projeção Mensal</h3>
                                     <div className="bg-linear-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-200">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                             <div className="text-center">

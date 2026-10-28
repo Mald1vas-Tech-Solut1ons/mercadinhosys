@@ -152,7 +152,7 @@ export default function PontoHistoricoRH() {
       'intervalo_inicio': 'bg-yellow-100 text-yellow-700',
       'intervalo_fim': 'bg-blue-100 text-blue-700'
     };
-    return colors[tipo] || 'bg-gray-100 text-gray-700';
+    return colors[tipo] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200';
   };
 
   return (
@@ -259,7 +259,7 @@ export default function PontoHistoricoRH() {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Carregando registros...</p>
+              <p className="mt-4 text-gray-600 dark:text-gray-300">Carregando registros...</p>
             </div>
           </div>
         ) : error ? (

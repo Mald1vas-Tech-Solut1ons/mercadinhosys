@@ -81,7 +81,7 @@ function Kpi({ titulo, valor, sub, Icon, cor }: { titulo: string; valor: string;
             </div>
             <div>
                 <p className="text-xl lg:text-xl xl:text-3xl font-black text-slate-900 dark:text-white tabular-nums wrap-break-word leading-none">{valor}</p>
-                {sub && <p className="mt-2 text-xs font-medium text-slate-500">{sub}</p>}
+                {sub && <p className="mt-2 text-xs font-medium text-slate-500 dark:text-gray-400">{sub}</p>}
             </div>
         </div>
     );
@@ -98,7 +98,7 @@ function InsightCard({ Icon, cor, titulo, valor, desc }: { Icon: React.ElementTy
             </div>
             <div>
                 <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white wrap-break-word leading-tight">{valor}</p>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{desc}</p>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed dark:text-gray-400">{desc}</p>
             </div>
         </div>
     );
@@ -373,7 +373,7 @@ export default function SalesPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
                 <div>
                     <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tour-vendas-historico">Gestão de Vendas</h1>
-                    <p className="text-sm text-slate-500">Faturamento, aprovações e decisões baseadas em dados</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Faturamento, aprovações e decisões baseadas em dados</p>
                 </div>
                 <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                     <button 
@@ -468,8 +468,8 @@ export default function SalesPage() {
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">Faturamento + Previsão</h3>
                         <div className="flex items-center gap-3 text-xs">
-                            <span className="flex items-center gap-1.5 text-slate-500"><span className="w-3 h-0.5 bg-primary-600 inline-block" /> Real</span>
-                            <span className="flex items-center gap-1.5 text-slate-500"><span className="w-3 h-0.5 bg-violet-500 inline-block" style={{ borderTop: "2px dashed #8b5cf6" }} /> Previsão</span>
+                            <span className="flex items-center gap-1.5 text-slate-500 dark:text-gray-400"><span className="w-3 h-0.5 bg-primary-600 inline-block" /> Real</span>
+                            <span className="flex items-center gap-1.5 text-slate-500 dark:text-gray-400"><span className="w-3 h-0.5 bg-violet-500 inline-block" style={{ borderTop: "2px dashed #8b5cf6" }} /> Previsão</span>
                         </div>
                     </div>
                     {loadingA ? <div className="h-56 flex items-center justify-center text-slate-400"><RefreshCw className="w-5 h-5 animate-spin" /></div>
@@ -514,7 +514,7 @@ export default function SalesPage() {
                         {(analytics?.produtos_mais_vendidos || []).slice(0, 7).map((p, i) => (
                             <div key={i} className="flex items-center justify-between gap-3 text-sm">
                                 <div className="flex items-center gap-2 min-w-0">
-                                    <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                                    <span className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold flex items-center justify-center shrink-0 dark:text-gray-400">{i + 1}</span>
                                     <span className="truncate text-slate-700 dark:text-slate-200">{p.nome}</span>
                                 </div>
                                 <div className="text-right shrink-0">
@@ -546,9 +546,9 @@ export default function SalesPage() {
                                     : vendas.map((v) => (
                                         <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
                                             <td className="px-4 py-3 font-mono font-semibold text-slate-700 dark:text-slate-200">{v.codigo}</td>
-                                            <td className="px-4 py-3 text-slate-500">{fmtDateTime(v.data_venda || v.created_at)}</td>
+                                            <td className="px-4 py-3 text-slate-500 dark:text-gray-400">{fmtDateTime(v.data_venda || v.created_at)}</td>
                                             <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{v.cliente?.nome || "Avulso"}</td>
-                                            <td className="px-4 py-3 hidden md:table-cell text-slate-500">{canonicalForma(v.forma_pagamento || (v.pagamentos?.[0]?.forma_pagamento ?? "—"))}</td>
+                                            <td className="px-4 py-3 hidden md:table-cell text-slate-500 dark:text-gray-400">{canonicalForma(v.forma_pagamento || (v.pagamentos?.[0]?.forma_pagamento ?? "—"))}</td>
                                             <td className="px-4 py-3 text-right font-black text-slate-900 dark:text-white tabular-nums">{brl(v.total)}</td>
                                             <td className="px-4 py-3 text-center"><span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${statusChip(v.status)}`}>{statusLabel(v.status)}</span></td>
                                             <td className="px-4 py-3">
@@ -566,10 +566,10 @@ export default function SalesPage() {
                 </div>
                 {paginacao && paginacao.total_paginas > 1 && (
                     <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-slate-800">
-                        <span className="text-xs text-slate-500">{num(paginacao.total)} vendas · página {paginacao.pagina} de {paginacao.total_paginas}</span>
+                        <span className="text-xs text-slate-500 dark:text-gray-400">{num(paginacao.total)} vendas · página {paginacao.pagina} de {paginacao.total_paginas}</span>
                         <div className="flex gap-1">
-                            <button disabled={filtros.page <= 1} onClick={() => irPara(filtros.page - 1)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50"><ChevronLeft className="w-4 h-4" /></button>
-                            <button disabled={filtros.page >= paginacao.total_paginas} onClick={() => irPara(filtros.page + 1)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50"><ChevronRight className="w-4 h-4" /></button>
+                            <button disabled={filtros.page <= 1} onClick={() => irPara(filtros.page - 1)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-gray-700"><ChevronLeft className="w-4 h-4" /></button>
+                            <button disabled={filtros.page >= paginacao.total_paginas} onClick={() => irPara(filtros.page + 1)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-gray-700"><ChevronRight className="w-4 h-4" /></button>
                         </div>
                     </div>
                 )}
@@ -583,7 +583,7 @@ export default function SalesPage() {
                 <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }} onClick={(e) => e.target === e.currentTarget && setDetalhe(null)}>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col overflow-hidden">
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
-                            <div><h3 className="font-black text-slate-900 dark:text-white">Venda {detalhe.codigo}</h3><p className="text-xs text-slate-500 flex items-center gap-1"><Calendar className="w-3 h-3" />{fmtDateTime(detalhe.data_venda || detalhe.created_at)}</p></div>
+                            <div><h3 className="font-black text-slate-900 dark:text-white">Venda {detalhe.codigo}</h3><p className="text-xs text-slate-500 flex items-center gap-1 dark:text-gray-400"><Calendar className="w-3 h-3" />{fmtDateTime(detalhe.data_venda || detalhe.created_at)}</p></div>
                             <button onClick={() => setDetalhe(null)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"><X className="w-5 h-5" /></button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
@@ -619,7 +619,7 @@ export default function SalesPage() {
                             <div className="w-11 h-11 rounded-xl bg-error-50 text-error-600 dark:bg-error-900/20 flex items-center justify-center shrink-0"><AlertTriangle className="w-6 h-6" /></div>
                             <div>
                                 <h3 className="font-black text-slate-900 dark:text-white">Cancelar venda {cancelar.codigo}?</h3>
-                                <p className="text-sm text-slate-500 mt-0.5">Os produtos serão <strong>estornados ao estoque</strong> automaticamente. Esta ação não pode ser desfeita.</p>
+                                <p className="text-sm text-slate-500 mt-0.5 dark:text-gray-400">Os produtos serão <strong>estornados ao estoque</strong> automaticamente. Esta ação não pode ser desfeita.</p>
                             </div>
                         </div>
                         <div className="px-6 py-4 space-y-4">
@@ -641,7 +641,7 @@ export default function SalesPage() {
                             </div>
                         </div>
                         <div className="flex gap-2 px-6 pb-6">
-                            <button onClick={() => setCancelar(null)} disabled={cancelando} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50">Voltar</button>
+                            <button onClick={() => setCancelar(null)} disabled={cancelando} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-semibold text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-gray-700">Voltar</button>
                             <button onClick={confirmarCancelamento} disabled={cancelando || pinCancelamento.length < 4} className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-error-600 text-white font-bold text-sm hover:bg-error-700 disabled:opacity-60 disabled:cursor-not-allowed">
                                 {cancelando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />} Cancelar e estornar
                             </button>

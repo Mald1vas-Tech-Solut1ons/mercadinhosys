@@ -40,7 +40,7 @@ export default function SFAProdutos() {
                         <PackageSearch className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                         Catálogo
                     </h1>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Preços e Disponibilidade</p>
+                    <p className="text-sm text-slate-500 font-medium mt-1 dark:text-gray-400">Preços e Disponibilidade</p>
                 </div>
             </div>
 
@@ -68,7 +68,7 @@ export default function SFAProdutos() {
                     <div className="text-center py-12 px-4 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-300 dark:border-slate-800">
                         <PackageX className="w-16 h-16 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
                         <h3 className="text-lg font-bold text-slate-700 dark:text-slate-300">Nenhum produto encontrado</h3>
-                        <p className="text-sm text-slate-500 mt-2">
+                        <p className="text-sm text-slate-500 mt-2 dark:text-gray-400">
                             {produtos.length === 0 ? 'Sincronize o roteiro no painel para baixar o catálogo.' : 'Tente buscar por outro termo.'}
                         </p>
                     </div>
@@ -102,20 +102,20 @@ export default function SFAProdutos() {
 
                                         <div className="mt-4 flex items-end justify-between">
                                             <div>
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Preço Base</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 dark:text-gray-400">Preço Base</p>
                                                 <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
                                                     R$ {parseFloat(produto.preco_venda).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                                 </p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Estoque</p>
+                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5 dark:text-gray-400">Estoque</p>
                                                 <p className={`text-lg font-bold ${emEstoque ? (estoqueBaixo ? 'text-amber-500' : 'text-slate-800 dark:text-slate-200') : 'text-red-500'}`}>
                                                     {estoque} {produto.unidade_medida || 'UN'}
                                                 </p>
                                             </div>
                                         </div>
                                         
-                                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-semibold text-slate-500">
+                                        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs font-semibold text-slate-500 dark:text-gray-400">
                                             <span className="flex items-center gap-1">
                                                 <Tag className="w-3.5 h-3.5 text-slate-400" />
                                                 Cod: {produto.codigo_barras || 'N/A'}

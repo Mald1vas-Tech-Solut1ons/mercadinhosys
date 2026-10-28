@@ -24,7 +24,7 @@ export default function EntradaNFePage() {
                 <div className="p-2.5 rounded-xl bg-primary-600 text-white"><FileInput className="w-6 h-6" /></div>
                 <div>
                     <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white">Entrada de nota</h1>
-                    <p className="text-sm text-slate-500">Dê entrada no estoque pela nota do fornecedor: XML, QR Code do cupom ou chave do DANFE.</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Dê entrada no estoque pela nota do fornecedor: XML, QR Code do cupom ou chave do DANFE.</p>
                 </div>
             </div>
             <EntradaNotaPanel abrirLeitor={params.get('ler') === '1' && !compartilhado} textoCompartilhado={compartilhado} />

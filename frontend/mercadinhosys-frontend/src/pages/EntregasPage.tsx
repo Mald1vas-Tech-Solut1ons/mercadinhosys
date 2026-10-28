@@ -74,7 +74,7 @@ const EntregasPage: React.FC = () => {
       case 'em_transporte': return 'bg-purple-100 text-purple-800';
       case 'entregue': return 'bg-green-100 text-green-800';
       case 'cancelado': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
     }
   };
 
@@ -133,17 +133,17 @@ const EntregasPage: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-8 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8 dark:bg-gray-800">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center dark:text-gray-100">
                 <Truck className="w-8 h-8 text-blue-600 mr-3" />
                 Minhas Entregas
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 mt-2 dark:text-gray-300">
                 Acompanhe o status de todas as suas entregas
               </p>
             </div>
@@ -158,7 +158,7 @@ const EntregasPage: React.FC = () => {
                     setStatusFiltro(e.target.value);
                     setPaginaAtual(1);
                   }}
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-700"
                 >
                   <option value="todos">Todos</option>
                   <option value="pendente">Pendente</option>
@@ -178,7 +178,7 @@ const EntregasPage: React.FC = () => {
                     value={busca}
                     onChange={(e) => setBusca(e.target.value)}
                     placeholder="Buscar por pedido ou cliente..."
-                    className="pl-10 pr-4 border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="pl-10 pr-4 border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-700"
                   />
                 </div>
                 <button
@@ -193,7 +193,7 @@ const EntregasPage: React.FC = () => {
         </div>
 
         {/* Lista de Entregas */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-gray-800">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -201,61 +201,61 @@ const EntregasPage: React.FC = () => {
           ) : entregasFiltradas.length === 0 ? (
             <div className="text-center py-12">
               <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma entrega encontrada</h3>
-              <p className="text-gray-600">
+              <h3 className="text-lg font-medium text-gray-900 mb-2 dark:text-gray-100">Nenhuma entrega encontrada</h3>
+              <p className="text-gray-600 dark:text-gray-300">
                 {busca ? 'Nenhuma entrega encontrada para esta busca.' : 'Nenhuma entrega encontrada.'}
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+                <thead className="bg-gray-50 dark:bg-gray-900">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                       Pedido
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                       Cliente
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                       Produtos
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                       Valor
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">
                       Ações
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800">
                   {entregasFiltradas.map((entrega) => (
-                    <tr key={entrega.id} className="hover:bg-gray-50">
+                    <tr key={entrega.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           #{entrega.numero_pedido}
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           {formatarData(entrega.data_pedido)}
                         </div>
                       </td>
 
                       <td className="px-6 py-4">
                         <div className="text-sm">
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 dark:text-gray-100">
                             {entrega.cliente.nome}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {entrega.cliente.cnpj ? 'CNPJ' : 'CPF'}: {entrega.cliente.documento || entrega.cliente.cpf || entrega.cliente.cnpj || '-'}
                           </div>
-                          <div className="text-xs text-gray-500 flex items-center">
+                          <div className="text-xs text-gray-500 flex items-center dark:text-gray-400">
                             <Phone className="w-3 h-3 mr-1" />
                             {entrega.cliente.telefone}
                           </div>
-                          <div className="text-xs text-gray-500 flex items-center">
+                          <div className="text-xs text-gray-500 flex items-center dark:text-gray-400">
                             <MapPin className="w-3 h-3 mr-1" />
                             {entrega.cliente.endereco}
                           </div>
@@ -263,14 +263,14 @@ const EntregasPage: React.FC = () => {
                       </td>
 
                       <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-900 dark:text-gray-100">
                           {entrega.produtos.slice(0, 2).map((produto, index) => (
                             <div key={index}>
                               {produto.quantidade}x {produto.nome}
                             </div>
                           ))}
                           {entrega.produtos.length > 2 && (
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
                               +{entrega.produtos.length - 2} itens
                             </div>
                           )}
@@ -278,7 +278,7 @@ const EntregasPage: React.FC = () => {
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {formatarMoeda(entrega.valor_total)}
                         </div>
                       </td>
@@ -312,21 +312,21 @@ const EntregasPage: React.FC = () => {
         {/* Paginação */}
         {!loading && totalPaginas > 1 && (
           <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-200">
               Mostrando página {paginaAtual} de {totalPaginas}
             </div>
             <div className="flex space-x-2">
               <button
                 onClick={() => setPaginaAtual(paginaAtual - 1)}
                 disabled={paginaAtual === 1}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"
               >
                 Anterior
               </button>
               <button
                 onClick={() => setPaginaAtual(paginaAtual + 1)}
                 disabled={paginaAtual === totalPaginas}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"
               >
                 Próximo
               </button>

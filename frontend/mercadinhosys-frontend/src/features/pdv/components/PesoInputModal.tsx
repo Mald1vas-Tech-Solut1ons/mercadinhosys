@@ -81,7 +81,7 @@ const PesoInputModal: React.FC<PesoInputModalProps> = ({ isOpen, onClose, onConf
                         <div className="p-8 space-y-6">
                             <div className="text-center">
                                 <h4 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1">{produto.nome}</h4>
-                                <p className="text-sm text-slate-500 font-medium">
+                                <p className="text-sm text-slate-500 font-medium dark:text-gray-400">
                                     Preço: <span className="text-slate-900 dark:text-white font-bold">{formatCurrency(precoUnitario)}</span> / {produto.unidade_medida}
                                 </p>
                             </div>
@@ -125,7 +125,7 @@ const PesoInputModal: React.FC<PesoInputModalProps> = ({ isOpen, onClose, onConf
                         <div className="p-6 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 flex gap-3">
                             <button
                                 onClick={onClose}
-                                className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all uppercase text-xs tracking-widest"
+                                className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all uppercase text-xs tracking-widest dark:text-gray-400"
                             >
                                 Cancelar (Esc)
                             </button>

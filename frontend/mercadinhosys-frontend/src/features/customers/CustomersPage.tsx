@@ -928,7 +928,7 @@ const CustomersPage: React.FC = () => {
 
     return (
         <div className="mx-auto max-w-7xl space-y-6 p-4">
-            <section className="rounded-3xl border border-slate-200 bg-linear-to-r from-slate-950 via-blue-950 to-slate-900 p-6 text-white shadow-xl">
+            <section className="rounded-3xl border border-slate-200 bg-linear-to-r from-slate-950 via-blue-950 to-slate-900 p-6 text-white shadow-xl dark:border-gray-700">
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'space-between', alignItems: 'center' }}>
                     <Box>
                         <Typography variant="h4" sx={{ fontWeight: 800 }} className="tour-clientes-upload">Clientes</Typography>
@@ -1156,7 +1156,7 @@ const CustomersPage: React.FC = () => {
                                                         <p className="text-sm font-semibold text-slate-900 dark:text-white">{campaign.title}</p>
                                                         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{campaign.subtitle}</p>
                                                     </div>
-                                                    <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                                                    <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm dark:bg-gray-800 dark:text-gray-200">
                                                         {targetCount}
                                                     </span>
                                                 </div>

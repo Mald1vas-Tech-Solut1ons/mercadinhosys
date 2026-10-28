@@ -69,7 +69,7 @@ const MainLayout: React.FC = () => {
                                 className={`w-6 h-6 text-primary-600 ${refreshing ? 'animate-spin' : ''}`}
                                 style={{ transform: refreshing ? undefined : `rotate(${distance * 3}deg)` }}
                             />
-                            <span className="ml-2 text-xs font-medium text-gray-500">
+                            <span className="ml-2 text-xs font-medium text-gray-500 dark:text-gray-400">
                                 {refreshing ? 'Atualizando...' : prontoParaSoltar ? 'Solte para atualizar' : 'Puxe para atualizar'}
                             </span>
                         </div>

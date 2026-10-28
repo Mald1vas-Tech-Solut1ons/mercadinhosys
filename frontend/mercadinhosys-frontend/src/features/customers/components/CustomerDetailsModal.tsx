@@ -237,7 +237,7 @@ const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ open, clien
                         </Table>
                     </TableContainer>
                 ) : (
-                    <div className="text-center p-6 text-slate-500 flex flex-col items-center justify-center gap-2">
+                    <div className="text-center p-6 text-slate-500 flex flex-col items-center justify-center gap-2 dark:text-gray-400">
                         <InventoryIcon className="text-slate-300 dark:text-slate-600" fontSize="large" />
                         <Typography variant="body2">Nenhum produto consumido (vendas finalizadas) encontrado para este cliente.</Typography>
                     </div>

@@ -111,9 +111,9 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ entrega: _entrega }) => {
                             >
                                 <Popup>
                                     <div className="text-center">
-                                        <b className="text-gray-900">Entregador #{ev.funcionario_id}</b><br/>
+                                        <b className="text-gray-900 dark:text-gray-100">Entregador #{ev.funcionario_id}</b><br/>
                                         <span className="text-blue-600 font-bold uppercase text-[10px]">{ev.status}</span><br/>
-                                        <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-gray-500 dark:text-gray-400">
                                             Atualizado: {new Date(ev.timestamp).toLocaleTimeString()}
                                         </span>
                                     </div>
@@ -127,7 +127,7 @@ const LiveTracking: React.FC<LiveTrackingProps> = ({ entrega: _entrega }) => {
             <div className="px-6 py-4 border-t border-gray-50 dark:border-gray-700 bg-white dark:bg-gray-800 z-10 flex justify-between items-center relative">
                 <div className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-gray-500 uppercase">
+                    <span className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">
                         Motoristas Rastreáveis: {eventos.length}
                     </span>
                 </div>

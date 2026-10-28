@@ -61,7 +61,7 @@ const CustomersAdvancedFiltersModal: React.FC<CustomersAdvancedFiltersModalProps
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500"
+                        className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500 dark:text-gray-400"
                     >
                         <X size={20} />
                     </button>
@@ -153,7 +153,7 @@ const CustomersAdvancedFiltersModal: React.FC<CustomersAdvancedFiltersModalProps
                 <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
                     <button
                         onClick={handleClear}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-500 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-red-500 transition-colors dark:text-gray-400"
                     >
                         <Trash2 size={16} />
                         Limpar Filtros

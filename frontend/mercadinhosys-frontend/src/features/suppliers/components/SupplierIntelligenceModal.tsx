@@ -160,7 +160,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                   <span className="text-2xl font-black text-gray-900 dark:text-white">
                     {data.percentual_entregas_no_prazo}%
                   </span>
-                  <span className="text-[10px] text-gray-500 font-medium">
+                  <span className="text-[10px] text-gray-500 font-medium dark:text-gray-400">
                     Entregas no prazo{data.fill_rate != null ? ` · ${data.fill_rate}% do pedido aproveitado` : ''}
                   </span>
                 </div>
@@ -173,7 +173,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                   <span className="text-2xl font-black text-gray-900 dark:text-white">
                     {data.atraso_medio_dias} <span className="text-sm font-semibold text-gray-400">dias</span>
                   </span>
-                  <span className="text-[10px] text-gray-500 font-medium">Histórico geral</span>
+                  <span className="text-[10px] text-gray-500 font-medium dark:text-gray-400">Histórico geral</span>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
@@ -184,7 +184,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                   <span className="text-2xl font-black text-gray-900 dark:text-white">
                     {data.desconto_medio_percentual}%
                   </span>
-                  <span className="text-[10px] text-gray-500 font-medium">Média por pedido</span>
+                  <span className="text-[10px] text-gray-500 font-medium dark:text-gray-400">Média por pedido</span>
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-2">
@@ -195,7 +195,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                   <span className="text-2xl font-black text-gray-900 dark:text-white">
                     {data.prazo_pagamento_medio_dias} <span className="text-sm font-semibold text-gray-400">dias</span>
                   </span>
-                  <span className="text-[10px] text-gray-500 font-medium">Média de respiro</span>
+                  <span className="text-[10px] text-gray-500 font-medium dark:text-gray-400">Média de respiro</span>
                 </div>
               </div>
 
@@ -225,7 +225,7 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                             <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
                               Recebido em {dataDoDia(item.data).toLocaleDateString('pt-BR')}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">
                               Valor: R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </div>
                           </div>
@@ -233,14 +233,14 @@ export const SupplierIntelligenceModal: React.FC<SupplierIntelligenceModalProps>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-6 text-gray-500 text-sm">Nenhum histórico de recebimento encontrado para montar a linha do tempo.</div>
+                    <div className="text-center py-6 text-gray-500 text-sm dark:text-gray-400">Nenhum histórico de recebimento encontrado para montar a linha do tempo.</div>
                   )}
                 </div>
               </div>
 
             </>
           ) : (
-            <div className="text-center py-12 text-gray-500">Erro ao carregar dados de inteligência.</div>
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">Erro ao carregar dados de inteligência.</div>
           )}
         </div>
       </div>

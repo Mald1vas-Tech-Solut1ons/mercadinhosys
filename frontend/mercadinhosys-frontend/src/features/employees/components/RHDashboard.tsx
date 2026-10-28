@@ -303,7 +303,7 @@ export default function RHDashboard() {
                 </RechartsBarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-gray-500">
+              <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
                 <TrendingUp className="w-10 h-10 mb-2 opacity-30" />
                 <p className="font-bold">Sem dados históricos suficientes para o gráfico</p>
               </div>

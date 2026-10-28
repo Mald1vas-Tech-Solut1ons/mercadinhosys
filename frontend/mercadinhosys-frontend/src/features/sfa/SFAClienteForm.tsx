@@ -83,7 +83,7 @@ export default function SFAClienteForm() {
                     <CheckCircle2 className="w-12 h-12 text-emerald-500 animate-bounce" />
                 </div>
                 <h2 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Cliente Registrado!</h2>
-                <p className="text-slate-500 mb-8 max-w-xs">O cliente foi adicionado à sua carteira e está pronto para o primeiro pedido.</p>
+                <p className="text-slate-500 mb-8 max-w-xs dark:text-gray-400">O cliente foi adicionado à sua carteira e está pronto para o primeiro pedido.</p>
             </div>
         );
     }
@@ -104,23 +104,23 @@ export default function SFAClienteForm() {
                     
                     {/* Seção Dados Básicos */}
                     <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4">
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4 dark:text-gray-400">
                             <User className="w-4 h-4 text-blue-500" /> Dados Principais
                         </h3>
                         <div className="space-y-4">
                             <div>
-                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">Razão Social / Nome Completo *</label>
+                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">Razão Social / Nome Completo *</label>
                                 <Input required placeholder="Ex: Mercadinho São José" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
                             </div>
                             <div>
-                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">CNPJ ou CPF</label>
+                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">CNPJ ou CPF</label>
                                 <div className="relative">
                                     <FileText className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
                                     <Input placeholder="00.000.000/0001-00" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 pl-10" value={form.cpf_cnpj} onChange={e => setForm({...form, cpf_cnpj: e.target.value})} />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">Telefone / WhatsApp</label>
+                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">Telefone / WhatsApp</label>
                                 <Input placeholder="(00) 00000-0000" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50" value={form.telefone} onChange={e => setForm({...form, telefone: e.target.value})} />
                             </div>
                         </div>
@@ -128,13 +128,13 @@ export default function SFAClienteForm() {
 
                     {/* Seção Endereço */}
                     <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800">
-                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4">
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2 mb-4 dark:text-gray-400">
                             <Building2 className="w-4 h-4 text-emerald-500" /> Endereço Comercial
                         </h3>
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">CEP</label>
+                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">CEP</label>
                                     <div className="relative">
                                         <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
                                         <Input 
@@ -149,23 +149,23 @@ export default function SFAClienteForm() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">Número</label>
+                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">Número</label>
                                     <Input placeholder="123" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50" value={form.numero} onChange={e => setForm({...form, numero: e.target.value})} />
                                 </div>
                             </div>
                             
                             <div>
-                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">Logradouro</label>
+                                <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">Logradouro</label>
                                 <Input placeholder="Rua, Avenida..." className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50" value={form.endereco} onChange={e => setForm({...form, endereco: e.target.value})} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">Bairro</label>
+                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">Bairro</label>
                                     <Input placeholder="Centro" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50" value={form.bairro} onChange={e => setForm({...form, bairro: e.target.value})} />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block">Cidade/UF</label>
+                                    <label className="text-xs font-semibold text-slate-500 ml-1 mb-1 block dark:text-gray-400">Cidade/UF</label>
                                     <Input placeholder="São Paulo/SP" className="h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50" value={`${form.cidade} ${form.estado ? '- ' + form.estado : ''}`} readOnly />
                                 </div>
                             </div>

@@ -23,7 +23,7 @@ export default function UpdatePrompt() {
       {!aplicando && (
         <button
           onClick={() => void getUpdateManager().apply()}
-          className="rounded-lg bg-white/95 px-3 py-1.5 text-sm font-semibold text-blue-800 active:scale-95"
+          className="rounded-lg bg-white/95 px-3 py-1.5 text-sm font-semibold text-blue-800 active:scale-95 dark:bg-gray-800/95"
         >
           Atualizar
         </button>

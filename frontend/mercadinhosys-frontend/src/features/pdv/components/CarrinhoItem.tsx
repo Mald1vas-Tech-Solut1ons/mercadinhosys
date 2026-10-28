@@ -133,7 +133,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                                 alt={produto.nome}
                                 loading="lazy"
                                 onError={() => setFotoComErro(true)}
-                                className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white"
+                                className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800"
                             />
                             <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-red-600 dark:bg-red-700 rounded-full text-white font-black flex items-center justify-center text-[10px] shadow-sm tabular-nums ring-2 ring-white dark:ring-gray-800">
                                 {quantidade}
@@ -156,7 +156,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                             {produto.nome}
                         </h4>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                            <span className="text-xs font-bold text-slate-500">
+                            <span className="text-xs font-bold text-slate-500 dark:text-gray-400">
                                 {formatCurrency(precoUnitario)}<span className="text-[10px] opacity-50">/un</span>
                             </span>
                             {produto.codigo_barras && (
@@ -226,7 +226,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                         <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                             <button
                                 onClick={() => passoQtd(-(isGranel ? 0.1 : 1))}
-                                className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
+                                className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90 dark:text-gray-400"
                                 aria-label="Diminuir quantidade"
                             >
                                 <Minus className="w-4 h-4" />
@@ -251,7 +251,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                             />
                             <button
                                 onClick={() => passoQtd(isGranel ? 0.1 : 1)}
-                                className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90"
+                                className="w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90 dark:text-gray-400"
                                 aria-label="Aumentar quantidade"
                             >
                                 <Plus className="w-4 h-4" />

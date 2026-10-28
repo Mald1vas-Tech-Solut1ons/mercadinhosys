@@ -276,7 +276,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                                         className="w-full p-4 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-gray-50 dark:border-gray-800 last:border-0"
                                                     >
                                                         <p className="font-bold text-gray-900 dark:text-white">{c.nome}</p>
-                                                        <p className="text-xs text-gray-500">{c.documento || c.cpf || c.cnpj || 'Sem documento'} • {c.celular || 'Sem celular'}</p>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{c.documento || c.cpf || c.cnpj || 'Sem documento'} • {c.celular || 'Sem celular'}</p>
                                                     </button>
                                                 ))}
                                             </div>
@@ -328,10 +328,10 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                                                 <p className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                                                     {p.nome}
                                                                     {p.codigo_barras && (
-                                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500">{p.codigo_barras}</span>
+                                                                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-gray-400">{p.codigo_barras}</span>
                                                                     )}
                                                                 </p>
-                                                                <p className="text-xs text-gray-500">Estoque: {p.estoque_atual} • R$ {p.preco_venda.toFixed(2)}</p>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">Estoque: {p.estoque_atual} • R$ {p.preco_venda.toFixed(2)}</p>
                                                             </div>
                                                             <Plus className="w-5 h-5 text-blue-500" />
                                                         </button>
@@ -339,7 +339,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                                     {/* Diferente da compra: numa VENDA não dá pra vender o que não
                                                         está cadastrado — sem fallback COSMOS aqui, só orienta. */}
                                                     {filteredProds.length === 0 && (
-                                                        <div className="p-4 flex items-center gap-2 text-sm text-gray-500">
+                                                        <div className="p-4 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                                                             <Barcode className="w-4 h-4 shrink-0" />
                                                             <span>Nenhum produto encontrado. Cadastre o produto em Produtos antes de vendê-lo.</span>
                                                         </div>
@@ -532,7 +532,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                                     </button>
                                 ) : (
                                     <div className="flex gap-3">
-                                        <button onClick={() => setStep(1)} className="p-4 bg-gray-100 dark:bg-gray-800 rounded-3xl text-gray-500"><ChevronRight className="w-6 h-6 rotate-180" /></button>
+                                        <button onClick={() => setStep(1)} className="p-4 bg-gray-100 dark:bg-gray-800 rounded-3xl text-gray-500 dark:text-gray-400"><ChevronRight className="w-6 h-6 rotate-180" /></button>
                                         <button
                                             disabled={loading}
                                             onClick={handleSubmit}

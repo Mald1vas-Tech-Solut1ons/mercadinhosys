@@ -840,7 +840,7 @@ export default function ExpensesPage() {
                                 <div className="flex gap-2 ml-auto">
                                     <button
                                         onClick={() => { setBuscaLocal(""); setFiltros(f => ({ ...f, busca: "", categoria: "", tipo: "", recorrente: "", forma_pagamento: "", pagina: 1 })); }}
-                                        className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-orange-500 transition-colors"
+                                        className="px-3 py-2 text-xs font-semibold text-slate-500 hover:text-orange-500 transition-colors dark:text-gray-400"
                                     >Limpar</button>
                                     <button
                                         onClick={exportarCSV}
@@ -891,7 +891,7 @@ export default function ExpensesPage() {
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{d.descricao}</p>
-                                                        <p className="text-xs text-slate-500">{fmtDate(d.data_despesa)}</p>
+                                                        <p className="text-xs text-slate-500 dark:text-gray-400">{fmtDate(d.data_despesa)}</p>
                                                     </div>
                                                     <p className="font-bold text-slate-900 dark:text-white text-right">{fmt(d.valor)}</p>
                                                 </div>
@@ -1226,11 +1226,11 @@ export default function ExpensesPage() {
                                             <table className="w-full text-sm">
                                                 <thead>
                                                     <tr className="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-100 dark:border-slate-800">
-                                                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Categoria</th>
-                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Mês Anterior</th>
-                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Mês Atual</th>
-                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Variação</th>
-                                                        <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Tendência</th>
+                                                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase dark:text-gray-400">Categoria</th>
+                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase dark:text-gray-400">Mês Anterior</th>
+                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase dark:text-gray-400">Mês Atual</th>
+                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase dark:text-gray-400">Variação</th>
+                                                        <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase dark:text-gray-400">Tendência</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1284,7 +1284,7 @@ export default function ExpensesPage() {
                                 {modoEdicao ? "✏️ Editar Despesa" : "➕ Nova Despesa"}
                             </h2>
                             <button onClick={() => setModalAberto(false)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                                <X className="w-5 h-5 text-slate-500" />
+                                <X className="w-5 h-5 text-slate-500 dark:text-gray-400" />
                             </button>
                         </div>
 
@@ -1436,9 +1436,9 @@ export default function ExpensesPage() {
                                     <FileText className="w-6 h-6 text-orange-500" />
                                     {detalhesCard.titulo}
                                 </h2>
-                                <p className="text-sm text-slate-500 mt-1">Lista detalhada de todas as despesas que compõem este indicador.</p>
+                                <p className="text-sm text-slate-500 mt-1 dark:text-gray-400">Lista detalhada de todas as despesas que compõem este indicador.</p>
                             </div>
-                            <button onClick={() => setDetalhesCard(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors">
+                            <button onClick={() => setDetalhesCard(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 transition-colors dark:text-gray-400">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -1462,7 +1462,7 @@ export default function ExpensesPage() {
                                                     <p className="font-bold text-slate-800 dark:text-slate-200">{d.descricao}</p>
                                                     {d.recorrente && <span className="text-[10px] bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-bold">RECORRENTE</span>}
                                                 </div>
-                                                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-gray-400">
                                                     <span className="flex items-center gap-1 font-medium text-slate-600 dark:text-slate-400">
                                                         <Calendar className="w-3.5 h-3.5" />
                                                         {fmtDate(d.data_despesa)}
@@ -1494,7 +1494,7 @@ export default function ExpensesPage() {
                             )}
                         </div>
                         <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 rounded-b-3xl flex justify-between items-center">
-                            <p className="text-sm text-slate-500 font-semibold">{despesasModal.length} lançamentos listados</p>
+                            <p className="text-sm text-slate-500 font-semibold dark:text-gray-400">{despesasModal.length} lançamentos listados</p>
                             <p className="text-lg font-black text-orange-600 dark:text-orange-400">
                                 Total: {fmt(despesasModal.reduce((acc, curr) => acc + curr.valor, 0))}
                             </p>

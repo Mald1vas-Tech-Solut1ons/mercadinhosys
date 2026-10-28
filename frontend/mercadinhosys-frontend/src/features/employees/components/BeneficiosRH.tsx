@@ -244,15 +244,15 @@ export default function BeneficiosRH() {
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                   {loading ? (
-                    <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Carregando...</td></tr>
+                    <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">Carregando...</td></tr>
                   ) : beneficiosFiltrados.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Nenhuma atribuição encontrada.</td></tr>
+                    <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">Nenhuma atribuição encontrada.</td></tr>
                   ) : (
                     beneficiosFiltrados.map((ben) => (
                       <tr key={ben.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                         <td className="px-6 py-4">
                           <p className="font-bold text-gray-900 dark:text-white">{ben.funcionario_nome}</p>
-                          <p className="text-xs text-gray-500">{ben.funcionario_cargo}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{ben.funcionario_cargo}</p>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -261,7 +261,7 @@ export default function BeneficiosRH() {
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900 dark:text-white">{ben.nome_beneficio}</p>
-                              {ben.descricao && <p className="text-xs text-gray-500">{ben.descricao}</p>}
+                              {ben.descricao && <p className="text-xs text-gray-500 dark:text-gray-400">{ben.descricao}</p>}
                             </div>
                           </div>
                         </td>
@@ -305,7 +305,7 @@ export default function BeneficiosRH() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {catalogo.length === 0 && !loading && (
-              <div className="col-span-full py-12 text-center text-gray-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl border-dashed">
+              <div className="col-span-full py-12 text-center text-gray-500 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl border-dashed dark:text-gray-400">
                 O catálogo corporativo está vazio. Adicione o primeiro benefício.
               </div>
             )}
@@ -328,7 +328,7 @@ export default function BeneficiosRH() {
                 <p className="text-xs text-gray-500 dark:text-gray-400 min-h-[32px] line-clamp-2">{cat.descricao || 'Sem descrição'}</p>
                 
                 <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Valor Referência</span>
+                  <span className="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Valor Referência</span>
                   <span className="font-black text-gray-900 dark:text-white">{cat.valor_padrao ? formatCurrency(cat.valor_padrao) : 'Variável'}</span>
                 </div>
               </div>
@@ -343,7 +343,7 @@ export default function BeneficiosRH() {
           <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
             <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Atribuir Benefício</h3>
-              <p className="text-sm text-gray-500 mt-1">Vincule um benefício do catálogo corporativo a um funcionário.</p>
+              <p className="text-sm text-gray-500 mt-1 dark:text-gray-400">Vincule um benefício do catálogo corporativo a um funcionário.</p>
             </div>
             
             <form onSubmit={handleAtribuir} className="p-6 space-y-4">
@@ -388,7 +388,7 @@ export default function BeneficiosRH() {
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   required
                 />
-                <p className="text-[10px] text-gray-500 mt-1">Este valor é a parte custeada pela empresa que entrará no cálculo da folha.</p>
+                <p className="text-[10px] text-gray-500 mt-1 dark:text-gray-400">Este valor é a parte custeada pela empresa que entrará no cálculo da folha.</p>
               </div>
 
               <div>
@@ -403,7 +403,7 @@ export default function BeneficiosRH() {
               </div>
 
               <div className="flex items-center gap-3 pt-4">
-                <button type="button" onClick={() => setShowModalAtribuir(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50">Cancelar</button>
+                <button type="button" onClick={() => setShowModalAtribuir(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">Cancelar</button>
                 <button type="submit" className="flex-1 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold">Atribuir</button>
               </div>
             </form>
@@ -445,7 +445,7 @@ export default function BeneficiosRH() {
                   placeholder="0,00"
                   className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
-                <p className="text-[10px] text-gray-500 mt-1">Valor sugerido ao atribuir (deixe zerado se for muito variável).</p>
+                <p className="text-[10px] text-gray-500 mt-1 dark:text-gray-400">Valor sugerido ao atribuir (deixe zerado se for muito variável).</p>
               </div>
 
               <div>
@@ -459,7 +459,7 @@ export default function BeneficiosRH() {
               </div>
 
               <div className="flex items-center gap-3 pt-4">
-                <button type="button" onClick={() => setShowModalCatalogo(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50">Cancelar</button>
+                <button type="button" onClick={() => setShowModalCatalogo(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-bold hover:bg-gray-50 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700">Cancelar</button>
                 <button type="submit" className="flex-1 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold">Salvar no Catálogo</button>
               </div>
             </form>

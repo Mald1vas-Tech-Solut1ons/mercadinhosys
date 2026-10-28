@@ -123,7 +123,7 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
             <div className="flex items-center justify-between">
                 <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
                     <Grid3x3 className="w-4 h-4 text-emerald-500" /> Grade por Número
-                    {temGrade && <span className="ml-2 normal-case tracking-normal font-bold text-gray-500">· {grade!.total} un no total</span>}
+                    {temGrade && <span className="ml-2 normal-case tracking-normal font-bold text-gray-500 dark:text-gray-400">· {grade!.total} un no total</span>}
                 </h3>
                 {!editando && (
                     <button onClick={abrirFormulario}
@@ -136,7 +136,7 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
             {temGrade && (
                 <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700">
                     <table className="w-full text-xs text-center">
-                        <thead className="bg-gray-50 dark:bg-gray-900/50 text-[10px] font-black text-gray-500 uppercase">
+                        <thead className="bg-gray-50 dark:bg-gray-900/50 text-[10px] font-black text-gray-500 uppercase dark:text-gray-400">
                             <tr>
                                 <th className="px-3 py-2 text-left">Cor</th>
                                 {grade!.numeracoes.map((n) => <th key={n} className="px-3 py-2">{n}</th>)}
@@ -177,7 +177,7 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
             {editando && (
                 <div className="space-y-4 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-900/10">
                     <div>
-                        <p className="text-[10px] font-black text-gray-500 uppercase mb-2">Números</p>
+                        <p className="text-[10px] font-black text-gray-500 uppercase mb-2 dark:text-gray-400">Números</p>
                         {[NUMEROS_ADULTO, NUMEROS_INFANTIL].map((lista, i) => (
                             <div key={i} className="flex flex-wrap gap-1.5 mb-2">
                                 {lista.map((n) => {
@@ -203,19 +203,19 @@ const GradePanel = ({ produtoId, numerosSugeridos = [], coresSugeridas = [], onA
                     </div>
 
                     <div>
-                        <p className="text-[10px] font-black text-gray-500 uppercase mb-2">Cores (opcional, separadas por vírgula)</p>
+                        <p className="text-[10px] font-black text-gray-500 uppercase mb-2 dark:text-gray-400">Cores (opcional, separadas por vírgula)</p>
                         <input value={coresTexto} onChange={(e) => setCoresTexto(e.target.value)} placeholder="Ex: Preto, Branco"
                             className="w-full px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs" />
                     </div>
 
                     {numerosOrdenados.length > 0 && (
                         <div className="overflow-x-auto">
-                            <p className="text-[10px] font-black text-gray-500 uppercase mb-2">Estoque inicial de cada número</p>
+                            <p className="text-[10px] font-black text-gray-500 uppercase mb-2 dark:text-gray-400">Estoque inicial de cada número</p>
                             <table className="text-xs text-center">
                                 <thead>
                                     <tr>
-                                        <th className="px-2 py-1 text-left text-gray-500">Cor</th>
-                                        {numerosOrdenados.map((n) => <th key={n} className="px-2 py-1 text-gray-500">{n}</th>)}
+                                        <th className="px-2 py-1 text-left text-gray-500 dark:text-gray-400">Cor</th>
+                                        {numerosOrdenados.map((n) => <th key={n} className="px-2 py-1 text-gray-500 dark:text-gray-400">{n}</th>)}
                                     </tr>
                                 </thead>
                                 <tbody>

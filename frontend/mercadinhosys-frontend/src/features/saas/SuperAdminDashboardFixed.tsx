@@ -187,17 +187,17 @@ const SuperAdminDashboardFixed: React.FC = () => {
 
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-screen bg-gray-50 p-6 dark:bg-gray-900">
             <div className="max-w-7xl mx-auto">
                 {/* Header com Seletor de Estabelecimento */}
-                <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <div className="bg-white rounded-lg shadow-sm p-6 mb-6 dark:bg-gray-800">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+                            <h1 className="text-3xl font-bold text-gray-900 flex items-center dark:text-gray-100">
                                 <Building2 className="w-8 h-8 text-blue-600 mr-3" />
                                 Super Admin Dashboard
                             </h1>
-                            <p className="text-gray-600 mt-2">
+                            <p className="text-gray-600 mt-2 dark:text-gray-300">
                                 Gerencie todos os estabelecimentos
                             </p>
                         </div>
@@ -219,43 +219,43 @@ const SuperAdminDashboardFixed: React.FC = () => {
                 {activeTab === 'overview' && resumoSistema && (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                         {/* Cards do Resumo */}
-                        <div className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
                             <div className="flex items-center">
                                 <Building2 className="w-8 h-8 text-blue-600 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">Estabelecimentos</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Estabelecimentos</h3>
                                     <p className="text-3xl font-bold text-blue-600">{resumoSistema.sistema.total_estabelecimentos}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
                             <div className="flex items-center">
                                 <Users className="w-8 h-8 text-green-600 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">Funcionários</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Funcionários</h3>
                                     <p className="text-3xl font-bold text-green-600">{resumoSistema.sistema.total_funcionarios}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
                             <div className="flex items-center">
                                 <Package className="w-8 h-8 text-purple-600 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">Produtos</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Produtos</h3>
                                     <p className="text-3xl font-bold text-purple-600">{resumoSistema.sistema.total_produtos}</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
                             <div className="flex items-center">
                                 <DollarSign className="w-8 h-8 text-orange-600 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-gray-900">Vendas Totais</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Vendas Totais</h3>
                                     <p className="text-3xl font-bold text-orange-600">{resumoSistema.sistema.vendas_totais.quantidade}</p>
-                                    <p className="text-sm text-gray-600">{formatarMoeda(resumoSistema.sistema.vendas_totais.valor)}</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300">{formatarMoeda(resumoSistema.sistema.vendas_totais.valor)}</p>
                                 </div>
                             </div>
                         </div>
@@ -263,9 +263,9 @@ const SuperAdminDashboardFixed: React.FC = () => {
                 )}
 
                 {activeTab === 'estabelecimentos' && (
-                    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <div className="bg-white rounded-lg shadow-sm overflow-hidden dark:bg-gray-800">
                         <div className="p-6">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-6">Todos os Estabelecimentos</h2>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-6 dark:text-gray-100">Todos os Estabelecimentos</h2>
 
                             {loading ? (
                                 <div className="flex items-center justify-center py-12">
@@ -274,26 +274,26 @@ const SuperAdminDashboardFixed: React.FC = () => {
                             ) : (
                                 <div className="overflow-x-auto">
                                     <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
+                                        <thead className="bg-gray-50 dark:bg-gray-900">
                                             <tr>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estabelecimento</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cidade</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plano</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendas Hoje</th>
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Estabelecimento</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Cidade</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Plano</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Status</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Vendas Hoje</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400">Ações</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800">
                                             {estabelecimentos.map((estabelecimento) => (
-                                                <tr key={estabelecimento.id} className="hover:bg-gray-50">
+                                                <tr key={estabelecimento.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm font-medium text-gray-900">
+                                                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                                             {estabelecimento.nome_fantasia}
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-600">
+                                                        <div className="text-sm text-gray-600 dark:text-gray-300">
                                                             {estabelecimento.cidade}/{estabelecimento.estado}
                                                         </div>
                                                     </td>
@@ -308,7 +308,7 @@ const SuperAdminDashboardFixed: React.FC = () => {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="text-sm text-gray-900">
+                                                        <div className="text-sm text-gray-900 dark:text-gray-100">
                                                             {estabelecimento.vendas_hoje}
                                                         </div>
                                                     </td>
@@ -337,13 +337,13 @@ const SuperAdminDashboardFixed: React.FC = () => {
                 {(activeTab === 'dashboard' || activeTab === 'vendas' || activeTab === 'produtos' || activeTab === 'clientes' || activeTab === 'financeiro') && dashboardData && (
                     <div className="space-y-6">
                         {/* Header do Estabelecimento Selecionado */}
-                        <div className="bg-white rounded-lg shadow-sm p-6">
+                        <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-gray-900">
+                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                                         {estabelecimentos.find(e => e.id === selectedEstabelecimento)?.nome_fantasia}
                                     </h2>
-                                    <p className="text-gray-600">Dashboard Específico</p>
+                                    <p className="text-gray-600 dark:text-gray-300">Dashboard Específico</p>
                                 </div>
 
                                 <button
@@ -358,15 +358,15 @@ const SuperAdminDashboardFixed: React.FC = () => {
                         </div>
 
                         {/* Tabs do Dashboard Específico */}
-                        <div className="bg-white rounded-lg shadow-sm">
-                            <div className="border-b border-gray-200">
+                        <div className="bg-white rounded-lg shadow-sm dark:bg-gray-800">
+                            <div className="border-b border-gray-200 dark:border-gray-700">
                                 <nav className="flex space-x-8 px-6">
                                     <button
                                         onClick={() => setActiveTab('vendas')}
                                         className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'vendas'
                                             ? 'border-blue-500 text-blue-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
+                                            } dark:text-gray-400`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <TrendingUp className="w-4 h-4" />
@@ -378,7 +378,7 @@ const SuperAdminDashboardFixed: React.FC = () => {
                                         className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'produtos'
                                             ? 'border-blue-500 text-blue-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
+                                            } dark:text-gray-400`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <Package className="w-4 h-4" />
@@ -390,7 +390,7 @@ const SuperAdminDashboardFixed: React.FC = () => {
                                         className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'clientes'
                                             ? 'border-blue-500 text-blue-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
+                                            } dark:text-gray-400`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <Users className="w-4 h-4" />
@@ -402,7 +402,7 @@ const SuperAdminDashboardFixed: React.FC = () => {
                                         className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'financeiro'
                                             ? 'border-blue-500 text-blue-600'
                                             : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                            }`}
+                                            } dark:text-gray-400`}
                                     >
                                         <div className="flex items-center space-x-2">
                                             <DollarSign className="w-4 h-4" />
@@ -417,27 +417,27 @@ const SuperAdminDashboardFixed: React.FC = () => {
                         <div className="p-6">
                             {activeTab === 'vendas' && (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Vendas Hoje</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Vendas Hoje</h3>
                                         <p className="text-3xl font-bold text-blue-600">{dashboardData.vendas_hoje.quantidade}</p>
-                                        <p className="text-sm text-gray-600">{formatarMoeda(dashboardData.vendas_hoje.valor)}</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">{formatarMoeda(dashboardData.vendas_hoje.valor)}</p>
                                     </div>
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Vendas Mês</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Vendas Mês</h3>
                                         <p className="text-3xl font-bold text-green-600">{dashboardData.vendas_mes.quantidade}</p>
-                                        <p className="text-sm text-gray-600">{formatarMoeda(dashboardData.vendas_mes.valor)}</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">{formatarMoeda(dashboardData.vendas_mes.valor)}</p>
                                     </div>
                                 </div>
                             )}
 
                             {activeTab === 'produtos' && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Produtos</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Total Produtos</h3>
                                         <p className="text-3xl font-bold text-purple-600">{dashboardData.produtos.total}</p>
                                     </div>
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Baixo Estoque</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Baixo Estoque</h3>
                                         <p className="text-3xl font-bold text-red-600">{dashboardData.produtos.baixo_estoque}</p>
                                     </div>
                                 </div>
@@ -445,16 +445,16 @@ const SuperAdminDashboardFixed: React.FC = () => {
 
                             {activeTab === 'clientes' && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Clientes</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Total Clientes</h3>
                                         <p className="text-3xl font-bold text-blue-600">{dashboardData.clientes.total}</p>
                                     </div>
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Novos Clientes</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Novos Clientes</h3>
                                         <p className="text-3xl font-bold text-green-600">{dashboardData.clientes.novos}</p>
                                     </div>
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Clientes Ativos</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Clientes Ativos</h3>
                                         <p className="text-3xl font-bold text-purple-600">{dashboardData.clientes.ativos}</p>
                                     </div>
                                 </div>
@@ -462,16 +462,16 @@ const SuperAdminDashboardFixed: React.FC = () => {
 
                             {activeTab === 'financeiro' && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Receitas Mês</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Receitas Mês</h3>
                                         <p className="text-3xl font-bold text-green-600">{formatarMoeda(dashboardData.financeiro.receitas_mes)}</p>
                                     </div>
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Despesas Mês</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Despesas Mês</h3>
                                         <p className="text-3xl font-bold text-red-600">{formatarMoeda(dashboardData.financeiro.despesas_mes)}</p>
                                     </div>
-                                    <div className="bg-white rounded-lg shadow-sm p-6">
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Lucro Mês</h3>
+                                    <div className="bg-white rounded-lg shadow-sm p-6 dark:bg-gray-800">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-2 dark:text-gray-100">Lucro Mês</h3>
                                         <p className="text-3xl font-bold text-blue-600">{formatarMoeda(dashboardData.financeiro.lucro_mes)}</p>
                                     </div>
                                 </div>
@@ -481,15 +481,15 @@ const SuperAdminDashboardFixed: React.FC = () => {
                 )}
 
                 {/* Tabs de Navegação */}
-                <div className="bg-white rounded-lg shadow-sm mb-6">
-                    <div className="border-b border-gray-200">
+                <div className="bg-white rounded-lg shadow-sm mb-6 dark:bg-gray-800">
+                    <div className="border-b border-gray-200 dark:border-gray-700">
                         <nav className="flex space-x-8 px-6">
                             <button
                                 onClick={() => setActiveTab('overview')}
                                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview'
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
+                                    } dark:text-gray-400`}
                             >
                                 <div className="flex items-center space-x-2">
                                     <BarChart3 className="w-4 h-4" />
@@ -501,7 +501,7 @@ const SuperAdminDashboardFixed: React.FC = () => {
                                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'estabelecimentos'
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                    }`}
+                                    } dark:text-gray-400`}
                             >
                                 <div className="flex items-center space-x-2">
                                     <Building2 className="w-4 h-4" />
@@ -514,7 +514,7 @@ const SuperAdminDashboardFixed: React.FC = () => {
                                     className={`py-4 px-1 border-b-2 font-medium text-sm ${(activeTab === 'dashboard' || activeTab === 'vendas' || activeTab === 'produtos' || activeTab === 'clientes' || activeTab === 'financeiro')
                                         ? 'border-blue-500 text-blue-600'
                                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                        } dark:text-gray-400`}
                                 >
                                     <div className="flex items-center space-x-2">
                                         <Activity className="w-4 h-4" />

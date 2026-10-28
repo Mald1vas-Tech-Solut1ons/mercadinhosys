@@ -601,7 +601,7 @@ const ProductFormModal = ({
                                             }}
                                             className={`${inputClass} font-mono`} placeholder="EAN-13 / EAN-8" />
                                         <button type="button" onClick={() => setShowScanner(true)}
-                                            className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm">
+                                            className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700">
                                             <Camera className="w-5 h-5" />
                                         </button>
                                     </div>

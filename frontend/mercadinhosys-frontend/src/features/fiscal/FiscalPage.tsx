@@ -24,15 +24,15 @@ export default function FiscalPage() {
                 <div className="p-2.5 rounded-xl bg-primary-600 text-white"><FileText className="w-6 h-6" /></div>
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 dark:text-white">Fiscal</h1>
-                    <p className="text-sm text-slate-500">Importação de NF-e de compra e emissão de NFC-e</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Importação de NF-e de compra e emissão de NFC-e</p>
                 </div>
             </div>
 
             <div className="flex gap-2 border-b border-slate-200 dark:border-slate-700">
-                <button onClick={() => setTab('entrada')} className={`px-4 py-2.5 font-semibold text-sm flex items-center gap-2 border-b-2 transition ${tab === 'entrada' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button onClick={() => setTab('entrada')} className={`px-4 py-2.5 font-semibold text-sm flex items-center gap-2 border-b-2 transition ${tab === 'entrada' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'} dark:text-gray-400`}>
                     <FileInput className="w-4 h-4" /> Entrada (XML / QR Code)
                 </button>
-                <button onClick={() => setTab('saida')} className={`px-4 py-2.5 font-semibold text-sm flex items-center gap-2 border-b-2 transition ${tab === 'saida' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                <button onClick={() => setTab('saida')} className={`px-4 py-2.5 font-semibold text-sm flex items-center gap-2 border-b-2 transition ${tab === 'saida' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700'} dark:text-gray-400`}>
                     <FileOutput className="w-4 h-4" /> Notas Emitidas (NFC-e)
                 </button>
             </div>
@@ -85,7 +85,7 @@ function SaidaTab() {
                                     <tr key={d.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                         <td className="px-5 py-3 font-mono text-slate-600 dark:text-slate-300">{d.numero || '—'}/{d.serie || '—'}</td>
                                         <td className="px-4 py-3 font-mono text-[11px] text-slate-400 hidden md:table-cell">{d.chave_acesso || '—'}</td>
-                                        <td className="px-4 py-3 text-slate-500">{fmtData(d.created_at)}</td>
+                                        <td className="px-4 py-3 text-slate-500 dark:text-gray-400">{fmtData(d.created_at)}</td>
                                         <td className="px-4 py-3 text-right font-bold tabular-nums">{brl(d.valor_total)}</td>
                                         <td className="px-4 py-3 text-center"><span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-full ${s.cls}`}><s.Icon className="w-3 h-3" />{s.label}</span></td>
                                         <td className="px-5 py-3 text-right">

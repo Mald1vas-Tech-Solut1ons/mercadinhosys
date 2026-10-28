@@ -204,7 +204,7 @@ export default function LerNotaModal({ onFechar, onLido, carregando, modoInicial
                     <div className="rounded-xl bg-primary-100 dark:bg-primary-900/30 p-2.5 text-primary-600"><QrCode size={22} /></div>
                     <div>
                         <h3 className="font-black text-base text-slate-900 dark:text-white">Ler nota fiscal</h3>
-                        <p className="text-xs text-slate-500">QR Code do cupom (NFC-e SP) ou chave do DANFE</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">QR Code do cupom (NFC-e SP) ou chave do DANFE</p>
                     </div>
                 </div>
 
@@ -218,7 +218,7 @@ export default function LerNotaModal({ onFechar, onLido, carregando, modoInicial
                     <div className="flex flex-col items-center py-12 text-center">
                         <Loader2 size={36} className="animate-spin text-primary-600 mb-3" />
                         <p className="font-bold text-sm text-slate-900 dark:text-white">Consultando a nota...</p>
-                        <p className="text-xs text-slate-500 mt-1">Buscando itens, quantidades e valores.</p>
+                        <p className="text-xs text-slate-500 mt-1 dark:text-gray-400">Buscando itens, quantidades e valores.</p>
                     </div>
                 ) : modo === 'CAMERA' ? (
                     <div className="space-y-3">
@@ -238,7 +238,7 @@ export default function LerNotaModal({ onFechar, onLido, carregando, modoInicial
                                 )}
                             </div>
                         )}
-                        <p className="text-xs text-slate-500">Aponte para o QR Code do cupom. Se não ler, use a aba <b>Foto</b>: a imagem parada lê melhor papel térmico apagado.</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">Aponte para o QR Code do cupom. Se não ler, use a aba <b>Foto</b>: a imagem parada lê melhor papel térmico apagado.</p>
                     </div>
                 ) : modo === 'FOTO' ? (
                     <div className="space-y-3">
@@ -268,7 +268,7 @@ export default function LerNotaModal({ onFechar, onLido, carregando, modoInicial
                             </p>)}
                         <button type="submit" disabled={!leitura || leitura.tipo === 'erro'}
                             className="w-full rounded-xl bg-primary-600 py-3 font-bold text-white disabled:opacity-50">Consultar</button>
-                        <p className="text-xs text-slate-500">Dica (Android): leia o QR com a câmera do próprio celular e toque em <b>Compartilhar → MercadinhoSyS</b>; a nota abre aqui já preenchida.</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">Dica (Android): leia o QR com a câmera do próprio celular e toque em <b>Compartilhar → MercadinhoSyS</b>; a nota abre aqui já preenchida.</p>
                     </form>
                 )}
             </div>

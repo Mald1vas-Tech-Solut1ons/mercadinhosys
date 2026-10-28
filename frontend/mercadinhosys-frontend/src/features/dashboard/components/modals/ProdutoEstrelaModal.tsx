@@ -96,15 +96,15 @@ export const ProdutoEstrelaModal: React.FC<ProdutoEstrelaModalProps> = ({
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-1">
-              <p className="text-xs font-bold text-gray-500 uppercase">Faturamento Bruto</p>
+              <p className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Faturamento Bruto</p>
               <p className="text-2xl font-black text-green-600 dark:text-green-400">R$ {produto.faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-bold text-gray-500 uppercase">Lucro Operacional</p>
+              <p className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Lucro Operacional</p>
               <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400">R$ {lucroTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-bold text-gray-500 uppercase">Unit Economics (Lucro)</p>
+              <p className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Unit Economics (Lucro)</p>
               <p className="text-2xl font-black text-purple-600 dark:text-purple-400">R$ {lucroPorUnidade.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
             </div>
           </div>
@@ -122,15 +122,15 @@ export const ProdutoEstrelaModal: React.FC<ProdutoEstrelaModalProps> = ({
               <p className="font-black text-indigo-600 dark:text-indigo-400 text-xs uppercase tracking-widest mb-4">1. Suply Chain & Estoque</p>
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-gray-500">Giro Diário</span>
+                  <span className="text-gray-500 dark:text-gray-400">Giro Diário</span>
                   <span className="text-gray-900 dark:text-gray-100">{demandaDiaria.toFixed(1)} un/dia</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-gray-500">Audit. Recomendada</span>
+                  <span className="text-gray-500 dark:text-gray-400">Audit. Recomendada</span>
                   <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-black">{estoqueRecomendado} un</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-medium">
-                  <span className="text-gray-500">Safe-Stock (Gatilho)</span>
+                  <span className="text-gray-500 dark:text-gray-400">Safe-Stock (Gatilho)</span>
                   <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[10px] font-black">{pontoReposicao} un</span>
                 </div>
               </div>

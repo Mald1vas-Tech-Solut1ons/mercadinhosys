@@ -208,7 +208,7 @@ const SyncManager: React.FC = () => {
                                     </span>
                                 ))}
                                 {syncStatus.local_db.table_names && syncStatus.local_db.table_names.length > 3 && (
-                                    <span className="text-xs text-gray-500">+{syncStatus.local_db.table_names.length - 3}</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">+{syncStatus.local_db.table_names.length - 3}</span>
                                 )}
                             </div>
                         </div>

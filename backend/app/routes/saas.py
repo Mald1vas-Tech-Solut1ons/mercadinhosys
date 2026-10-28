@@ -77,6 +77,14 @@ def registrar_lead():
         return jsonify({"success": False, "error": "Erro ao processar sua solicitação"}), 500
 
 
+@saas_bp.route("/verificacao-dados", methods=["GET"])
+@super_admin_required
+def verificacao_dados():
+    """Consistência dos dados agora (mesmas checagens do cron noturno); ?estab=<id> limita a uma loja."""
+    from app.services.verificacao_dados import verificar
+    return jsonify({"success": True, **verificar(request.args.get("estab", type=int))})
+
+
 @saas_bp.route("/leads", methods=["GET"])
 @super_admin_required
 def listar_leads():

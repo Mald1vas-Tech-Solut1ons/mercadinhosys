@@ -226,19 +226,19 @@ const EstabelecimentosPanel: React.FC = () => {
                     <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white dark:bg-gray-800">
                         <div className="text-center">
                             <p className="text-lg font-bold text-gray-900 dark:text-white">{est.total_funcionarios}</p>
-                            <p className="text-xs text-gray-500">Funcionários</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Funcionários</p>
                         </div>
                         <div className="text-center">
                             <p className="text-lg font-bold text-gray-900 dark:text-white">{est.total_produtos}</p>
-                            <p className="text-xs text-gray-500">Produtos</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Produtos</p>
                         </div>
                         <div className="text-center">
                             <p className="text-lg font-bold text-gray-900 dark:text-white">{est.total_clientes}</p>
-                            <p className="text-xs text-gray-500">Clientes</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Clientes</p>
                         </div>
                         <div className="text-center">
                             <p className="text-sm font-bold text-green-600">{fmt(est.faturamento_total)}</p>
-                            <p className="text-xs text-gray-500">Faturamento</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Faturamento</p>
                         </div>
                     </div>
                     {/* Rodapé contato */}
@@ -266,10 +266,10 @@ const EstabelecimentosPanel: React.FC = () => {
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">Para editar os dados completos deste estabelecimento, acesse a aba <strong>Estabelecimento</strong> nas configurações ou entre com a conta do administrador desta loja.</p>
                         <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div><p className="text-gray-500">ID</p><p className="font-semibold text-gray-900 dark:text-white">#{editando.id}</p></div>
-                            <div><p className="text-gray-500">CNPJ</p><p className="font-semibold text-gray-900 dark:text-white">{editando.cnpj || '—'}</p></div>
-                            <div><p className="text-gray-500">Faturamento</p><p className="font-semibold text-green-600">{fmt(editando.faturamento_total)}</p></div>
-                            <div><p className="text-gray-500">Status</p><p className={`font-semibold ${editando.ativo ? 'text-green-600' : 'text-red-500'}`}>{editando.ativo ? 'Ativa' : 'Inativa'}</p></div>
+                            <div><p className="text-gray-500 dark:text-gray-400">ID</p><p className="font-semibold text-gray-900 dark:text-white">#{editando.id}</p></div>
+                            <div><p className="text-gray-500 dark:text-gray-400">CNPJ</p><p className="font-semibold text-gray-900 dark:text-white">{editando.cnpj || '—'}</p></div>
+                            <div><p className="text-gray-500 dark:text-gray-400">Faturamento</p><p className="font-semibold text-green-600">{fmt(editando.faturamento_total)}</p></div>
+                            <div><p className="text-gray-500 dark:text-gray-400">Status</p><p className={`font-semibold ${editando.ativo ? 'text-green-600' : 'text-red-500'}`}>{editando.ativo ? 'Ativa' : 'Inativa'}</p></div>
                         </div>
                         <button
                             onClick={() => setEditando(null)}

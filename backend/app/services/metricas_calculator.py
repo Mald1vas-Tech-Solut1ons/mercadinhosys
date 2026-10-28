@@ -5,7 +5,7 @@ from flask import current_app
 from app import db
 from app.models import DashboardMetrica, Venda, Produto, Estabelecimento, allow_all_tenants
 from app.utils.query_helpers import get_local_date
-from app.utils.timezone import hoje_local
+from app.utils.timezone import iso_utc, hoje_local
 
 
 def calcular_metricas_diarias():
@@ -73,7 +73,7 @@ def _calcular_metricas_todas_lojas(hoje):
             {
                 "id": p.id,
                 "nome": p.nome,
-                "validade": p.data_validade.isoformat(),
+                "validade": iso_utc(p.data_validade),
                 "dias_restantes": (p.data_validade - hoje).days,
                 "quantidade": p.quantidade,
             }

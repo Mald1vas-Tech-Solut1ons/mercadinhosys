@@ -36,6 +36,19 @@ def fmt_local(dt, fmt="%d/%m/%Y %H:%M"):
     return loc.strftime(fmt) if loc else ""
 
 
+def iso_utc(valor):
+    """ISO para a API: data com hora sem fuso é UTC (como o banco grava) e sai marcada `+00:00`.
+
+    Sem a marca, o navegador lê "2026-10-28T21:53:00" como hora LOCAL e mostra 21:53 para
+    um evento das 18:53 em São Paulo. Data pura e data com fuso saem como estão.
+    """
+    if valor is None:
+        return None
+    if isinstance(valor, datetime) and valor.tzinfo is None:
+        return valor.isoformat() + "+00:00"
+    return valor.isoformat()
+
+
 def iso_local(dt):
     """ISO 8601 já no fuso local, COM offset (ex.: 2026-07-03T14:30:00-03:00).
     Assim o navegador (new Date(...)) exibe a hora local correta."""

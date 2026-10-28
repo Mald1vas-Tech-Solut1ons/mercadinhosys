@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, Response, current_app
 from app import db
-from app.utils.timezone import fmt_local, hoje_local, local_date_to_utc_naive, to_local
+from app.utils.timezone import iso_utc, fmt_local, hoje_local, local_date_to_utc_naive, to_local
 from app.models import (
     Venda,
     VendaItem,
@@ -292,8 +292,8 @@ def calcular_estatisticas_vendas(query_base, estabelecimento_id):
         "total_itens": total_itens,
         "formas_pagamento": formas_dict,
         "periodo": {
-            "data_inicio": datas.inicio.isoformat() if datas and datas.inicio else None,
-            "data_fim": datas.fim.isoformat() if datas and datas.fim else None
+            "data_inicio": iso_utc(datas.inicio) if datas and datas.inicio else None,
+            "data_fim": iso_utc(datas.fim) if datas and datas.fim else None
         }
     }
 
@@ -370,7 +370,7 @@ def listar_vendas():
                 "valor_recebido": float(v.valor_recebido),
                 "troco": float(v.troco),
                 "status": v.status,
-                "data_venda": ((v.data_venda or v.created_at).replace(tzinfo=timezone.utc).isoformat()) if (v.data_venda or v.created_at) else None,
+                "data_venda": (iso_utc((v.data_venda or v.created_at).replace(tzinfo=timezone.utc))) if (v.data_venda or v.created_at) else None,
                 # data_formatada já convertida para o fuso LOCAL da loja (era exibido
                 # em UTC — 3h adiantado — porque fazia strftime no valor UTC cru).
                 "data_formatada": fmt_local(v.data_venda if v.data_venda else v.created_at),
@@ -474,7 +474,7 @@ def estatisticas_vendas():
                     proxima_data = ultima_data + timedelta(days=i)
                     x_futuro = n + i - 1
                     valor_previsto = max(0, a + b * x_futuro)
-                    previsao_vendas.append({"data": proxima_data.isoformat(), "total": round(valor_previsto, 2), "tipo": "previsao"})
+                    previsao_vendas.append({"data": iso_utc(proxima_data), "total": round(valor_previsto, 2), "tipo": "previsao"})
 
         vendas_historicas = [{"data": str(v.data), "quantidade": v.quantidade, "total": float(v.total or 0), "tipo": "historico"} for v in vendas_por_dia_res]
 
@@ -1066,8 +1066,8 @@ def obter_venda(venda_id):
             "troco": float(venda.troco),
             "status": venda.status,
             "observacoes": venda.observacoes,
-            "created_at": venda.created_at.isoformat(),
-            "data_atualizacao": venda.updated_at.isoformat() if venda.updated_at else None,
+            "created_at": iso_utc(venda.created_at),
+            "data_atualizacao": iso_utc(venda.updated_at) if venda.updated_at else None,
             "itens": [
                 {
                     "id": i.id,
@@ -1101,7 +1101,7 @@ def obter_venda(venda_id):
                     "quantidade_anterior": float(m.quantidade_anterior),
                     "quantidade_atual": float(m.quantidade_atual),
                     "motivo": m.motivo,
-                    "data": m.created_at.isoformat()
+                    "data": iso_utc(m.created_at)
                 } for m in movimentacoes
             ],
         }}), 200
@@ -1151,7 +1151,7 @@ def vendas_do_dia():
         ).group_by(VendaItem.produto_nome).order_by(func.sum(VendaItem.quantidade).desc()).limit(10).all()
 
         return jsonify({
-            "data": hoje.isoformat(),
+            "data": iso_utc(hoje),
             "vendas": [
                 {
                     "id": v.id,
@@ -1671,7 +1671,7 @@ def listar_carrinhos_ativos():
                     "cliente_id": v.cliente_id,
                     "total": float(v.total),
                     "quantidade_itens": int(v.quantidade_itens or 0),
-                    "iniciada_em": v.created_at.isoformat()
+                    "iniciada_em": iso_utc(v.created_at)
                 }
                 for v in vendas_ativas
             ]

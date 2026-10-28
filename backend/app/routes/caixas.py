@@ -6,6 +6,7 @@ from app.decorators.plan_guards import permission_required
 from app import db
 from app.models import Caixa, MovimentacaoCaixa, Estabelecimento, Funcionario, Auditoria
 from app.utils.sale_validation import number
+from app.utils.timezone import iso_utc
 
 caixas_bp = Blueprint("caixas", __name__)
 
@@ -426,7 +427,7 @@ def obter_resumo_caixa_atual():
                 "total_suprimentos": round(total_suprimentos, 2),
                 "por_forma_pagamento": dict(totais_por_forma),
                 # Marca UTC (como o to_dict): sem offset o navegador lia como hora local, 3h adiantada
-                "data_abertura": caixa.data_abertura.replace(tzinfo=timezone.utc).isoformat() if caixa.data_abertura else None,
+                "data_abertura": iso_utc(caixa.data_abertura.replace(tzinfo=timezone.utc)) if caixa.data_abertura else None,
             }
         }), 200
     except Exception as e:

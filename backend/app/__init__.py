@@ -18,6 +18,11 @@ from urllib.parse import urlparse
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
+def iso_utc(valor):
+    """Import tardio: app.utils carrega serviços que dependem de app (import circular)."""
+    from app.utils.timezone import iso_utc as _iso_utc
+    return _iso_utc(valor)
+
 try:
     import sentry_sdk
     from sentry_sdk.integrations.flask import FlaskIntegration
@@ -296,7 +301,7 @@ def create_app(config_name=None):
                         
                         cache.set(status_key, {
                             'status': plano_status,
-                            'vencimento': vencimento.isoformat() if vencimento else None
+                            'vencimento': iso_utc(vencimento) if vencimento else None
                         }, timeout=60)
                         
                     if plano_status in ['cancelado', 'inadimplente', 'suspenso']:
@@ -930,7 +935,7 @@ def create_app(config_name=None):
             "status": "healthy",
             "service": "mercadinhosys-api",
             "version": "2.0.0",
-            "timestamp": get_manaus_time().isoformat(),
+            "timestamp": iso_utc(get_manaus_time()),
         }
         database_ok = True
 
@@ -969,7 +974,7 @@ def create_app(config_name=None):
         readiness = {
             "status": "ready",
             "service": "mercadinhosys-api",
-            "timestamp": get_manaus_time().isoformat(),
+            "timestamp": iso_utc(get_manaus_time()),
             "checks": {},
         }
         status_code = 200
@@ -1069,7 +1074,7 @@ def create_app(config_name=None):
                     "error": "Erro interno no servidor",
                     "message": err_msg,
                     "code": "INTERNAL_SERVER_ERROR",
-                    "timestamp": get_manaus_time().isoformat(),
+                    "timestamp": iso_utc(get_manaus_time()),
                 }
             ),
             500,

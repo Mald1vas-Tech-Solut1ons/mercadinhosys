@@ -27,7 +27,7 @@ import string
 from sqlalchemy import func
 from app.utils.smart_cache import get_cached_config, set_cached_config
 from app.utils.query_helpers import get_funcionario_safe, get_produto_safe, get_venda_safe, get_venda_itens_safe
-from app.utils.timezone import fmt_local
+from app.utils.timezone import iso_utc, fmt_local
 from app.decorators.plan_guards import normalize_plan, plano_efetivo
 
 pdv_bp = Blueprint("pdv", __name__)
@@ -171,7 +171,7 @@ def calcular_rfm_cliente(cliente_id: int, estabelecimento_id: int) -> dict:
         "frequency_score": frequency_score,
         "monetary": round(monetary, 2),
         "monetary_score": monetary_score,
-        "ultima_compra": ultima_compra.isoformat() if ultima_compra else None
+        "ultima_compra": iso_utc(ultima_compra) if ultima_compra else None
     }
 
 
@@ -676,7 +676,7 @@ def catalogo_offline():
         } for r in q.all()]
         return jsonify({
             "success": True, "produtos": produtos, "total": len(produtos),
-            "gerado_em": datetime.now(timezone.utc).isoformat(),
+            "gerado_em": iso_utc(datetime.now(timezone.utc)),
         }), 200
     except Exception as e:
         current_app.logger.error(f"Erro em catalogo_offline: {e}")
@@ -1308,7 +1308,7 @@ def vendas_hoje():
 
         return jsonify({
             "success": True,
-            "data": hoje.isoformat(),
+            "data": iso_utc(hoje),
             "resumo": {
                 "total_vendas": round(total_vendas, 2),
                 "quantidade_vendas": quantidade_vendas,

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, List, Optional
 from app.models import db, Venda, Cliente
+from app.utils.timezone import iso_utc
 
 class RFMService:
     """Serviço de análise RFM"""
@@ -88,7 +89,7 @@ class RFMService:
             "monetary": round(monetary, 2),
             "monetary_score": monetary_score,
             "rfm_score": round(rfm_score, 2),
-            "ultima_compra": ultima_compra.isoformat() if ultima_compra else None
+            "ultima_compra": iso_utc(ultima_compra) if ultima_compra else None
         }
     
     @staticmethod
@@ -222,7 +223,7 @@ class RFMService:
             "total_clientes": total_clientes,
             "segmentos": segmentos,
             "janela_dias": janela_dias,
-            "data_analise": datetime.now(timezone.utc).isoformat()
+            "data_analise": iso_utc(datetime.now(timezone.utc))
         }
     
     @staticmethod

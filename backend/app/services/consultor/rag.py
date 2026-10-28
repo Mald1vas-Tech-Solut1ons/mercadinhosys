@@ -3,6 +3,7 @@ import json
 import unicodedata
 from datetime import datetime, timezone
 from .contextos import obter_contexto
+from app.utils.timezone import iso_utc
 
 RULES = (
     'Responda em português usando somente as evidências recuperadas. '
@@ -68,7 +69,7 @@ def recuperar_evidencias(especialista, tenant, is_manager, builders, pergunta=''
             limited = reduced
         sources.append({'fonte': topic, 'dados': limited,
                         'observacao': 'Listas limitadas aos primeiros registros recuperados; totais preservados.'})
-    return {'estabelecimento_id': tenant, 'consultado_em_utc': datetime.now(timezone.utc).isoformat(),
+    return {'estabelecimento_id': tenant, 'consultado_em_utc': iso_utc(datetime.now(timezone.utc)),
             'cache_max_segundos': 300, 'fontes': sources}
 
 def mensagens_rag(system_prompt, evidencias, pergunta):

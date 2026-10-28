@@ -16,7 +16,7 @@ from app.decorators.decorator_jwt import funcionario_required
 from app.services.estoque_service import quantidade_valida
 from app.services.fornecedor_score import aplicar_metricas, calcular_metricas
 from app.utils.sale_validation import number
-from app.utils.timezone import now_utc
+from app.utils.timezone import iso_utc, now_utc
 
 pedidos_compra_bp = Blueprint('pedidos_compra', __name__)
 
@@ -122,7 +122,7 @@ def listar_pedidos():
                         'vencido': vencido,
                         'valor_original': float(cp.valor_original) if cp.valor_original else None,
                         'valor_pago': float(cp.valor_pago) if cp.valor_pago else None,
-                        'data_vencimento': cp.data_vencimento.isoformat() if cp.data_vencimento else None,
+                        'data_vencimento': iso_utc(cp.data_vencimento) if cp.data_vencimento else None,
                         'numero_documento': cp.numero_documento,
                     }
                 else:
@@ -711,7 +711,7 @@ def listar_boletos():
             conta_dict['fornecedor_nome'] = conta.fornecedor.nome_fantasia if conta.fornecedor else None
             conta_dict['pedido_numero'] = conta.pedido_compra.numero_pedido if conta.pedido_compra else None
             conta_dict['pedido_id'] = conta.pedido_compra.id if conta.pedido_compra else None
-            conta_dict['data_pedido'] = conta.pedido_compra.data_pedido.isoformat() if conta.pedido_compra and conta.pedido_compra.data_pedido else None
+            conta_dict['data_pedido'] = iso_utc(conta.pedido_compra.data_pedido) if conta.pedido_compra and conta.pedido_compra.data_pedido else None
             conta_dict['itens'] = [item.to_dict() for item in conta.pedido_compra.itens] if conta.pedido_compra else []
             
             # Calcular dias para vencimento

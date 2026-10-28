@@ -15,7 +15,7 @@ from datetime import timedelta
 from difflib import SequenceMatcher
 
 from app.models import Cliente, Fornecedor, Produto, Venda
-from app.utils.timezone import hoje_local
+from app.utils.timezone import iso_utc, hoje_local
 
 _LIMITE_CANDIDATOS = 5000
 
@@ -134,7 +134,7 @@ def buscar(estab_id, q: str, limite: int = 6) -> dict:
             "id": p.id, "nome": p.nome, "codigo_barras": p.codigo_barras,
             "quantidade": float(p.quantidade or 0), "unidade": p.unidade_medida,
             "preco_venda": float(p.preco_venda or 0),
-            "data_validade": p.data_validade.isoformat() if p.data_validade else None,
+            "data_validade": iso_utc(p.data_validade) if p.data_validade else None,
         })
 
     if not tokens:  # só filtro de estado: a resposta é de produtos
@@ -165,6 +165,6 @@ def buscar(estab_id, q: str, limite: int = 6) -> dict:
         for v in vendas:
             resultado["vendas"].append({
                 "id": v.id, "codigo": v.codigo, "total": float(v.total or 0), "status": v.status,
-                "data_venda": v.data_venda.isoformat() + "+00:00" if v.data_venda else None,
+                "data_venda": iso_utc(v.data_venda) if v.data_venda else None,
             })
     return resultado

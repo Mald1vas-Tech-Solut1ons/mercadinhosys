@@ -42,6 +42,7 @@ import os
 from app.decorators.rbac import super_admin_required
 from app.middleware.rate_limit import limiter
 from flask_limiter.util import get_remote_address
+from app.utils.timezone import iso_utc
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -99,7 +100,7 @@ def health_check():
 
         "environment": environment,
 
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": iso_utc(datetime.now(timezone.utc)),
 
         "version": "2.0.0"
 
@@ -360,7 +361,7 @@ def login():
 
             "plano": plano_estabelecimento,  # 🎯 PLANO SaaS para controle de acesso
 
-            "login_time": datetime.now(timezone.utc).isoformat()
+            "login_time": iso_utc(datetime.now(timezone.utc))
 
         }
 
@@ -523,7 +524,7 @@ def refresh():
 
             "is_super_admin": claims.get("is_super_admin", False),
 
-            "refresh_time": datetime.now(timezone.utc).isoformat(),
+            "refresh_time": iso_utc(datetime.now(timezone.utc)),
 
             "ip_address": request.remote_addr,
 
@@ -771,7 +772,7 @@ def validate_token():
 
                             "expires_at": (
 
-                                exp_time.isoformat() if exp_timestamp else None
+                                iso_utc(exp_time) if exp_timestamp else None
 
                             ),
 
@@ -897,7 +898,7 @@ def logout():
 
                     "message": "Logout realizado com sucesso",
 
-                    "logout_time": datetime.now(timezone.utc).isoformat(),
+                    "logout_time": iso_utc(datetime.now(timezone.utc)),
 
                 }
 
@@ -1017,7 +1018,7 @@ def get_profile():
 
             "data_admissao": (
 
-                funcionario_data.get("data_admissao").isoformat()
+                iso_utc(funcionario_data.get("data_admissao"))
 
                 if funcionario_data.get("data_admissao") and hasattr(funcionario_data.get("data_admissao"), "isoformat")
 
@@ -1027,7 +1028,7 @@ def get_profile():
 
             "data_demissao": (
 
-                funcionario_data.get("data_demissao").isoformat()
+                iso_utc(funcionario_data.get("data_demissao"))
 
                 if funcionario_data.get("data_demissao") and hasattr(funcionario_data.get("data_demissao"), "isoformat")
 
@@ -1357,7 +1358,7 @@ def get_sessions():
 
                     "id": sessao.id,
 
-                    "login_time": sessao.data_cadastro.isoformat(),
+                    "login_time": iso_utc(sessao.data_cadastro),
 
                     "ip_address": sessao.ip_address,
 
@@ -1389,7 +1390,7 @@ def get_sessions():
 
             "expires_at": (
 
-                datetime.fromtimestamp(claims.get("exp")).isoformat()
+                iso_utc(datetime.fromtimestamp(claims.get("exp")))
 
                 if claims.get("exp")
 
@@ -1848,7 +1849,7 @@ def guest_demo():
 
             "estabelecimento_nome": demo_est.nome_fantasia,
 
-            "login_time": datetime.now(timezone.utc).isoformat(),
+            "login_time": iso_utc(datetime.now(timezone.utc)),
 
             "status": "ativo",
 

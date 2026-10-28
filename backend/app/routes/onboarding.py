@@ -17,6 +17,7 @@ onboarding_bp = Blueprint("onboarding", __name__)
 TRIAL_DIAS = 30
 
 from app.decorators.rbac import super_admin_required
+from app.utils.timezone import iso_utc
 
 @onboarding_bp.route("/registrar", methods=["POST"])
 def registrar_conta():
@@ -194,7 +195,7 @@ def registrar_conta():
                 "senha_temporaria": senha_temporaria if senha_foi_gerada else None,
                 "trial": {
                     "dias": TRIAL_DIAS,
-                    "vencimento": (date.today() + timedelta(days=TRIAL_DIAS)).isoformat(),
+                    "vencimento": iso_utc((date.today() + timedelta(days=TRIAL_DIAS))),
                 },
             })), 201
 

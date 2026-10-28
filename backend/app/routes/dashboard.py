@@ -11,6 +11,7 @@ from app.decorators.plan_guards import plan_required
 import logging
 from datetime import datetime, timezone
 from sqlalchemy import and_
+from app.utils.timezone import iso_utc
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -143,7 +144,7 @@ def dashboard_cientifico():
         payload = {
             "success": True,
             "metadata": {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": iso_utc(datetime.now(timezone.utc)),
                 "version": "2.0",
                 "cache_strategy": "smartcache",
                 "period_days": days
@@ -296,7 +297,7 @@ def rh_ponto_espelho():
 
         espelho["assinatura"] = {
             "assinado": assinatura is not None,
-            "assinado_em": assinatura.assinado_em.isoformat() if assinatura and assinatura.assinado_em else None,
+            "assinado_em": iso_utc(assinatura.assinado_em) if assinatura and assinatura.assinado_em else None,
         }
 
         return jsonify({"success": True, "data": espelho}), 200
@@ -346,7 +347,7 @@ def assinar_espelho_ponto():
         return jsonify({
             "success": True,
             "message": "Espelho de ponto assinado com sucesso",
-            "data": {"assinado": True, "assinado_em": assinatura.assinado_em.isoformat() if assinatura.assinado_em else None},
+            "data": {"assinado": True, "assinado_em": iso_utc(assinatura.assinado_em) if assinatura.assinado_em else None},
         }), 200
     except Exception as e:
         logger.error(f"Erro assinar_espelho_ponto: {e}", exc_info=True)
@@ -447,14 +448,14 @@ def dashboard_alertas():
                         "id": f"v_{p.id}",
                         "tipo": "vencido",
                         "produto_nome": p.nome,
-                        "data_validade": p.data_validade.isoformat()
+                        "data_validade": iso_utc(p.data_validade)
                     })
                 elif p.data_validade <= limite_validade:
                     alertas.append({
                         "id": f"vp_{p.id}",
                         "tipo": "vencimento",
                         "produto_nome": p.nome,
-                        "data_validade": p.data_validade.isoformat()
+                        "data_validade": iso_utc(p.data_validade)
                     })
                     
         def get_priority(a):

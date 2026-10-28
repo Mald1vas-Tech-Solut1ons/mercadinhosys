@@ -20,6 +20,7 @@ from app.models import (
     ContaPagar,
 )
 from app.utils import validar_cnpj, validar_email, formatar_telefone
+from app.utils.timezone import iso_utc
 
 fornecedores_bp = Blueprint("fornecedores", __name__)
 
@@ -215,7 +216,7 @@ def listar_fornecedores():
             # Adicionar última compra de forma segura
             try:
                 last_order = fornecedor.pedidos_compra.order_by(PedidoCompra.data_pedido.desc()).first()
-                fornecedor_dict["ultima_compra"] = last_order.data_pedido.isoformat() if last_order and last_order.data_pedido else None
+                fornecedor_dict["ultima_compra"] = iso_utc(last_order.data_pedido) if last_order and last_order.data_pedido else None
             except Exception:
                 fornecedor_dict["ultima_compra"] = None
 
@@ -334,7 +335,7 @@ def obter_fornecedor(id):
                     "id": pedido.id,
                     "numero_pedido": pedido.numero_pedido,
                     "data_pedido": (
-                        pedido.data_pedido.isoformat() if pedido.data_pedido else None
+                        iso_utc(pedido.data_pedido) if pedido.data_pedido else None
                     ),
                     "status": pedido.status,
                     "total": float(pedido.total),
@@ -843,7 +844,7 @@ def estatisticas_fornecedores():
                     "id": f.id,
                     "nome": f.nome_fantasia,
                     "data_cadastro": (
-                        f.data_cadastro.isoformat() if f.data_cadastro else None
+                        iso_utc(f.data_cadastro) if f.data_cadastro else None
                     ),
                     "classificacao": calcular_classificacao_fornecedor(f),
                 }
@@ -920,10 +921,10 @@ def listar_pedidos_fornecedor(id):
                     "id": pedido.id,
                     "numero_pedido": pedido.numero_pedido,
                     "data_pedido": (
-                        pedido.data_pedido.isoformat() if pedido.data_pedido else None
+                        iso_utc(pedido.data_pedido) if pedido.data_pedido else None
                     ),
                     "data_previsao_entrega": (
-                        pedido.data_previsao_entrega.isoformat()
+                        iso_utc(pedido.data_previsao_entrega)
                         if pedido.data_previsao_entrega
                         else None
                     ),
@@ -1494,7 +1495,7 @@ def get_inteligencia(id):
                     timeline.append({
                         "id": p.id,
                         "numero": p.numero_pedido,
-                        "data": data_receb.isoformat(),
+                        "data": iso_utc(data_receb),
                         "total": float(p.total),
                         "atraso_dias": diff,
                         "no_prazo": diff <= 0
@@ -1512,7 +1513,7 @@ def get_inteligencia(id):
                 timeline.append({
                     "id": m.id,
                     "numero": f"MOV-{m.id}",
-                    "data": m.created_at.date().isoformat() if m.created_at else None,
+                    "data": iso_utc(m.created_at.date()) if m.created_at else None,
                     "total": float(m.valor_total or 0),
                     "atraso_dias": 0,
                     "no_prazo": True

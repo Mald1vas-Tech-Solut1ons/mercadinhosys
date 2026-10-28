@@ -14,6 +14,7 @@ import logging
 from app.models import db, Cliente, Funcionario, Estabelecimento, Auditoria
 from app.decorators.decorator_jwt import funcionario_required
 from app.utils.query_helpers import get_authorized_establishment_id, get_funcionario_safe
+from app.utils.timezone import iso_utc
 
 lgpd_bp = Blueprint("lgpd", __name__)
 logger = logging.getLogger(__name__)
@@ -150,7 +151,7 @@ def solicitar_exclusao_lgpd():
                 "funcionarios_anonimizados": cnt_func,
                 "motoristas_anonimizados": cnt_motoristas,
                 "historico_financeiro_preservado": True,
-                "executado_em": datetime.now(timezone.utc).isoformat()
+                "executado_em": iso_utc(datetime.now(timezone.utc))
             }
         }), 200
 

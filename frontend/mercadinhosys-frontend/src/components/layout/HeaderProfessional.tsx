@@ -2,7 +2,8 @@ import FotoUpload from '../ui/FotoUpload';
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, Moon, Sun, ChevronDown, X } from 'lucide-react';
+import { User, LogOut, Settings, Moon, Sun, ChevronDown, X, Search } from 'lucide-react';
+import { abrirBuscaGlobal } from '../busca/BuscaGlobal';
 import { useConfig } from '../../contexts/ConfigContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../theme/useTheme';
@@ -407,6 +408,15 @@ const HeaderProfessional = () => {
 
                         {/* Desktop Actions */}
                         <div className="hidden md:flex items-center gap-3 shrink-0">
+                            <button
+                                onClick={abrirBuscaGlobal}
+                                className="flex items-center gap-2 w-64 lg:w-80 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 transition-colors"
+                                title="Buscar (Ctrl+K)"
+                            >
+                                <Search className="w-4 h-4" />
+                                <span className="flex-1 text-left">Buscar…</span>
+                                <kbd className="text-[10px] font-bold border border-gray-200 dark:border-gray-600 rounded px-1.5 py-0.5">Ctrl K</kbd>
+                            </button>
                             {isSuperAdmin && <EstablishmentSelector />}
                             <InstallButton />
 
@@ -444,6 +454,9 @@ const HeaderProfessional = () => {
 
                         {/* Mobile Actions (tema apenas) */}
                         <div className="flex md:hidden items-center gap-2 shrink-0">
+                            <button onClick={abrirBuscaGlobal} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="Buscar">
+                                <Search className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                            </button>
                             <InstallButton className="md:hidden" />
                             <button
                                 onClick={toggleTheme}

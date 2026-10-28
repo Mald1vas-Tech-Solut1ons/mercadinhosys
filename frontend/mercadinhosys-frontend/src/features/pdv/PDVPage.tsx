@@ -35,6 +35,7 @@ import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { dataLocalISO } from '../../utils/dataLocal';
+import { confirmar } from '../../components/ui/Confirmacao';
 
 export interface VendaConcluida {
     id: number;
@@ -292,8 +293,8 @@ const PDVPage: React.FC = () => {
         setFormaPagamentoAberta(true);
     };
 
-    const handleLimparCarrinho = () => {
-        if (carrinho.length > 0 && confirm('Deseja realmente cancelar esta venda?')) {
+    const handleLimparCarrinho = async () => {
+        if (carrinho.length > 0 && await confirmar({ titulo: 'Cancelar esta venda?', mensagem: 'Os itens do carrinho serão removidos.', acao: 'Cancelar venda', cancelar: 'Continuar vendendo', perigo: true })) {
             limparCarrinho();
             showToast.warning('Venda cancelada');
         }

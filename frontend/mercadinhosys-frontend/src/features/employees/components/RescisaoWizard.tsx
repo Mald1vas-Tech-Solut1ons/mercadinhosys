@@ -6,6 +6,7 @@ import { apiClient } from '../../../api/apiClient';
 import { showToast } from '../../../components/elements/Toast';
 import folhaService, { RescisaoData, TipoRescisao, RescisaoRegistro } from '../folhaService';
 import { dataDoDia } from '../../../utils/dataLocal';
+import { confirmar } from '../../../components/ui/Confirmacao';
 
 /**
  * Wizard de Demissão (Rescisão) — Admin/Gerente/RH.
@@ -135,7 +136,7 @@ export default function RescisaoWizard() {
 
     const reverterRescisao = async (r: RescisaoRegistro) => {
         const nome = nomeHist(r);
-        if (!window.confirm(`Deseja realmente cancelar a demissão de "${nome}" e reativar o colaborador?`)) return;
+        if (!(await confirmar({ titulo: `Cancelar a demissão de ${nome}?`, mensagem: 'O colaborador volta a ficar ativo.', acao: 'Cancelar demissão' }))) return;
         try {
             await folhaService.cancelarRescisao(r.id);
             showToast.success(`Demissão de ${nome} cancelada com sucesso. Colaborador reativado!`);

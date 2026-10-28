@@ -4,6 +4,7 @@ import { showToast } from '../../../components/elements/Toast';
 import beneficiosService, { Beneficio, FuncionarioSimples, BeneficioCatalogo } from '../beneficiosService';
 import { formatCurrency } from '../../../utils/formatters';
 import { dataLocalISO } from '../../../utils/dataLocal';
+import { confirmar } from '../../../components/ui/Confirmacao';
 
 export default function BeneficiosRH() {
   const [activeTab, setActiveTab] = useState<'atribuicoes' | 'catalogo'>('atribuicoes');
@@ -119,7 +120,7 @@ export default function BeneficiosRH() {
   };
 
   const handleExcluirCatalogo = async (id: number) => {
-    if (!confirm('Deseja inativar este benefício do catálogo? Novas atribuições não poderão usá-lo.')) return;
+    if (!(await confirmar({ titulo: 'Inativar este benefício?', mensagem: 'Novas atribuições não poderão usá-lo.', acao: 'Inativar benefício', perigo: true }))) return;
     try {
       await beneficiosService.excluirBeneficioCatalogo(id);
       showToast.success('Benefício inativado');

@@ -9,6 +9,7 @@ import { pontoService } from './pontoService';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { dataLocalISO } from '../../utils/dataLocal';
+import { showToast } from '../../utils/toast';
 
 interface RelatorioData {
   success: boolean;
@@ -93,7 +94,7 @@ const RelatoriosPontoPage: React.FC = () => {
       pdf.save(`relatorio_ponto_${dataInicio}_${dataFim}.pdf`);
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
-      alert('Erro ao exportar PDF');
+      showToast.error('Erro ao exportar PDF');
     }
   };
 

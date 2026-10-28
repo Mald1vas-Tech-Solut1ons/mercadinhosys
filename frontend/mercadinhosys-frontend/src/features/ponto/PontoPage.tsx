@@ -18,6 +18,7 @@ import { pontoService, RegistroPonto, ConfiguracaoHorario, EstatisticasPonto } f
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 import { showToast } from '../../utils/toast';
+import { confirmar } from '../../components/ui/Confirmacao';
 
 // Função auxiliar para construir URL completa da foto
 const construirUrlFoto = (fotoUrl: string | null | undefined): string => {
@@ -198,7 +199,7 @@ const PontoPage: React.FC = () => {
 
     } catch (error: any) {
       console.error('❌ Erro ao acessar câmera:', error.name, error.message);
-      alert(`Erro: ${error.message}\n\nVerifique as permissões de câmera`);
+      showToast.error(`Erro: ${error.message}\n\nVerifique as permissões de câmera`);
       setShowCamera(false);
     }
   };
@@ -217,7 +218,7 @@ const PontoPage: React.FC = () => {
       if (context) {
         // Esperar um pouco para o vídeo carregar
         if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
-          alert('⏳ Aguarde a câmera carregar completamente!');
+          showToast.warning('⏳ Aguarde a câmera carregar completamente!');
           return;
         }
 
@@ -243,13 +244,13 @@ const PontoPage: React.FC = () => {
       if (!validacao.valido) {
         showToast.error(validacao.mensagem);
         if (validacao.alerta) {
-          alert(validacao.alerta);
+          showToast.warning(validacao.alerta);
         }
         return;
       }
 
       if (validacao.alerta) {
-        const continuar = confirm(`${validacao.mensagem}\n\n${validacao.alerta}\n\nDeseja continuar mesmo assim?`);
+        const continuar = await confirmar({ titulo: validacao.mensagem, mensagem: validacao.alerta, acao: 'Registrar mesmo assim' });
         if (!continuar) return;
       }
 
@@ -279,11 +280,11 @@ const PontoPage: React.FC = () => {
           return;
         }
 
-        const permitirSemLocalizacao = confirm(
-          'Não foi possível obter sua localização.\n\n' +
-          'Verifique se você permitiu o acesso à localização no navegador.\n\n' +
-          'Deseja continuar sem localização?'
-        );
+        const permitirSemLocalizacao = await confirmar({
+          titulo: 'Não foi possível obter sua localização',
+          mensagem: 'Verifique se você permitiu o acesso à localização no navegador.',
+          acao: 'Registrar sem localização',
+        });
 
         if (!permitirSemLocalizacao) {
           setLoading(false);
@@ -301,7 +302,7 @@ const PontoPage: React.FC = () => {
       }
 
       if (!foto) {
-        const tirarFotoAgora = confirm('Deseja tirar uma foto para este registro?');
+        const tirarFotoAgora = await confirmar({ titulo: 'Tirar uma foto para este registro?', acao: 'Tirar foto', cancelar: 'Registrar sem foto' });
         if (tirarFotoAgora) {
           await iniciarCamera();
           setLoading(false);

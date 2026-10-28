@@ -11,6 +11,7 @@ import { showToast } from '../../utils/toast';
 import ImageZoomModal from '../../components/ui/ImageZoomModal';
 import './ProductHubPage.css';
 import { dataDoDia } from '../../utils/dataLocal';
+import { confirmar } from '../../components/ui/Confirmacao';
 
 export default function ProductHubPage() {
     const { id } = useParams<{ id: string }>();
@@ -372,10 +373,7 @@ export default function ProductHubPage() {
                 </button>
                 <button 
                     onClick={async () => {
-                        const confirmMsg = produto.ativo 
-                            ? 'Deseja realmente inativar este produto? Ele não aparecerá nas listagens padrão.' 
-                            : 'Deseja reativar este produto?';
-                        if (window.confirm(confirmMsg)) {
+                        if (await confirmar({ titulo: produto.ativo ? 'Inativar este produto?' : 'Reativar este produto?', mensagem: produto.ativo ? 'Ele não aparecerá nas listagens padrão.' : undefined, acao: produto.ativo ? 'Inativar produto' : 'Reativar produto', perigo: !!produto.ativo })) {
                             try {
                                 await productsService.toggleProductStatus(produto.id, !produto.ativo);
                                 showToast.success(produto.ativo ? 'Produto inativado com sucesso.' : 'Produto reativado com sucesso.');

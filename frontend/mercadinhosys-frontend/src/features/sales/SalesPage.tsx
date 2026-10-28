@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 import {
     Chart as ChartJS, BarElement, CategoryScale, LinearScale,
@@ -150,7 +151,8 @@ export default function SalesPage() {
 
     const [filtros, setFiltros] = useState({
         data_inicio: isoDate(new Date(Date.now() - 30 * 86400000)), data_fim: isoDate(),
-        search: "", status: "", forma_pagamento: "", page: 1,
+        // ?busca= vem da busca global (Ctrl+K): abre a lista já filtrada pela venda escolhida.
+        search: new URLSearchParams(window.location.search).get("busca") || "", status: "", forma_pagamento: "", page: 1,
     });
 
     const setQuickDate = (dias: number) => {
@@ -194,6 +196,14 @@ export default function SalesPage() {
     }, [filtros]);
 
     useEffect(() => { carregarVendas(); carregarAnalytics(); /* eslint-disable-next-line */ }, []);
+
+    // Busca global escolhida com a tela de Vendas já aberta: aplica o novo termo.
+    const buscaUrl = useLocation().search;
+    useEffect(() => {
+        const termo = new URLSearchParams(buscaUrl).get("busca");
+        if (termo !== null && termo !== filtros.search) onSearch(termo);
+        /* eslint-disable-next-line */
+    }, [buscaUrl]);
 
     const onSearch = (val: string) => {
         const novo = { ...filtros, search: val, page: 1 }; setFiltros(novo);
@@ -416,7 +426,7 @@ export default function SalesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3">
                     <div className="lg:col-span-2 relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input defaultValue={filtros.search} onChange={(e) => onSearch(e.target.value)} placeholder="Buscar por código ou cliente..." className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
+                        <input value={filtros.search} onChange={(e) => onSearch(e.target.value)} placeholder="Buscar por código ou cliente..." className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
                     </div>
                     <input type="date" value={filtros.data_inicio} onChange={(e) => aplicar({ data_inicio: e.target.value })} className="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-primary-500" />
                     <input type="date" value={filtros.data_fim} onChange={(e) => aplicar({ data_fim: e.target.value })} className="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-primary-500" />

@@ -5,6 +5,7 @@ import LinkAcessoPainel, { LinkAcesso } from './LinkAcessoPainel';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../api/apiClient';
 import { isValidCNPJ } from '../../utils/validators';
+import { showToast } from '../../utils/toast';
 
 interface EstabelecimentoDetalheModalProps {
     estabelecimento: any;
@@ -70,7 +71,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
 
     const handleSave = async () => {
         if (formData.cnpj && !isValidCNPJ(formData.cnpj)) {
-            alert('CNPJ inválido!');
+            showToast.error('CNPJ inválido!');
             return;
         }
         try {
@@ -81,7 +82,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
             else window.location.reload();
         } catch (error) {
             console.error('Erro ao salvar:', error);
-            alert('Falha ao atualizar dados.');
+            showToast.error('Falha ao atualizar dados.');
         } finally {
             setIsSaving(false);
         }
@@ -98,7 +99,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
             else window.location.reload(); // Fallback se não receber prop
         } catch (error) {
             console.error('Erro ao atualizar plano:', error);
-            alert('Falha ao atualizar o plano.');
+            showToast.error('Falha ao atualizar o plano.');
         } finally {
             setIsSavingPlan(false);
         }

@@ -6,6 +6,7 @@ import HeaderProfessional from './HeaderProfessional';
 import FootPage from './FootPage';
 import BottomNavigation from './BottomNavigation';
 import GlobalShortcuts from '../../shortcuts/GlobalShortcuts';
+import BuscaGlobal from '../busca/BuscaGlobal';
 import TrialNotice from '../../features/trial/TrialNotice';
 import usePullToRefresh from '../../hooks/usePullToRefresh';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
@@ -47,6 +48,7 @@ const MainLayout: React.FC = () => {
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
             <GlobalShortcuts />
+            <BuscaGlobal />
             <TrialNotice />
             
             <TourExecutivo />

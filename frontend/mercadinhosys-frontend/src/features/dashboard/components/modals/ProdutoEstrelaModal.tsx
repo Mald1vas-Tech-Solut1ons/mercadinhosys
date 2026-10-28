@@ -2,6 +2,7 @@ import React from 'react';
 import { Star, DollarSign, Target, TrendingUp, AlertCircle } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import ResponsiveModal from '../../../../components/ui/ResponsiveModal';
+import { showToast } from '../../../../utils/toast';
 
 interface ProdutoEstrelaData {
   id: number;
@@ -48,7 +49,7 @@ export const ProdutoEstrelaModal: React.FC<ProdutoEstrelaModalProps> = ({
       `4. Negociar desconto com fornecedor`;
 
     navigator.clipboard.writeText(plano);
-    alert('Plano de ação copiado para área de transferência!');
+    showToast.success('Plano de ação copiado para área de transferência!');
   };
 
   return (

@@ -149,8 +149,10 @@ export default function SalesPage() {
         return () => { ativo = false; };
     }, []);
 
+    // ?de= e ?ate= vêm dos cards do dashboard: abre no mesmo período que formou o número.
+    const urlInicial = new URLSearchParams(window.location.search);
     const [filtros, setFiltros] = useState({
-        data_inicio: isoDate(new Date(Date.now() - 30 * 86400000)), data_fim: isoDate(),
+        data_inicio: urlInicial.get("de") || isoDate(new Date(Date.now() - 30 * 86400000)), data_fim: urlInicial.get("ate") || isoDate(),
         // ?busca= vem da busca global (Ctrl+K): abre a lista já filtrada pela venda escolhida.
         search: new URLSearchParams(window.location.search).get("busca") || "", status: "", forma_pagamento: "", page: 1,
     });
@@ -200,8 +202,11 @@ export default function SalesPage() {
     // Busca global escolhida com a tela de Vendas já aberta: aplica o novo termo.
     const buscaUrl = useLocation().search;
     useEffect(() => {
-        const termo = new URLSearchParams(buscaUrl).get("busca");
+        const params = new URLSearchParams(buscaUrl);
+        const termo = params.get("busca");
         if (termo !== null && termo !== filtros.search) onSearch(termo);
+        const de = params.get("de"), ate = params.get("ate");
+        if (de && ate && (de !== filtros.data_inicio || ate !== filtros.data_fim)) aplicar({ data_inicio: de, data_fim: ate });
         /* eslint-disable-next-line */
     }, [buscaUrl]);
 

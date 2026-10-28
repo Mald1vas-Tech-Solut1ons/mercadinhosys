@@ -392,6 +392,35 @@ def analise_detalhada(tipo: str):
 def dashboard_status():
     return jsonify({"status": "operational"})
 
+@dashboard_bp.route("/comparativo", methods=["GET"])
+@gerente_ou_admin_required
+def dashboard_comparativo():
+    """Período atual x anterior de mesma duração e a ponte do faturamento.
+
+    ?days=30 ou ?start_date=AAAA-MM-DD&end_date=AAAA-MM-DD (dias da loja).
+    """
+    from datetime import date
+    from app.services.comparativo_service import comparar
+    try:
+        estabelecimento_id = get_establishment_id()
+        if estabelecimento_id == "all":
+            return jsonify({"success": False, "error": "Escolha uma loja para comparar períodos."}), 400
+        ini, fim = request.args.get("start_date"), request.args.get("end_date")
+        if ini and fim:
+            inicio, final = date.fromisoformat(ini[:10]), date.fromisoformat(fim[:10])
+            if final < inicio:
+                return jsonify({"success": False, "error": "Data final antes da inicial."}), 400
+            resultado = comparar(estabelecimento_id, inicio=inicio, fim=final)
+        else:
+            resultado = comparar(estabelecimento_id, dias=request.args.get("days", default=30, type=int))
+        return jsonify({"success": True, **resultado})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Erro no comparativo de períodos: {e}")
+        return jsonify({"success": False, "error": "Erro ao comparar períodos"}), 500
+
+
 @dashboard_bp.route("/alertas", methods=["GET"])
 @jwt_required()
 def dashboard_alertas():

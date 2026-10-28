@@ -170,6 +170,7 @@ def matriz(produto) -> dict:
         celulas.append({
             "id": v.id, "nome": v.nome, "numeracao": n, "cor": c,
             "quantidade": float(v.quantidade or 0), "quantidade_minima": float(v.quantidade_minima or 0),
+            "vendidos": float(v.quantidade_vendida or 0),
             "codigo_barras": v.codigo_barras, "codigo_interno": v.codigo_interno,
             "preco_venda": float(v.preco_venda or 0), "ativo": bool(v.ativo),
         })
@@ -185,4 +186,5 @@ def matriz(produto) -> dict:
         "modelo": {"id": modelo.id, "nome": modelo.nome, "codigo_interno": modelo.codigo_interno},
         "numeracoes": numeracoes, "cores": cores, "celulas": celulas,
         "total": float(sum(c["quantidade"] for c in celulas)),
+        "total_vendidos": float(sum(c["vendidos"] for c in celulas)),
     }

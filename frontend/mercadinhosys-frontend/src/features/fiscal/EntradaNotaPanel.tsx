@@ -152,19 +152,19 @@ export default function EntradaNotaPanel({ abrirLeitor = false, textoCompartilha
                     className={`sm:col-span-1 flex items-center gap-3 rounded-2xl border-2 border-dashed p-4 text-left transition ${dragOver ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-300 dark:border-slate-700 hover:border-primary-400'}`}>
                     <Upload className="w-8 h-8 shrink-0 text-slate-400" />
                     <span><span className="block font-bold text-slate-700 dark:text-slate-200">Enviar XML da NF-e</span>
-                        <span className="block text-xs text-slate-500">Arquivo que o fornecedor manda por e-mail</span></span>
+                        <span className="block text-xs text-slate-500 dark:text-gray-400">Arquivo que o fornecedor manda por e-mail</span></span>
                 </button>
                 <button type="button" onClick={() => setLeitorAberto(true)}
                     className="flex items-center gap-3 rounded-2xl border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 p-4 text-left">
                     <QrCode className="w-8 h-8 shrink-0 text-primary-600" />
                     <span><span className="block font-bold text-primary-700 dark:text-primary-300">Nota fiscal (QR Code)</span>
-                        <span className="block text-xs text-slate-500">Cupom NFC-e de SP: itens lidos na SEFAZ</span></span>
+                        <span className="block text-xs text-slate-500 dark:text-gray-400">Cupom NFC-e de SP: itens lidos na SEFAZ</span></span>
                 </button>
                 <button type="button" onClick={() => setLeitorAberto(true)}
                     className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 text-left">
-                    <ScanLine className="w-8 h-8 shrink-0 text-slate-500" />
+                    <ScanLine className="w-8 h-8 shrink-0 text-slate-500 dark:text-gray-400" />
                     <span><span className="block font-bold text-slate-700 dark:text-slate-200">Ler chave da nota</span>
-                        <span className="block text-xs text-slate-500">Código de barras do DANFE (44 dígitos)</span></span>
+                        <span className="block text-xs text-slate-500 dark:text-gray-400">Código de barras do DANFE (44 dígitos)</span></span>
                 </button>
                 <input ref={inputRef} type="file" accept=".xml,text/xml,application/xml,application/octet-stream" className="hidden"
                     onChange={(e) => { const f = e.target.files?.[0]; if (f) processarArquivo(f); e.currentTarget.value = ''; }} />
@@ -199,7 +199,7 @@ export default function EntradaNotaPanel({ abrirLeitor = false, textoCompartilha
                                 <li key={n.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
                                     <div className="min-w-0">
                                         <p className="font-medium text-slate-700 dark:text-slate-200 truncate">{n.fornecedor_nome || n.emitente_nome}</p>
-                                        <p className="text-xs text-slate-500 font-mono">{n.modelo === '65' ? 'NFC-e' : 'NF-e'} {n.numero}/{n.serie} · {fmtData(n.data_emissao)}{n.pedido_compra_id ? ` · Pedido #${n.pedido_compra_id}` : ''}</p>
+                                        <p className="text-xs text-slate-500 font-mono dark:text-gray-400">{n.modelo === '65' ? 'NFC-e' : 'NF-e'} {n.numero}/{n.serie} · {fmtData(n.data_emissao)}{n.pedido_compra_id ? ` · Pedido #${n.pedido_compra_id}` : ''}</p>
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
                                         <span className="font-bold tabular-nums">{brl(n.valor_total)}</span>
@@ -228,7 +228,7 @@ export default function EntradaNotaPanel({ abrirLeitor = false, textoCompartilha
                     <div className="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl h-[92dvh] sm:h-auto sm:max-h-[90dvh] flex flex-col overflow-hidden">
                         <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800">
                             <h3 className="font-black text-slate-900 dark:text-white">Conferir entrada</h3>
-                            <p className="text-xs text-slate-500">{preview.emitente.nome} · {preview.origem === 'qrcode' ? 'NFC-e' : 'NF-e'} {preview.numero}/{preview.serie} · {brl(preview.total)} · {preview.qtd_itens} itens</p>
+                            <p className="text-xs text-slate-500 dark:text-gray-400">{preview.emitente.nome} · {preview.origem === 'qrcode' ? 'NFC-e' : 'NF-e'} {preview.numero}/{preview.serie} · {brl(preview.total)} · {preview.qtd_itens} itens</p>
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 overscroll-contain">
                             {preview.ja_importada && <div className="rounded-xl bg-warning-50 text-warning-700 dark:bg-warning-900/20 px-4 py-3 text-sm font-semibold">Esta nota já foi importada nesta loja.</div>}
@@ -251,7 +251,7 @@ export default function EntradaNotaPanel({ abrirLeitor = false, textoCompartilha
                                                 {destinoCompra && destinoCompra !== 'avulsa' ? 'Conferir' : it.produto_existente ? 'Soma estoque' : 'Novo'}
                                             </span>
                                         </div>
-                                        <p className="mt-1 text-xs text-slate-500">
+                                        <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">
                                             <b className="text-slate-700 dark:text-slate-300">{qtdFmt(it.quantidade)} {it.unidade || 'UN'}</b> × {brl(it.valor_unitario)} = {brl(it.valor_total)}
                                             {it.ean ? ` · EAN ${it.ean}` : ' · sem EAN'}{it.icms_st ? ' · ICMS-ST' : ''}
                                         </p>
@@ -260,7 +260,7 @@ export default function EntradaNotaPanel({ abrirLeitor = false, textoCompartilha
                                 ))}
                             </ul>
                             {destinoCompra === 'avulsa' && preview.duplicatas.length > 0 && (
-                                <p className="text-xs text-slate-500">{preview.duplicatas.length} conta(s) a pagar serão geradas (1ª vence {preview.duplicatas[0].vencimento}).</p>
+                                <p className="text-xs text-slate-500 dark:text-gray-400">{preview.duplicatas.length} conta(s) a pagar serão geradas (1ª vence {preview.duplicatas[0].vencimento}).</p>
                             )}
                         </div>
                         <div className="flex gap-2 px-4 pt-3 border-t border-slate-200 dark:border-slate-800" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>

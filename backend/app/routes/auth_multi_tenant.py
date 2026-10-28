@@ -17,6 +17,7 @@ from app import db
 from app.models import Funcionario, Estabelecimento
 from app.middleware.rate_limit import limiter
 from flask_limiter.util import get_remote_address
+from app.utils.timezone import iso_utc
 
 auth_bp = Blueprint('auth_multi_tenant', __name__)
 
@@ -571,7 +572,7 @@ def guest_demo():
                     "estabelecimento_nome": demo_est.nome_fantasia,
                 },
                 "session": {
-                    "login_time": datetime.now(timezone.utc).isoformat(),
+                    "login_time": iso_utc(datetime.now(timezone.utc)),
                     "expires_in": 28800,
                     "refresh_expires_in": 604800,
                     "token_type": "bearer",

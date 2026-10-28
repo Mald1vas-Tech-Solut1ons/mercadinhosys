@@ -305,9 +305,9 @@ const DriverManagement: React.FC = () => {
                                         <div>
                                             <div className="flex items-center gap-2">
                                                 <h4 className="font-bold text-gray-900 dark:text-white uppercase">{v.placa}</h4>
-                                                <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-900 rounded text-[10px] font-black text-gray-500">{v.tipo}</span>
+                                                <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-900 rounded text-[10px] font-black text-gray-500 dark:text-gray-400">{v.tipo}</span>
                                             </div>
-                                            <p className="text-sm text-gray-500 mt-1">{v.modelo}{v.renavam ? ` · RENAVAM ${v.renavam}` : ''}</p>
+                                            <p className="text-sm text-gray-500 mt-1 dark:text-gray-400">{v.modelo}{v.renavam ? ` · RENAVAM ${v.renavam}` : ''}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1">
@@ -575,7 +575,7 @@ const DriverManagement: React.FC = () => {
                         <ShieldCheck className="w-4 h-4" /> Segurança Logística
                     </div>
                     <h3 className="text-2xl font-bold dark:text-white">Conformidade Total</h3>
-                    <p className="text-gray-500 max-w-xl">
+                    <p className="text-gray-500 max-w-xl dark:text-gray-400">
                         Todos os seus motoristas passam por verificação automática de CNH.
                         O sistema alerta sobre vencimentos de licenciamento e revisões preventivas da frota.
                     </p>

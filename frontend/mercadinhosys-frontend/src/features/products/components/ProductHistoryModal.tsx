@@ -171,7 +171,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                         className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'vendas'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100'
-                            }`}
+                            } dark:hover:bg-gray-700`}
                     >
                         <TrendingUp className="w-4 h-4" />
                         Vendas
@@ -181,7 +181,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                         className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'precos'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100'
-                            }`}
+                            } dark:hover:bg-gray-700`}
                     >
                         <DollarSign className="w-4 h-4" />
                         Preços
@@ -191,7 +191,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                         className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'estoque'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100'
-                            }`}
+                            } dark:hover:bg-gray-700`}
                     >
                         <Package className="w-4 h-4" />
                         Estoque
@@ -201,7 +201,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                         className={`flex-1 min-w-[120px] px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'fornecedor'
                             ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                             : 'bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400 hover:bg-gray-100'
-                            }`}
+                            } dark:hover:bg-gray-700`}
                     >
                         <Users className="w-4 h-4" />
                         Fornecedor
@@ -212,7 +212,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                            <p className="text-gray-500 animate-pulse font-medium">Carregando informações...</p>
+                            <p className="text-gray-500 animate-pulse font-medium dark:text-gray-400">Carregando informações...</p>
                         </div>
                     ) : (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -353,7 +353,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                                 <span className="text-xs ml-1 opacity-60 font-medium">por {produto.unidade_medida || 'un'}</span>
                                             </p>
                                             <div className="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-                                                <div className="h-full bg-white w-2/3"></div>
+                                                <div className="h-full bg-white w-2/3 dark:bg-gray-800"></div>
                                             </div>
                                             <p className="text-[10px] mt-2 opacity-60 italic font-medium">Margem atual: {produto.margem_lucro || 0}%</p>
                                         </div>
@@ -367,7 +367,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                             </div>
                                             <div className="space-y-4">
                                                 <div className="flex justify-between text-sm py-2 border-b border-gray-50 dark:border-gray-750">
-                                                    <span className="text-gray-500">Preço de Custo</span>
+                                                    <span className="text-gray-500 dark:text-gray-400">Preço de Custo</span>
                                                     <span className="font-bold text-gray-700 dark:text-gray-300">{formatCurrency(produto.preco_custo)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm py-2 text-indigo-600 dark:text-indigo-400 font-bold">
@@ -400,7 +400,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                                             {historicoPrecos.map((hist, idx) => (
                                                                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                                                                    <td className="px-6 py-4 text-xs font-bold text-gray-500">{formatDate(hist.data_alteracao)}</td>
+                                                                    <td className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400">{formatDate(hist.data_alteracao)}</td>
                                                                     <td className="px-6 py-4">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-xs text-gray-400 line-through">{formatCurrency(hist.preco_venda_anterior)}</span>
@@ -450,7 +450,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                                                             {movimentacoesEstoque.map((mov, idx) => (
                                                                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                                                                    <td className="px-6 py-4 text-xs font-bold text-gray-500">{formatDate(mov.created_at)}</td>
+                                                                    <td className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400">{formatDate(mov.created_at)}</td>
                                                                     <td className="px-6 py-4">
                                                                         <span className={`px-2 py-1 rounded text-xs font-bold ${mov.tipo === 'entrada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                                                             {mov.tipo.toUpperCase()}
@@ -493,19 +493,19 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
 
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] text-gray-500 font-black uppercase">CNPJ</p>
+                                                        <p className="text-[10px] text-gray-500 font-black uppercase dark:text-gray-400">CNPJ</p>
                                                         <p className="font-bold text-gray-200">{fornecedorInfo.cnpj}</p>
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] text-gray-500 font-black uppercase">E-mail</p>
+                                                        <p className="text-[10px] text-gray-500 font-black uppercase dark:text-gray-400">E-mail</p>
                                                         <p className="font-bold text-gray-200 truncate">{fornecedorInfo.email || '---'}</p>
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] text-gray-500 font-black uppercase">Telefone</p>
+                                                        <p className="text-[10px] text-gray-500 font-black uppercase dark:text-gray-400">Telefone</p>
                                                         <p className="font-bold text-gray-200">{fornecedorInfo.telefone || '---'}</p>
                                                     </div>
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] text-gray-500 font-black uppercase">Cidade/UF</p>
+                                                        <p className="text-[10px] text-gray-500 font-black uppercase dark:text-gray-400">Cidade/UF</p>
                                                         <p className="font-bold text-gray-200">{fornecedorInfo.cidade} / {fornecedorInfo.estado}</p>
                                                     </div>
                                                 </div>
@@ -513,7 +513,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
 
                                             <div className="space-y-4">
                                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl border border-gray-100 dark:border-gray-700 shadow-sm h-full">
-                                                    <p className="text-[10px] text-gray-500 font-black uppercase mb-4 flex items-center justify-between">
+                                                    <p className="text-[10px] text-gray-500 font-black uppercase mb-4 flex items-center justify-between dark:text-gray-400">
                                                         <span>Últimos Pedidos</span>
                                                         <span className="bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 px-2 py-0.5 rounded-full">{historicoCompras.length}</span>
                                                     </p>
@@ -525,7 +525,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                                                     <p className="text-sm font-black text-gray-800 dark:text-white">
                                                                         {formatDate(compra.data_pedido || compra.created_at)}
                                                                     </p>
-                                                                    <p className="text-xs text-gray-500 mt-0.5">
+                                                                    <p className="text-xs text-gray-500 mt-0.5 dark:text-gray-400">
                                                                         Pedido <span className="font-bold text-indigo-500">#{compra.numero_pedido}</span>
                                                                     </p>
                                                                     <div className="flex items-center justify-between mt-1.5">
@@ -551,7 +551,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                                                 <Users className="w-10 h-10 text-gray-300" />
                                             </div>
                                             <h3 className="font-black text-gray-400 uppercase text-xs tracking-widest">Nenhum fornecedor vinculado</h3>
-                                            <p className="text-xs text-gray-500 mt-2 font-medium">Vincule um fornecedor no cadastro do produto</p>
+                                            <p className="text-xs text-gray-500 mt-2 font-medium dark:text-gray-400">Vincule um fornecedor no cadastro do produto</p>
                                         </div>
                                     )}
                                 </div>

@@ -286,12 +286,12 @@ const SystemMonitorPage: React.FC = () => {
         <div className="space-y-6">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 dark:text-gray-100">
                         <Shield className="text-indigo-600" />
                         Centro de Comando SaaS
                     </h1>
                     <div className="flex items-center gap-3 mt-1 text-sm">
-                        <span className="text-gray-500 font-medium">Gestão Estratégica & Monitoramento Local</span>
+                        <span className="text-gray-500 font-medium dark:text-gray-400">Gestão Estratégica & Monitoramento Local</span>
                         {/* Seletor Global de Inquilino */}
                         <select
                             value={selectedTenantId}
@@ -331,14 +331,14 @@ const SystemMonitorPage: React.FC = () => {
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-semibold transition-colors ${autoRefresh
                             ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                             : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
+                            } dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700`}
                     >
                         <RefreshCcw size={16} className={autoRefresh ? 'animate-spin' : ''} />
                         {autoRefresh ? 'Live' : 'Pausado'}
                     </button>
                     <button
                         onClick={() => { setLoading(true); fetchData(); }}
-                        className="p-2.5 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all"
+                        className="p-2.5 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700"
                     >
                         <RefreshCcw size={20} />
                     </button>
@@ -347,19 +347,19 @@ const SystemMonitorPage: React.FC = () => {
 
             {/* Top Cards Summary */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
                             <Building2 size={24} />
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 uppercase font-black tracking-wider">Clientes Ativos</p>
-                            <h2 className="text-3xl font-black text-gray-900">{summary?.total_estabelecimentos || 0}</h2>
+                            <h2 className="text-3xl font-black text-gray-900 dark:text-gray-100">{summary?.total_estabelecimentos || 0}</h2>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-green-50 text-green-600 rounded-xl">
                             <DollarSign size={24} />
@@ -372,20 +372,20 @@ const SystemMonitorPage: React.FC = () => {
                     <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-tighter italic">{summary?.vendas_hoje_qtd || 0} transações processadas</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
                             <Clock size={24} />
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 uppercase font-black tracking-wider">Volume 30 Dias</p>
-                            <h2 className="text-2xl font-black text-gray-900">R$ {summary?.vendas_mes_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</h2>
+                            <h2 className="text-2xl font-black text-gray-900 dark:text-gray-100">R$ {summary?.vendas_mes_valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}</h2>
                         </div>
                     </div>
                     <p className="text-[10px] text-gray-400 mt-2 font-bold uppercase tracking-tighter italic">{summary?.vendas_mes_qtd || 0} transações no período</p>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
                             <Activity size={24} />
@@ -402,7 +402,7 @@ const SystemMonitorPage: React.FC = () => {
             </div>
 
             {/* Custom Tabs */}
-            <div className="flex border-b border-gray-200">
+            <div className="flex border-b border-gray-200 dark:border-gray-700">
                 <button
                     onClick={() => setActiveTab('logs')}
                     className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'logs' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
@@ -418,14 +418,14 @@ const SystemMonitorPage: React.FC = () => {
             </div>
 
             {/* Search & Filters Bar */}
-            <div className="bg-white border rounded-2xl overflow-hidden shadow-sm">
+            <div className="bg-white border rounded-2xl overflow-hidden shadow-sm dark:bg-gray-800">
                 <div className="p-4 border-b bg-gray-50/50 flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input
                             type="text"
                             placeholder={activeTab === 'logs' ? "Buscar por cliente ou descrição..." : "Buscar por Nome, CNPJ ou E-mail..."}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-inner"
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 bg-white transition-all shadow-inner dark:bg-gray-800 dark:border-gray-700"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -433,7 +433,7 @@ const SystemMonitorPage: React.FC = () => {
                     {activeTab === 'logs' && (
                         <div className="flex gap-2">
                             <select
-                                className="px-4 py-2 border border-gray-200 rounded-xl bg-white font-bold text-gray-600 text-sm shadow-sm"
+                                className="px-4 py-2 border border-gray-200 rounded-xl bg-white font-bold text-gray-600 text-sm shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700"
                                 value={filterType}
                                 onChange={(e) => setFilterType(e.target.value)}
                             >
@@ -454,7 +454,7 @@ const SystemMonitorPage: React.FC = () => {
                 <div className="overflow-x-auto">
                     {activeTab === 'logs' ? (
                         <table className="w-full text-left">
-                            <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b">
+                            <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b dark:bg-gray-900">
                                 <tr>
                                     <th className="px-6 py-4">Evento</th>
                                     <th className="px-6 py-4">Estabelecimento</th>
@@ -476,20 +476,20 @@ const SystemMonitorPage: React.FC = () => {
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-2">
                                                     {getEventIcon(log.tipo_evento)}
-                                                    <span className="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded-md text-gray-500 group-hover:bg-white transition-colors">
+                                                    <span className="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded-md text-gray-500 group-hover:bg-white transition-colors dark:bg-gray-800 dark:text-gray-400">
                                                         {log.tipo_evento.replace('_', ' ')}
                                                     </span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="flex flex-col">
-                                                    <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{log.estabelecimento_nome}</span>
+                                                    <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors dark:text-gray-100">{log.estabelecimento_nome}</span>
                                                     <span className="text-[10px] text-gray-400 font-bold tracking-tight">ID INQUILINO: {log.estabelecimento_id}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm text-gray-700 leading-tight">{log.descricao}</span>
+                                                    <span className="text-sm text-gray-700 leading-tight dark:text-gray-200">{log.descricao}</span>
                                                     <span className="text-[10px] text-gray-400 font-medium">Operador: {log.usuario_nome}</span>
                                                 </div>
                                             </td>
@@ -503,7 +503,7 @@ const SystemMonitorPage: React.FC = () => {
                                                 )}
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold whitespace-nowrap">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold whitespace-nowrap dark:text-gray-400">
                                                     <Clock size={12} className="text-gray-300" />
                                                     {new Date(log.data_evento).toLocaleString('pt-BR')}
                                                 </div>
@@ -514,7 +514,7 @@ const SystemMonitorPage: React.FC = () => {
                                     <tr>
                                         <td colSpan={5} className="px-6 py-20 text-center text-gray-400">
                                             <div className="flex flex-col items-center gap-3">
-                                                <div className="p-4 bg-gray-50 rounded-full">
+                                                <div className="p-4 bg-gray-50 rounded-full dark:bg-gray-900">
                                                     <AlertCircle size={48} className="text-gray-200" />
                                                 </div>
                                                 <p className="font-bold text-gray-300 uppercase tracking-widest text-xs">Sem atividades detectadas no momento</p>
@@ -526,7 +526,7 @@ const SystemMonitorPage: React.FC = () => {
                         </table>
                     ) : (
                         <table className="w-full text-left">
-                            <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b">
+                            <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b dark:bg-gray-900">
                                 <tr>
                                     <th className="px-6 py-4 text-center">Status</th>
                                     <th className="px-6 py-4">Estabelecimento / CNPJ</th>
@@ -556,13 +556,13 @@ const SystemMonitorPage: React.FC = () => {
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col">
-                                                <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{ten.nome_fantasia}</span>
+                                                <span className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors uppercase tracking-tight dark:text-gray-100">{ten.nome_fantasia}</span>
                                                 <span className="text-[10px] text-gray-400 font-black">CNPJ: {ten.cnpj}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-600">{ten.email}</span>
+                                                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{ten.email}</span>
                                                 <span className="text-[10px] text-gray-400">{ten.telefone}</span>
                                             </div>
                                         </td>
@@ -612,7 +612,7 @@ const SystemMonitorPage: React.FC = () => {
             {/* ONBOARDING MODAL */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md transition-all ease-out animate-in fade-in duration-300">
-                    <div className="bg-white rounded-4xl shadow-2xl w-full max-w-2xl overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300">
+                    <div className="bg-white rounded-4xl shadow-2xl w-full max-w-2xl overflow-hidden border border-white/20 animate-in zoom-in-95 duration-300 dark:bg-gray-800">
                         <div className="bg-indigo-600 p-8 text-white relative">
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
@@ -640,7 +640,7 @@ const SystemMonitorPage: React.FC = () => {
                                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Nome Fantasia *</label>
                                         <input
                                             required
-                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700"
+                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             value={formData.nome_fantasia}
                                             onChange={e => setFormData({ ...formData, nome_fantasia: e.target.value })}
                                             placeholder="Ex: Mercadinho do Bairro"
@@ -650,7 +650,7 @@ const SystemMonitorPage: React.FC = () => {
                                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">CNPJ *</label>
                                         <input
                                             required
-                                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 outline-none ${formData.cnpj ? (isValidCNPJ(formData.cnpj) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'}`}
+                                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 outline-none ${formData.cnpj ? (isValidCNPJ(formData.cnpj) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'} dark:bg-gray-900 dark:text-gray-200`}
                                             value={formData.cnpj}
                                             onChange={e => setFormData({ ...formData, cnpj: e.target.value })}
                                             placeholder="00.000.000/0001-00"
@@ -661,7 +661,7 @@ const SystemMonitorPage: React.FC = () => {
                                             <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Telefone Loja *</label>
                                             <input
                                                 required
-                                                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 text-sm"
+                                                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 text-sm dark:bg-gray-900 dark:text-gray-200"
                                                 value={formData.telefone_loja}
                                                 onChange={e => setFormData({ ...formData, telefone_loja: e.target.value })}
                                             />
@@ -671,7 +671,7 @@ const SystemMonitorPage: React.FC = () => {
                                             <input
                                                 required
                                                 type="email"
-                                                className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 text-sm outline-none ${formData.email_loja ? (isValidEmail(formData.email_loja) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'}`}
+                                                className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 text-sm outline-none ${formData.email_loja ? (isValidEmail(formData.email_loja) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'} dark:bg-gray-900 dark:text-gray-200`}
                                                 value={formData.email_loja}
                                                 onChange={e => setFormData({ ...formData, email_loja: e.target.value })}
                                             />
@@ -686,7 +686,7 @@ const SystemMonitorPage: React.FC = () => {
                                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Nome Completo *</label>
                                         <input
                                             required
-                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700"
+                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             value={formData.nome_admin}
                                             onChange={e => setFormData({ ...formData, nome_admin: e.target.value })}
                                         />
@@ -695,7 +695,7 @@ const SystemMonitorPage: React.FC = () => {
                                         <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Username de Acesso *</label>
                                         <input
                                             required
-                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-dashed border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-black text-indigo-600 placeholder:text-indigo-200"
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-dashed border-indigo-100 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-black text-indigo-600 placeholder:text-indigo-200 dark:bg-gray-900"
                                             value={formData.username}
                                             onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
                                             placeholder="ex: joao.admin"
@@ -708,7 +708,7 @@ const SystemMonitorPage: React.FC = () => {
                                             type="password"
                                             minLength={6}
                                             autoComplete="new-password"
-                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700"
+                                            className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             value={formData.senha}
                                             onChange={e => setFormData({ ...formData, senha: e.target.value })}
                                         />
@@ -718,7 +718,7 @@ const SystemMonitorPage: React.FC = () => {
                                         <input
                                             required
                                             type="email"
-                                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 outline-none ${formData.email_admin ? (isValidEmail(formData.email_admin) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'}`}
+                                            className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 outline-none ${formData.email_admin ? (isValidEmail(formData.email_admin) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'} dark:bg-gray-900 dark:text-gray-200`}
                                             value={formData.email_admin}
                                             onChange={e => setFormData({ ...formData, email_admin: e.target.value })}
                                         />
@@ -728,7 +728,7 @@ const SystemMonitorPage: React.FC = () => {
                                             <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">CPF Admin *</label>
                                             <input
                                                 required
-                                                className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 text-sm outline-none ${formData.cpf_admin ? (isValidCPF(formData.cpf_admin) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'}`}
+                                                className={`w-full px-4 py-3 bg-gray-50 border-2 rounded-2xl transition-all font-bold text-gray-700 text-sm outline-none ${formData.cpf_admin ? (isValidCPF(formData.cpf_admin) ? 'border-green-500 focus:ring-green-600 focus:border-green-500' : 'border-red-500 focus:ring-red-600 focus:border-red-500') : 'border-transparent focus:ring-2 focus:ring-indigo-600'} dark:bg-gray-900 dark:text-gray-200`}
                                                 value={formData.cpf_admin}
                                                 onChange={e => setFormData({ ...formData, cpf_admin: e.target.value })}
                                             />
@@ -737,7 +737,7 @@ const SystemMonitorPage: React.FC = () => {
                                             <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Celular/Whats *</label>
                                             <input
                                                 required
-                                                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 text-sm"
+                                                className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 text-sm dark:bg-gray-900 dark:text-gray-200"
                                                 value={formData.celular_admin}
                                                 onChange={e => setFormData({ ...formData, celular_admin: e.target.value })}
                                             />
@@ -777,18 +777,18 @@ const SystemMonitorPage: React.FC = () => {
             {isEditModalOpen && (
                 <div className="fixed inset-0 z-1000 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsEditModalOpen(false)} />
-                    <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                    <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 dark:bg-gray-800">
                         <div className="p-8 border-b bg-gray-50/50">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h2 className="text-xl font-black text-gray-900 italic tracking-tight">EDITAR CONTA</h2>
-                                    <p className="text-sm text-gray-500 font-medium">{editingTenant?.nome_fantasia}</p>
+                                    <h2 className="text-xl font-black text-gray-900 italic tracking-tight dark:text-gray-100">EDITAR CONTA</h2>
+                                    <p className="text-sm text-gray-500 font-medium dark:text-gray-400">{editingTenant?.nome_fantasia}</p>
                                 </div>
                                 <button onClick={() => setIsEditModalOpen(false)} className="p-2 hover:bg-white rounded-xl transition-colors text-gray-400"><XCircle size={24} /></button>
                             </div>
                         </div>
 
-                        <div className="flex border-b px-2 pt-2 bg-gray-50">
+                        <div className="flex border-b px-2 pt-2 bg-gray-50 dark:bg-gray-900">
                             <button onClick={() => setEditModalTab('plano')} className={`flex-1 py-3 px-1 text-[10px] sm:text-xs font-black uppercase tracking-widest ${editModalTab === 'plano' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Plano & Status</button>
                             <button onClick={() => setEditModalTab('principal')} className={`flex-1 py-3 px-1 text-[10px] sm:text-xs font-black uppercase tracking-widest ${editModalTab === 'principal' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Principal</button>
                             <button onClick={() => setEditModalTab('contato')} className={`flex-1 py-3 px-1 text-[10px] sm:text-xs font-black uppercase tracking-widest ${editModalTab === 'contato' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Contato/End.</button>
@@ -804,7 +804,7 @@ const SystemMonitorPage: React.FC = () => {
                                             <select
                                                 value={editFormData.plano}
                                                 onChange={(e) => setEditFormData({ ...editFormData, plano: e.target.value })}
-                                                className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:bg-gray-900 dark:border-gray-700"
                                             >
                                                 <option value="Gratuito">Gratuito</option>
                                                 <option value="Pro">Pro</option>
@@ -816,7 +816,7 @@ const SystemMonitorPage: React.FC = () => {
                                             <select
                                                 value={editFormData.plano_status}
                                                 onChange={(e) => setEditFormData({ ...editFormData, plano_status: e.target.value })}
-                                                className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                                className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:bg-gray-900 dark:border-gray-700"
                                             >
                                                 <option value="experimental">Experimental</option>
                                                 <option value="ativo">Ativo</option>
@@ -833,7 +833,7 @@ const SystemMonitorPage: React.FC = () => {
                                             type="date"
                                             value={editFormData.vencimento_assinatura}
                                             onChange={(e) => setEditFormData({ ...editFormData, vencimento_assinatura: e.target.value })}
-                                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                            className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all dark:bg-gray-900 dark:border-gray-700"
                                         />
                                     </div>
 
@@ -854,15 +854,15 @@ const SystemMonitorPage: React.FC = () => {
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nome Fantasia</label>
-                                        <input value={editFormData.nome_fantasia} onChange={e => setEditFormData({...editFormData, nome_fantasia: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                        <input value={editFormData.nome_fantasia} onChange={e => setEditFormData({...editFormData, nome_fantasia: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Razão Social</label>
-                                        <input value={editFormData.razao_social} onChange={e => setEditFormData({...editFormData, razao_social: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                        <input value={editFormData.razao_social} onChange={e => setEditFormData({...editFormData, razao_social: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">CNPJ</label>
-                                        <input value={editFormData.cnpj} onChange={e => setEditFormData({...editFormData, cnpj: e.target.value})} className={`w-full h-12 px-4 bg-gray-50 border-2 rounded-2xl text-sm font-bold outline-none transition-all ${editFormData.cnpj ? (isValidCNPJ(editFormData.cnpj) ? 'border-green-500 focus:ring-green-500' : 'border-red-500 focus:ring-red-500') : 'border-gray-100 focus:ring-2 focus:ring-indigo-500/20'}`} />
+                                        <input value={editFormData.cnpj} onChange={e => setEditFormData({...editFormData, cnpj: e.target.value})} className={`w-full h-12 px-4 bg-gray-50 border-2 rounded-2xl text-sm font-bold outline-none transition-all ${editFormData.cnpj ? (isValidCNPJ(editFormData.cnpj) ? 'border-green-500 focus:ring-green-500' : 'border-red-500 focus:ring-red-500') : 'border-gray-100 focus:ring-2 focus:ring-indigo-500/20'} dark:bg-gray-900 dark:border-gray-700`} />
                                     </div>
                                 </div>
                             )}
@@ -872,35 +872,35 @@ const SystemMonitorPage: React.FC = () => {
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Telefone</label>
-                                            <input value={editFormData.telefone} onChange={e => setEditFormData({...editFormData, telefone: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                            <input value={editFormData.telefone} onChange={e => setEditFormData({...editFormData, telefone: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-mail</label>
-                                            <input value={editFormData.email} onChange={e => setEditFormData({...editFormData, email: e.target.value})} className={`w-full h-12 px-4 bg-gray-50 border-2 rounded-2xl text-sm font-bold outline-none transition-all ${editFormData.email ? (isValidEmail(editFormData.email) ? 'border-green-500 focus:ring-green-500' : 'border-red-500 focus:ring-red-500') : 'border-gray-100 focus:ring-2 focus:ring-indigo-500/20'}`} />
+                                            <input value={editFormData.email} onChange={e => setEditFormData({...editFormData, email: e.target.value})} className={`w-full h-12 px-4 bg-gray-50 border-2 rounded-2xl text-sm font-bold outline-none transition-all ${editFormData.email ? (isValidEmail(editFormData.email) ? 'border-green-500 focus:ring-green-500' : 'border-red-500 focus:ring-red-500') : 'border-gray-100 focus:ring-2 focus:ring-indigo-500/20'} dark:bg-gray-900 dark:border-gray-700`} />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="space-y-2 col-span-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Logradouro</label>
-                                            <input value={editFormData.logradouro} onChange={e => setEditFormData({...editFormData, logradouro: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                            <input value={editFormData.logradouro} onChange={e => setEditFormData({...editFormData, logradouro: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Número</label>
-                                            <input value={editFormData.numero} onChange={e => setEditFormData({...editFormData, numero: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                            <input value={editFormData.numero} onChange={e => setEditFormData({...editFormData, numero: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-3 gap-4">
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Bairro</label>
-                                            <input value={editFormData.bairro} onChange={e => setEditFormData({...editFormData, bairro: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                            <input value={editFormData.bairro} onChange={e => setEditFormData({...editFormData, bairro: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cidade</label>
-                                            <input value={editFormData.cidade} onChange={e => setEditFormData({...editFormData, cidade: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                            <input value={editFormData.cidade} onChange={e => setEditFormData({...editFormData, cidade: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Estado</label>
-                                            <input value={editFormData.estado} onChange={e => setEditFormData({...editFormData, estado: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" />
+                                            <input value={editFormData.estado} onChange={e => setEditFormData({...editFormData, estado: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all dark:bg-gray-900 dark:border-gray-700" />
                                         </div>
                                     </div>
                                 </div>
@@ -910,20 +910,20 @@ const SystemMonitorPage: React.FC = () => {
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Gateway Customer ID</label>
-                                        <input value={editFormData.gateway_customer_id} onChange={e => setEditFormData({...editFormData, gateway_customer_id: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono" />
+                                        <input value={editFormData.gateway_customer_id} onChange={e => setEditFormData({...editFormData, gateway_customer_id: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono dark:bg-gray-900 dark:border-gray-700" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Gateway Subscription ID</label>
-                                        <input value={editFormData.gateway_subscription_id} onChange={e => setEditFormData({...editFormData, gateway_subscription_id: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono" />
+                                        <input value={editFormData.gateway_subscription_id} onChange={e => setEditFormData({...editFormData, gateway_subscription_id: e.target.value})} className="w-full h-12 px-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all font-mono dark:bg-gray-900 dark:border-gray-700" />
                                     </div>
                                 </div>
                             )}
 
-                            <div className="flex gap-4 pt-4 border-t border-gray-100">
+                            <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                                 <button
                                     type="button"
                                     onClick={() => setIsEditModalOpen(false)}
-                                    className="flex-1 h-14 bg-gray-100 text-gray-500 rounded-2xl text-xs font-black italic tracking-widest hover:bg-gray-200 transition-all uppercase"
+                                    className="flex-1 h-14 bg-gray-100 text-gray-500 rounded-2xl text-xs font-black italic tracking-widest hover:bg-gray-200 transition-all uppercase dark:bg-gray-800 dark:text-gray-400"
                                 >
                                     Cancelar
                                 </button>

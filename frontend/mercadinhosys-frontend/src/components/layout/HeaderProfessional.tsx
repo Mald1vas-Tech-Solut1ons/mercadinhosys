@@ -298,7 +298,7 @@ const HeaderProfessional = () => {
                                         Cancelar
                                     </button>
                                     <button onClick={handleUpdateProfile} disabled={savingProfile}
-                                        className={`px-4 py-2 rounded-lg font-medium text-sm transition ${savingProfile ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                                        className={`px-4 py-2 rounded-lg font-medium text-sm transition ${savingProfile ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'} dark:text-gray-400`}>
                                         {savingProfile ? 'Salvando...' : 'Salvar'}
                                     </button>
                                 </div>
@@ -355,7 +355,7 @@ const HeaderProfessional = () => {
                                     <button
                                         onClick={handleChangePassword}
                                         disabled={changingPassword || !(passwordChecks.length && passwordChecks.upper && passwordChecks.lower && passwordChecks.number && passwordChecks.special && passwordChecks.match)}
-                                        className={`px-4 py-2 rounded-lg font-medium text-sm transition ${changingPassword || !(passwordChecks.length && passwordChecks.upper && passwordChecks.lower && passwordChecks.number && passwordChecks.special && passwordChecks.match) ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                                        className={`px-4 py-2 rounded-lg font-medium text-sm transition ${changingPassword || !(passwordChecks.length && passwordChecks.upper && passwordChecks.lower && passwordChecks.number && passwordChecks.special && passwordChecks.match) ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'} dark:text-gray-400`}
                                     >
                                         {changingPassword ? 'Alterando...' : 'Salvar nova senha'}
                                     </button>
@@ -448,7 +448,7 @@ const HeaderProfessional = () => {
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[120px] truncate">
                                     {user?.nome || 'Usuário'}
                                 </span>
-                                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform shrink-0 ${userMenuOpen ? 'rotate-180' : ''} dark:text-gray-400`} />
                             </button>
                         </div>
 

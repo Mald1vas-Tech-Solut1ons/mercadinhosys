@@ -197,7 +197,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                   <div className="p-2 bg-rose-500/10 text-rose-500 rounded-xl">
                     <ArrowDownRight className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Contas a Pagar</span>
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest dark:text-gray-400">Contas a Pagar</span>
                 </div>
                 <div className="text-3xl font-black text-slate-900 dark:text-white mb-2 leading-none">
                   {formatCurrency(resumo.contas_pagar.total_aberto)}
@@ -225,7 +225,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                   <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-xl">
                     <BadgeDollarSign className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Gasto Operacional</span>
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-widest dark:text-gray-400">Gasto Operacional</span>
                 </div>
                 <div className="text-3xl font-black text-slate-900 dark:text-white mb-2 leading-none">
                   {formatCurrency(resumo.despesas_mes.total)}
@@ -276,7 +276,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                       <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl">
                         <ArrowUpRight className="w-5 h-5" />
                       </div>
-                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Contas a Receber</span>
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest dark:text-gray-400">Contas a Receber</span>
                     </div>
                     <div className="text-3xl font-black text-slate-900 dark:text-white mb-4 leading-none">
                       {formatCurrency(resumo.contas_receber.total_aberto)}
@@ -351,7 +351,7 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                 <div className="flex items-center justify-between mb-8 relative">
                   <div>
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-orange-600 mb-1">Pressão de Caixa (7 dias)</h3>
-                    <p className="text-slate-500 text-[10px]">Obrigações dos próximos 7 dias vs entrada esperada</p>
+                    <p className="text-slate-500 text-[10px] dark:text-gray-400">Obrigações dos próximos 7 dias vs entrada esperada</p>
                   </div>
                   <div className={`text-4xl font-black italic ${resumo.indicadores_gestao.pressao_caixa_diaria > 100 ? 'text-rose-700' : 'text-emerald-700'}`}>
                     {resumo.indicadores_gestao.pressao_caixa_diaria.toFixed(0)}<span className="text-xl">%</span>
@@ -359,20 +359,20 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                 </div>
 
                 <div className="flex items-end gap-3 mb-8">
-                  <div className="text-5xl font-black text-slate-900 tracking-tighter">
+                  <div className="text-5xl font-black text-slate-900 tracking-tighter dark:text-gray-100">
                     {formatCurrency(resumo.indicadores_gestao.obrigacoes_7d ?? resumo.indicadores_gestao.vence_hoje_valor)}
                   </div>
                   <div className="pb-1">
-                    <span className="text-[10px] font-black uppercase text-slate-600 tracking-widest leading-none block">Vence em</span>
-                    <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest leading-none block">7 dias</span>
+                    <span className="text-[10px] font-black uppercase text-slate-600 tracking-widest leading-none block dark:text-gray-300">Vence em</span>
+                    <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest leading-none block dark:text-gray-100">7 dias</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-3xl border border-slate-100">
+                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-3xl border border-slate-100 dark:bg-gray-900 dark:border-gray-700">
                   <div className={`p-2 rounded-full ${resumo.indicadores_gestao.pressao_caixa_diaria > 100 ? 'bg-rose-500/10 text-rose-600' : 'bg-emerald-500/10 text-emerald-600'}`}>
                     {resumo.indicadores_gestao.pressao_caixa_diaria > 100 ? <AlertTriangle className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
                   </div>
-                  <p className="text-xs text-slate-600 leading-tight font-medium">
+                  <p className="text-xs text-slate-600 leading-tight font-medium dark:text-gray-300">
                     {resumo.indicadores_gestao.pressao_caixa_diaria > 100
                       ? "Risco: a venda esperada dos próximos 7 dias não cobre os compromissos do período."
                       : `Saudável: a entrada esperada de ${formatCurrency(resumo.indicadores_gestao.entrada_esperada_7d ?? 0)} absorve os compromissos.`}

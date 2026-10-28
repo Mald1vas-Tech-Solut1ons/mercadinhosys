@@ -106,6 +106,34 @@ def register_commands(app):
             else:
                 click.echo("-> Rode com --apply para efetivar a limpeza.")
 
+    @app.cli.command("verificar-dados")
+    @click.option("--estab", type=int, default=None, help="Só esta loja (padrão: todas).")
+    @with_appcontext
+    def verificar_dados(estab):
+        """Verificação noturna de consistência (só leitura). Divergência vai ao Sentry;
+        saída 1 quando acha algo, para o cron registrar."""
+        import json
+        from app.services.verificacao_dados import verificar
+
+        resultado = verificar(estab)
+        click.echo(json.dumps({k: resultado[k] for k in ("ok", "total", "por_checagem", "falhas")}, ensure_ascii=False))
+        for d in resultado["divergencias"]:
+            click.echo(f"  - [{d['checagem']}] loja {d['estabelecimento_id']} {d['ref']} {d['descricao']}: "
+                       f"esperado {d['esperado']}, encontrado {d['encontrado']}")
+        if not resultado["ok"]:
+            try:
+                import sentry_sdk
+                with sentry_sdk.push_scope() as scope:
+                    scope.set_extra("por_checagem", resultado["por_checagem"])
+                    scope.set_extra("amostra", resultado["divergencias"][:20])
+                    scope.set_extra("falhas", resultado["falhas"])
+                    sentry_sdk.capture_message(
+                        f"Verificação de dados: {resultado['total']} divergência(s) {resultado['por_checagem']}",
+                        level="warning")
+            except Exception:
+                pass
+            raise SystemExit(1)
+
     @app.cli.command("backfill-vendas-produto")
     @click.option("--apply", is_flag=True, help="Grava (sem esta flag é dry-run).")
     @with_appcontext

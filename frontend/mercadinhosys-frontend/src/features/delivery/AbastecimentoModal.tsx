@@ -89,7 +89,7 @@ export const AbastecimentoModal: React.FC<AbastecimentoModalProps> = ({ isOpen, 
                     <form onSubmit={handleSubmit} className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Litros</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Litros</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -101,7 +101,7 @@ export const AbastecimentoModal: React.FC<AbastecimentoModalProps> = ({ isOpen, 
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Valor Total (R$)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Valor Total (R$)</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -115,7 +115,7 @@ export const AbastecimentoModal: React.FC<AbastecimentoModalProps> = ({ isOpen, 
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Odômetro Atual (KM)</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Odômetro Atual (KM)</label>
                             <input
                                 type="number"
                                 step="0.1"

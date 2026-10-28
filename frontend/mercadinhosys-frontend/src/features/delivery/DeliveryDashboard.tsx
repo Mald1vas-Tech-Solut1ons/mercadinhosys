@@ -266,7 +266,7 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
                                             </div>
                                             <div>
                                                 <h4 className="font-semibold text-gray-900 dark:text-white">#{entrega.codigo_rastreamento}</h4>
-                                                <p className="text-sm text-gray-500 flex items-center mt-0.5">
+                                                <p className="text-sm text-gray-500 flex items-center mt-0.5 dark:text-gray-400">
                                                     <MapPin className="w-3 h-3 mr-1" /> {entrega.endereco_bairro}
                                                 </p>
                                             </div>
@@ -286,7 +286,7 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
                             ) : (
                                 <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-12 text-center border-2 border-dashed border-gray-200 dark:border-gray-800">
                                     <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                                    <p className="text-gray-500">Sem entregas ativas no momento</p>
+                                    <p className="text-gray-500 dark:text-gray-400">Sem entregas ativas no momento</p>
                                 </div>
                             )}
                         </AnimatePresence>
@@ -359,36 +359,36 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
                                 <div className="space-y-4">
                                     <h3 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800 pb-2">Preço Cobrado do Cliente</h3>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Taxa por KM (Moto)</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Taxa por KM (Moto)</label>
                                         <input type="number" step="0.1" value={config.preco_por_km_moto} onChange={e => setConfig({...config, preco_por_km_moto: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Taxa por KM (Carro/Van)</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Taxa por KM (Carro/Van)</label>
                                         <input type="number" step="0.1" value={config.preco_por_km_carro} onChange={e => setConfig({...config, preco_por_km_carro: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                     
                                     <h3 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800 pb-2 mt-6">Custo Manutenção (Diário)</h3>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Custo Moto/dia</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Custo Moto/dia</label>
                                         <input type="number" step="1" value={config.custo_manutencao_diario_moto} onChange={e => setConfig({...config, custo_manutencao_diario_moto: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Custo Carro/dia</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Custo Carro/dia</label>
                                         <input type="number" step="1" value={config.custo_manutencao_diario_carro} onChange={e => setConfig({...config, custo_manutencao_diario_carro: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                 </div>
                                 <div className="space-y-4">
                                     <h3 className="font-bold text-gray-700 dark:text-gray-300 border-b border-gray-100 dark:border-gray-800 pb-2">Preço de Combustível (Litro)</h3>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Gasolina</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Gasolina</label>
                                         <input type="number" step="0.1" value={config.preco_gasolina} onChange={e => setConfig({...config, preco_gasolina: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Álcool</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Álcool</label>
                                         <input type="number" step="0.1" value={config.preco_alcool} onChange={e => setConfig({...config, preco_alcool: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Diesel</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Diesel</label>
                                         <input type="number" step="0.1" value={config.preco_diesel} onChange={e => setConfig({...config, preco_diesel: parseFloat(e.target.value) || 0})} className="w-full mt-1 p-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white font-medium" />
                                     </div>
                                 </div>

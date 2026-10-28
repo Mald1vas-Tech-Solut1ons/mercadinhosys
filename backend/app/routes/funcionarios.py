@@ -9,6 +9,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import admin_required as store_admin_required
+from app.utils.timezone import iso_utc
 
 funcionarios_bp = Blueprint("funcionarios", __name__, url_prefix="/api/funcionarios")
 
@@ -275,14 +276,14 @@ def listar_funcionarios():
                 "salario": float(f.salario_base) if f.salario_base else None,
                 "numero_dependentes": int(f.numero_dependentes or 0),
                 "data_admissao": (
-                    f.data_admissao.isoformat() if f.data_admissao else None
+                    iso_utc(f.data_admissao) if f.data_admissao else None
                 ),
                 # "data_demissao": None, # Campo removido do modelo
                 "usuario": f.username,
                 "nivel_acesso": f.role,
                 "ativo": f.ativo,
-                "data_demissao": f.data_demissao.isoformat() if f.data_demissao else None,
-                "created_at": f.data_cadastro.isoformat() if f.data_cadastro else None,
+                "data_demissao": iso_utc(f.data_demissao) if f.data_demissao else None,
+                "created_at": iso_utc(f.data_cadastro) if f.data_cadastro else None,
                 # "updated_at": None, # Campo removido do modelo
                 "permissoes": f.permissoes
             }
@@ -801,8 +802,8 @@ def relatorio_vendas_funcionarios():
                 {
                     "success": True,
                     "periodo": {
-                        "inicio": data_inicio.isoformat(),
-                        "fim": data_fim.isoformat(),
+                        "inicio": iso_utc(data_inicio),
+                        "fim": iso_utc(data_fim),
                         "dias": (data_fim - data_inicio).days + 1,
                     },
                     "estatisticas_gerais": {
@@ -948,7 +949,7 @@ def detalhes_funcionario(id):
             "cpf": funcionario.cpf,
             "rg": funcionario.rg,
             "data_nascimento": (
-                funcionario.data_nascimento.isoformat()
+                iso_utc(funcionario.data_nascimento)
                 if funcionario.data_nascimento
                 else None
             ),
@@ -964,7 +965,7 @@ def detalhes_funcionario(id):
             "salario": float(funcionario.salario_base) if funcionario.salario_base else None,
             "numero_dependentes": int(funcionario.numero_dependentes or 0),
             "data_admissao": (
-                funcionario.data_admissao.isoformat()
+                iso_utc(funcionario.data_admissao)
                 if funcionario.data_admissao
                 else None
             ),
@@ -973,7 +974,7 @@ def detalhes_funcionario(id):
             "nivel_acesso": funcionario.role,
             "ativo": funcionario.ativo,
             "created_at": (
-                funcionario.data_cadastro.isoformat() if funcionario.data_cadastro else None
+                iso_utc(funcionario.data_cadastro) if funcionario.data_cadastro else None
             ),
             "estatisticas": {
                 "total_vendas": total_vendas,

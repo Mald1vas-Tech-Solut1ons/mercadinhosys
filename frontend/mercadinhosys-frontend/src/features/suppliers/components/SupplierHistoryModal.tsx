@@ -126,15 +126,15 @@ const SupplierHistoryModal = ({ fornecedor, onClose }: SupplierHistoryModalProps
                         <div className="space-y-6">
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs font-bold text-gray-500 uppercase">Pedidos Emitidos</p>
+                                    <p className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Pedidos Emitidos</p>
                                     <p className="text-2xl font-black text-gray-900 dark:text-white">{stats.totalPedidos}</p>
                                 </div>
                                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs font-bold text-gray-500 uppercase">Pedidos Atendidos</p>
+                                    <p className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Pedidos Atendidos</p>
                                     <p className="text-2xl font-black text-green-600 dark:text-green-400">{stats.pedidosConcluidos}</p>
                                 </div>
                                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                                    <p className="text-xs font-bold text-gray-500 uppercase">Volume Comprado</p>
+                                    <p className="text-xs font-bold text-gray-500 uppercase dark:text-gray-400">Volume Comprado</p>
                                     <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{formatCurrency(stats.valorTotalPedidos)}</p>
                                 </div>
                             </div>
@@ -142,7 +142,7 @@ const SupplierHistoryModal = ({ fornecedor, onClose }: SupplierHistoryModalProps
                             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-sm whitespace-nowrap">
-                                        <thead className="bg-gray-100 dark:bg-gray-700/50 text-gray-500 font-bold uppercase text-xs">
+                                        <thead className="bg-gray-100 dark:bg-gray-700/50 text-gray-500 font-bold uppercase text-xs dark:text-gray-400">
                                         <tr>
                                             <th className="px-4 py-3">Data</th>
                                             <th className="px-4 py-3">Pedido N.</th>
@@ -176,11 +176,11 @@ const SupplierHistoryModal = ({ fornecedor, onClose }: SupplierHistoryModalProps
                                             <div key={d.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
                                                 <div>
                                                     <p className="font-bold text-gray-800 dark:text-white">{d.descricao}</p>
-                                                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1"><Calendar className="w-3 h-3"/> {formatDate(d.data_despesa)}</p>
+                                                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-1 dark:text-gray-400"><Calendar className="w-3 h-3"/> {formatDate(d.data_despesa)}</p>
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="font-black text-red-500">{formatCurrency(d.valor)}</p>
-                                                    <p className="text-xs text-gray-500 mt-1">{d.forma_pagamento || 'Boleto'}</p>
+                                                    <p className="text-xs text-gray-500 mt-1 dark:text-gray-400">{d.forma_pagamento || 'Boleto'}</p>
                                                 </div>
                                             </div>
                                         ))}

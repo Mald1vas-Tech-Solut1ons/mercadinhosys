@@ -229,7 +229,7 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                             {(resultados.length > 0 || buscando) && (
                                 <div className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
                                     {buscando && !resultados.length && (
-                                        <div className="px-4 py-3 text-sm text-gray-500">Buscando…</div>
+                                        <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">Buscando…</div>
                                     )}
                                     {resultados.map(p => (
                                         <button key={p.id} type="button" onClick={() => adicionar(p)}
@@ -238,7 +238,7 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                                                 <div className="font-semibold text-gray-900 dark:text-white truncate">{p.nome}</div>
                                                 {semCodigo(p)
                                                     ? <span className="text-xs font-semibold text-amber-600">sem código</span>
-                                                    : <span className="text-xs font-mono text-gray-500">{p.codigo_barras}</span>}
+                                                    : <span className="text-xs font-mono text-gray-500 dark:text-gray-400">{p.codigo_barras}</span>}
                                             </div>
                                             <span className="font-bold text-gray-700 dark:text-gray-200 shrink-0">{precoBR(Number(p.preco_venda) || 0)}</span>
                                         </button>
@@ -258,8 +258,8 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                                             <div className="flex items-center gap-2 text-xs">
                                                 {semCodigo(produto)
                                                     ? <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 font-semibold">sem código</span>
-                                                    : <span className="font-mono text-gray-500">{produto.codigo_barras}</span>}
-                                                <span className="text-gray-500">· {precoBR(Number(produto.preco_venda) || 0)}</span>
+                                                    : <span className="font-mono text-gray-500 dark:text-gray-400">{produto.codigo_barras}</span>}
+                                                <span className="text-gray-500 dark:text-gray-400">· {precoBR(Number(produto.preco_venda) || 0)}</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1">
@@ -346,7 +346,7 @@ const LabelPrintModal: FC<LabelPrintModalProps> = ({ isOpen, onClose, produtosIn
                     <div>
                         <h4 className={tituloClass}>Prévia</h4>
                         <iframe title="Prévia das etiquetas" srcDoc={previa}
-                            className="w-full h-[220px] bg-white rounded-2xl border border-gray-200 dark:border-gray-700" />
+                            className="w-full h-[220px] bg-white rounded-2xl border border-gray-200 dark:border-gray-700 dark:bg-gray-800" />
                     </div>
                 )}
             </div>

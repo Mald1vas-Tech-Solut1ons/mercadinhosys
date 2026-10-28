@@ -88,7 +88,7 @@ const ClienteSelect: React.FC<ClienteSelectProps> = ({ cliente, onClienteSelecio
                         </div>
                         <button
                             onClick={handleRemoverCliente}
-                            className="p-2 text-gray-500 hover:text-red-500"
+                            className="p-2 text-gray-500 hover:text-red-500 dark:text-gray-400"
                         >
                             <X className="w-5 h-5" />
                         </button>

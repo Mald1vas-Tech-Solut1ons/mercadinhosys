@@ -638,7 +638,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
                         id="gerar_boleto"
                         checked={formData.gerar_boleto}
                         onChange={(e) => setFormData(prev => ({ ...prev, gerar_boleto: e.target.checked }))}
-                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 dark:border-gray-700"
                       />
                       <label htmlFor="gerar_boleto" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         Sim, gerar boleto

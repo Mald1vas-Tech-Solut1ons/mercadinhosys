@@ -6,6 +6,11 @@ import logging
 from flask import g
 from datetime import datetime, date
 
+def iso_utc(valor):
+    """Import tardio: app.utils carrega serviços que dependem de app (import circular)."""
+    from app.utils.timezone import iso_utc as _iso_utc
+    return _iso_utc(valor)
+
 logger = logging.getLogger(__name__)
 
 # Tabelas que devem ser sincronizadas com a nuvem (Integridade de Dados)
@@ -44,7 +49,7 @@ def object_to_dict(obj):
         if isinstance(v, Decimal):
             return float(v)
         if isinstance(v, (datetime, date)):
-            return v.isoformat()
+            return iso_utc(v)
         if isinstance(v, dict):
             return {k: sanitize(item) for k, item in v.items()}
         if isinstance(v, list):
@@ -135,7 +140,7 @@ def registrar_evento_forense(mapper, connection, target, operacao):
                 "operacao": operacao,
                 "tabela": target.__tablename__,
                 "registro_id": registro_id,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": iso_utc(datetime.now()),
                 "data": payload
             }
         )

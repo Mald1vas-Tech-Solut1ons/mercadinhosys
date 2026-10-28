@@ -67,19 +67,19 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-200 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90dvh] flex flex-col">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90dvh] flex flex-col dark:bg-gray-800">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-purple-100 rounded-xl">
               <Layers className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Lotes Disponíveis (FIFO)</h2>
-              <p className="text-sm text-gray-500">{produtoNome}</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Lotes Disponíveis (FIFO)</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{produtoNome}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors dark:hover:bg-gray-700">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -90,7 +90,7 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
             <div className="flex items-center justify-center h-48">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="mt-3 text-gray-500 text-sm">Carregando lotes...</p>
+                <p className="mt-3 text-gray-500 text-sm dark:text-gray-400">Carregando lotes...</p>
               </div>
             </div>
           ) : error ? (
@@ -140,25 +140,25 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
                         key={lote.id}
                         className={`border rounded-xl p-4 transition-all ${
                           idx === 0 ? 'border-purple-200 bg-purple-50/30 ring-1 ring-purple-100' : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                        } dark:border-gray-700`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
                               idx === 0 ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-600'
-                            }`}>
+                            } dark:text-gray-300`}>
                               {idx + 1}
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-gray-900">{lote.numero_lote}</span>
+                                <span className="font-mono font-bold text-gray-900 dark:text-gray-100">{lote.numero_lote}</span>
                                 {idx === 0 && (
                                   <span className="px-2 py-0.5 bg-purple-600 text-white text-[10px] font-bold rounded-full uppercase">
                                     Proximo
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500 mt-0.5">
+                              <div className="text-xs text-gray-500 mt-0.5 dark:text-gray-400">
                                 Entrada: {dataDoDia(lote.data_entrada).toLocaleDateString('pt-BR')}
                                 {lote.preco_custo > 0 && ` | Custo: R$ ${lote.preco_custo.toFixed(2)}`}
                               </div>
@@ -168,7 +168,7 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
                             <div className="text-right">
                               <div className="flex items-center gap-1.5">
                                 <Package className="w-4 h-4 text-gray-400" />
-                                <span className="font-bold text-gray-900">{lote.quantidade} un</span>
+                                <span className="font-bold text-gray-900 dark:text-gray-100">{lote.quantidade} un</span>
                               </div>
                             </div>
                             <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-full border ${badge.classe}`}>
@@ -204,10 +204,10 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-100 p-4">
+        <div className="border-t border-gray-100 p-4 dark:border-gray-700">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+            className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium dark:bg-gray-800 dark:text-gray-200"
           >
             Fechar
           </button>

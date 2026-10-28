@@ -38,7 +38,7 @@ import zipfile
 from sqlalchemy import func, extract, and_, or_, cast, String, desc
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from app.decorators.plan_guards import plan_required
-from app.utils.timezone import now_utc, fmt_local, iso_local
+from app.utils.timezone import iso_utc, now_utc, fmt_local, iso_local
 from collections import defaultdict
 from typing import Dict, List, Any, Tuple
 from app.utils.metrics_calculator import MetricsCalculator
@@ -228,7 +228,7 @@ def calcular_previsao_esgotamento(produto_id: int, estabelecimento_id: int) -> D
             "estoque_atual": estoque_atual,
             "media_vendas_diarias": 0,
             "dias_ate_esgotamento": 0,
-            "data_esgotamento_prevista": datetime.now().date().isoformat(),
+            "data_esgotamento_prevista": iso_utc(datetime.now().date()),
             "status": "ESGOTADO"
         }
     
@@ -279,7 +279,7 @@ def calcular_previsao_esgotamento(produto_id: int, estabelecimento_id: int) -> D
         "estoque_atual": estoque_atual,
         "media_vendas_diarias": round(media_vendas_diarias, 2),
         "dias_ate_esgotamento": dias_ate_esgotamento,
-        "data_esgotamento_prevista": data_esgotamento.date().isoformat(),
+        "data_esgotamento_prevista": iso_utc(data_esgotamento.date()),
         "status": status
     }
 
@@ -755,7 +755,7 @@ def exportar_backup_local():
             "metadata": {
                 "sistema": "MercadinhoSys",
                 "versao": "2.0.0",
-                "data_exportacao": datetime.now().isoformat(),
+                "data_exportacao": iso_utc(datetime.now()),
                 "estabelecimento_id": estabelecimento_id,
                 "exportado_por": "Super Admin" if str(estabelecimento_id).lower() == 'all' else "Funcionário Autenticado"
             },

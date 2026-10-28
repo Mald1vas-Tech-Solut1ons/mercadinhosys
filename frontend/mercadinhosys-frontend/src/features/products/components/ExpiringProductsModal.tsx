@@ -197,7 +197,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                 {/* Barra de controles: ordenação + desconto ajustável (quando aplicável) */}
                 {!loading && linhas.length > 0 && (
                     <div className="px-6 py-3 border-b dark:border-gray-700 flex flex-wrap items-center gap-3 bg-gray-50/60 dark:bg-gray-900/30">
-                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ordenar por:</span>
+                        <span className="text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400">Ordenar por:</span>
                         <select
                             value={ordenacao}
                             onChange={(e) => setOrdenacao(e.target.value as Ordenacao)}
@@ -210,7 +210,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
 
                         {(timeframe === '15' || timeframe === '30') && (
                             <div className="flex items-center gap-2 ml-auto">
-                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Desconto a aplicar:</span>
+                                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider dark:text-gray-400">Desconto a aplicar:</span>
                                 <div className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1">
                                     <input
                                         type="number"
@@ -221,7 +221,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                                         onChange={(e) => setDescontoPercentual(Math.max(0, Math.min(90, Number(e.target.value) || 0)))}
                                         className="w-14 text-sm font-bold text-right bg-transparent outline-none text-gray-900 dark:text-white"
                                     />
-                                    <span className="text-sm font-bold text-gray-500">%</span>
+                                    <span className="text-sm font-bold text-gray-500 dark:text-gray-400">%</span>
                                 </div>
                             </div>
                         )}
@@ -233,7 +233,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-gray-500 font-medium">Analisando estoque...</p>
+                            <p className="text-gray-500 font-medium dark:text-gray-400">Analisando estoque...</p>
                         </div>
                     ) : linhas.length === 0 ? (
                         <div className="text-center py-20">
@@ -241,7 +241,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                                 <TrendingDown className="w-10 h-10 text-green-600" />
                             </div>
                             <h3 className="text-lg font-bold text-gray-800 dark:text-white">Nenhum produto crítico!</h3>
-                            <p className="text-gray-500">Seu controle de validade está em dia.</p>
+                            <p className="text-gray-500 dark:text-gray-400">Seu controle de validade está em dia.</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -273,7 +273,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                                         {/* Produto / Lote */}
                                         <div className="sm:col-span-3 min-w-0">
                                             <p className="font-bold text-gray-900 dark:text-white truncate">{p.nome}</p>
-                                            <p className="text-xs text-gray-500 truncate">
+                                            <p className="text-xs text-gray-500 truncate dark:text-gray-400">
                                                 {p.categoria}
                                                 {lote ? ` | Lote: ${lote.numero_lote} (${lote.quantidade} un.)` : ` | Qtd: ${p.quantidade}`}
                                             </p>
@@ -339,7 +339,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
 
                 {/* Footer */}
                 <div className="p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-between items-center">
-                    <p className="text-xs text-gray-500 italic">
+                    <p className="text-xs text-gray-500 italic dark:text-gray-400">
                         * Sugestões baseadas nas melhores práticas de gestão de perecíveis.
                     </p>
                     <div className="flex gap-3">

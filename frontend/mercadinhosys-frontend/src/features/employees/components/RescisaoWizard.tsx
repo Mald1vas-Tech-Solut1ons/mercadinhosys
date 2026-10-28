@@ -26,7 +26,7 @@ const TIPOS: { valor: TipoRescisao; titulo: string; desc: string; cor: string }[
     { valor: 'S_JUSTA', titulo: 'Dispensa sem justa causa', desc: 'Empresa demite. Aviso, 13º, férias e multa 40% FGTS.', cor: 'border-rose-300 bg-rose-50 dark:bg-rose-500/10' },
     { valor: 'PEDIDO', titulo: 'Pedido de demissão', desc: 'Funcionário pede. 13º e férias proporcionais, sem multa.', cor: 'border-blue-300 bg-blue-50 dark:bg-blue-500/10' },
     { valor: 'ACORDO', titulo: 'Acordo (distrato 484-A)', desc: 'Metade do aviso e multa 20% FGTS.', cor: 'border-amber-300 bg-amber-50 dark:bg-amber-500/10' },
-    { valor: 'C_JUSTA', titulo: 'Com justa causa', desc: 'Apenas saldo de salário e férias vencidas.', cor: 'border-gray-300 bg-gray-50 dark:bg-gray-700/40' },
+    { valor: 'C_JUSTA', titulo: 'Com justa causa', desc: 'Apenas saldo de salário e férias vencidas.', cor: 'border-gray-300 bg-gray-50 dark:bg-gray-700/40 dark:border-gray-700' },
 ];
 
 const fmtMoeda = (n: number) => (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -259,9 +259,9 @@ export default function RescisaoWizard() {
 
                     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
                         {carregandoHist ? (
-                            <div className="py-12 text-center text-gray-500 text-sm">Carregando histórico…</div>
+                            <div className="py-12 text-center text-gray-500 text-sm dark:text-gray-400">Carregando histórico…</div>
                         ) : historico.length === 0 ? (
-                            <div className="py-12 text-center text-gray-500 text-sm">Nenhuma rescisão registrada com os filtros atuais</div>
+                            <div className="py-12 text-center text-gray-500 text-sm dark:text-gray-400">Nenhuma rescisão registrada com os filtros atuais</div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
@@ -312,7 +312,7 @@ export default function RescisaoWizard() {
                     const ativo = passo === n, feito = passo > n;
                     return (
                         <div key={label} className="flex items-center gap-2 flex-1">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${feito ? 'bg-emerald-500 text-white' : ativo ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'}`}>
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${feito ? 'bg-emerald-500 text-white' : ativo ? 'bg-indigo-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500'} dark:text-gray-400`}>
                                 {feito ? <CheckCircle2 className="w-5 h-5" /> : n}
                             </div>
                             <span className={`text-sm font-semibold hidden sm:block ${ativo ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>{label}</span>

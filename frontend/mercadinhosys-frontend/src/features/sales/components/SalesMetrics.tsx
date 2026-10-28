@@ -100,13 +100,13 @@ export default function SalesMetrics({
             </div>
 
             {/* Vendas Canceladas */}
-            <div className="bg-linear-to-br from-gray-50 to-gray-100 p-4 rounded-lg shadow-md border border-gray-200">
+            <div className="bg-linear-to-br from-gray-50 to-gray-100 p-4 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between items-start mb-2">
-                    <div className="text-sm text-gray-700 font-medium">Canceladas</div>
+                    <div className="text-sm text-gray-700 font-medium dark:text-gray-200">Canceladas</div>
                     <span className="text-2xl">❌</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-600">{canceladas}</div>
-                <div className="text-xs text-gray-600 mt-1">
+                <div className="text-2xl font-bold text-gray-600 dark:text-gray-300">{canceladas}</div>
+                <div className="text-xs text-gray-600 mt-1 dark:text-gray-300">
                     {quantidadeVendas > 0 ? ((canceladas / quantidadeVendas) * 100).toFixed(1) : 0}% do total
                 </div>
             </div>

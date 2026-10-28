@@ -129,7 +129,7 @@ const CaixaHeader: React.FC<CaixaHeaderProps> = ({
                             <button
                                 type="button"
                                 onClick={onOpenCaixaManager}
-                                className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-black uppercase tracking-wider text-xs bg-white text-blue-700 hover:bg-blue-50 transition-colors"
+                                className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-black uppercase tracking-wider text-xs bg-white text-blue-700 hover:bg-blue-50 transition-colors dark:bg-gray-800"
                             >
                                 <Wallet className="w-4 h-4" />
                                 {caixaAberto ? 'Gerir Caixa' : 'Abrir Caixa'}

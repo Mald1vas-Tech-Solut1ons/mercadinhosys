@@ -12,5 +12,6 @@ class CustomJSONProvider(DefaultJSONProvider):
         if isinstance(obj, Decimal):
             return float(obj)
         if isinstance(obj, (datetime, date)):
-            return obj.isoformat()
+            from app.utils.timezone import iso_utc
+            return iso_utc(obj)  # data com hora sem fuso = UTC; marcada para o navegador converter
         return super().default(obj)

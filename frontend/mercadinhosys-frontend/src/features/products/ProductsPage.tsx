@@ -860,7 +860,7 @@ const ProductsPage: React.FC = () => {
               )}
             </div>
             <div className="flex justify-end gap-2 p-4 border-t dark:border-gray-700 shrink-0" style={{ paddingBottom: 'max(1rem, calc(0.5rem + env(safe-area-inset-bottom)))' }}>
-              <button onClick={() => setShowStockModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
+              <button onClick={() => setShowStockModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg dark:text-gray-300 dark:hover:bg-gray-700">Cancelar</button>
               <button onClick={handleStockAdjust} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Confirmar</button>
             </div>
           </div>
@@ -887,7 +887,7 @@ const ProductsPage: React.FC = () => {
 
             <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
               <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 text-center shrink-0">
-                <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Produto para Descarte</p>
+                <p className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1 dark:text-gray-400">Produto para Descarte</p>
                 <p className="text-xl font-black text-slate-900 dark:text-white">{selectedProduct.nome}</p>
                 <div className="mt-2 flex items-center justify-center gap-2">
                   <span className="text-xs font-bold px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded-md text-slate-600 dark:text-slate-300">
@@ -951,7 +951,7 @@ const ProductsPage: React.FC = () => {
             <div className="p-4 md:p-6 bg-slate-50 dark:bg-slate-800/30 border-t border-slate-100 dark:border-slate-800 flex gap-3 shrink-0" style={{ paddingBottom: 'max(1rem, calc(1rem + env(safe-area-inset-bottom)))' }}>
               <button
                 onClick={() => setShowDiscardModal(false)}
-                className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all uppercase text-xs tracking-widest"
+                className="flex-1 py-4 px-6 rounded-2xl font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all uppercase text-xs tracking-widest dark:text-gray-400"
               >
                 Cancelar
               </button>

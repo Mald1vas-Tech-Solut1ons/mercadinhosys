@@ -46,7 +46,7 @@ const EstabelecimentoSelector: React.FC = () => {
                 <span className="font-medium text-gray-900 dark:text-white">
                     {estabelecimentoAtual?.nome_fantasia || 'Selecione...'}
                 </span>
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             </button>
 
             {/* Dropdown */}

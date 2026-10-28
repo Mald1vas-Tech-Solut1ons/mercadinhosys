@@ -108,8 +108,8 @@ export default function SalesAnalytics({
     return (
         <div className="space-y-6">
             {/* Gráfico de Tendência */}
-            <div className="bg-white p-6 rounded-lg shadow-md border">
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">
+            <div className="bg-white p-6 rounded-lg shadow-md border dark:bg-gray-800">
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                     📈 Tendência de Vendas (Últimos 30 Dias)
                 </h3>
                 <div className="h-80">
@@ -142,8 +142,8 @@ export default function SalesAnalytics({
             {/* Grid de 2 colunas */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Top Produtos */}
-                <div className="bg-white p-6 rounded-lg shadow-md border">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                <div className="bg-white p-6 rounded-lg shadow-md border dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                         🛍️ Top 10 Produtos Mais Vendidos
                     </h3>
                     <div className="h-80">
@@ -162,8 +162,8 @@ export default function SalesAnalytics({
                 </div>
 
                 {/* Formas de Pagamento */}
-                <div className="bg-white p-6 rounded-lg shadow-md border">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                <div className="bg-white p-6 rounded-lg shadow-md border dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                         💳 Distribuição por Forma de Pagamento
                     </h3>
                     <div className="h-80 flex items-center justify-center">
@@ -193,8 +193,8 @@ export default function SalesAnalytics({
             {/* Grid de 2 colunas */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Horários de Pico */}
-                <div className="bg-white p-6 rounded-lg shadow-md border">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                <div className="bg-white p-6 rounded-lg shadow-md border dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                         ⏰ Horários de Pico
                     </h3>
                     <div className="h-64">
@@ -212,23 +212,23 @@ export default function SalesAnalytics({
                 </div>
 
                 {/* Top Funcionários */}
-                <div className="bg-white p-6 rounded-lg shadow-md border">
-                    <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                <div className="bg-white p-6 rounded-lg shadow-md border dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
                         👥 Top Funcionários
                     </h3>
                     <div className="space-y-3">
                         {topFuncionarios.slice(0, 5).map((func, index) => (
                             <div
                                 key={index}
-                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg dark:bg-gray-900"
                             >
                                 <div className="flex items-center gap-3">
                                     <span className="text-2xl">
                                         {index === 0 ? "🏆" : index === 1 ? "🥈" : index === 2 ? "🥉" : "👤"}
                                     </span>
                                     <div>
-                                        <p className="font-semibold text-gray-900">{func.nome}</p>
-                                        <p className="text-sm text-gray-600">
+                                        <p className="font-semibold text-gray-900 dark:text-gray-100">{func.nome}</p>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">
                                             {func.quantidade} vendas
                                         </p>
                                     </div>

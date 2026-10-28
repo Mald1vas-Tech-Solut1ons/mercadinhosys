@@ -28,7 +28,7 @@ const ProdutoThumb: React.FC<{ produto: Produto; size?: number; onZoom: (produto
                     loading="lazy"
                     onError={() => setErro(true)}
                     style={{ width: size, height: size }}
-                    className="rounded-lg object-cover border border-gray-200 dark:border-slate-700 bg-white transition-transform group-hover/thumb:scale-105"
+                    className="rounded-lg object-cover border border-gray-200 dark:border-slate-700 bg-white transition-transform group-hover/thumb:scale-105 dark:bg-gray-800"
                 />
                 <span className="absolute inset-0 rounded-lg bg-black/0 group-hover/thumb:bg-black/30 flex items-center justify-center transition-colors">
                     <ZoomIn className="w-4 h-4 text-gray-900 dark:text-white opacity-0 group-hover/thumb:opacity-100 transition-opacity" />

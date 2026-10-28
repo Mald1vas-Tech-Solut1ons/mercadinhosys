@@ -7,6 +7,7 @@ from app.decorators.decorator_jwt import super_admin_required
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import json
+from app.utils.timezone import iso_utc
 
 monitor_bp = Blueprint("monitor", __name__)
 
@@ -54,7 +55,7 @@ def get_global_logs():
                         "id": log.id,
                         "tipo_evento": log.tipo_evento,
                         "descricao": log.descricao,
-                        "data_evento": log.data_evento.isoformat() if log.data_evento else None,
+                        "data_evento": iso_utc(log.data_evento) if log.data_evento else None,
                         "estabelecimento_nome": "Erro ao carregar nome"
                     })
 
@@ -142,7 +143,7 @@ def get_global_summary():
                         pass
                 novos_clientes.append({
                     "nome": nome_estab,
-                    "data": log.data_evento.isoformat() if log.data_evento else agora.isoformat()
+                    "data": iso_utc(log.data_evento) if log.data_evento else iso_utc(agora)
                 })
         except Exception as e:
             current_app.logger.error(f"Erro ao ler auditoria: {e}")

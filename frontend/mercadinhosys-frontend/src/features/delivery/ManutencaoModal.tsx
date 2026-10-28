@@ -80,7 +80,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
 
                     <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Categoria de Serviço</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Categoria de Serviço</label>
                             <select
                                 value={tipoServico}
                                 onChange={e => setTipoServico(e.target.value)}
@@ -97,7 +97,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Odômetro (KM)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Odômetro (KM)</label>
                                 <input
                                     type="number"
                                     step="0.1"
@@ -109,7 +109,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Valor Pago (R$)</label>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Valor Pago (R$)</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -123,7 +123,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Detalhes (Opcional)</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Detalhes (Opcional)</label>
                             <textarea
                                 value={descricao}
                                 onChange={e => setDescricao(e.target.value)}

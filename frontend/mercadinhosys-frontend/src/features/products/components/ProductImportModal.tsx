@@ -127,7 +127,7 @@ const ProductImportModal = ({ show, onClose, onSuccess }: ProductImportModalProp
                     <button
                         disabled={importing}
                         onClick={onClose}
-                        className="flex-1 sm:flex-none px-6 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 font-bold hover:bg-gray-100 transition-all font-bold"
+                        className="flex-1 sm:flex-none px-6 py-3 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 font-bold hover:bg-gray-100 transition-all font-bold dark:text-gray-400 dark:hover:bg-gray-700"
                     >
                         {result ? 'Sair' : 'Cancelar'}
                     </button>
@@ -289,11 +289,11 @@ const ProductImportModal = ({ show, onClose, onSuccess }: ProductImportModalProp
                                 )}
                                 <div className="flex gap-6 mt-3">
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] text-gray-500 uppercase font-black">Importados</span>
+                                        <span className="text-[10px] text-gray-500 uppercase font-black dark:text-gray-400">Importados</span>
                                         <span className="text-2xl font-black text-gray-800 dark:text-white">{result.total_importados}</span>
                                     </div>
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] text-gray-500 uppercase font-black">Com problema</span>
+                                        <span className="text-[10px] text-gray-500 uppercase font-black dark:text-gray-400">Com problema</span>
                                         <span className={`text-2xl font-black ${result.total_erros > 0 ? 'text-red-500' : 'text-gray-400'}`}>{result.total_erros}</span>
                                     </div>
                                 </div>

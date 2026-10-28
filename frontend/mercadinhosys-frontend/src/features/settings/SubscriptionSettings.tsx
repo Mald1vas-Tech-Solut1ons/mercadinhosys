@@ -170,7 +170,7 @@ const SubscriptionSettings: React.FC = () => {
                                 <button
                                     onClick={handlePortal}
                                     disabled={processing}
-                                    className="px-10 py-5 bg-white text-black rounded-3xl font-black text-sm hover:scale-105 transition-all flex items-center gap-3 shadow-2xl shadow-white/10 disabled:opacity-50"
+                                    className="px-10 py-5 bg-white text-black rounded-3xl font-black text-sm hover:scale-105 transition-all flex items-center gap-3 shadow-2xl shadow-white/10 disabled:opacity-50 dark:bg-gray-800"
                                 >
                                     Portal Financeiro <ExternalLink className="w-5 h-5" />
                                 </button>

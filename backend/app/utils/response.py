@@ -4,6 +4,7 @@ Módulo de padronização de respostas da API
 from flask import jsonify
 from typing import Any, Dict, Optional
 from datetime import datetime, timezone
+from app.utils.timezone import iso_utc
 
 class APIResponse:
     """Padroniza respostas da API"""
@@ -15,7 +16,7 @@ class APIResponse:
             "success": True,
             "message": message,
             "data": data,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": iso_utc(datetime.now(timezone.utc))
         }), status_code
     
     @staticmethod
@@ -26,7 +27,7 @@ class APIResponse:
             "error": error_code,
             "message": message,
             "details": details or {},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": iso_utc(datetime.now(timezone.utc))
         }), status_code
     
     @staticmethod
@@ -41,5 +42,5 @@ class APIResponse:
                 "total": total,
                 "pages": (total + per_page - 1) // per_page
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": iso_utc(datetime.now(timezone.utc))
         }), status_code

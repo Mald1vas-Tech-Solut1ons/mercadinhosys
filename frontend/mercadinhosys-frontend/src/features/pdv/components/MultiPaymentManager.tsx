@@ -96,7 +96,7 @@ const MultiPaymentManager: React.FC<MultiPaymentManagerProps> = ({
         <div className="flex flex-col gap-4 relative">
             {/* OVERLAYS DE PAGAMENTO DINÂMICO */}
             {pixData && (
-                <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl border border-slate-200 p-4 text-center">
+                <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl border border-slate-200 p-4 text-center dark:border-gray-700">
                     <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Pagamento via PIX</h3>
                     <Smartphone className="w-12 h-12 text-blue-500 mb-3" />
                     <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mb-6">
@@ -121,9 +121,9 @@ const MultiPaymentManager: React.FC<MultiPaymentManagerProps> = ({
             )}
             
             {tefData && (
-                <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl border border-slate-200 p-4 text-center">
+                <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl border border-slate-200 p-4 text-center dark:border-gray-700">
                     <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Maquininha de Cartão</h3>
-                    <CreditCard className="w-12 h-12 text-slate-500 mb-3" />
+                    <CreditCard className="w-12 h-12 text-slate-500 mb-3 dark:text-gray-400" />
                     <p className="text-sm font-bold text-slate-600 dark:text-slate-300 mb-6">
                         Passe o valor de <strong className="text-blue-600 text-lg">{formatCurrency(tefData.valor)}</strong> na sua maquininha.
                     </p>

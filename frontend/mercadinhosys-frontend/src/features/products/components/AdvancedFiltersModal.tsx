@@ -68,7 +68,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Filtros Avançados</h2>
-              <p className="text-xs font-medium text-slate-500">Refine a busca no catálogo de produtos</p>
+              <p className="text-xs font-medium text-slate-500 dark:text-gray-400">Refine a busca no catálogo de produtos</p>
             </div>
           </div>
           <button 
@@ -85,7 +85,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
             
             {/* Categoria */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Categoria</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Categoria</label>
               <select
                 value={draft.categoria || ''}
                 onChange={(e) => handleChange('categoria', e.target.value || undefined)}
@@ -98,7 +98,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
             {/* Fornecedor */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Fornecedor</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Fornecedor</label>
               <select 
                 value={draft.fornecedor_id || ''}
                 onChange={(e) => handleChange('fornecedor_id', e.target.value ? parseInt(e.target.value) : undefined)}
@@ -111,7 +111,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
             {/* Status Estoque */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status do Estoque</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Status do Estoque</label>
               <select 
                 value={draft.estoque_status || ''}
                 onChange={(e) => handleChange('estoque_status', e.target.value || undefined)}
@@ -126,7 +126,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
             {/* Tipo */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Classificação (Tipo)</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Classificação (Tipo)</label>
               <select 
                 value={draft.tipo || ''}
                 onChange={(e) => handleChange('tipo', e.target.value || undefined)}
@@ -143,7 +143,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
 
             {/* Validade */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Condição de Validade</label>
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Condição de Validade</label>
               <select 
                 value={draft.vencidos ? 'vencidos' : (draft.validade_proxima ? `proxima_${draft.dias_validade || 30}` : '')}
                 onChange={(e) => {
@@ -176,7 +176,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
               
               {/* Status do Produto */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status do Produto</label>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Status do Produto</label>
                 <select 
                   value={draft.ativos === true ? 'ativos' : (draft.ativos === false ? 'inativos' : 'todos')}
                   onChange={(e) => {
@@ -193,7 +193,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Critério</label>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Critério</label>
                 <select 
                   value={draft.ordenar_por || 'nome'}
                   onChange={(e) => handleChange('ordenar_por', e.target.value)}
@@ -210,7 +210,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Direção</label>
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Direção</label>
                 <select 
                   value={draft.direcao || 'asc'}
                   onChange={(e) => handleChange('direcao', e.target.value as 'asc' | 'desc')}

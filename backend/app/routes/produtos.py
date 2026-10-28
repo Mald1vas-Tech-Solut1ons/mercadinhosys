@@ -32,7 +32,7 @@ from app.models import (
     CatalogoMestre,
 )
 from app.utils import calcular_margem_lucro, formatar_codigo_barras
-from app.utils.timezone import now_utc, fmt_local
+from app.utils.timezone import iso_utc, now_utc, fmt_local
 from app.utils.query_helpers import get_local_date
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
@@ -155,9 +155,9 @@ def _serialize_lote(lote: ProdutoLote):
         "fornecedor_id": lote.fornecedor_id,
         "quantidade": float(lote.quantidade) if lote.quantidade else 0.0,
         "quantidade_inicial": float(lote.quantidade_inicial) if lote.quantidade_inicial else 0.0,
-        "data_fabricacao": lote.data_fabricacao.isoformat() if lote.data_fabricacao else None,
-        "data_validade": lote.data_validade.isoformat() if lote.data_validade else None,
-        "data_entrada": lote.data_entrada.isoformat() if lote.data_entrada else None,
+        "data_fabricacao": iso_utc(lote.data_fabricacao) if lote.data_fabricacao else None,
+        "data_validade": iso_utc(lote.data_validade) if lote.data_validade else None,
+        "data_entrada": iso_utc(lote.data_entrada) if lote.data_entrada else None,
         "preco_custo_unitario": float(lote.preco_custo_unitario) if lote.preco_custo_unitario is not None else 0.0,
         "preco_venda": float(lote.preco_venda) if lote.preco_venda is not None else None,
         # Nome do fornecedor (não só o id) para o Radar de Fornecedores e telas de lote.
@@ -210,7 +210,7 @@ def _montar_radar_fornecedores(produto_id, estabelecimento_id):
         # Itens vêm em ordem crescente de data → o último visto é o mais recente.
         agg["ultimo_preco"] = preco
         if data:
-            agg["ultima_compra"] = data.isoformat() if hasattr(data, "isoformat") else str(data)
+            agg["ultima_compra"] = iso_utc(data) if hasattr(data, "isoformat") else str(data)
 
     radar = []
     for agg in por_forn.values():
@@ -1617,7 +1617,7 @@ def listar_produtos():
 
             if lote_atual:
                 produto_dict["lote"] = lote_atual.numero_lote
-                produto_dict["data_validade"] = lote_atual.data_validade.isoformat() if lote_atual.data_validade else None
+                produto_dict["data_validade"] = iso_utc(lote_atual.data_validade) if lote_atual.data_validade else None
             # --------------------------------------------------
 
             # Verificar alertas
@@ -1691,7 +1691,7 @@ def listar_produtos():
                     produto_dict["lotes_no_periodo"].append({
                         "id": l.id,
                         "numero_lote": l.numero_lote,
-                        "data_validade": l.data_validade.isoformat() if l.data_validade else None,
+                        "data_validade": iso_utc(l.data_validade) if l.data_validade else None,
                         "quantidade": l.quantidade,
                         "preco_venda": float(preco_lote) if preco_lote is not None else None,
                         "preco_produto": float(produto.preco_venda or 0),
@@ -1707,7 +1707,7 @@ def listar_produtos():
                     produto_dict["lotes_no_periodo"].append({
                         "id": None,
                         "numero_lote": produto.lote or "N/A",
-                        "data_validade": produto.data_validade.isoformat() if produto.data_validade else None,
+                        "data_validade": iso_utc(produto.data_validade) if produto.data_validade else None,
                         "quantidade": produto.quantidade,
                         "preco_venda": None,
                         "preco_produto": float(produto.preco_venda or 0),
@@ -1857,7 +1857,7 @@ def obter_produto(id):
                     "quantidade_atual": mov.quantidade_atual,
                     "motivo": mov.motivo,
                     "created_at": (
-                        mov.created_at.isoformat() if mov.created_at else None
+                        iso_utc(mov.created_at) if mov.created_at else None
                     ),
                     "funcionario": mov.funcionario.nome if mov.funcionario else None,
                 }
@@ -1881,7 +1881,7 @@ def obter_produto(id):
                     "preco_unitario": float(venda_item.preco_unitario),
                     "total_item": float(venda_item.total_item),
                     "data_venda": (
-                        venda_item.created_at.isoformat()
+                        iso_utc(venda_item.created_at)
                         if venda_item.created_at
                         else None
                     ),
@@ -1936,7 +1936,7 @@ def obter_produto(id):
                 "preco_venda_novo": float(hp.preco_venda_novo or 0),
                 "margem_nova": float(hp.margem_nova or 0),
                 "motivo": hp.motivo,
-                "data_alteracao": hp.data_alteracao.isoformat() if hp.data_alteracao else None,
+                "data_alteracao": iso_utc(hp.data_alteracao) if hp.data_alteracao else None,
                 "funcionario": hp.funcionario.nome if hp.funcionario else None
             })
 
@@ -1953,7 +1953,7 @@ def obter_produto(id):
                     "valor_total_vendido": valor_total_vendido,
                     "ticket_medio": ticket_medio_produto,
                     "ultima_venda": (
-                        produto.ultima_venda.isoformat()
+                        iso_utc(produto.ultima_venda)
                         if produto.ultima_venda
                         else None
                     ),
@@ -3174,8 +3174,8 @@ def atualizar_lote_produto(id, lote_id):
             "produto": {
                 "id": produto.id,
                 "lote": produto.lote,
-                "data_fabricacao": produto.data_fabricacao.isoformat() if produto.data_fabricacao else None,
-                "data_validade": produto.data_validade.isoformat() if produto.data_validade else None,
+                "data_fabricacao": iso_utc(produto.data_fabricacao) if produto.data_fabricacao else None,
+                "data_validade": iso_utc(produto.data_validade) if produto.data_validade else None,
             },
         })
 
@@ -3707,12 +3707,12 @@ def listar_produtos_estoque():
                 "ativo": produto.ativo,
                 "lote": produto.lote if hasattr(produto, 'lote') else None,
                 "data_fabricacao": None,
-                "data_validade": produto.data_validade.isoformat() if hasattr(produto, 'data_validade') and produto.data_validade else None,
-                "created_at": produto.created_at.isoformat() if produto.created_at else None,
-                "updated_at": produto.updated_at.isoformat() if produto.updated_at else None,
+                "data_validade": iso_utc(produto.data_validade) if hasattr(produto, 'data_validade') and produto.data_validade else None,
+                "created_at": iso_utc(produto.created_at) if produto.created_at else None,
+                "updated_at": iso_utc(produto.updated_at) if produto.updated_at else None,
                 "quantidade_vendida": produto.quantidade_vendida or 0,
                 "total_vendido": float((produto.total_vendido or Decimal('0')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)),
-                "ultima_venda": produto.ultima_venda.isoformat() if produto.ultima_venda else None,
+                "ultima_venda": iso_utc(produto.ultima_venda) if produto.ultima_venda else None,
                 "classificacao_abc": produto.classificacao_abc or "C",
             }
             
@@ -3791,7 +3791,7 @@ def listar_produtos_estoque():
                     if isinstance(ultima_venda, str):
                         ultima_venda_iso = ultima_venda
                     else:
-                        ultima_venda_iso = ultima_venda.isoformat() if hasattr(ultima_venda, 'isoformat') else str(ultima_venda)
+                        ultima_venda_iso = iso_utc(ultima_venda) if hasattr(ultima_venda, 'isoformat') else str(ultima_venda)
                 
                 # Buscar fornecedor_nome se fornecedor_id existe
                 fornecedor_nome = None
@@ -4421,7 +4421,7 @@ def alertas_produtos():
                     "lote_id": lote.id,
                     "numero_lote": lote.numero_lote,
                     "quantidade_no_lote": lote.quantidade,
-                    "data_validade": lote.data_validade.isoformat(),
+                    "data_validade": iso_utc(lote.data_validade),
                     "dias_vencido": dias_vencido,
                     "mensagem": f"VENCIDO há {dias_vencido} dia(s)! Lote {lote.numero_lote} com {lote.quantidade} un. Retirar imediatamente.",
                     "acao_sugerida": "Retirar da gôndola e registrar perda/descarte",
@@ -4448,7 +4448,7 @@ def alertas_produtos():
                     "lote_id": lote.id,
                     "numero_lote": lote.numero_lote,
                     "quantidade_no_lote": lote.quantidade,
-                    "data_validade": lote.data_validade.isoformat(),
+                    "data_validade": iso_utc(lote.data_validade),
                     "dias_restantes": dias_restantes,
                     "mensagem": f"Vence em {dias_restantes} dia(s)! Lote {lote.numero_lote} com {lote.quantidade} un.",
                     "acao_sugerida": "Colocar em promoção ou posicionar na frente da gôndola (FIFO)",
@@ -4478,7 +4478,7 @@ def alertas_produtos():
                     "lote_id": lote.id,
                     "numero_lote": lote.numero_lote,
                     "quantidade_no_lote": lote.quantidade,
-                    "data_validade": lote.data_validade.isoformat(),
+                    "data_validade": iso_utc(lote.data_validade),
                     "dias_restantes": dias_restantes,
                     "mensagem": f"Vence em {dias_restantes} dia(s). Lote {lote.numero_lote} com {lote.quantidade} un.",
                     "acao_sugerida": "Monitorar e priorizar venda via FIFO",
@@ -4529,7 +4529,7 @@ def alertas_produtos():
                         "produto_nome": produto.nome,
                         "mensagem": f"Sem vendas há {dias_sem_venda} dias",
                         "dias_sem_venda": dias_sem_venda,
-                        "ultima_venda": produto.ultima_venda.isoformat() if produto.ultima_venda else None,
+                        "ultima_venda": iso_utc(produto.ultima_venda) if produto.ultima_venda else None,
                         "acao_sugerida": "Avaliar promoção ou remoção do mix de produtos",
                     })
 
@@ -5168,8 +5168,8 @@ def obter_historico_precos(id):
             
             estatisticas = {
                 "total_alteracoes": len(historico_lista),
-                "primeira_alteracao": primeira_alteracao.data_alteracao.isoformat(),
-                "ultima_alteracao": ultima_alteracao.data_alteracao.isoformat(),
+                "primeira_alteracao": iso_utc(primeira_alteracao.data_alteracao),
+                "ultima_alteracao": iso_utc(ultima_alteracao.data_alteracao),
                 "variacao_custo_total_pct": float(variacao_custo_total),
                 "variacao_venda_total_pct": float(variacao_venda_total),
                 "preco_custo_inicial": float(primeira_alteracao.preco_custo_anterior),
@@ -5311,7 +5311,7 @@ def obter_produto_hub(id):
                 "quantidade_solicitada": float(item.quantidade_solicitada or 0),
                 "preco_unitario": float(item.preco_unitario or 0),
                 "data_previsao_entrega": (
-                    item.pedido.data_previsao_entrega.isoformat()
+                    iso_utc(item.pedido.data_previsao_entrega)
                     if item.pedido and item.pedido.data_previsao_entrega else None
                 ),
             }
@@ -5392,7 +5392,7 @@ def obter_produto_hub(id):
         produto_dict['quantidade_vendida'] = qtd_vendida
         produto_dict['total_vendido'] = total_vendido
         # ultima_venda ao vivo (não o campo denormalizado, que ficava nulo)
-        produto_dict['ultima_venda'] = ultima_venda_dt.isoformat() if ultima_venda_dt else None
+        produto_dict['ultima_venda'] = iso_utc(ultima_venda_dt) if ultima_venda_dt else None
 
         # Find primeira venda for accurate VMD calculation
         primeira_venda_query = db.session.query(func.min(Venda.data_venda)).join(VendaItem, VendaItem.venda_id == Venda.id).filter(
@@ -5402,7 +5402,7 @@ def obter_produto_hub(id):
         
         primeira_venda_str = None
         if primeira_venda_query and primeira_venda_query[0]:
-            primeira_venda_str = primeira_venda_query[0].isoformat()
+            primeira_venda_str = iso_utc(primeira_venda_query[0])
 
         estatisticas = {
             "valor_total_vendido": total_vendido,
@@ -5539,8 +5539,8 @@ def obter_vendas_historico(id):
             "historico": historico_vendas,
             "estatisticas": estatisticas,
             "periodo": {
-                "data_inicio": data_inicio.date().isoformat(),
-                "data_fim": datetime.now(timezone.utc).date().isoformat(),
+                "data_inicio": iso_utc(data_inicio.date()),
+                "data_fim": iso_utc(datetime.now(timezone.utc).date()),
                 "dias": 90
             }
         })

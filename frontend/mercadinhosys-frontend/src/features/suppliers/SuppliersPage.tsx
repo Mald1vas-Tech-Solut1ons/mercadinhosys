@@ -1037,7 +1037,7 @@ const SuppliersPage: React.FC = () => {
                                             type="checkbox"
                                             checked={formData.ativo}
                                             onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
-                                            className="w-5 h-5 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                                            className="w-5 h-5 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 dark:border-gray-700"
                                         />
                                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                             Fornecedor Ativo

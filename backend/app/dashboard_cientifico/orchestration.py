@@ -13,6 +13,7 @@ from .models_layer import PracticalModels
 from .temporal_analysis import TemporalAnalysis
 from .serializers import DashboardSerializer
 from .cache_layer import cache_response
+from app.utils.timezone import iso_utc
 
 # Alias para facilitar uso em cálculos
 _PM = PracticalModels
@@ -163,7 +164,7 @@ class DashboardOrchestrator:
 
         return {
             "success": True,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": iso_utc(datetime.now()),
             "period_days": days,
             "summary": {
                 "revenue": serializer.serialize_metric(sales_current),
@@ -244,7 +245,7 @@ class DashboardOrchestrator:
             return {
                 "success": False,
                 "error": str(e),
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": iso_utc(datetime.now(timezone.utc))
             }
 
     def _get_scientific_dashboard_logic(
@@ -1067,7 +1068,7 @@ class DashboardOrchestrator:
         # 11. Montar objeto final
         res = {
             "success": True,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": iso_utc(datetime.now(timezone.utc)),
             "period_days": int(days),
             "summary": {
                 "sales_current": DashboardSerializer.serialize_metric(sales_current_metric),

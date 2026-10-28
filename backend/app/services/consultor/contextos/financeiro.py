@@ -6,6 +6,7 @@ from app.models import Despesa, ContaPagar, Venda
 from app.services.rh_calculator_service import calcular_custo_folha_detalhado
 from app.utils.financeiro_constants import sem_categorias_integradas
 from app.services.consultor.contextos._datas import hoje_local, ini, fim
+from app.utils.timezone import iso_utc
 
 
 def _sem_categorias_integradas(query):
@@ -114,7 +115,7 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
         boletos_pendentes.append({
             "fornecedor": fornecedor_nome,
             "valor": valor,
-            "vencimento": cp.data_vencimento.isoformat() if cp.data_vencimento else None,
+            "vencimento": iso_utc(cp.data_vencimento) if cp.data_vencimento else None,
             "status": "atrasado" if atrasado else "a_vencer"
         })
 
@@ -126,8 +127,8 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
 
     return {
         "periodo": "mes_atual",
-        "mes_atual_inicio": mes_atual_inicio.isoformat(),
-        "hoje": hoje.isoformat(),
+        "mes_atual_inicio": iso_utc(mes_atual_inicio),
+        "hoje": iso_utc(hoje),
         "receita_mes_atual": round(receita_mes_atual, 2),
         "total_despesas_mes_atual": round(total_despesas_mes_atual, 2),
         "total_despesas_mes_anterior": round(total_despesas_mes_anterior, 2),

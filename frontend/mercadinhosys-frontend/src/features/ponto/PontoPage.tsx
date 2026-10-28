@@ -553,7 +553,7 @@ const PontoPage: React.FC = () => {
               </div>
             )}
 
-            <div className="relative bg-black rounded-lg overflow-hidden mb-4 border-4 border-gray-300">
+            <div className="relative bg-black rounded-lg overflow-hidden mb-4 border-4 border-gray-300 dark:border-gray-700">
               <video
                 ref={videoRef}
                 autoPlay
@@ -578,7 +578,7 @@ const PontoPage: React.FC = () => {
               </button>
               <button
                 onClick={pararCamera}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold transition"
+                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold transition dark:text-gray-200"
               >
                 Cancelar
               </button>
@@ -607,15 +607,15 @@ const PontoPage: React.FC = () => {
                 <div className="flex items-start gap-3">
                   <MapPin className="w-6 h-6 text-blue-600 mt-1 shrink-0" />
                   <div>
-                    <p className="font-semibold text-gray-900">Localização Capturada</p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">Localização Capturada</p>
+                    <p className="text-sm text-gray-600 mt-1 dark:text-gray-300">
                       📍 Latitude: {localizacao.latitude.toFixed(6)}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
                       📍 Longitude: {localizacao.longitude.toFixed(6)}
                     </p>
                     {distanciaValidacao !== null && (
-                      <p className="text-sm text-gray-600 mt-2">
+                      <p className="text-sm text-gray-600 mt-2 dark:text-gray-300">
                         📏 Distância do raio: {Math.round(distanciaValidacao)}m
                       </p>
                     )}
@@ -646,7 +646,7 @@ const PontoPage: React.FC = () => {
                   setLocalizacao(null);
                   setDistanciaValidacao(null);
                 }}
-                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold"
+                className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold dark:text-gray-200"
               >
                 Tirar Novamente
               </button>
@@ -841,7 +841,7 @@ const PontoPage: React.FC = () => {
         </h3>
 
         {registrosHoje.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
             <Clock className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <p className="text-lg font-medium">Nenhum registro hoje.</p>
             <p className="text-sm mt-2">Registre seu primeiro ponto clicando nos botões acima.</p>
@@ -871,8 +871,8 @@ const PontoPage: React.FC = () => {
                           <RegistroIcon className="w-6 h-6" />
                         </div>
                         <div>
-                          <p className="font-bold text-gray-900 text-lg">{getTipoLabel(registro.tipo_registro)}</p>
-                          <p className="text-sm text-gray-600">
+                          <p className="font-bold text-gray-900 text-lg dark:text-gray-100">{getTipoLabel(registro.tipo_registro)}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
                             <Clock className="w-4 h-4 inline mr-1" />
                             {registro.hora}
                           </p>
@@ -892,7 +892,7 @@ const PontoPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         {registro.foto_url ? (
                           <div
-                            className="w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-300 hover:border-blue-500 cursor-pointer hover:scale-110 transition-transform relative"
+                            className="w-16 h-16 rounded-lg overflow-hidden border-2 border-gray-300 hover:border-blue-500 cursor-pointer hover:scale-110 transition-transform relative dark:border-gray-700"
                             title="Clique para visualizar foto"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -912,7 +912,7 @@ const PontoPage: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          <div className="w-16 h-16 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+                          <div className="w-16 h-16 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 dark:bg-gray-800 dark:border-gray-700">
                             <Camera className="w-5 h-5" />
                           </div>
                         )}
@@ -940,11 +940,11 @@ const PontoPage: React.FC = () => {
 
             {/* Resumo do dia */}
             <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-xl">
-              <p className="text-sm text-gray-600 font-semibold">
+              <p className="text-sm text-gray-600 font-semibold dark:text-gray-300">
                 Total de registros hoje: <span className="text-2xl text-blue-600 font-bold">{registrosHoje.length}</span>
               </p>
               {registrosHoje.length >= 2 && (
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-gray-600 mt-2 dark:text-gray-300">
                   ✅ Você tem pelo menos um ciclo de trabalho registrado
                 </p>
               )}
@@ -962,7 +962,7 @@ const PontoPage: React.FC = () => {
             paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
           }}
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-full flex flex-col overflow-hidden animate-fadeIn my-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-full flex flex-col overflow-hidden animate-fadeIn my-auto dark:bg-gray-800">
             {/* HEADER */}
             <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-gray-900 dark:text-white shrink-0">
               <div className="flex-1">
@@ -994,13 +994,13 @@ const PontoPage: React.FC = () => {
               <div className="mt-4 sm:mt-6 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <div className="p-2 sm:p-4 bg-blue-50 rounded-lg border-l-4 border-blue-600">
                   <p className="text-xs text-blue-600 font-semibold">📝 Tipo</p>
-                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1">
+                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">
                     {getTipoLabel(fotoModal.registro.tipo_registro)}
                   </p>
                 </div>
                 <div className="p-2 sm:p-4 bg-green-50 rounded-lg border-l-4 border-green-600">
                   <p className="text-xs text-green-600 font-semibold">⏰ Horário</p>
-                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1">{fotoModal.registro.hora}</p>
+                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">{fotoModal.registro.hora}</p>
                 </div>
                 <div className={`p-2 sm:p-4 rounded-lg border-l-4 ${fotoModal.registro.status === 'atrasado'
                   ? 'bg-red-50 border-red-600'
@@ -1010,14 +1010,14 @@ const PontoPage: React.FC = () => {
                     ? 'text-red-600'
                     : 'text-green-600'
                     }`}>Status</p>
-                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1">
+                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">
                     {fotoModal.registro.status === 'atrasado' ? '⚠️ Atrasado' : '✅ No Horário'}
                   </p>
                 </div>
                 {fotoModal.registro.minutos_atraso > 0 && (
                   <div className="p-2 sm:p-4 bg-orange-50 rounded-lg border-l-4 border-orange-600">
                     <p className="text-xs text-orange-600 font-semibold">Atraso</p>
-                    <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1">
+                    <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">
                       {fotoModal.registro.minutos_atraso}m
                     </p>
                   </div>
@@ -1032,13 +1032,13 @@ const PontoPage: React.FC = () => {
                     📍 Localização Capturada
                   </p>
                   <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-3 sm:mb-4">
-                    <div className="bg-white p-2 sm:p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 font-semibold">Latitude</p>
-                      <p className="font-mono text-xs sm:text-sm text-gray-900 font-bold mt-1">{fotoModal.registro.latitude.toFixed(6)}</p>
+                    <div className="bg-white p-2 sm:p-3 rounded-lg dark:bg-gray-800">
+                      <p className="text-xs text-gray-500 font-semibold dark:text-gray-400">Latitude</p>
+                      <p className="font-mono text-xs sm:text-sm text-gray-900 font-bold mt-1 dark:text-gray-100">{fotoModal.registro.latitude.toFixed(6)}</p>
                     </div>
-                    <div className="bg-white p-2 sm:p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 font-semibold">Longitude</p>
-                      <p className="font-mono text-xs sm:text-sm text-gray-900 font-bold mt-1">{fotoModal.registro.longitude.toFixed(6)}</p>
+                    <div className="bg-white p-2 sm:p-3 rounded-lg dark:bg-gray-800">
+                      <p className="text-xs text-gray-500 font-semibold dark:text-gray-400">Longitude</p>
+                      <p className="font-mono text-xs sm:text-sm text-gray-900 font-bold mt-1 dark:text-gray-100">{fotoModal.registro.longitude.toFixed(6)}</p>
                     </div>
                   </div>
                   <button
@@ -1055,8 +1055,8 @@ const PontoPage: React.FC = () => {
               )}
 
               {!fotoModal.registro.latitude && (
-                <div className="p-4 bg-gray-100 rounded-lg border-2 border-dashed border-gray-400">
-                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                <div className="p-4 bg-gray-100 rounded-lg border-2 border-dashed border-gray-400 dark:bg-gray-800">
+                  <p className="text-sm text-gray-600 flex items-center gap-2 dark:text-gray-300">
                     <MapPin className="w-5 h-5 text-gray-400" />
                     Localização não capturada
                   </p>
@@ -1065,7 +1065,7 @@ const PontoPage: React.FC = () => {
             </div>
 
             {/* FOOTER */}
-            <div className="bg-gray-100 p-4 flex justify-end gap-3 shrink-0">
+            <div className="bg-gray-100 p-4 flex justify-end gap-3 shrink-0 dark:bg-gray-800">
               <button
                 onClick={() => setFotoModal(null)}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition"

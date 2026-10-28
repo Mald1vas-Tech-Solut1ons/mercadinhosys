@@ -20,6 +20,11 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
+def iso_utc(valor):
+    """Import tardio: app.utils carrega serviços que dependem de app (import circular)."""
+    from app.utils.timezone import iso_utc as _iso_utc
+    return _iso_utc(valor)
+
 # ------------------------------------------------------------------------------
 # Configuração
 # ------------------------------------------------------------------------------
@@ -247,10 +252,10 @@ class SerializableMixin:
                 # Datas são gravadas em UTC (naive). Marca o fuso como UTC para o
                 # cliente converter corretamente ao horário local (ex.: Brasília -03).
                 if value is not None and value.tzinfo is None:
-                    value = value.replace(tzinfo=timezone.utc).isoformat()
+                    value = iso_utc(value.replace(tzinfo=timezone.utc))
                 else:
-                    value = value.isoformat() if value else None
-            elif isinstance(value, (date, time)): value = value.isoformat() if value else None
+                    value = iso_utc(value) if value else None
+            elif isinstance(value, (date, time)): value = iso_utc(value) if value else None
             elif isinstance(value, Decimal): value = float(value)
             elif isinstance(value, uuid_module.UUID): value = str(value)
             result[col.name] = value
@@ -386,7 +391,7 @@ class Estabelecimento(db.Model, EnderecoMixin, SerializableMixin, AuditMixin):
         data = super().to_dict(depth=depth)
         data["endereco_completo"] = self.endereco_completo()
         if self.vencimento_assinatura:
-            data["vencimento_assinatura"] = self.vencimento_assinatura.isoformat()
+            data["vencimento_assinatura"] = iso_utc(self.vencimento_assinatura)
         return data
 
 # ------------------------------------------------------------------------------
@@ -409,8 +414,8 @@ class SyncQueue(db.Model, MultiTenantMixin):
 
     def to_dict(self):
         return {"id": self.id, "tabela": self.tabela, "registro_id": self.registro_id, "operacao": self.operacao,
-                "status": self.status, "created_at": self.created_at.isoformat() if self.created_at else None,
-                "synced_at": self.synced_at.isoformat() if self.synced_at else None}
+                "status": self.status, "created_at": iso_utc(self.created_at) if self.created_at else None,
+                "synced_at": iso_utc(self.synced_at) if self.synced_at else None}
 
     def to_sync_payload(self):
         payload = {}
@@ -426,7 +431,7 @@ class SyncQueue(db.Model, MultiTenantMixin):
             "operacao": (self.operacao or "").upper(),
             "estabelecimento_id": self.estabelecimento_id,
             "payload": payload,
-            "timestamp": self.created_at.isoformat() if self.created_at else None,
+            "timestamp": iso_utc(self.created_at) if self.created_at else None,
         }
 
     @classmethod
@@ -479,7 +484,7 @@ class Lead(db.Model):
 
     def to_dict(self):
         return {"id": self.id, "nome": self.nome, "email": self.email, "whatsapp": self.whatsapp,
-                "origem": self.origem, "data_cadastro": self.data_cadastro.isoformat() if self.data_cadastro else None}
+                "origem": self.origem, "data_cadastro": iso_utc(self.data_cadastro) if self.data_cadastro else None}
 
 class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     __tablename__ = "configuracoes"
@@ -836,12 +841,12 @@ class JustificativaPonto(db.Model, MultiTenantMixin, SerializableMixin):
     def to_dict(self):
         return {"id": self.id, "funcionario_id": self.funcionario_id, "funcionario_nome": self.funcionario.nome if self.funcionario else None,
                 "aprovador_id": self.aprovador_id, "aprovador_nome": self.aprovador.nome if self.aprovador else None,
-                "tipo": self.tipo, "data": self.data.isoformat() if self.data else None, "motivo": self.motivo,
+                "tipo": self.tipo, "data": iso_utc(self.data) if self.data else None, "motivo": self.motivo,
                 "documento_url": self.documento_url,
                 "status": self.status,
                 "motivo_rejeicao": self.motivo_rejeicao,
-                "data_resposta": self.data_resposta.isoformat() if self.data_resposta else None,
-                "created_at": self.created_at.isoformat() if self.created_at else None}
+                "data_resposta": iso_utc(self.data_resposta) if self.data_resposta else None,
+                "created_at": iso_utc(self.created_at) if self.created_at else None}
 
 class Cliente(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, AuditMixin, EnderecoMixin):
     __tablename__ = "clientes"
@@ -1503,7 +1508,7 @@ class ProdutoLote(db.Model, MultiTenantMixin):
     def to_dict(self):
         return {"id": self.id, "numero_lote": self.numero_lote, "produto_id": self.produto_id,
                 "quantidade": float(self.quantidade) if self.quantidade else 0.0,
-                "data_validade": self.data_validade.isoformat() if self.data_validade else None,
+                "data_validade": iso_utc(self.data_validade) if self.data_validade else None,
                 "dias_para_vencer": self.dias_para_vencer, "esta_vencido": self.esta_vencido, "ativo": self.ativo}
 
 class CatalogoMestre(db.Model):
@@ -1543,7 +1548,7 @@ class CatalogoMestre(db.Model):
             "unidade": self.unidade,
             "preco_referencia": float(self.preco_referencia) if self.preco_referencia else None,
             "imagem_url": self.imagem_url, "fonte": self.fonte, "status": self.status,
-            "consultado_em": self.consultado_em.isoformat() if self.consultado_em else None,
+            "consultado_em": iso_utc(self.consultado_em) if self.consultado_em else None,
             "descoberto_por_estabelecimento_id": self.descoberto_por_estabelecimento_id,
             "descoberto_via": self.descoberto_via,
         }
@@ -1921,7 +1926,7 @@ class PedidoCompra(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
         # Pedido de compra usa "data do dia" na UI. Serializar só YYYY-MM-DD
         # evita deslocamento de fuso no navegador.
         if self.data_pedido:
-            data["data_pedido"] = self.data_pedido.date().isoformat()
+            data["data_pedido"] = iso_utc(self.data_pedido.date())
         return data
 
 class PedidoCompraItem(db.Model, MultiTenantMixin, SerializableMixin):
@@ -2068,10 +2073,10 @@ class NotaFiscalEntrada(db.Model, MultiTenantMixin, SerializableMixin):
             "fornecedor_id": self.fornecedor_id,
             "pedido_compra_id": self.pedido_compra_id,
             "fornecedor_nome": self.fornecedor.nome_fantasia if self.fornecedor else self.emitente_nome,
-            "data_emissao": self.data_emissao.isoformat() if self.data_emissao else None,
+            "data_emissao": iso_utc(self.data_emissao) if self.data_emissao else None,
             "valor_total": float(self.valor_total or 0), "qtd_itens": self.qtd_itens,
             "status": self.status,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": iso_utc(self.created_at) if self.created_at else None,
         }
 
 class DocumentoFiscal(db.Model, MultiTenantMixin, SerializableMixin):
@@ -2121,8 +2126,8 @@ class DocumentoFiscal(db.Model, MultiTenantMixin, SerializableMixin):
             "protocolo": self.protocolo, "status": self.status, "motivo_rejeicao": self.motivo_rejeicao,
             "valor_total": float(self.valor_total or 0), "danfe_url": self.danfe_url,
             "xml_url": self.xml_url, "qr_code": self.qr_code,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "autorizado_em": self.autorizado_em.isoformat() if self.autorizado_em else None,
+            "created_at": iso_utc(self.created_at) if self.created_at else None,
+            "autorizado_em": iso_utc(self.autorizado_em) if self.autorizado_em else None,
         }
 
 class SyncHeartbeat(db.Model):
@@ -2138,7 +2143,7 @@ class SyncHeartbeat(db.Model):
 
     def to_dict(self):
         return {
-            "last_run_at": self.last_run_at.replace(tzinfo=timezone.utc).isoformat() if self.last_run_at else None,
+            "last_run_at": iso_utc(self.last_run_at.replace(tzinfo=timezone.utc)) if self.last_run_at else None,
             "status": self.status, "total_registros": self.total_registros,
             "duracao_segundos": float(self.duracao_segundos) if self.duracao_segundos is not None else None,
             "erro": self.erro,
@@ -2163,7 +2168,7 @@ class LoginHistory(db.Model):
     def to_dict(self):
         return {"id": self.id, "funcionario_id": self.funcionario_id, "username": self.username,
                 "ip_address": self.ip_address, "dispositivo": self.dispositivo, "success": self.success,
-                "created_at": self.data_cadastro.isoformat() if self.data_cadastro else None}
+                "created_at": iso_utc(self.data_cadastro) if self.data_cadastro else None}
 
 class Caixa(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     __tablename__ = "caixas"
@@ -2228,14 +2233,14 @@ class DashboardMetrica(db.Model, MultiTenantMixin):
 
     def to_dict(self):
         return {"id": self.id, "estabelecimento_id": self.estabelecimento_id,
-                "data_referencia": self.data_referencia.isoformat() if self.data_referencia else None,
+                "data_referencia": iso_utc(self.data_referencia) if self.data_referencia else None,
                 "total_vendas_dia": float(self.total_vendas_dia) if self.total_vendas_dia else 0.0,
                 "quantidade_vendas_dia": self.quantidade_vendas_dia,
                 "ticket_medio_dia": float(self.ticket_medio_dia) if self.ticket_medio_dia else 0.0,
                 "total_vendas_mes": float(self.total_vendas_mes) if self.total_vendas_mes else 0.0,
                 "lucro_bruto_mes": float(self.lucro_bruto_mes) if self.lucro_bruto_mes else 0.0,
                 "crescimento_vs_ontem": float(self.crescimento_vs_ontem) if self.crescimento_vs_ontem else 0.0,
-                "data_calculo": self.data_calculo.isoformat() if self.data_calculo else None}
+                "data_calculo": iso_utc(self.data_calculo) if self.data_calculo else None}
 
 class RelatorioAgendado(db.Model, MultiTenantMixin):
     __tablename__ = "relatorios_agendados"
@@ -2274,8 +2279,8 @@ class RelatorioAgendado(db.Model, MultiTenantMixin):
     def to_dict(self):
         return {"id": self.id, "nome": self.nome, "tipo": self.tipo, "formato": self.formato,
                 "frequencia": self.frequencia, "horario_envio": self.horario_envio.strftime("%H:%M") if self.horario_envio else None,
-                "ativo": self.ativo, "ultima_execucao": self.ultima_execucao.isoformat() if self.ultima_execucao else None,
-                "proxima_execucao": self.proxima_execucao.isoformat() if self.proxima_execucao else None}
+                "ativo": self.ativo, "ultima_execucao": iso_utc(self.ultima_execucao) if self.ultima_execucao else None,
+                "proxima_execucao": iso_utc(self.proxima_execucao) if self.proxima_execucao else None}
 
 class RegistroPonto(db.Model, MultiTenantMixin):
     __tablename__ = "registros_ponto"
@@ -2305,14 +2310,14 @@ class RegistroPonto(db.Model, MultiTenantMixin):
         return {'id': self.id, 'funcionario_id': self.funcionario_id,
                 'funcionario_nome': self.funcionario.nome if self.funcionario else 'Desconhecido',
                 'estabelecimento_id': self.estabelecimento_id,
-                'data': self.data.isoformat() if self.data else None,
+                'data': iso_utc(self.data) if self.data else None,
                 'hora': self.hora.strftime('%H:%M:%S') if self.hora else None,
                 'tipo': self.tipo_registro, 'tipo_registro': self.tipo_registro,
                 'latitude': self.latitude, 'longitude': self.longitude,
                 'localizacao_endereco': self.localizacao_endereco, 'foto_url': self.foto_url,
                 'dispositivo': self.dispositivo, 'ip_address': self.ip_address,
                 'observacao': self.observacao, 'status': self.status,
-                'minutos_atraso': self.minutos_atraso, 'created_at': self.created_at.isoformat() if self.created_at else None}
+                'minutos_atraso': self.minutos_atraso, 'created_at': iso_utc(self.created_at) if self.created_at else None}
 
 class ConfiguracaoHorario(db.Model, MultiTenantMixin):
     __tablename__ = "configuracoes_horario"
@@ -2370,7 +2375,7 @@ class Auditoria(db.Model, MultiTenantMixin):
                 "estabelecimento_nome": self.estabelecimento.nome_fantasia if self.estabelecimento else "N/A",
                 "usuario_id": self.usuario_id, "usuario_nome": self.usuario.nome if self.usuario else "Sistema",
                 "tipo_evento": self.tipo_evento, "descricao": self.descricao,
-                "valor": float(self.valor) if self.valor else 0.0, "data_evento": self.data_evento.isoformat(),
+                "valor": float(self.valor) if self.valor else 0.0, "data_evento": iso_utc(self.data_evento),
                 "detalhes": self.detalhes_json if self.detalhes_json else {}}
 
     @classmethod
@@ -2442,7 +2447,7 @@ class Motorista(db.Model, MultiTenantMixin):
         dias_cnh = (self.validade_cnh - hoje).days if self.validade_cnh else None
         return {"id": self.id, "nome": self.nome, "cpf": self.cpf, "rg": self.rg,
                 "cnh": self.cnh, "categoria_cnh": self.categoria_cnh,
-                "validade_cnh": self.validade_cnh.isoformat() if self.validade_cnh else None,
+                "validade_cnh": iso_utc(self.validade_cnh) if self.validade_cnh else None,
                 "cnh_documento_url": self.cnh_documento_url,
                 "cnh_dias_para_vencer": dias_cnh,
                 "cnh_vencida": dias_cnh is not None and dias_cnh < 0,
@@ -2494,10 +2499,10 @@ class Veiculo(db.Model, MultiTenantMixin):
                 "motorista_id": self.motorista_id, "motorista_nome": self.motorista.nome if self.motorista else None,
                 "km_atual": float(self.km_atual) if self.km_atual else 0.0,
                 "consumo_medio": float(self.consumo_medio) if self.consumo_medio else 15.0,
-                "data_vencimento_licenciamento": self.data_vencimento_licenciamento.isoformat() if self.data_vencimento_licenciamento else None,
-                "data_vencimento_seguro": self.data_vencimento_seguro.isoformat() if self.data_vencimento_seguro else None,
-                "data_ultima_manutencao": self.data_ultima_manutencao.isoformat() if self.data_ultima_manutencao else None,
-                "data_proxima_manutencao": self.data_proxima_manutencao.isoformat() if self.data_proxima_manutencao else None,
+                "data_vencimento_licenciamento": iso_utc(self.data_vencimento_licenciamento) if self.data_vencimento_licenciamento else None,
+                "data_vencimento_seguro": iso_utc(self.data_vencimento_seguro) if self.data_vencimento_seguro else None,
+                "data_ultima_manutencao": iso_utc(self.data_ultima_manutencao) if self.data_ultima_manutencao else None,
+                "data_proxima_manutencao": iso_utc(self.data_proxima_manutencao) if self.data_proxima_manutencao else None,
                 "crlv_documento_url": self.crlv_documento_url,
                 "licenciamento_dias_para_vencer": dias_licenc,
                 "licenciamento_vencido": dias_licenc is not None and dias_licenc < 0,
@@ -2535,7 +2540,7 @@ class AbastecimentoVeiculo(db.Model, MultiTenantMixin):
             "id": self.id,
             "veiculo_id": self.veiculo_id,
             "motorista_id": self.motorista_id,
-            "data_abastecimento": self.data_abastecimento.isoformat() if self.data_abastecimento else None,
+            "data_abastecimento": iso_utc(self.data_abastecimento) if self.data_abastecimento else None,
             "km_atual": float(self.km_atual) if self.km_atual else 0.0,
             "litros": float(self.litros) if self.litros else 0.0,
             "valor_total": float(self.valor_total) if self.valor_total else 0.0,
@@ -2662,7 +2667,7 @@ class Entrega(db.Model, MultiTenantMixin, SoftDeleteMixin):
                       db.Index("ix_entrega_motorista", "motorista_id"))
 
     def to_dict(self):
-        from app.utils.timezone import iso_local
+        from app.utils.timezone import iso_utc, iso_local
         return {"id": self.id, "codigo_rastreamento": self.codigo_rastreamento, "venda_id": self.venda_id,
                 "cliente_id": self.cliente_id, "cliente_nome": self.cliente.nome if self.cliente else None,
                 "motorista_id": self.motorista_id, "motorista_nome": self.motorista.nome if self.motorista else None,
@@ -2725,7 +2730,7 @@ class RastreamentoEntrega(db.Model):
     def to_dict(self):
         return {"id": self.id, "entrega_id": self.entrega_id, "status": self.status,
                 "latitude": self.latitude, "longitude": self.longitude, "observacao": self.observacao,
-                "data_hora": self.data_hora.isoformat() if self.data_hora else None,
+                "data_hora": iso_utc(self.data_hora) if self.data_hora else None,
                 "foto_url": self.foto_url, "assinatura_url": self.assinatura_url}
 
 class CustoEntrega(db.Model, MultiTenantMixin):
@@ -2754,7 +2759,7 @@ class CustoEntrega(db.Model, MultiTenantMixin):
         return {"id": self.id, "tipo": self.tipo, "descricao": self.descricao,
                 "valor": float(self.valor) if self.valor else 0.0,
                 "km_referencia": float(self.km_referencia) if self.km_referencia else 0.0,
-                "data_custo": self.data_custo.isoformat() if self.data_custo else None,
+                "data_custo": iso_utc(self.data_custo) if self.data_custo else None,
                 "status": self.status, "motorista_id": self.motorista_id,
                 "motorista_nome": self.motorista.nome if self.motorista else None,
                 "veiculo_id": self.veiculo_id, "observacoes": self.observacoes}
@@ -2917,5 +2922,5 @@ class ConsultorInteracao(db.Model, MultiTenantMixin):
             "resposta": self.resposta,
             "provider": self.provider,
             "duracao_ms": self.duracao_ms,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": iso_utc(self.created_at) if self.created_at else None,
         }

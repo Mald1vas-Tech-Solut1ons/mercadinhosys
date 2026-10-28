@@ -142,15 +142,15 @@ const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDeta
                                 </h4>
                                 <div className="space-y-2 text-xs">
                                     <div className="flex justify-between py-1.5 border-b border-gray-50 dark:border-gray-800">
-                                        <span className="text-gray-500 font-bold">Código EAN:</span>
+                                        <span className="text-gray-500 font-bold dark:text-gray-400">Código EAN:</span>
                                         <span className="font-mono font-black text-gray-800 dark:text-gray-200">{produto.codigo_barras || 'N/D'}</span>
                                     </div>
                                     <div className="flex justify-between py-1.5 border-b border-gray-50 dark:border-gray-800">
-                                        <span className="text-gray-500 font-bold">Fabricante:</span>
+                                        <span className="text-gray-500 font-bold dark:text-gray-400">Fabricante:</span>
                                         <span className="font-black text-gray-800 dark:text-gray-200">{produto.fabricante || 'N/D'}</span>
                                     </div>
                                     <div className="flex justify-between py-1.5 border-b border-gray-50 dark:border-gray-800">
-                                        <span className="text-gray-500 font-bold">Localização:</span>
+                                        <span className="text-gray-500 font-bold dark:text-gray-400">Localização:</span>
                                         <span className="font-black text-gray-800 dark:text-gray-200">{produto.localizacao || 'Geral'}</span>
                                     </div>
                                 </div>
@@ -161,15 +161,15 @@ const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDeta
                                 </h4>
                                 <div className="space-y-2 text-xs">
                                     <div className="flex justify-between py-1.5 border-b border-gray-50 dark:border-gray-800">
-                                        <span className="text-gray-500 font-bold">Última Venda:</span>
+                                        <span className="text-gray-500 font-bold dark:text-gray-400">Última Venda:</span>
                                         <span className="font-black text-gray-800 dark:text-gray-200">{produto.ultima_venda ? formatDate(produto.ultima_venda) : 'Nunca'}</span>
                                     </div>
                                     <div className="flex justify-between py-1.5 border-b border-gray-50 dark:border-gray-800">
-                                        <span className="text-gray-500 font-bold">Cadastro em:</span>
+                                        <span className="text-gray-500 font-bold dark:text-gray-400">Cadastro em:</span>
                                         <span className="font-black text-gray-800 dark:text-gray-200">{produto.created_at ? formatDate(produto.created_at) : '---'}</span>
                                     </div>
                                     <div className="flex justify-between py-1.5 border-b border-gray-50 dark:border-gray-800">
-                                        <span className="text-gray-500 font-bold">Próx. Validade:</span>
+                                        <span className="text-gray-500 font-bold dark:text-gray-400">Próx. Validade:</span>
                                         <span className={`font-black ${produto.alerta_validade ? 'text-red-500 animate-pulse' : 'text-gray-800 dark:text-gray-200'}`}>
                                             {produto.data_validade ? formatDate(produto.data_validade) : 'N/D'}
                                         </span>
@@ -274,7 +274,7 @@ const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDeta
                                 <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                                     {historico.slice(0, 4).map((h) => (
                                         <tr key={h.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/30">
-                                            <td className="px-4 py-3 font-medium text-gray-500">{formatDate(h.data_alteracao)}</td>
+                                            <td className="px-4 py-3 font-medium text-gray-500 dark:text-gray-400">{formatDate(h.data_alteracao)}</td>
                                             <td className="px-4 py-3 text-right font-black text-gray-900 dark:text-white">{formatCurrency(h.preco_venda_novo)}</td>
                                             <td className="px-4 py-3 text-right">
                                                 <span className={`inline-flex items-center gap-0.5 font-black px-1.5 py-0.5 rounded ${h.variacao_venda_pct > 0 ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50'}`}>
@@ -308,7 +308,7 @@ const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDeta
                                     <div key={p.id} className="p-4 flex justify-between items-center hover:bg-red-50/50 dark:hover:bg-red-900/10 transition-colors">
                                         <div className="flex flex-col">
                                             <span className="text-xs font-black text-gray-800 dark:text-gray-200">-{Number(p.quantidade).toLocaleString()} {produto.unidade_medida}</span>
-                                            <span className="text-[10px] text-gray-500 font-bold">{formatDate(p.created_at || '')}</span>
+                                            <span className="text-[10px] text-gray-500 font-bold dark:text-gray-400">{formatDate(p.created_at || '')}</span>
                                         </div>
                                         <div className="text-right flex flex-col">
                                             <span className="text-xs font-black text-red-600">{formatCurrency(p.valor_total || (p.custo_unitario ? p.custo_unitario * p.quantidade : 0))}</span>

@@ -12,7 +12,7 @@ from app.models import (
     ChecklistVeiculo, ITENS_CHECKLIST_PADRAO,
 )
 from app.decorators.rbac import tenant_or_super_admin_required, resource_required
-from app.utils.timezone import now_utc, hoje_local
+from app.utils.timezone import iso_utc, now_utc, hoje_local
 from datetime import datetime, date, timedelta
 from decimal import Decimal
 import json
@@ -374,7 +374,7 @@ def relatorio_conformidade():
         for m in motoristas:
             if not m.validade_cnh:
                 continue
-            info = {"motorista_id": m.id, "nome": m.nome, "validade_cnh": m.validade_cnh.isoformat(),
+            info = {"motorista_id": m.id, "nome": m.nome, "validade_cnh": iso_utc(m.validade_cnh),
                     "dias": (m.validade_cnh - hoje).days}
             if m.validade_cnh < hoje:
                 cnh_vencidas.append(info)
@@ -386,14 +386,14 @@ def relatorio_conformidade():
         sem_checklist_recente = []
         for v in veiculos:
             if v.data_vencimento_licenciamento:
-                info = {"veiculo_id": v.id, "placa": v.placa, "vencimento": v.data_vencimento_licenciamento.isoformat(),
+                info = {"veiculo_id": v.id, "placa": v.placa, "vencimento": iso_utc(v.data_vencimento_licenciamento),
                         "dias": (v.data_vencimento_licenciamento - hoje).days}
                 if v.data_vencimento_licenciamento < hoje:
                     licenciamento_vencido.append(info)
                 elif v.data_vencimento_licenciamento <= limite_alerta:
                     licenciamento_a_vencer.append(info)
             if v.data_vencimento_seguro:
-                info = {"veiculo_id": v.id, "placa": v.placa, "vencimento": v.data_vencimento_seguro.isoformat(),
+                info = {"veiculo_id": v.id, "placa": v.placa, "vencimento": iso_utc(v.data_vencimento_seguro),
                         "dias": (v.data_vencimento_seguro - hoje).days}
                 if v.data_vencimento_seguro < hoje:
                     seguro_vencido.append(info)
@@ -407,14 +407,14 @@ def relatorio_conformidade():
             elif not ultimo.aprovado:
                 sem_checklist_recente.append({"veiculo_id": v.id, "placa": v.placa,
                                               "motivo": "último checklist com item reprovado",
-                                              "data": ultimo.created_at.isoformat() if ultimo.created_at else None})
+                                              "data": iso_utc(ultimo.created_at) if ultimo.created_at else None})
 
         total_pendencias = (len(cnh_vencidas) + len(licenciamento_vencido) + len(seguro_vencido)
                             + len(sem_checklist_recente))
 
         return jsonify({
             "success": True,
-            "gerado_em": now_utc().isoformat(),
+            "gerado_em": iso_utc(now_utc()),
             "resumo": {
                 "total_motoristas": len(motoristas),
                 "total_veiculos": len(veiculos),
@@ -935,7 +935,7 @@ def listar_vendas_pendentes():
             "vendas": [{
                 "id": v.id,
                 "codigo": v.codigo,
-                "data": v.data_venda.isoformat(),
+                "data": iso_utc(v.data_venda),
                 "total": float(v.total),
                 "cliente": v.cliente.to_dict() if v.cliente else None,
                 "itens": [{"nome": i.produto_nome, "qtd": float(i.quantidade)} for i in v.itens]
@@ -1049,7 +1049,7 @@ def detalhe_entrega(id):
             venda_data = {
                 "id": venda.id,
                 "codigo": venda.codigo,
-                "data_venda": venda.data_venda.isoformat() if venda.data_venda else None,
+                "data_venda": iso_utc(venda.data_venda) if venda.data_venda else None,
                 "tipo_venda": venda.tipo_venda,
                 "status": venda.status,
                 "subtotal": float(venda.subtotal or 0),

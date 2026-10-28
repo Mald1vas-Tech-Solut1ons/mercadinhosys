@@ -106,7 +106,7 @@ const SegmentSettings = () => {
 
     if (carregando) {
         return (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 flex items-center justify-center h-40 text-gray-500">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 flex items-center justify-center h-40 text-gray-500 dark:text-gray-400">
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mr-3" />
                 Carregando segmentos...
             </div>
@@ -140,7 +140,7 @@ const SegmentSettings = () => {
                                     }`}
                             >
                                 <div className="flex items-center gap-3 mb-2">
-                                    <div className={`p-2 rounded-lg ${ativo ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}`}>
+                                    <div className={`p-2 rounded-lg ${ativo ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'} dark:text-gray-400`}>
                                         <Icone className="w-5 h-5" />
                                     </div>
                                     <span className={`font-bold ${ativo ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300'}`}>

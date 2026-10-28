@@ -65,9 +65,9 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
                 </div>
 
                 {loading ? (
-                    <div className="py-16 text-center text-gray-500 text-sm">Carregando pedido…</div>
+                    <div className="py-16 text-center text-gray-500 text-sm dark:text-gray-400">Carregando pedido…</div>
                 ) : !dados ? (
-                    <div className="py-16 text-center text-gray-500 text-sm">Não foi possível carregar o pedido.</div>
+                    <div className="py-16 text-center text-gray-500 text-sm dark:text-gray-400">Não foi possível carregar o pedido.</div>
                 ) : (
                     <div className="p-5 space-y-5">
                         {/* Resumo cliente / entregador / veículo */}
@@ -128,10 +128,10 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
                                     </tbody>
                                     {v && (
                                         <tfoot className="bg-gray-50 dark:bg-gray-800/60 border-t-2 border-gray-200 dark:border-gray-700">
-                                            <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500" colSpan={2}>Subtotal</td><td className="px-3 py-2 text-right font-semibold">{fmt(v.subtotal)}</td></tr>
-                                            {v.desconto > 0 && <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500" colSpan={2}>Desconto</td><td className="px-3 py-2 text-right text-rose-500">- {fmt(v.desconto)}</td></tr>}
-                                            <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500" colSpan={2}>Total dos produtos</td><td className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{fmt(v.total)}</td></tr>
-                                            <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500" colSpan={2}>Taxa de entrega</td><td className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">+ {fmt(e?.taxa_entrega)}</td></tr>
+                                            <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400" colSpan={2}>Subtotal</td><td className="px-3 py-2 text-right font-semibold">{fmt(v.subtotal)}</td></tr>
+                                            {v.desconto > 0 && <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400" colSpan={2}>Desconto</td><td className="px-3 py-2 text-right text-rose-500">- {fmt(v.desconto)}</td></tr>}
+                                            <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400" colSpan={2}>Total dos produtos</td><td className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{fmt(v.total)}</td></tr>
+                                            <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400" colSpan={2}>Taxa de entrega</td><td className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">+ {fmt(e?.taxa_entrega)}</td></tr>
                                         </tfoot>
                                     )}
                                 </table>

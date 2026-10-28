@@ -85,7 +85,7 @@ const EstablishmentSelector: React.FC<EstablishmentSelectorProps> = ({
 
   if (loading && establishments.length === 0) {
     return (
-      <div className={`flex items-center space-x-2 px-3 py-1.5 border border-gray-200 rounded-md bg-white/50 animate-pulse ${className}`}>
+      <div className={`flex items-center space-x-2 px-3 py-1.5 border border-gray-200 rounded-md bg-white/50 animate-pulse ${className} dark:border-gray-700`}>
         <div className="w-3 h-3 bg-gray-300 rounded-full"></div>
         <div className="h-3 w-20 bg-gray-200 rounded"></div>
       </div>
@@ -109,15 +109,15 @@ const EstablishmentSelector: React.FC<EstablishmentSelectorProps> = ({
       {isOpen && (
         <>
           <div className="fixed inset-0 z-1300" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-1301 overflow-hidden">
-            <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+          <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-xl z-1301 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+            <div className="px-4 py-2 bg-gray-50 border-b border-gray-200 flex justify-between items-center dark:bg-gray-900 dark:border-gray-700">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Modo Auditoria Master</span>
             </div>
             <div className="max-h-80 overflow-y-auto">
               {/* Opção Visualização Global */}
               <button
                 onClick={() => handleSelection('all')}
-                className={`w-full flex items-start justify-between p-3 hover:bg-indigo-50 transition-colors text-left border-b border-gray-100 ${isAllSelected ? 'bg-indigo-50/50' : ''}`}
+                className={`w-full flex items-start justify-between p-3 hover:bg-indigo-50 transition-colors text-left border-b border-gray-100 ${isAllSelected ? 'bg-indigo-50/50' : ''} dark:border-gray-700`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-indigo-900 text-sm">Todos (Visão Geral)</div>
@@ -132,11 +132,11 @@ const EstablishmentSelector: React.FC<EstablishmentSelectorProps> = ({
                 <button
                   key={est.id}
                   onClick={() => handleSelection(est.id)}
-                  className={`w-full flex items-start justify-between p-3 hover:bg-blue-50 transition-colors text-left border-b border-gray-100 last:border-0 ${selectedId === est.id ? 'bg-blue-50/50' : ''}`}
+                  className={`w-full flex items-start justify-between p-3 hover:bg-blue-50 transition-colors text-left border-b border-gray-100 last:border-0 ${selectedId === est.id ? 'bg-blue-50/50' : ''} dark:border-gray-700`}
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 text-sm truncate">{est.nome_fantasia}</div>
-                    <div className="text-xs text-gray-500 truncate">{est.cidade}, {est.estado}</div>
+                    <div className="font-semibold text-gray-900 text-sm truncate dark:text-gray-100">{est.nome_fantasia}</div>
+                    <div className="text-xs text-gray-500 truncate dark:text-gray-400">{est.cidade}, {est.estado}</div>
                   </div>
                   {selectedId === est.id && (
                     <CheckCircle2 className="w-4 h-4 text-green-500 ml-2 mt-0.5" />

@@ -433,7 +433,7 @@ const PDVPage: React.FC = () => {
                         ))}
                         <button
                             onClick={adicionarSessao}
-                            className="ml-2 mb-1 p-2 bg-slate-300/50 dark:bg-slate-800 hover:bg-blue-600 dark:hover:bg-blue-600 hover:text-white text-slate-500 rounded-xl transition-all shadow-sm"
+                            className="ml-2 mb-1 p-2 bg-slate-300/50 dark:bg-slate-800 hover:bg-blue-600 dark:hover:bg-blue-600 hover:text-white text-slate-500 rounded-xl transition-all shadow-sm dark:text-gray-400"
                             title="Nova Sessão (Caixa Zerado)"
                         >
                             <Plus className="w-4 h-4" />
@@ -887,7 +887,7 @@ const PDVPage: React.FC = () => {
                                 <div className="flex justify-between items-center px-1">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Subtotal</span>
-                                        <span className="text-md font-bold text-slate-500 tabular-nums">{formatCurrency(subtotal)}</span>
+                                        <span className="text-md font-bold text-slate-500 tabular-nums dark:text-gray-400">{formatCurrency(subtotal)}</span>
                                     </div>
                                     <div className="text-right">
                                         <span className="text-[10px] font-black text-red-600 uppercase tracking-widest block mb-1">Total a Pagar</span>

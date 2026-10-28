@@ -114,7 +114,7 @@ const AdvancedAnalyticsModal: React.FC<AdvancedAnalyticsModalProps> = ({ isOpen,
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                            <p className="text-gray-500 font-medium">Analisando dados...</p>
+                            <p className="text-gray-500 font-medium dark:text-gray-400">Analisando dados...</p>
                         </div>
                     ) : produtosFiltrados.length === 0 ? (
                         <div className="text-center py-20">
@@ -141,7 +141,7 @@ const AdvancedAnalyticsModal: React.FC<AdvancedAnalyticsModalProps> = ({ isOpen,
                                          className="flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 items-start md:items-center p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-blue-300 cursor-pointer">
                                         <div className="w-full md:col-span-5 flex flex-col md:block">
                                             <p className="font-bold text-gray-900 dark:text-white truncate text-base md:text-sm">{p.nome}</p>
-                                            <p className="text-xs text-gray-500 mt-0.5 md:mt-0">
+                                            <p className="text-xs text-gray-500 mt-0.5 md:mt-0 dark:text-gray-400">
                                                 {p.categoria} | Código: {p.codigo_barras || p.id}
                                             </p>
                                         </div>
@@ -150,7 +150,7 @@ const AdvancedAnalyticsModal: React.FC<AdvancedAnalyticsModalProps> = ({ isOpen,
                                             <div className="flex flex-col md:block md:col-span-2 md:text-right bg-white dark:bg-gray-800 md:bg-transparent p-2 rounded-lg md:p-0 md:rounded-none border border-gray-100 dark:border-gray-700 md:border-none">
                                                 <span className="text-[10px] uppercase font-bold text-gray-400 md:hidden mb-1 block">Estoque</span>
                                                 <p className={`text-sm font-bold ${p.quantidade <= 0 ? 'text-red-500' : 'text-gray-900 dark:text-white'}`}>
-                                                    {p.quantidade} <span className="text-xs font-normal text-gray-500 md:hidden">{p.unidade_medida}</span><span className="hidden md:inline">{p.unidade_medida}</span>
+                                                    {p.quantidade} <span className="text-xs font-normal text-gray-500 md:hidden dark:text-gray-400">{p.unidade_medida}</span><span className="hidden md:inline">{p.unidade_medida}</span>
                                                 </p>
                                             </div>
                                             
@@ -170,7 +170,7 @@ const AdvancedAnalyticsModal: React.FC<AdvancedAnalyticsModalProps> = ({ isOpen,
                                                         <span className={`text-sm font-bold ${(p as any)._cobertura_calc <= 10 ? 'text-red-600' : 'text-purple-600'}`}>
                                                             Cob: {(p as any)._cobertura_calc === 999 ? 'Infinito' : `${Math.ceil((p as any)._cobertura_calc)}d`}
                                                         </span>
-                                                        <span className="text-[10px] md:text-xs text-gray-500 truncate">
+                                                        <span className="text-[10px] md:text-xs text-gray-500 truncate dark:text-gray-400">
                                                             VMD: {((p as any)._vmd_calc || 0).toFixed(1)}/dia
                                                         </span>
                                                     </div>
@@ -192,7 +192,7 @@ const AdvancedAnalyticsModal: React.FC<AdvancedAnalyticsModalProps> = ({ isOpen,
 
                 {/* Footer */}
                 <div className="p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 flex justify-between items-center">
-                    <p className="text-xs text-gray-500 italic">
+                    <p className="text-xs text-gray-500 italic dark:text-gray-400">
                         {isABC ? '* A Classificação ABC é baseada no faturamento (preço x vendas).' : '* O Giro de Estoque é baseado na cobertura em dias considerando a Venda Média Diária.'}
                     </p>
                     <button onClick={onClose} className="px-6 py-2 text-gray-600 dark:text-gray-400 font-medium hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl transition-all">

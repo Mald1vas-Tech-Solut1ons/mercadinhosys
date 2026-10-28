@@ -134,7 +134,7 @@ export default function SFAManagement() {
                         <Target className="w-8 h-8 text-indigo-500" />
                         Gestão SFA
                     </h1>
-                    <p className="text-gray-500 mt-1">Gerencie Metas, Produtos Foco e Rotas da sua Força de Vendas</p>
+                    <p className="text-gray-500 mt-1 dark:text-gray-400">Gerencie Metas, Produtos Foco e Rotas da sua Força de Vendas</p>
                 </div>
                 <Button onClick={loadSFAData} variant="outline" className="gap-2">
                     <Clock className="w-4 h-4" /> Atualizar
@@ -144,9 +144,9 @@ export default function SFAManagement() {
             <div className="w-full">
                 <div className="overflow-x-auto pb-2">
                     <div className="flex w-max min-w-full mb-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
-                        <button onClick={() => setActiveTab('metas')} className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'metas' ? 'bg-white shadow-sm text-black' : 'text-slate-500 hover:text-slate-900'}`}>Metas de Vendedor</button>
-                        <button onClick={() => setActiveTab('foco')} className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'foco' ? 'bg-white shadow-sm text-black' : 'text-slate-500 hover:text-slate-900'}`}>Produtos Foco</button>
-                        <button onClick={() => setActiveTab('rotas')} className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'rotas' ? 'bg-white shadow-sm text-black' : 'text-slate-500 hover:text-slate-900'}`}>Rotas e Territórios</button>
+                        <button onClick={() => setActiveTab('metas')} className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'metas' ? 'bg-white shadow-sm text-black' : 'text-slate-500 hover:text-slate-900'} dark:bg-gray-800 dark:text-gray-400`}>Metas de Vendedor</button>
+                        <button onClick={() => setActiveTab('foco')} className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'foco' ? 'bg-white shadow-sm text-black' : 'text-slate-500 hover:text-slate-900'} dark:bg-gray-800 dark:text-gray-400`}>Produtos Foco</button>
+                        <button onClick={() => setActiveTab('rotas')} className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'rotas' ? 'bg-white shadow-sm text-black' : 'text-slate-500 hover:text-slate-900'} dark:bg-gray-800 dark:text-gray-400`}>Rotas e Territórios</button>
                     </div>
                 </div>
 

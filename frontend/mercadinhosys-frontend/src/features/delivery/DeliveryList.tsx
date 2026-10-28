@@ -158,7 +158,7 @@ const DeliveryList: React.FC = () => {
                                 filtroStatus === f.key
                                     ? 'bg-white dark:bg-gray-800 shadow-sm text-primary-600'
                                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                            }`}
+                            } dark:text-gray-400`}
                         >
                             {f.label}
                         </button>
@@ -310,7 +310,7 @@ const DeliveryList: React.FC = () => {
                         <Package className="w-10 h-10 text-gray-300" />
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Nenhuma entrega encontrada</h3>
-                    <p className="text-gray-500">
+                    <p className="text-gray-500 dark:text-gray-400">
                         {busca ? 'Nenhum resultado para a busca.' : 'Crie uma nova entrega ou ajuste os filtros.'}
                     </p>
                 </div>
@@ -326,7 +326,7 @@ const DeliveryList: React.FC = () => {
                         <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
                             Atribuir Motorista
                         </h3>
-                        <p className="text-sm text-gray-500 mb-6">
+                        <p className="text-sm text-gray-500 mb-6 dark:text-gray-400">
                             Para despachar a entrega <b>#{entregaParaDespacho.codigo_rastreamento}</b>, selecione o motorista:
                         </p>
 
@@ -344,7 +344,7 @@ const DeliveryList: React.FC = () => {
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => { setDespachoModalAberto(false); setMotoristaDespachoId(''); }}
-                                className="px-5 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                className="px-5 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors dark:text-gray-400"
                             >
                                 Cancelar
                             </button>

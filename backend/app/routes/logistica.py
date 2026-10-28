@@ -9,7 +9,7 @@ from app.models import (
     db, StatusPedidoLogistica, AuditoriaQuilometragem,
     TurnoEntregador, ConfiguracaoLogistica, ChecklistVeiculo, Funcionario, Veiculo
 )
-from app.utils.timezone import now_utc
+from app.utils.timezone import iso_utc, now_utc
 
 logger = logging.getLogger(__name__)
 logistica_bp = Blueprint('logistica', __name__)
@@ -180,7 +180,7 @@ def listar_eventos_recentes():
                 "status": ev.status,
                 "latitude": ev.latitude,
                 "longitude": ev.longitude,
-                "timestamp": ev.timestamp.isoformat() if ev.timestamp else now_utc().isoformat()
+                "timestamp": iso_utc(ev.timestamp) if ev.timestamp else iso_utc(now_utc())
             }
             
     return jsonify({
@@ -208,8 +208,8 @@ def get_turno_atual():
         "turno": {
             "id": turno.id,
             "km_inicial": float(turno.km_inicial),
-            "data_turno": turno.data_turno.isoformat(),
-            "horario_inicio": turno.horario_inicio.isoformat() + "Z" if turno.horario_inicio else None,
+            "data_turno": iso_utc(turno.data_turno),
+            "horario_inicio": iso_utc(turno.horario_inicio) if turno.horario_inicio else None,
             "veiculo_id": turno.veiculo_id,
             "tipo_combustivel": turno.tipo_combustivel
         }

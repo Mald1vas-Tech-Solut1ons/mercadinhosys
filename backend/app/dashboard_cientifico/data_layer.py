@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy import func, desc, extract, case, and_, or_
 from decimal import Decimal, ROUND_HALF_UP
 from app.utils.custo import custo_efetivo
-from app.utils.timezone import now_utc, local_date_to_utc_naive
+from app.utils.timezone import iso_utc, now_utc, local_date_to_utc_naive
 from app.models import (
     Venda, VendaItem, Produto, Cliente,
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
@@ -280,7 +280,7 @@ class DataLayer:
                     "id": r.id,
                     "nome": r.nome,
                     "lote": r.lote or "N/D",
-                    "data_validade": r.data_validade.isoformat() if r.data_validade else None,
+                    "data_validade": iso_utc(r.data_validade) if r.data_validade else None,
                     "dias_para_vencer": (
                         ((r.data_validade.date() if hasattr(r.data_validade, "date") else r.data_validade) - hoje).days 
                         if r.data_validade else 0
@@ -1016,7 +1016,7 @@ class DataLayer:
                 r.produto_id: {
                     "pedido_id": r.pedido_id,
                     "numero_pedido": r.numero_pedido,
-                    "data": r.data_pedido.isoformat() if r.data_pedido else None,
+                    "data": iso_utc(r.data_pedido) if r.data_pedido else None,
                     "status": r.status,
                     "fornecedor": r.fornecedor_nome,
                     "preco_compra": float(r.preco_unitario or 0),
@@ -1101,7 +1101,7 @@ class DataLayer:
                     continue
                 minutos_extras_estimados += extra
                 overtime_by_employee[p.funcionario_id] = overtime_by_employee.get(p.funcionario_id, 0) + extra
-                day_key = p.data.isoformat() if p.data else None
+                day_key = iso_utc(p.data) if p.data else None
                 if day_key:
                     overtime_by_day[day_key] = overtime_by_day.get(day_key, 0) + extra
 
@@ -1305,7 +1305,7 @@ class DataLayer:
                         continue
                     extras_mes_por_func_id[p.funcionario_id] = extras_mes_por_func_id.get(p.funcionario_id, 0) + int(extra)
                     if p.data:
-                        extras_mes_por_dia[p.data.isoformat()] = extras_mes_por_dia.get(p.data.isoformat(), 0) + int(extra)
+                        extras_mes_por_dia[iso_utc(p.data)] = extras_mes_por_dia.get(iso_utc(p.data), 0) + int(extra)
 
             # Organizar detalhes de benefícios (já populados de beneficios_por_func)
             beneficios_por_func_id = {}
@@ -1532,10 +1532,10 @@ class DataLayer:
             for func_id, nome, data_p, hora_p, tipo, min_atraso in pontos:
                 if not data_p:
                     continue
-                key = f"{data_p.isoformat()}:{func_id}"
+                key = f"{iso_utc(data_p)}:{func_id}"
                 if key not in daily_map:
                     daily_map[key] = {
-                        "data": data_p.isoformat(),
+                        "data": iso_utc(data_p),
                         "funcionario": nome,
                         "entrada": None,
                         "saida": None,
@@ -1571,9 +1571,9 @@ class DataLayer:
             overtime_trend = []
             for i in range(13, -1, -1):
                 d = hoje_dia - timedelta(days=i)
-                mins = int(overtime_by_day.get(d.isoformat(), 0))
+                mins = int(overtime_by_day.get(iso_utc(d), 0))
                 overtime_trend.append({
-                    "data": d.isoformat(),
+                    "data": iso_utc(d),
                     "minutos_extras": mins,
                     "custo_extras": round((mins / 60) * valor_hora_medio * 1.5, 2)
                 })
@@ -1640,8 +1640,8 @@ class DataLayer:
                 "espelho_pagamento_mes": espelho_pagamento_mes,
                 "justificativas_pendentes": justificativas_pendentes,
                 "resumo_mes": {
-                    "inicio": inicio_mes.isoformat(),
-                    "fim": hoje_dia.isoformat(),
+                    "inicio": iso_utc(inicio_mes),
+                    "fim": iso_utc(hoje_dia),
                     "dias_uteis": int(dias_uteis_mes),
                     "total_atrasos_minutos": int(sum([x["minutos_atraso"] for x in atrasos_por_funcionario_mes])),
                     "total_atrasos_qtd": int(sum([x["atrasos_qtd"] for x in atrasos_por_funcionario_mes])),
@@ -2234,7 +2234,7 @@ class DataLayer:
                             float(d.saldo_devedor or 0) / float(d.limite_credito or 1) * 100
                             if d.limite_credito and d.limite_credito > 0 else 0.0
                         ),
-                        "ultima_compra": d.ultima_compra.isoformat() if d.ultima_compra else None,
+                        "ultima_compra": iso_utc(d.ultima_compra) if d.ultima_compra else None,
                         # Status factual derivado do uso REAL do limite (não é um "score" inventado)
                         "recomendacao": (
                             "Limite estourado" if (d.limite_credito and float(d.saldo_devedor or 0) >= float(d.limite_credito))

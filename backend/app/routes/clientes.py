@@ -16,7 +16,7 @@ from app.models import db, Cliente, Estabelecimento, Venda, VendaItem, ContaRece
 from app.utils import validar_email, formatar_telefone, calcular_idade
 # Validadores com dígito verificador (os de app.utils só conferiam o tamanho).
 from app.utils.validators import validar_cpf, validar_cnpj
-from app.utils.timezone import now_utc, hoje_local
+from app.utils.timezone import iso_utc, now_utc, hoje_local
 from app.utils.ia_copiloto import gerar_texto, ia_disponivel
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
@@ -537,7 +537,7 @@ def obter_cliente(id):
                     "id": venda.id,
                     "codigo": venda.codigo,
                     "data_venda": (
-                        venda.data_venda.isoformat() if venda.data_venda else None
+                        iso_utc(venda.data_venda) if venda.data_venda else None
                     ),
                     "total": float(venda.total),
                     "forma_pagamento": (venda.pagamentos[0].forma_pagamento if venda.pagamentos else "N/A"),
@@ -1190,8 +1190,8 @@ def listar_contas_fiado(id):
                 "numero_documento": c.numero_documento,
                 "venda_id": c.venda_id,
                 "venda_codigo": venda.codigo if venda else None,
-                "data_emissao": c.data_emissao.isoformat() if c.data_emissao else None,
-                "data_vencimento": c.data_vencimento.isoformat() if c.data_vencimento else None,
+                "data_emissao": iso_utc(c.data_emissao) if c.data_emissao else None,
+                "data_vencimento": iso_utc(c.data_vencimento) if c.data_vencimento else None,
                 "valor_original": float(c.valor_original or 0),
                 "valor_atual": float(c.valor_atual or 0),
                 "dias_em_aberto": (hoje - c.data_emissao).days if c.data_emissao else None,
@@ -1582,7 +1582,7 @@ def estatisticas_clientes():
                     "id": c.id,
                     "nome": c.nome,
                     "data_cadastro": (
-                        c.data_cadastro.isoformat() if c.data_cadastro else None
+                        iso_utc(c.data_cadastro) if c.data_cadastro else None
                     ),
                     "total_compras": c.total_compras or 0,
                     "classificacao": calcular_classificacao_cliente(c),
@@ -1700,7 +1700,7 @@ def listar_compras_cliente(id):
                     "id": venda.id,
                     "codigo": venda.codigo,
                     "data_venda": (
-                        venda.data_venda.isoformat() if venda.data_venda else None
+                        iso_utc(venda.data_venda) if venda.data_venda else None
                     ),
                     "status": venda.status,
                     "subtotal": float(venda.subtotal),
@@ -1793,7 +1793,7 @@ def listar_produtos_cliente(id):
                 "nome": r.produto_nome,
                 "quantidade_total": float(r.total_quantidade or 0),
                 "valor_total": float(r.total_gasto or 0),
-                "ultima_compra": r.ultima_compra.isoformat() if r.ultima_compra else None
+                "ultima_compra": iso_utc(r.ultima_compra) if r.ultima_compra else None
             })
 
         return jsonify({
@@ -2237,7 +2237,7 @@ def relatorio_analitico_clientes():
                         "documento": cliente.documento,
                         "classificacao": calcular_classificacao_cliente(cliente),
                         "data_cadastro": (
-                            cliente.data_cadastro.isoformat()
+                            iso_utc(cliente.data_cadastro)
                             if cliente.data_cadastro
                             else None
                         ),
@@ -2259,7 +2259,7 @@ def relatorio_analitico_clientes():
                     },
                     "comportamento": {
                         "ultima_compra": (
-                            cliente.ultima_compra.isoformat()
+                            iso_utc(cliente.ultima_compra)
                             if cliente.ultima_compra
                             else None
                         ),

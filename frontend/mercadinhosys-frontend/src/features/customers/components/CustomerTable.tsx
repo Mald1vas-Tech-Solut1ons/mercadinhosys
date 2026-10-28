@@ -75,7 +75,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                         <div className="text-sm font-bold text-gray-900 dark:text-white">
                           {cliente.nome}
                         </div>
-                        <div className="text-xs text-gray-500 flex items-center mt-0.5">
+                        <div className="text-xs text-gray-500 flex items-center mt-0.5 dark:text-gray-400">
                           {documentoDe(cliente) ? `${cliente.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: ${documentoDe(cliente)}` : 'Sem documento'}
                         </div>
                       </div>
@@ -108,7 +108,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                         }}
                       />
                     ) : (
-                      <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">Sem fiado</span>
+                      <span className="text-xs font-medium text-gray-400 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 dark:bg-gray-900 dark:border-gray-700">Sem fiado</span>
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
@@ -232,7 +232,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                       <div className="text-sm font-bold text-gray-900 dark:text-white leading-tight">
                         {cliente.nome}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
+                      <div className="text-xs text-gray-500 mt-0.5 dark:text-gray-400">
                         {cliente.celular || cliente.telefone || (documentoDe(cliente) ? `${cliente.tipo_pessoa === 'PJ' ? 'CNPJ' : 'CPF'}: ${documentoDe(cliente)}` : 'Sem contato')}
                       </div>
                     </div>
@@ -246,7 +246,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                             segmento === 'Caçador de Promoções' ? 'bg-pink-50 text-pink-700 border-pink-200' : 
                             segmento === 'Raro' ? 'bg-orange-50 text-orange-700 border-orange-200' : 
                             segmento === 'Novo' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-gray-50 text-gray-700 border-gray-200'
-                        }`}>
+                        } dark:bg-gray-900 dark:border-gray-700`}>
                           {segmento}
                         </span>
                      )}
@@ -260,7 +260,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
 
                 <div className="grid grid-cols-2 gap-2 mt-1">
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 flex flex-col">
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">Fiado Pendente</span>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold dark:text-gray-400">Fiado Pendente</span>
                     {temFiado ? (
                       <span className="text-sm font-bold text-orange-600">{(cliente.saldo_devedor ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
                     ) : (
@@ -268,7 +268,7 @@ const CustomerTable: React.FC<CustomerTableProps> = ({ clientes, loading, onRowC
                     )}
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 flex flex-col">
-                    <span className="text-[10px] text-gray-500 uppercase font-bold">Email</span>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold dark:text-gray-400">Email</span>
                     <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">
                       {cliente.email || '-'}
                     </span>

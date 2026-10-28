@@ -12,6 +12,7 @@ import numpy as np
 from sqlalchemy import func
 from app.models import Venda, VendaItem, Produto
 from app.utils.query_helpers import _get_db, get_local_date
+from app.utils.timezone import iso_utc
 
 logger = logging.getLogger(__name__)
 
@@ -549,7 +550,7 @@ class PracticalModels:
                 predicted = max(0.0, slope * fx + intercept)
                 margin = t_crit * resid_std * math.sqrt(1 + 1 / n + (fx - x_mean) ** 2 / sxx)
                 forecast.append({
-                    "data": future_date.isoformat(),
+                    "data": iso_utc(future_date),
                     "valor_previsto": round(predicted, 2),
                     "lower_bound": round(max(0.0, predicted - margin), 2),
                     "upper_bound": round(predicted + margin, 2),

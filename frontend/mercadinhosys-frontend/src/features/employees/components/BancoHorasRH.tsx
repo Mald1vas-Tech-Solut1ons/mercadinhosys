@@ -80,7 +80,7 @@ export default function BancoHorasRH() {
   const getStatusBadge = (status: string) => {
     if (status === 'positivo') return 'bg-green-100 text-green-700 border-green-200';
     if (status === 'negativo') return 'bg-red-100 text-red-700 border-red-200';
-    return 'bg-gray-100 text-gray-600 border-gray-200';
+    return 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
   };
 
   // Resumo totais
@@ -200,7 +200,7 @@ export default function BancoHorasRH() {
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="mt-4 text-gray-600">Carregando banco de horas...</p>
+                <p className="mt-4 text-gray-600 dark:text-gray-300">Carregando banco de horas...</p>
               </div>
             </div>
           ) : error ? (

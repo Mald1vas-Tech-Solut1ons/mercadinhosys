@@ -119,11 +119,11 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
     const getPlanoColor = (plano: string) => {
         switch ((plano || '').toLowerCase()) {
             case 'gratuito':
-                return 'bg-gray-100 text-gray-800 border-gray-300';
+                return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700';
             case 'pro':
                 return 'bg-purple-100 text-purple-800 border-purple-300';
             default:
-                return 'bg-gray-100 text-gray-800 border-gray-300';
+                return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700';
         }
     };
 
@@ -136,9 +136,9 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
             case 'atrasado':
                 return 'bg-red-100 text-red-800 border-red-300';
             case 'cancelado':
-                return 'bg-gray-100 text-gray-800 border-gray-300';
+                return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700';
             default:
-                return 'bg-gray-100 text-gray-800 border-gray-300';
+                return 'bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700';
         }
     };
 
@@ -272,7 +272,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
                                                     </button>
                                                     <button
                                                         onClick={() => setIsEditingPlan(false)}
-                                                        className="p-1.5 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
+                                                        className="p-1.5 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors dark:text-gray-400"
                                                         title="Cancelar"
                                                     >
                                                         <X size={16} />

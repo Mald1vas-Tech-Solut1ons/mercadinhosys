@@ -13,6 +13,7 @@ from app.services.email_service import email_service
 import json
 from app.middleware.rate_limit import limiter
 from app.decorators.plan_guards import normalize_plan
+from app.utils.timezone import iso_utc
 
 saas_bp = Blueprint("saas", __name__)
 logger = logging.getLogger(__name__)
@@ -75,6 +76,14 @@ def registrar_lead():
         db.session.rollback()
         logger.error(f"Erro ao registrar lead: {e}")
         return jsonify({"success": False, "error": "Erro ao processar sua solicitação"}), 500
+
+
+@saas_bp.route("/verificacao-dados", methods=["GET"])
+@super_admin_required
+def verificacao_dados():
+    """Consistência dos dados agora (mesmas checagens do cron noturno); ?estab=<id> limita a uma loja."""
+    from app.services.verificacao_dados import verificar
+    return jsonify({"success": True, **verificar(request.args.get("estab", type=int))})
 
 
 @saas_bp.route("/leads", methods=["GET"])
@@ -334,8 +343,8 @@ def tenant_onboarding():
                     "nome_fantasia": estabelecimento.nome_fantasia,
                     "plano": estabelecimento.plano,
                     "plano_status": estabelecimento.plano_status,
-                    "vencimento_plano": estabelecimento.vencimento_plano.isoformat() if estabelecimento.vencimento_plano else None,
-                    "data_cadastro": estabelecimento.data_cadastro.isoformat() if estabelecimento.data_cadastro else None
+                    "vencimento_plano": iso_utc(estabelecimento.vencimento_plano) if estabelecimento.vencimento_plano else None,
+                    "data_cadastro": iso_utc(estabelecimento.data_cadastro) if estabelecimento.data_cadastro else None
                 },
                 "administrador": {
                     "id": admin_funcionario.id,
@@ -519,7 +528,7 @@ def trial_status():
                 "plano": est.plano,
                 "plano_status": est.plano_status,
                 "ativo": bool(est.ativo),
-                "vencimento_plano": venc.isoformat() if venc else None,
+                "vencimento_plano": iso_utc(venc) if venc else None,
                 "dias_restantes": dias,
                 "em_trial": em_trial,
                 "vencido": vencido,
@@ -556,7 +565,7 @@ def get_assinatura_status():
             "data": {
                 "plano": dados.get("plano", "Gratuito"),
                 "status": plano_status_val,
-                "vencimento": vencimento.isoformat() if vencimento and hasattr(vencimento, 'isoformat') else None,
+                "vencimento": iso_utc(vencimento) if vencimento and hasattr(vencimento, 'isoformat') else None,
                 "is_active": plano_status_val in ["ativo", "experimental"],
                 "nome_estabelecimento": dados.get("nome_fantasia"),
             }

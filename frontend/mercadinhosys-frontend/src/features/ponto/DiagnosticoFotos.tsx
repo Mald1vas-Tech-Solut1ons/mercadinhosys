@@ -81,13 +81,13 @@ export const DiagnosticoFotos: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 max-w-4xl mx-auto">
+    <div className="bg-white rounded-lg shadow p-6 max-w-4xl mx-auto dark:bg-gray-800">
       <div className="flex items-center gap-3 mb-6">
         <AlertCircle className="w-6 h-6 text-blue-600" />
         <h2 className="text-2xl font-bold">🔍 Diagnóstico de Fotos</h2>
       </div>
 
-      <p className="text-gray-600 mb-4">
+      <p className="text-gray-600 mb-4 dark:text-gray-300">
         Este ferramental verifica se as fotos estão sendo salvas e retornadas corretamente pela API.
       </p>
 
@@ -112,23 +112,23 @@ export const DiagnosticoFotos: React.FC = () => {
       {resultado && (
         <div className="space-y-4">
           {/* Resumo */}
-          <div className="bg-gray-100 p-4 rounded-lg">
+          <div className="bg-gray-100 p-4 rounded-lg dark:bg-gray-800">
             <h3 className="font-bold mb-3 text-lg">📊 Resumo</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-gray-600">Total de Registros:</p>
+                <p className="text-gray-600 dark:text-gray-300">Total de Registros:</p>
                 <p className="text-2xl font-bold">{resultado.total_registros}</p>
               </div>
               <div>
-                <p className="text-gray-600">Com Foto (foto_url):</p>
+                <p className="text-gray-600 dark:text-gray-300">Com Foto (foto_url):</p>
                 <p className="text-2xl font-bold text-green-600">{resultado.registros_com_foto}</p>
               </div>
               <div>
-                <p className="text-gray-600">Sem Foto (foto_url):</p>
+                <p className="text-gray-600 dark:text-gray-300">Sem Foto (foto_url):</p>
                 <p className="text-2xl font-bold text-red-600">{resultado.registros_sem_foto}</p>
               </div>
               <div>
-                <p className="text-gray-600">Taxa de Fotos:</p>
+                <p className="text-gray-600 dark:text-gray-300">Taxa de Fotos:</p>
                 <p className="text-2xl font-bold">
                   {resultado.total_registros > 0
                     ? `${((resultado.registros_com_foto / resultado.total_registros) * 100).toFixed(0)}%`
@@ -139,9 +139,9 @@ export const DiagnosticoFotos: React.FC = () => {
           </div>
 
           {/* Estrutura da Resposta */}
-          <div className="bg-gray-100 p-4 rounded-lg">
+          <div className="bg-gray-100 p-4 rounded-lg dark:bg-gray-800">
             <h3 className="font-bold mb-3 text-lg">🏗️ Estrutura da Resposta API</h3>
-            <div className="text-sm text-gray-700 space-y-2">
+            <div className="text-sm text-gray-700 space-y-2 dark:text-gray-200">
               <p>
                 Campos encontrados no registro:
                 <code className="bg-gray-200 px-2 py-1 rounded ml-2">
@@ -157,7 +157,7 @@ export const DiagnosticoFotos: React.FC = () => {
           </div>
 
           {/* Detalhes */}
-          <div className="bg-gray-100 p-4 rounded-lg overflow-x-auto">
+          <div className="bg-gray-100 p-4 rounded-lg overflow-x-auto dark:bg-gray-800">
             <h3 className="font-bold mb-3 text-lg">📋 Detalhes dos Registros</h3>
             <table className="w-full text-xs">
               <thead className="bg-gray-300">
@@ -171,7 +171,7 @@ export const DiagnosticoFotos: React.FC = () => {
               </thead>
               <tbody>
                 {resultado.detalhes.map((det: any, idx: number) => (
-                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900'}>
                     <td className="p-2">{det.tipo_registro}</td>
                     <td className="p-2">{det.data} {det.hora}</td>
                     <td className="p-2">{det.funcionario}</td>
@@ -196,7 +196,7 @@ export const DiagnosticoFotos: React.FC = () => {
           </div>
 
           {/* JSON Bruto */}
-          <details className="bg-gray-100 p-4 rounded-lg">
+          <details className="bg-gray-100 p-4 rounded-lg dark:bg-gray-800">
             <summary className="font-bold cursor-pointer mb-3">📝 JSON Completo (clique para expandir)</summary>
             <pre className="text-xs bg-gray-200 p-3 rounded overflow-auto max-h-96">
               {JSON.stringify(resultado, null, 2)}

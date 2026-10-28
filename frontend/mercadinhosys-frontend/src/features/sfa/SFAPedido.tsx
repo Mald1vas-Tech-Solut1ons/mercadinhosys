@@ -142,7 +142,7 @@ export default function SFAPedido() {
                     </Button>
                     <div>
                         <h1 className="font-bold text-slate-800 dark:text-slate-100 truncate pr-4">{cliente.nome}</h1>
-                        <p className="text-xs text-slate-500">Novo Pedido • Limite: R$ {parseFloat(cliente.limite_credito || 0).toFixed(2)}</p>
+                        <p className="text-xs text-slate-500 dark:text-gray-400">Novo Pedido • Limite: R$ {parseFloat(cliente.limite_credito || 0).toFixed(2)}</p>
                     </div>
                 </div>
                 <div className="mt-4 relative">
@@ -212,7 +212,7 @@ export default function SFAPedido() {
                                             </Button>
                                         </div>
                                         <div className="flex flex-col items-end w-24">
-                                            <label className="text-[10px] text-slate-500 mb-1">Preço Negociado</label>
+                                            <label className="text-[10px] text-slate-500 mb-1 dark:text-gray-400">Preço Negociado</label>
                                             <Input 
                                                 type="number" 
                                                 step="0.01" 
@@ -231,7 +231,7 @@ export default function SFAPedido() {
                         </div>
                         
                         <div className="mt-4 bg-white dark:bg-slate-900 p-3 rounded-lg shadow-sm border border-slate-100 dark:border-slate-800">
-                            <label className="text-xs font-medium text-slate-500 mb-1 block">Condição de Pagamento</label>
+                            <label className="text-xs font-medium text-slate-500 mb-1 block dark:text-gray-400">Condição de Pagamento</label>
                             <select 
                                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md h-10 px-3 text-sm"
                                 value={condicaoPagamento}
@@ -250,7 +250,7 @@ export default function SFAPedido() {
             {/* Footer Fixo */}
             <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between shadow-[0_-4px_10px_rgba(0,0,0,0.05)]">
                 <div>
-                    <p className="text-xs text-slate-500">Total ({carrinho.length} itens)</p>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">Total ({carrinho.length} itens)</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">R$ {totalCarrinho.toFixed(2)}</p>
                 </div>
                 <Button 

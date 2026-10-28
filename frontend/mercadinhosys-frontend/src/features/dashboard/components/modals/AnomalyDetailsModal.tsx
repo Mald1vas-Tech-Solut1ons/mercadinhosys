@@ -177,19 +177,19 @@ export const AnomalyDetailsModal: React.FC<AnomalyDetailsModalProps> = ({
           <div className="flex justify-between items-center px-2">
             <div className="text-center group">
               <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 font-black text-xs mb-2 mx-auto ring-4 ring-white dark:ring-gray-800">1</div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Investigar</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter dark:text-gray-400">Investigar</p>
               <p className="text-[10px] text-gray-400 italic">48h</p>
             </div>
             <div className="h-[2px] flex-1 bg-gray-100 dark:bg-gray-800 mb-6"></div>
             <div className="text-center group">
               <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xs mb-2 mx-auto ring-4 ring-white dark:ring-gray-800">2</div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Executar</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter dark:text-gray-400">Executar</p>
               <p className="text-[10px] text-gray-400 italic">72h</p>
             </div>
             <div className="h-[2px] flex-1 bg-gray-100 dark:bg-gray-800 mb-6"></div>
             <div className="text-center group">
               <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400 font-black text-xs mb-2 mx-auto ring-4 ring-white dark:ring-gray-800">3</div>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Validar</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter dark:text-gray-400">Validar</p>
               <p className="text-[10px] text-gray-400 italic">24h</p>
             </div>
           </div>

@@ -45,7 +45,7 @@ export default function AcertoEntregaModal({ entrega, onClose, onSuccess }: {
         <div className="space-y-4">
             <h3 id="titulo-acerto" className="text-lg font-bold">Acerto da entrega #{entrega.codigo_rastreamento}</h3>
             <p>Saldo a receber: <b>{saldo.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</b></p>
-            <p className="text-sm text-gray-500">Registre o valor já recebido. Para Pix ou cartão, confira o comprovante antes de confirmar.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Registre o valor já recebido. Para Pix ou cartão, confira o comprovante antes de confirmar.</p>
             <label className="block">Forma de pagamento
                 <select value={forma} disabled={enviando || !!tentativa} onChange={e => setForma(e.target.value)} className="block w-full border rounded-lg p-2 dark:bg-gray-800">
                     <option value="dinheiro">Dinheiro</option><option value="pix">Pix</option>

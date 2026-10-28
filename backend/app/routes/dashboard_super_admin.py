@@ -11,6 +11,7 @@ from app.decorators.rbac import super_admin_required
 import logging
 from datetime import datetime, timedelta
 from sqlalchemy import func
+from app.utils.timezone import iso_utc
 
 logger = logging.getLogger(__name__)
 dashboard_super_admin_bp = Blueprint("dashboard_super_admin", __name__)
@@ -45,7 +46,7 @@ def listar_estabelecimentos():
                 "ativo": est.ativo,
                 "vendas_mes": vendas_mes,
                 "total_vendas": total_vendas,
-                "criado_em": est.created_at.isoformat() if est.created_at else None
+                "criado_em": iso_utc(est.created_at) if est.created_at else None
             })
         
         return jsonify({

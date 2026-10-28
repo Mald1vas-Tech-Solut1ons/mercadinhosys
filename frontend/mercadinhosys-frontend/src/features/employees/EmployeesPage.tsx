@@ -869,7 +869,7 @@ export default function EmployeesPage() {
                                                         index === 1 ? 'bg-gray-100 text-gray-700' :
                                                             index === 2 ? 'bg-orange-100 text-orange-700' :
                                                                 'bg-blue-100 text-blue-700'
-                                                        }`}>
+                                                        } dark:bg-gray-800`}>
                                                         {index + 1}
                                                     </span>
                                                 </td>
@@ -1055,7 +1055,7 @@ export default function EmployeesPage() {
                                                 </div>
                                                 <div>
                                                     <div className="font-bold text-gray-900 dark:text-white">{funcionario.nome}</div>
-                                                    <div className="text-xs text-gray-500">{funcionario.usuario} • {formatCPF(funcionario.cpf)}</div>
+                                                    <div className="text-xs text-gray-500 dark:text-gray-400">{funcionario.usuario} • {formatCPF(funcionario.cpf)}</div>
                                                 </div>
                                             </div>
                                             {funcionario.ativo ? (
@@ -1537,7 +1537,7 @@ export default function EmployeesPage() {
                                             type="checkbox"
                                             checked={formData.ativo}
                                             onChange={(e) => setFormData({ ...formData, ativo: e.target.checked })}
-                                            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                            className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 dark:border-gray-700"
                                         />
                                         <span className="text-sm font-medium text-gray-900 dark:text-white">
                                             Funcionário Ativo

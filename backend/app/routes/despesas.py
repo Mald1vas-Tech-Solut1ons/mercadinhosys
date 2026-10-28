@@ -16,6 +16,7 @@ from app.services.rh_calculator_service import (
     calcular_custo_folha_periodos,
 )
 from app.utils.financeiro_constants import sem_categorias_integradas
+from app.utils.timezone import iso_utc
 
 despesas_bp = Blueprint("despesas", __name__)
 
@@ -614,8 +615,8 @@ def obter_estatisticas_despesas():
             jsonify({
                 "success": True,
                 "periodo": {
-                    "inicio": cat_inicio.isoformat(),
-                    "fim": cat_fim.isoformat(),
+                    "inicio": iso_utc(cat_inicio),
+                    "fim": iso_utc(cat_fim),
                 },
                 "estatisticas": {
                     "total_despesas": total_despesas,
@@ -700,7 +701,7 @@ def detalhamento_unificado():
             "id": f"d_{d.id}",
             "descricao": d.descricao,
             "valor": float(d.valor),
-            "data_despesa": d.data_despesa.isoformat() if d.data_despesa else None,
+            "data_despesa": iso_utc(d.data_despesa) if d.data_despesa else None,
             "categoria": d.categoria,
             "forma_pagamento": d.forma_pagamento,
             "tipo": d.tipo,
@@ -727,7 +728,7 @@ def detalhamento_unificado():
                 "id": f"cp_{cp.id}",
                 "descricao": descricao,
                 "valor": float(cp.valor_pago or 0),
-                "data_despesa": cp.data_pagamento.isoformat() if cp.data_pagamento else None,
+                "data_despesa": iso_utc(cp.data_pagamento) if cp.data_pagamento else None,
                 "categoria": "Boleto de Mercadoria",
                 "forma_pagamento": "Boleto",
                 "tipo": "variavel",
@@ -756,7 +757,7 @@ def detalhamento_unificado():
                     "id": f"cp_venc_{cp.id}",
                     "descricao": descricao,
                     "valor": valor_devido,
-                    "data_despesa": cp.data_vencimento.isoformat() if cp.data_vencimento else hoje_local.isoformat(),
+                    "data_despesa": iso_utc(cp.data_vencimento) if cp.data_vencimento else iso_utc(hoje_local),
                     "categoria": "Boletos Vencidos (Atraso)",
                     "forma_pagamento": "Pressão de Caixa",
                     "tipo": "variavel",
@@ -774,7 +775,7 @@ def detalhamento_unificado():
                     "id": f"f_{inicio.strftime('%Y%m%d')}",
                     "descricao": "Custo Rateado (Pressão Diária da Folha)",
                     "valor": custo_folha,
-                    "data_despesa": fim.isoformat(),
+                    "data_despesa": iso_utc(fim),
                     "categoria": "Folha de Pagamento",
                     "forma_pagamento": "Pressão de Caixa",
                     "tipo": "fixa",
@@ -1015,13 +1016,13 @@ def boletos_a_vencer():
                 'fornecedor_id': boleto.fornecedor_id,
                 'valor_original': float(boleto.valor_original),
                 'valor_atual': float(boleto.valor_atual),
-                'data_emissao': boleto.data_emissao.isoformat() if boleto.data_emissao else None,
-                'data_vencimento': boleto.data_vencimento.isoformat() if boleto.data_vencimento else None,
+                'data_emissao': iso_utc(boleto.data_emissao) if boleto.data_emissao else None,
+                'data_vencimento': iso_utc(boleto.data_vencimento) if boleto.data_vencimento else None,
                 'dias_vencimento': dias_vencimento,
                 'status_vencimento': status_vencimento,
                 'pedido_numero': boleto.pedido_compra.numero_pedido if tem_pedido else None,
                 'pedido_id': boleto.pedido_compra_id if tem_pedido else None,
-                'data_pedido': boleto.pedido_compra.data_pedido.isoformat() if tem_pedido and boleto.pedido_compra.data_pedido else None,
+                'data_pedido': iso_utc(boleto.pedido_compra.data_pedido) if tem_pedido and boleto.pedido_compra.data_pedido else None,
                 'itens': [item.to_dict() for item in boleto.pedido_compra.itens] if tem_pedido and hasattr(boleto.pedido_compra, 'itens') else [],
                 'observacoes': boleto.observacoes
             }
@@ -1195,8 +1196,8 @@ def resumo_financeiro():
         return jsonify({
             "success": True,
             "periodo": {
-                "inicio": dt_inicio.isoformat(),
-                "fim": dt_fim.isoformat()
+                "inicio": iso_utc(dt_inicio),
+                "fim": iso_utc(dt_fim)
             },
             # DRE por competência. Antes `desp['total']` (que JÁ incluía a
             # folha calculada pelo DataLayer) era somado de novo com
@@ -1451,8 +1452,8 @@ def historico_comparativo():
         return jsonify({
             "success": True,
             "periodo": {
-                "inicio": meses[0][0].isoformat(),
-                "fim": hoje.isoformat(),
+                "inicio": iso_utc(meses[0][0]),
+                "fim": iso_utc(hoje),
                 "meses": [
                     {"chave": m[0].strftime('%Y-%m'), "nome": m[0].strftime('%b/%Y'), "total": round(totais_mes.get(m[0].strftime('%Y-%m'), 0.0), 2)}
                     for m in meses
@@ -1530,9 +1531,9 @@ def boletos_por_status():
                 "fornecedor_id": b.fornecedor_id,
                 "valor_original": float(b.valor_original),
                 "valor_atual": float(b.valor_atual),
-                "data_emissao": b.data_emissao.isoformat() if b.data_emissao else None,
-                "data_vencimento": b.data_vencimento.isoformat() if b.data_vencimento else None,
-                "data_pagamento": b.data_pagamento.isoformat() if hasattr(b, 'data_pagamento') and b.data_pagamento else None,
+                "data_emissao": iso_utc(b.data_emissao) if b.data_emissao else None,
+                "data_vencimento": iso_utc(b.data_vencimento) if b.data_vencimento else None,
+                "data_pagamento": iso_utc(b.data_pagamento) if hasattr(b, 'data_pagamento') and b.data_pagamento else None,
                 "dias_vencimento": dias_venc,
                 "status": b.status,
                 "observacoes": b.observacoes,
@@ -1595,7 +1596,7 @@ def boletos_por_status():
                 "items": pagos,
                 "quantidade": len(pagos),
                 "total": total(pagos),
-                "inicio_periodo": inicio_pagos.isoformat(),
+                "inicio_periodo": iso_utc(inicio_pagos),
             },
             "resumo": {
                 "total_vencidos": total(vencidos),

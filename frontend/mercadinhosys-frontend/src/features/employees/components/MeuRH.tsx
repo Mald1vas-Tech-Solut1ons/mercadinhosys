@@ -273,7 +273,7 @@ export default function MeuRH() {
                 </div>
 
                 {loadingEspelho ? (
-                    <div className="py-6 text-center text-gray-500 text-sm">Carregando...</div>
+                    <div className="py-6 text-center text-gray-500 text-sm dark:text-gray-400">Carregando...</div>
                 ) : espelho ? (
                     <>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -296,7 +296,7 @@ export default function MeuRH() {
                         </div>
                         <div className="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden">
                             {espelho.registros_diarios.length === 0 ? (
-                                <p className="p-4 text-center text-sm text-gray-500">Nenhum registro este mês</p>
+                                <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Nenhum registro este mês</p>
                             ) : espelho.registros_diarios.map(r => (
                                 <div key={r.data} className="p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50" onClick={() => setExpandedDay(expandedDay === r.data ? null : r.data)}>
                                     <div className="flex items-center justify-between">
@@ -319,7 +319,7 @@ export default function MeuRH() {
                         </div>
                     </>
                 ) : (
-                    <p className="text-sm text-gray-500">Não foi possível carregar o espelho de ponto.</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Não foi possível carregar o espelho de ponto.</p>
                 )}
             </div>
 
@@ -376,7 +376,7 @@ export default function MeuRH() {
 
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {justificativas.length === 0 ? (
-                        <p className="py-4 text-center text-sm text-gray-500">Nenhuma justificativa enviada</p>
+                        <p className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">Nenhuma justificativa enviada</p>
                     ) : justificativas.map(j => (
                         <div key={j.id} className="py-3">
                             <div className="flex items-center justify-between gap-3">

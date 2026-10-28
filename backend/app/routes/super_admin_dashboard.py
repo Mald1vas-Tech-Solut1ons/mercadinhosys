@@ -20,6 +20,7 @@ from app.decorators.rbac import super_admin_required
 from datetime import datetime, timedelta
 from sqlalchemy import func, and_, or_
 import logging
+from app.utils.timezone import iso_utc
 
 logger = logging.getLogger(__name__)
 super_admin_dashboard_bp = Blueprint("super_admin_dashboard", __name__)
@@ -92,8 +93,8 @@ def listar_estabelecimentos_ativos():
                 "total_vendas": total_vendas,
                 "produtos_count": produtos_count,
                 "funcionarios_count": funcionarios_count,
-                "created_at": est.created_at.isoformat() if est.created_at else None,
-                "vencimento_assinatura": est.vencimento_assinatura.isoformat() if est.vencimento_assinatura else None
+                "created_at": iso_utc(est.created_at) if est.created_at else None,
+                "vencimento_assinatura": iso_utc(est.vencimento_assinatura) if est.vencimento_assinatura else None
             })
         
         return jsonify({
@@ -200,7 +201,7 @@ def dashboard_estabelecimento_especifico(estabelecimento_id):
                 }
             },
             "periodo_analise": days,
-            "data_geracao": datetime.now().isoformat()
+            "data_geracao": iso_utc(datetime.now())
         }
         
         return jsonify({
@@ -276,7 +277,7 @@ def resumo_completo_sistema():
                 }
                 for est in top_estabelecimentos
             ],
-            "data_geracao": datetime.now().isoformat()
+            "data_geracao": iso_utc(datetime.now())
         }
         
         return jsonify({
@@ -332,7 +333,7 @@ def saas_metrics():
         em_7 = agora + timedelta(days=7)
         trials_expirando = [
             {"id": e.id, "nome": e.nome_fantasia,
-             "vencimento": e.vencimento_assinatura.isoformat() if e.vencimento_assinatura else None}
+             "vencimento": iso_utc(e.vencimento_assinatura) if e.vencimento_assinatura else None}
             for e in ativos
             if (e.plano_status or "") == "experimental" and e.vencimento_assinatura
             and agora <= e.vencimento_assinatura <= em_7
@@ -353,7 +354,7 @@ def saas_metrics():
                 em_risco.append({
                     "id": e.id, "nome": e.nome_fantasia, "plano": e.plano,
                     "plano_status": e.plano_status,
-                    "ultima_venda": ult.isoformat() if ult else None,
+                    "ultima_venda": iso_utc(ult) if ult else None,
                     "dias_sem_vender": dias,
                 })
         em_risco.sort(key=lambda x: (x["dias_sem_vender"] is not None, x["dias_sem_vender"] or 0), reverse=True)
@@ -377,7 +378,7 @@ def saas_metrics():
                 "trials_expirando_7d": trials_expirando,
                 "tenants_em_risco": em_risco[:20],
                 "parametros": {"inatividade_dias": inativo_dias},
-                "data_geracao": agora.isoformat(),
+                "data_geracao": iso_utc(agora),
             }
         })
     except Exception as e:
@@ -488,7 +489,7 @@ def forcar_sincronizacao():
                 "success": True,
                 "message": f"Sincronização concluída: {resultado.get('total_registros', 0)} registros enviados ao Aiven.",
                 "total_registros": resultado.get("total_registros", 0),
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": iso_utc(datetime.now()),
             })
         return jsonify({
             "success": False,
@@ -504,5 +505,5 @@ def health_check():
     return jsonify({
         "success": True,
         "message": "Super Admin Dashboard funcionando",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": iso_utc(datetime.now())
     })

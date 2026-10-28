@@ -115,7 +115,7 @@ export default function SFADashboard() {
                     <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
                         Força de Vendas <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">SFA</span>
                     </h1>
-                    <p className="text-sm text-slate-500 font-medium">Bem-vindo, {user?.nome}</p>
+                    <p className="text-sm text-slate-500 font-medium dark:text-gray-400">Bem-vindo, {user?.nome}</p>
                 </div>
                 <Button variant="outline" size="icon" onClick={loadData} disabled={loading}>
                     <RefreshCcw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -137,7 +137,7 @@ export default function SFADashboard() {
                             <div className="bg-slate-800/80 p-4 rounded-2xl border border-slate-700/50">
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Realizado</p>
                                 <p className="text-2xl font-black text-white">{formatCurrency(kpi.realizado.faturamento)}</p>
-                                <p className="text-xs text-slate-500 mt-1">Meta: {formatCurrency(kpi.meta.faturamento)}</p>
+                                <p className="text-xs text-slate-500 mt-1 dark:text-gray-400">Meta: {formatCurrency(kpi.meta.faturamento)}</p>
                                 {kpi.realizado.pipeline_pendente > 0 && (
                                     <p className="text-xs text-amber-400 mt-1">+ {formatCurrency(kpi.realizado.pipeline_pendente)} aguardando aprovação</p>
                                 )}
@@ -152,7 +152,7 @@ export default function SFADashboard() {
                                 <p className={`text-2xl font-black ${isAtrasado ? 'text-amber-400' : 'text-emerald-400'}`}>
                                     {formatCurrency(kpi.realizado.tendencia)}
                                 </p>
-                                <p className="text-xs text-slate-500 mt-1">Projeção p/ o fim do mês</p>
+                                <p className="text-xs text-slate-500 mt-1 dark:text-gray-400">Projeção p/ o fim do mês</p>
                             </div>
                             
                             {/* Carteira e Positivação */}
@@ -160,8 +160,8 @@ export default function SFADashboard() {
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1">
                                     <Users className="w-3 h-3" /> Positivação
                                 </p>
-                                <p className="text-2xl font-black text-white">{kpi.carteira.positivados} <span className="text-sm font-medium text-slate-500">/ {kpi.carteira.base_clientes} cl.</span></p>
-                                <p className="text-xs text-slate-500 mt-1">Faltam {kpi.carteira.nao_compraram} clientes</p>
+                                <p className="text-2xl font-black text-white">{kpi.carteira.positivados} <span className="text-sm font-medium text-slate-500 dark:text-gray-400">/ {kpi.carteira.base_clientes} cl.</span></p>
+                                <p className="text-xs text-slate-500 mt-1 dark:text-gray-400">Faltam {kpi.carteira.nao_compraram} clientes</p>
                             </div>
 
                             {/* Produtos Foco */}
@@ -169,7 +169,7 @@ export default function SFADashboard() {
                                 <div className="absolute top-0 right-0 p-2"><PackageOpen className="w-8 h-8 text-blue-500/20" /></div>
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Produto Foco</p>
                                 <p className="text-2xl font-black text-blue-400">{kpi.produto_foco.total_itens_vendidos} un</p>
-                                <p className="text-xs text-slate-500 mt-1">Vendidos neste mês</p>
+                                <p className="text-xs text-slate-500 mt-1 dark:text-gray-400">Vendidos neste mês</p>
                             </div>
                         </div>
                     </div>
@@ -188,7 +188,7 @@ export default function SFADashboard() {
                     </div>
                 ) : clientes.length === 0 ? (
                     <Card className="border-dashed bg-transparent border-2 border-slate-200 dark:border-slate-800 shadow-none">
-                        <CardContent className="flex flex-col items-center justify-center py-12 text-slate-500">
+                        <CardContent className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-gray-400">
                             <MapPin className="w-12 h-12 mb-3 text-slate-300" />
                             <p className="font-medium">Nenhum cliente no seu roteiro hoje.</p>
                             <p className="text-sm text-slate-400">Verifique a sincronização com o retaguarda.</p>
@@ -205,7 +205,7 @@ export default function SFADashboard() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-extrabold text-slate-900 dark:text-white text-lg truncate leading-tight">{c.nome}</h3>
-                                            <p className="text-sm text-slate-500 truncate mt-0.5">{c.endereco_completo || c.cidade + '/' + c.estado}</p>
+                                            <p className="text-sm text-slate-500 truncate mt-0.5 dark:text-gray-400">{c.endereco_completo || c.cidade + '/' + c.estado}</p>
                                             
                                             <div className="flex flex-wrap items-center gap-2 mt-3 text-xs font-bold">
                                                 <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 rounded-md border border-emerald-100 dark:border-emerald-500/20">
@@ -220,7 +220,7 @@ export default function SFADashboard() {
                                         </div>
                                     </div>
                                     <div className="bg-slate-50 dark:bg-slate-900 p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-                                        <div className="text-xs font-medium text-slate-500 flex items-center gap-2">
+                                        <div className="text-xs font-medium text-slate-500 flex items-center gap-2 dark:text-gray-400">
                                             <Clock className="w-4 h-4 text-slate-400" />
                                             Última compra: {c.ultima_compra ? new Date(c.ultima_compra).toLocaleDateString() : 'N/A'}
                                         </div>
@@ -251,7 +251,7 @@ export default function SFADashboard() {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{selectedCliente.nome}</h3>
-                                    <p className="text-xs text-slate-500">ID: {selectedCliente.id}</p>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">ID: {selectedCliente.id}</p>
                                 </div>
                             </div>
                             <button onClick={() => setSelectedCliente(null)} className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-full transition-colors">
@@ -289,7 +289,7 @@ export default function SFADashboard() {
                                             <span className="text-emerald-700 font-bold dark:text-emerald-300 text-sm">Realizado</span>
                                         </div>
                                     ) : (
-                                        <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center text-sm text-slate-500">
+                                        <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 text-center text-sm text-slate-500 dark:text-gray-400">
                                             Nenhuma compra recente registrada para este cliente.
                                         </div>
                                     )}

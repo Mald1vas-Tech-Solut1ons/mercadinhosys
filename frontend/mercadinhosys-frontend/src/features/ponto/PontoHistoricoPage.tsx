@@ -151,7 +151,7 @@ const PontoHistoricoPage: React.FC = () => {
       'atrasado': 'bg-red-100 text-red-800',
       'justificado': 'bg-blue-100 text-blue-800'
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
   };
 
   const registrosPorDia = registros.reduce((acc: any, r: RegistroPonto) => {
@@ -181,23 +181,23 @@ const PontoHistoricoPage: React.FC = () => {
           <ArrowLeft className="w-5 h-5" />
           Voltar
         </button>
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-3">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 flex items-center gap-3 dark:text-gray-100">
           <Calendar className="w-10 h-10 text-blue-600" />
           Histórico de Pontos
         </h1>
-        <p className="text-gray-600 mt-2">Visualize, filtre e exporte seu histórico de registros</p>
+        <p className="text-gray-600 mt-2 dark:text-gray-300">Visualize, filtre e exporte seu histórico de registros</p>
       </div>
 
       {/* FILTROS */}
-      <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 dark:bg-gray-800">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2 dark:text-gray-100">
           <Filter className="w-6 h-6 text-blue-600" />
           Filtros
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div>
-            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Data Início</label>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 dark:text-gray-200">Data Início</label>
             <input
               type="date"
               value={dataInicio}
@@ -205,12 +205,12 @@ const PontoHistoricoPage: React.FC = () => {
                 setDataInicio(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm dark:border-gray-700"
             />
           </div>
 
           <div>
-            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Data Fim</label>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 dark:text-gray-200">Data Fim</label>
             <input
               type="date"
               value={dataFim}
@@ -218,20 +218,20 @@ const PontoHistoricoPage: React.FC = () => {
                 setDataFim(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm dark:border-gray-700"
             />
           </div>
 
           {isAdmin && (
             <div>
-              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Funcionário</label>
+              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 dark:text-gray-200">Funcionário</label>
               <select
                 value={funcionarioFiltro || ''}
                 onChange={(e) => {
                   setFuncionarioFiltro(e.target.value || null);
                   setPage(1);
                 }}
-                className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+                className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm dark:border-gray-700"
               >
                 <option value="">Todos</option>
                 {funcionarios.map(f => (
@@ -242,14 +242,14 @@ const PontoHistoricoPage: React.FC = () => {
           )}
 
           <div>
-            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Tipo</label>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 dark:text-gray-200">Tipo</label>
             <select
               value={tipoFiltro || ''}
               onChange={(e) => {
                 setTipoFiltro(e.target.value || null);
                 setPage(1);
               }}
-              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm dark:border-gray-700"
             >
               <option value="">Todos</option>
               <option value="entrada">Entrada</option>
@@ -260,14 +260,14 @@ const PontoHistoricoPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">Status</label>
+            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2 dark:text-gray-200">Status</label>
             <select
               value={statusFiltro || ''}
               onChange={(e) => {
                 setStatusFiltro(e.target.value || null);
                 setPage(1);
               }}
-              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm"
+              className="w-full px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm dark:border-gray-700"
             >
               <option value="">Todos</option>
               <option value="normal">Normal</option>
@@ -290,8 +290,8 @@ const PontoHistoricoPage: React.FC = () => {
       </div>
 
       {/* GRÁFICO */}
-      <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Registros por Dia</h3>
+      <div className="bg-white rounded-2xl shadow-xl p-6 mb-8 dark:bg-gray-800">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 dark:text-gray-100">Registros por Dia</h3>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={registrosPorDia}>
@@ -307,16 +307,16 @@ const PontoHistoricoPage: React.FC = () => {
       </div>
 
       {/* TABELA */}
-      <div className="bg-white rounded-2xl shadow-xl p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">Registros</h3>
+      <div className="bg-white rounded-2xl shadow-xl p-6 dark:bg-gray-800">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 dark:text-gray-100">Registros</h3>
         
         {loading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Carregando...</p>
+            <p className="text-gray-600 mt-4 dark:text-gray-300">Carregando...</p>
           </div>
         ) : registros.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <Calendar className="w-12 h-12 mx-auto opacity-50 mb-4" />
             <p>Nenhum registro encontrado</p>
           </div>
@@ -324,7 +324,7 @@ const PontoHistoricoPage: React.FC = () => {
           <>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-100 border-b-2 border-gray-300">
+                <thead className="bg-gray-100 border-b-2 border-gray-300 dark:bg-gray-800 dark:border-gray-700">
                   <tr>
                     <th className="px-4 py-3 text-left font-bold">Data</th>
                     <th className="px-4 py-3 text-left font-bold">Hora</th>
@@ -337,7 +337,7 @@ const PontoHistoricoPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {registros.map((r) => (
-                    <tr key={r.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <tr key={r.id} className="border-b border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700">
                       <td className="px-4 py-3">{r.data}</td>
                       <td className="px-4 py-3 font-semibold">{r.hora}</td>
                       {isAdmin && (
@@ -346,7 +346,7 @@ const PontoHistoricoPage: React.FC = () => {
                             <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xs font-bold">
                               {r.funcionario_nome ? r.funcionario_nome.charAt(0) : '?'}
                             </div>
-                            <span className="font-medium text-gray-700">{r.funcionario_nome || 'Desconhecido'}</span>
+                            <span className="font-medium text-gray-700 dark:text-gray-200">{r.funcionario_nome || 'Desconhecido'}</span>
                           </div>
                         </td>
                       )}
@@ -384,21 +384,21 @@ const PontoHistoricoPage: React.FC = () => {
 
             {/* PAGINAÇÃO */}
             <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-300">
                 Página {page} de {totalPages}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
                   disabled={page === 1}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-700"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-700"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -411,7 +411,7 @@ const PontoHistoricoPage: React.FC = () => {
       {/* MODAL */}
       {registroSelecionado && (
         <div className="fixed inset-0 bg-black/75 z-100 flex items-center justify-center p-2 sm:p-4 overflow-y-auto" style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))', paddingTop: 'calc(0.5rem + env(safe-area-inset-top))' }}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden my-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden my-auto dark:bg-gray-800">
             <div className="bg-linear-to-r from-blue-600 to-indigo-600 p-4 sm:p-6 flex items-center justify-between text-white">
               <div className="flex-1">
                 <h3 className="text-lg sm:text-2xl font-bold flex items-center gap-2">
@@ -434,21 +434,21 @@ const PontoHistoricoPage: React.FC = () => {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <div className="p-2 sm:p-4 bg-blue-50 rounded-lg">
                   <p className="text-xs text-blue-600 font-semibold">📅 Data</p>
-                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1">{registroSelecionado.data}</p>
+                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">{registroSelecionado.data}</p>
                 </div>
                 <div className="p-2 sm:p-4 bg-green-50 rounded-lg">
                   <p className="text-xs text-green-600 font-semibold">⏰ Horário</p>
-                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1">{registroSelecionado.hora}</p>
+                  <p className="text-sm sm:text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">{registroSelecionado.hora}</p>
                 </div>
                 <div className="p-2 sm:p-4 bg-purple-50 rounded-lg">
                   <p className="text-xs text-purple-600 font-semibold">🏷️ Tipo</p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">{getTipoLabel(registroSelecionado.tipo_registro)}</p>
+                  <p className="text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">{getTipoLabel(registroSelecionado.tipo_registro)}</p>
                 </div>
                 <div className={`p-4 rounded-lg ${registroSelecionado.status === 'atrasado' ? 'bg-red-50' : 'bg-green-50'}`}>
                   <p className={`text-xs font-semibold ${registroSelecionado.status === 'atrasado' ? 'text-red-600' : 'text-green-600'}`}>
                     Status
                   </p>
-                  <p className="text-lg font-bold text-gray-900 mt-1">
+                  <p className="text-lg font-bold text-gray-900 mt-1 dark:text-gray-100">
                     {registroSelecionado.status === 'atrasado' ? '⚠️ Atrasado' : '✅ Normal'}
                   </p>
                 </div>
@@ -464,18 +464,18 @@ const PontoHistoricoPage: React.FC = () => {
               )}
               
               {registroSelecionado.funcionario_nome && (
-                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-500" />
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-900 dark:border-gray-700">
+                  <p className="text-sm font-semibold text-gray-700 mb-1 flex items-center gap-2 dark:text-gray-200">
+                    <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                     Funcionário
                   </p>
-                  <p className="text-lg font-bold text-gray-900">{registroSelecionado.funcionario_nome}</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{registroSelecionado.funcionario_nome}</p>
                 </div>
               )}
 
               {registroSelecionado.foto_url ? (
                 <div className="mb-6">
-                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2 dark:text-gray-200">
                     <Camera className="w-5 h-5 text-blue-600" />
                     Foto
                   </p>
@@ -492,8 +492,8 @@ const PontoHistoricoPage: React.FC = () => {
                   />
                 </div>
               ) : (
-                <div className="mb-6 p-4 bg-gray-100 rounded-lg border-2 border-dashed border-gray-400">
-                  <p className="text-sm text-gray-600 flex items-center gap-2">
+                <div className="mb-6 p-4 bg-gray-100 rounded-lg border-2 border-dashed border-gray-400 dark:bg-gray-800">
+                  <p className="text-sm text-gray-600 flex items-center gap-2 dark:text-gray-300">
                     <Camera className="w-5 h-5 text-gray-400" />
                     Nenhuma foto
                   </p>
@@ -507,15 +507,15 @@ const PontoHistoricoPage: React.FC = () => {
                     📍 Localização
                   </p>
                   <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div className="bg-white p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 font-semibold">Latitude</p>
-                      <p className="font-mono text-gray-900 font-bold mt-1">
+                    <div className="bg-white p-3 rounded-lg dark:bg-gray-800">
+                      <p className="text-xs text-gray-500 font-semibold dark:text-gray-400">Latitude</p>
+                      <p className="font-mono text-gray-900 font-bold mt-1 dark:text-gray-100">
                         {registroSelecionado.latitude.toFixed(6)}
                       </p>
                     </div>
-                    <div className="bg-white p-3 rounded-lg">
-                      <p className="text-xs text-gray-500 font-semibold">Longitude</p>
-                      <p className="font-mono text-gray-900 font-bold mt-1">
+                    <div className="bg-white p-3 rounded-lg dark:bg-gray-800">
+                      <p className="text-xs text-gray-500 font-semibold dark:text-gray-400">Longitude</p>
+                      <p className="font-mono text-gray-900 font-bold mt-1 dark:text-gray-100">
                         {registroSelecionado.longitude.toFixed(6)}
                       </p>
                     </div>
@@ -533,7 +533,7 @@ const PontoHistoricoPage: React.FC = () => {
               )}
             </div>
 
-            <div className="bg-gray-100 p-4 flex justify-end gap-2">
+            <div className="bg-gray-100 p-4 flex justify-end gap-2 dark:bg-gray-800">
               <button
                 onClick={() => setRegistroSelecionado(null)}
                 className="px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm sm:text-base transition"
@@ -580,7 +580,7 @@ const PontoHistoricoPage: React.FC = () => {
             <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row gap-2 sm:gap-4 w-full px-4 sm:px-0">
               <button
                 onClick={() => setFotoExpandida(null)}
-                className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 font-semibold transition flex items-center justify-center gap-2"
+                className="flex-1 sm:flex-none px-4 sm:px-6 py-2 sm:py-3 bg-white text-gray-900 rounded-lg hover:bg-gray-100 font-semibold transition flex items-center justify-center gap-2 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
               >
                 <X className="w-4 sm:w-5 h-4 sm:h-5" />
                 <span className="hidden sm:inline">Fechar</span>

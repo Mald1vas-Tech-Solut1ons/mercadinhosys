@@ -235,7 +235,7 @@ export default function RetrospectivaWrapped({ open, onClose, funcionarioId, ano
                     <div className="flex gap-1.5 p-4 pt-[calc(1rem+env(safe-area-inset-top))]">
                         {slides.map((_, i) => (
                             <div key={i} className="flex-1 h-1 rounded-full bg-white/25 overflow-hidden">
-                                <div className={`h-full bg-white transition-all duration-300 ${i < idx ? 'w-full' : i === idx ? 'w-full' : 'w-0'}`} />
+                                <div className={`h-full bg-white transition-all duration-300 ${i < idx ? 'w-full' : i === idx ? 'w-full' : 'w-0'} dark:bg-gray-800`} />
                             </div>
                         ))}
                     </div>
@@ -271,7 +271,7 @@ export default function RetrospectivaWrapped({ open, onClose, funcionarioId, ano
                                 <ChevronRight className="w-6 h-6" />
                             </button>
                         ) : (
-                            <button onClick={onClose} className="px-5 py-3 rounded-full bg-white text-gray-900 font-black text-sm hover:scale-105 transition-transform">
+                            <button onClick={onClose} className="px-5 py-3 rounded-full bg-white text-gray-900 font-black text-sm hover:scale-105 transition-transform dark:bg-gray-800 dark:text-gray-100">
                                 Concluir
                             </button>
                         )}

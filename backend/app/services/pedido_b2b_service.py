@@ -17,7 +17,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func
 
 from app.models import (ContaReceber, PedidoVendaExpedicao, PedidoVendaExpedicaoItem, Produto, Venda, VendaItem, db)
-from app.utils.timezone import now_utc, to_local
+from app.utils.timezone import iso_utc, now_utc, to_local
 from app.services.estoque_service import (controla_estoque, quantidade_em_quarentena, quantidade_valida,
                                           registrar_saida, reservado_no_produto)
 
@@ -322,7 +322,7 @@ def lista_separacao(pedido):
                 if restante <= 0:
                     break
                 usar = min(restante, _dec(lote.quantidade))
-                lotes.append({'lote': lote.numero_lote, 'validade': lote.data_validade.isoformat() if lote.data_validade else None,
+                lotes.append({'lote': lote.numero_lote, 'validade': iso_utc(lote.data_validade) if lote.data_validade else None,
                               'quantidade': float(usar)})
                 restante -= usar
         linhas.append({

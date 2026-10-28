@@ -74,7 +74,7 @@ export default function MasterCatalogPage() {
                 <div className="p-2.5 rounded-xl bg-primary-600 text-white"><Database className="w-6 h-6" /></div>
                 <div>
                     <h1 className="text-2xl font-black text-slate-900 dark:text-white">Catálogo Mestre</h1>
-                    <p className="text-sm text-slate-500">Banco global de produtos verificados por EAN — {total} item(ns)</p>
+                    <p className="text-sm text-slate-500 dark:text-gray-400">Banco global de produtos verificados por EAN — {total} item(ns)</p>
                 </div>
                 <button onClick={() => carregar(page)} className="ml-auto text-slate-400 hover:text-slate-600">
                     <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -142,7 +142,7 @@ export default function MasterCatalogPage() {
                                 <td className="p-3">
                                     <div className="flex items-center gap-3">
                                         {item.imagem_url ? (
-                                            <img src={item.imagem_url} alt={item.nome || ''} loading="lazy" className="w-9 h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white" />
+                                            <img src={item.imagem_url} alt={item.nome || ''} loading="lazy" className="w-9 h-9 rounded-lg object-cover border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800" />
                                         ) : (
                                             <div className="w-9 h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                                 <Package className="w-4 h-4 text-slate-400" />
@@ -154,14 +154,14 @@ export default function MasterCatalogPage() {
                                         </div>
                                     </div>
                                 </td>
-                                <td className="p-3 font-mono text-xs text-slate-500">{item.ean}</td>
+                                <td className="p-3 font-mono text-xs text-slate-500 dark:text-gray-400">{item.ean}</td>
                                 <td className="p-3 text-slate-600 dark:text-slate-300">{item.categoria || '—'}</td>
                                 <td className="p-3">
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.fonte === 'cosmos' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'}`}>
                                         {fonteLabel(item.fonte)}
                                     </span>
                                 </td>
-                                <td className="p-3 text-slate-500 text-xs">{viaLabel(item.descoberto_via)}</td>
+                                <td className="p-3 text-slate-500 text-xs dark:text-gray-400">{viaLabel(item.descoberto_via)}</td>
                                 <td className="p-3 text-slate-400 text-xs">{fmtData(item.consultado_em)}</td>
                             </tr>
                         ))}
@@ -172,7 +172,7 @@ export default function MasterCatalogPage() {
             {totalPaginas > 1 && (
                 <div className="flex items-center justify-center gap-3">
                     <button disabled={page <= 1} onClick={() => carregar(page - 1)} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-40">Anterior</button>
-                    <span className="text-sm text-slate-500">Página {page} de {totalPaginas}</span>
+                    <span className="text-sm text-slate-500 dark:text-gray-400">Página {page} de {totalPaginas}</span>
                     <button disabled={page >= totalPaginas} onClick={() => carregar(page + 1)} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-sm disabled:opacity-40">Próxima</button>
                 </div>
             )}

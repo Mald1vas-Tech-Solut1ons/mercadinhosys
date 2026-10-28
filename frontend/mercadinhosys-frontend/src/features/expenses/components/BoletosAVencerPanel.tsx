@@ -302,8 +302,8 @@ const BoletosAVencerPanel: React.FC<BoletosAVencerPanelProps> = ({ className = '
         ) : (
           <div className="space-y-4">
             <div className="flex justify-between items-center px-2 mb-2">
-              <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">{fornecedoresAgrupados.length} Fornecedores listados</span>
-              <span className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1"><SlidersHorizontal className="w-4 h-4"/> Agrupado</span>
+              <span className="text-sm font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">{fornecedoresAgrupados.length} Fornecedores listados</span>
+              <span className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1 dark:text-gray-400"><SlidersHorizontal className="w-4 h-4"/> Agrupado</span>
             </div>
             
             {fornecedoresAgrupados.map(grupo => {

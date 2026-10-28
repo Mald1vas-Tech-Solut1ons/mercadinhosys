@@ -82,9 +82,9 @@ export default function CentralLogistica() {
             </div>
 
             {loading ? (
-                <div className="py-16 text-center text-gray-500 text-sm">Calculando métricas…</div>
+                <div className="py-16 text-center text-gray-500 text-sm dark:text-gray-400">Calculando métricas…</div>
             ) : !k ? (
-                <div className="py-16 text-center text-gray-500 text-sm">Sem dados para os filtros selecionados.</div>
+                <div className="py-16 text-center text-gray-500 text-sm dark:text-gray-400">Sem dados para os filtros selecionados.</div>
             ) : (
                 <>
                     {/* KPIs */}
@@ -96,7 +96,7 @@ export default function CentralLogistica() {
                         <Kpi icon={<Fuel className="w-5 h-5" />} cor="text-orange-600" bg="bg-orange-50 dark:bg-orange-500/10" label="Combustível" valor={fmt(k.combustivel_total)} />
                         <Kpi icon={<DollarSign className="w-5 h-5" />} cor="text-rose-600" bg="bg-rose-50 dark:bg-rose-500/10" label="Comissão entregadores" valor={fmt(k.comissao_total)} />
                         <Kpi icon={<Wallet className="w-5 h-5" />} cor="text-green-600" bg="bg-green-50 dark:bg-green-500/10" label="Saldo taxa (líquido)" valor={fmt(k.saldo_taxa)} />
-                        <Kpi icon={<Clock className="w-5 h-5" />} cor="text-slate-600" bg="bg-slate-100 dark:bg-slate-500/10" label="Tempo médio" valor={`${k.tempo_medio_minutos} min`} />
+                        <Kpi icon={<Clock className="w-5 h-5" />} cor="text-slate-600 dark:text-gray-300" bg="bg-slate-100 dark:bg-slate-500/10" label="Tempo médio" valor={`${k.tempo_medio_minutos} min`} />
                     </div>
 
                     {/* Distribuição por status */}

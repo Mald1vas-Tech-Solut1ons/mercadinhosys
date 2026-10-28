@@ -58,12 +58,12 @@ interface TemaMetrica {
 const TEMAS_METRICA: Record<string, TemaMetrica> = {
     blue: {
         icone: 'text-blue-500', borda: 'border-slate-800', hover: 'hover:border-blue-500/50',
-        valor: 'text-white', dot: 'bg-blue-500', subtitulo: 'text-slate-500',
+        valor: 'text-white', dot: 'bg-blue-500', subtitulo: 'text-slate-500 dark:text-gray-400',
         modal: { header: 'bg-blue-600', text: 'text-blue-600 dark:text-blue-400', button: 'bg-blue-600 hover:bg-blue-700', stroke: '#3b82f6', shadow: 'shadow-blue-600/30' },
     },
     emerald: {
         icone: 'text-emerald-500', borda: 'border-slate-800', hover: 'hover:border-emerald-500/50',
-        valor: 'text-white', dot: 'bg-emerald-500', subtitulo: 'text-slate-500',
+        valor: 'text-white', dot: 'bg-emerald-500', subtitulo: 'text-slate-500 dark:text-gray-400',
         modal: { header: 'bg-emerald-600', text: 'text-emerald-600 dark:text-emerald-400', button: 'bg-emerald-600 hover:bg-emerald-700', stroke: '#10b981', shadow: 'shadow-emerald-600/30' },
     },
     amber: {
@@ -78,17 +78,17 @@ const TEMAS_METRICA: Record<string, TemaMetrica> = {
     },
     purple: {
         icone: 'text-purple-500', borda: 'border-slate-800', hover: 'hover:border-purple-500/50',
-        valor: 'text-white', dot: 'bg-purple-500', subtitulo: 'text-slate-500',
+        valor: 'text-white', dot: 'bg-purple-500', subtitulo: 'text-slate-500 dark:text-gray-400',
         modal: { header: 'bg-purple-600', text: 'text-purple-500 dark:text-purple-400', button: 'bg-purple-600 hover:bg-purple-700', stroke: '#a855f7', shadow: 'shadow-purple-600/30' },
     },
     indigo: {
         icone: 'text-indigo-500', borda: 'border-slate-800', hover: 'hover:border-indigo-500/50',
-        valor: 'text-white', dot: 'bg-indigo-500', subtitulo: 'text-slate-500',
+        valor: 'text-white', dot: 'bg-indigo-500', subtitulo: 'text-slate-500 dark:text-gray-400',
         modal: { header: 'bg-indigo-600', text: 'text-indigo-500 dark:text-indigo-400', button: 'bg-indigo-600 hover:bg-indigo-700', stroke: '#6366f1', shadow: 'shadow-indigo-600/30' },
     },
     cyan: {
         icone: 'text-cyan-500', borda: 'border-slate-800', hover: 'hover:border-cyan-500/50',
-        valor: 'text-white', dot: 'bg-cyan-500', subtitulo: 'text-slate-500',
+        valor: 'text-white', dot: 'bg-cyan-500', subtitulo: 'text-slate-500 dark:text-gray-400',
         modal: { header: 'bg-cyan-600', text: 'text-cyan-500 dark:text-cyan-400', button: 'bg-cyan-600 hover:bg-cyan-700', stroke: '#06b6d4', shadow: 'shadow-cyan-600/30' },
     },
 };
@@ -880,7 +880,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                         <div className="p-8">
                             <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 sm:p-6">
                                 <div className="text-center md:text-left">
-                                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">Valor Atual</p>
+                                    <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-1 dark:text-gray-400">Valor Atual</p>
                                     <p className={`text-5xl font-black ${activeMetricModal.theme.text}`}>
                                         {activeMetricModal.formattedValue}
                                     </p>
@@ -890,7 +890,7 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                             <div className="h-[250px] w-full mt-6">
                                 {getModalChartData().length > 0 ? (
                                     <>
-                                        <p className="text-center text-sm font-bold text-gray-500 uppercase mb-4">
+                                        <p className="text-center text-sm font-bold text-gray-500 uppercase mb-4 dark:text-gray-400">
                                             {activeMetricModal.id === 'margem' ? 'Margem Média por Categoria' : 
                                              activeMetricModal.id === 'valor' ? 'Valor por Categoria' : 
                                              'Distribuição por Categoria'}

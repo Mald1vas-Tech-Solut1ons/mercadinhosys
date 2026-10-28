@@ -136,7 +136,7 @@ const PurchaseOrderDetailsModal: React.FC<PurchaseOrderDetailsModalProps> = ({
                                         </div>
                                         <div className="flex flex-col">
                                             <span className="text-gray-400 dark:text-gray-500 uppercase text-[10px] font-bold tracking-wider">Recebido</span>
-                                            <span className={`font-medium ${item.quantidade_recebida && item.quantidade_recebida < item.quantidade_solicitada ? 'text-orange-600' : item.quantidade_recebida === item.quantidade_solicitada ? 'text-green-600' : 'text-gray-500'}`}>
+                                            <span className={`font-medium ${item.quantidade_recebida && item.quantidade_recebida < item.quantidade_solicitada ? 'text-orange-600' : item.quantidade_recebida === item.quantidade_solicitada ? 'text-green-600' : 'text-gray-500'} dark:text-gray-400`}>
                                                 {item.quantidade_recebida || '-'}
                                             </span>
                                         </div>

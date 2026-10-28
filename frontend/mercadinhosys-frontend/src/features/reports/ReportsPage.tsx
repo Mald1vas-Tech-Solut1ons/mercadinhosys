@@ -880,19 +880,19 @@ const ReportsPage: React.FC = () => {
         return (
             <>
                 {pdfHandler && (
-                    <button onClick={pdfHandler} disabled={loadingReport !== null} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 text-gray-700 hover:text-red-700 transition-colors border border-gray-100 hover:border-red-200">
+                    <button onClick={pdfHandler} disabled={loadingReport !== null} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-50 text-gray-700 hover:text-red-700 transition-colors border border-gray-100 hover:border-red-200 dark:text-gray-200 dark:border-gray-700">
                         <FileText className="w-4 h-4" />
                         <span className="text-xs font-medium">PDF</span>
                     </button>
                 )}
                 {excelHandler && (
-                    <button onClick={excelHandler} disabled={loadingReport !== null} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-green-50 text-gray-700 hover:text-green-700 transition-colors border border-gray-100 hover:border-green-200">
+                    <button onClick={excelHandler} disabled={loadingReport !== null} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-green-50 text-gray-700 hover:text-green-700 transition-colors border border-gray-100 hover:border-green-200 dark:text-gray-200 dark:border-gray-700">
                         <FileSpreadsheet className="w-4 h-4" />
                         <span className="text-xs font-medium">Excel</span>
                     </button>
                 )}
                 {csvHandler && (
-                    <button onClick={csvHandler} disabled={loadingReport !== null} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition-colors border border-gray-100 hover:border-blue-200">
+                    <button onClick={csvHandler} disabled={loadingReport !== null} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition-colors border border-gray-100 hover:border-blue-200 dark:text-gray-200 dark:border-gray-700">
                         <Download className="w-4 h-4" />
                         <span className="text-xs font-medium">CSV</span>
                     </button>
@@ -1240,12 +1240,12 @@ const ReportsPage: React.FC = () => {
                             <ArrowDownRight className="w-4 h-4 text-red-500" /> Contas a Pagar
                         </h4>
                         <div className="space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-gray-500">Total em aberto</span><span className="font-semibold text-red-600">{fmtBRL(cp.total_aberto ?? 0)}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-500">Vencido</span><span className="font-semibold text-red-700">{fmtBRL(cp.total_vencido ?? 0)}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-500">Vence em 7 dias</span><span className="font-medium text-orange-600">{fmtBRL(cp.vence_7_dias ?? 0)}</span></div>
-                            <div className="flex justify-between"><span className="text-gray-500">Vence em 30 dias</span><span className="text-gray-700">{fmtBRL(cp.vence_30_dias ?? 0)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Total em aberto</span><span className="font-semibold text-red-600">{fmtBRL(cp.total_aberto ?? 0)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Vencido</span><span className="font-semibold text-red-700">{fmtBRL(cp.total_vencido ?? 0)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Vence em 7 dias</span><span className="font-medium text-orange-600">{fmtBRL(cp.vence_7_dias ?? 0)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Vence em 30 dias</span><span className="text-gray-700 dark:text-gray-200">{fmtBRL(cp.vence_30_dias ?? 0)}</span></div>
                             <hr />
-                            <div className="flex justify-between"><span className="text-gray-500">Pago no mês</span><span className="font-medium text-green-600">{fmtBRL(cp.pago_no_mes ?? 0)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Pago no mês</span><span className="font-medium text-green-600">{fmtBRL(cp.pago_no_mes ?? 0)}</span></div>
                         </div>
                     </div>
                 </div>
@@ -1382,7 +1382,7 @@ const ReportsPage: React.FC = () => {
                 },
             ], fetchVendasData)}
             {vendasData.filter(filterRow).length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                     <p className="text-lg">Nenhuma venda encontrada</p>
                     <p className="text-sm mt-2">Ajuste os filtros de data ou busca</p>
                 </div>
@@ -1673,7 +1673,7 @@ const ReportsPage: React.FC = () => {
             {/* Seção: Backup */}
             <div>
                 <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-                    <Archive className="w-5 h-5 text-slate-500" /> Exportação & Backup
+                    <Archive className="w-5 h-5 text-slate-500 dark:text-gray-400" /> Exportação & Backup
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <ReportCard title="Backup Completo (Power BI)" description="Exportação multi-abas com dicionário de dados, Excel e JSON." icon={Archive} color="bg-slate-600" loading={loadingBackup} onOpen={handleBackupExport} />

@@ -163,9 +163,9 @@ export default function FolhaCustoReal() {
             {/* Tabela */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
                 {loading ? (
-                    <div className="py-12 text-center text-gray-500 text-sm">Carregando provisões…</div>
+                    <div className="py-12 text-center text-gray-500 text-sm dark:text-gray-400">Carregando provisões…</div>
                 ) : dadosFiltrados.length === 0 ? (
-                    <div className="py-12 text-center text-gray-500 text-sm">Nenhum funcionário encontrado com os filtros atuais</div>
+                    <div className="py-12 text-center text-gray-500 text-sm dark:text-gray-400">Nenhum funcionário encontrado com os filtros atuais</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">

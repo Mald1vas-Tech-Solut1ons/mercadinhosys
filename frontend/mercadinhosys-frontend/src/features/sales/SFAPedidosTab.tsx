@@ -130,7 +130,7 @@ export default function SFAPedidosTab() {
                                 <Clock className="w-3 h-3 mr-1" /> {rotulo.texto}
                             </span>
                         </div>
-                        <p className="text-sm text-slate-500 mb-4">{p.condicao_pagamento}</p>
+                        <p className="text-sm text-slate-500 mb-4 dark:text-gray-400">{p.condicao_pagamento}</p>
                         <div className="flex items-center gap-2 mb-2">
                             <MapPin className="w-4 h-4 text-slate-400" />
                             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{p.vendedor_nome || 'Vendedor'} · {p.codigo}</span>
@@ -140,7 +140,7 @@ export default function SFAPedidosTab() {
                                 <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                                     <div className="h-full bg-emerald-500" style={{ width: `${prog.pct}%` }} />
                                 </div>
-                                <p className="text-[11px] text-slate-500 mt-1">
+                                <p className="text-[11px] text-slate-500 mt-1 dark:text-gray-400">
                                     {qtd(prog.atendido)} de {qtd(prog.pedido_qtd)} expedidos · {qtd(prog.reservado)} reservados
                                 </p>
                             </div>
@@ -178,7 +178,7 @@ export default function SFAPedidosTab() {
                 <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
             ) : pedidosFiltrados.length === 0 ? (
                 <Card className="bg-white dark:bg-slate-900 border-dashed border-2">
-                    <CardContent className="flex flex-col items-center justify-center py-12 text-slate-500">
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-slate-500 dark:text-gray-400">
                         <Check className="w-12 h-12 text-slate-300 mb-4" />
                         <p className="text-lg font-medium text-slate-700 dark:text-slate-300">Tudo limpo!</p>
                         <p>Nenhum pedido do SFA aguardando análise ou expedição.</p>
@@ -188,13 +188,13 @@ export default function SFAPedidosTab() {
                 <>
                     {aguardando.length > 0 && (
                         <section className="space-y-3">
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">Aguardando análise ({aguardando.length})</h2>
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400">Aguardando análise ({aguardando.length})</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{aguardando.map(cartao)}</div>
                         </section>
                     )}
                     {emAtendimento.length > 0 && (
                         <section className="space-y-3">
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500">Em atendimento: reservados e entregas parciais ({emAtendimento.length})</h2>
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-gray-400">Em atendimento: reservados e entregas parciais ({emAtendimento.length})</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{emAtendimento.map(cartao)}</div>
                         </section>
                     )}
@@ -216,25 +216,25 @@ export default function SFAPedidosTab() {
                         <div className="p-6 overflow-y-auto flex-1 space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Cliente</p>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 dark:text-gray-400">Cliente</p>
                                     <p className="font-bold text-slate-900 dark:text-white">{detalhe.cliente_nome}</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Valor Total</p>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 dark:text-gray-400">Valor Total</p>
                                     <p className="font-bold text-slate-900 dark:text-white text-xl">{moeda(detalhe.total)}</p>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Condição</p>
+                                    <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1 dark:text-gray-400">Condição</p>
                                     <p className="font-semibold text-slate-700 dark:text-slate-300">{detalhe.condicao_pagamento}</p>
                                 </div>
                             </div>
 
                             <div>
-                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Itens do Pedido</p>
+                                <p className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3 dark:text-gray-400">Itens do Pedido</p>
                                 <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
                                     {detalhe.status === 'pendente' ? (
                                         <>
-                                            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 text-xs font-medium text-slate-500 grid grid-cols-12">
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 text-xs font-medium text-slate-500 grid grid-cols-12 dark:text-gray-400">
                                                 <div className="col-span-6">Produto</div>
                                                 <div className="col-span-2 text-center">Qtd</div>
                                                 <div className="col-span-4 text-right">Subtotal</div>
@@ -251,7 +251,7 @@ export default function SFAPedidosTab() {
                                         </>
                                     ) : (
                                         <>
-                                            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 text-xs font-medium text-slate-500 grid grid-cols-12 gap-2">
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 text-xs font-medium text-slate-500 grid grid-cols-12 gap-2 dark:text-gray-400">
                                                 <div className="col-span-4">Produto</div>
                                                 <div className="col-span-1 text-center">Pedido</div>
                                                 <div className="col-span-1 text-center">Saiu</div>

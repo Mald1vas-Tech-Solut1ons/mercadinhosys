@@ -435,7 +435,8 @@ export default function SalesPage() {
                 </div>
             </div>
 
-
+            {/* Buscando venda: gráficos saem da frente e a tabela fica logo abaixo do campo. */}
+            {!String(filtros.search || '').trim() && (<>
 
             {/* Insights */}
             {!loadingA && insights.length > 0 && (
@@ -515,6 +516,7 @@ export default function SalesPage() {
                     </div>
                 </div>
             </div>
+            </>)}
 
             {/* Tabela */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">

@@ -212,6 +212,22 @@ def get_estabelecimento_safe(estab_id):
         logger.error(f"Erro em get_estabelecimento_safe: {e}")
         return None
 
+def bloquear_venda_vencido(estab_id) -> bool:
+    """A loja recusa produto vencido no caixa? Sem coluna (pré-migração) ou sem config = sim."""
+    try:
+        if not estab_id or str(estab_id).lower() == 'all':
+            return True
+        db = _get_db()
+        with db.session.begin_nested():
+            r = db.session.execute(
+                text("SELECT bloquear_venda_vencido FROM configuracoes WHERE estabelecimento_id = :eid LIMIT 1"),
+                {"eid": estab_id},
+            ).fetchone()
+        return True if not r or r[0] is None else bool(r[0])
+    except Exception:
+        return True
+
+
 def get_configuracao_safe(estab_id):
     """
     Busca configurações via SQL direto.
@@ -259,6 +275,7 @@ def get_configuracao_safe(estab_id):
                 if row_extra else
                 {"desconto_mercado_padrao_pct": 15.0, "margem_alvo_venda_pct": 50.0}
             )
+            pct_extra["bloquear_venda_vencido"] = bloquear_venda_vencido(estab_id)
             if row:
                 # Se sucesso, monta o dict direto (Fast!)
                 import json
@@ -367,6 +384,7 @@ def get_configuracao_safe(estab_id):
         # migrou, ausência da coluna = default do sistema.
         res["desconto_mercado_padrao_pct"] = float(_fetch_col("desconto_mercado_padrao_pct", 15.0))
         res["margem_alvo_venda_pct"] = float(_fetch_col("margem_alvo_venda_pct", 50.0))
+        res["bloquear_venda_vencido"] = bloquear_venda_vencido(estab_id)
 
         if isinstance(res["formas_pagamento"], str):
             import json

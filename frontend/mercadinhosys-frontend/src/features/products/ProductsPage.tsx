@@ -626,10 +626,13 @@ const ProductsPage: React.FC = () => {
     vencido: stats.validade?.vencidos || 0
   }), [stats]);
 
+  // Buscando: painéis saem da frente e a tabela fica logo abaixo do campo.
+  const emBusca = buscaLocal.trim().length > 0;
+
   return (
     <div className="space-y-6 p-6">
 
-      <div className="tour-produtos-upload">
+      <div className="tour-produtos-upload sticky top-0 z-30 -mx-6 px-6 py-2 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur">
         <CommandToolbar 
           onNew={() => { setEditMode(false); setSelectedProduct(null); setShowProductModal(true); }}
           onRefresh={loadProdutos}
@@ -645,18 +648,22 @@ const ProductsPage: React.FC = () => {
         />
       </div>
 
-      <ConsultorInsightCard especialista="estoque" titulo="Consultor IA - Inteligência de Estoque" className="mb-2" />
+      {!emBusca && (
+        <>
+          <ConsultorInsightCard especialista="estoque" titulo="Consultor IA - Inteligência de Estoque" className="mb-2" />
 
-      <ProductAnalyticsDashboard 
-        produtos={produtos} 
-        stats={stats} 
-        onCardClick={handleCardClick} 
-        onAdvancedAnalyticsClick={(type) => {
-          setAdvancedAnalyticsType(type);
-          setShowAdvancedAnalyticsModal(true);
-        }}
-        onProductClick={openDetailModal}
-      />
+          <ProductAnalyticsDashboard
+            produtos={produtos}
+            stats={stats}
+            onCardClick={handleCardClick}
+            onAdvancedAnalyticsClick={(type) => {
+              setAdvancedAnalyticsType(type);
+              setShowAdvancedAnalyticsModal(true);
+            }}
+            onProductClick={openDetailModal}
+          />
+        </>
+      )}
 
       <QuickFiltersPanel activeFilter={filtroRapido} onFilterChange={handleQuickFilterChange} counts={contadoresFiltros} />
 

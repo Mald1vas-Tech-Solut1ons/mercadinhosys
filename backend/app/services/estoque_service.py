@@ -37,6 +37,20 @@ class EstoqueIndisponivelError(ValueError):
                          f'solicitado {_qtd(solicitado)}')
 
 
+class ProdutoVencidoError(ValueError):
+    """Produto sem lote com data de validade passada e a loja bloqueia venda de vencido."""
+
+    def __init__(self, produto):
+        self.produto_id = produto.id
+        super().__init__(f'{produto.nome} está vencido (validade {produto.data_validade.strftime("%d/%m/%Y")}). '
+                         'A venda de produto vencido está bloqueada nas configurações da loja.')
+
+
+def _bloqueia_vencido(produto) -> bool:
+    from app.utils.query_helpers import bloquear_venda_vencido
+    return bloquear_venda_vencido(produto.estabelecimento_id)
+
+
 def _qtd(valor) -> str:
     return f'{Decimal(str(valor)).normalize():f}'
 
@@ -62,8 +76,11 @@ def controla_estoque(produto) -> bool:
 
 
 def quantidade_em_quarentena(produto) -> Decimal:
-    """Saldo de lotes ativos vencidos: existe fisicamente, mas não pode ser vendido."""
-    if produto.controlar_validade is False:
+    """Saldo de lotes ativos vencidos: existe fisicamente, mas não pode ser vendido.
+
+    Loja que desligou "bloquear venda de vencido" não tem quarentena: o vencido sai primeiro (FEFO).
+    """
+    if produto.controlar_validade is False or not _bloqueia_vencido(produto):
         return Decimal('0')
     total = db.session.query(func.coalesce(func.sum(ProdutoLote.quantidade), 0)).filter(
         ProdutoLote.produto_id == produto.id,
@@ -73,6 +90,19 @@ def quantidade_em_quarentena(produto) -> Decimal:
         ProdutoLote.data_validade < date.today(),
     ).scalar()
     return Decimal(str(total or 0))
+
+
+def _vencido_sem_lote(produto) -> bool:
+    """Validade só no cadastro (sem lote com saldo) e já passou; com lote, quem decide é a quarentena."""
+    if produto.controlar_validade is False or not produto.data_validade or produto.data_validade >= date.today():
+        return False
+    tem_lote = db.session.query(ProdutoLote.id).filter(
+        ProdutoLote.produto_id == produto.id,
+        ProdutoLote.estabelecimento_id == produto.estabelecimento_id,
+        ProdutoLote.ativo.is_(True),
+        ProdutoLote.quantidade > 0,
+    ).first()
+    return tem_lote is None
 
 
 def reservado_no_produto(produto, exceto_pedido_id=None) -> Decimal:
@@ -108,6 +138,9 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
     custo = custo_historico(produto)
     if not controla_estoque(produto):
         return None, custo
+    bloqueia = _bloqueia_vencido(produto)
+    if bloqueia and _vencido_sem_lote(produto):
+        raise ProdutoVencidoError(produto)
     quarentena = quantidade_em_quarentena(produto)
     reservado = reservado_no_produto(produto, exceto_pedido_id=ignorar_pedido_id)
     disponivel = Decimal(str(produto.quantidade or 0)) - quarentena - reservado
@@ -116,7 +149,7 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
     anterior = Decimal(str(produto.quantidade or 0))
     # Venda além do saldo só baixa o vendável: reserva e quarentena ficam intactas.
     baixa = quantidade if quantidade <= disponivel else max(disponivel, Decimal('0'))
-    consumidos = produto.consumir_estoque_fifo(baixa)
+    consumidos = produto.consumir_estoque_fifo(baixa, incluir_vencidos=not bloqueia)
     rastro = {'lotes_consumidos': [[c['lote_id'], str(c['quantidade_consumida'])] for c in consumidos]}
     if baixa != quantidade:
         rastro['baixa_efetiva'] = str(baixa)  # o estorno devolve só o que saiu de fato

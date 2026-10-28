@@ -24,6 +24,7 @@ import { buscarCep, formatCep, formatCpf, formatPhone } from "../../utils/cepUti
 import { useLocation } from "react-router-dom";
 import { showToast } from "../../utils/toast";
 import PinDialog from "../../components/modals/PinDialog";
+import { dataLocalISO } from '../../utils/dataLocal';
 
 ChartJS.register(
     BarElement,
@@ -125,7 +126,7 @@ export default function EmployeesPage() {
         cargo: "Atendente",
         salario: "",
         numero_dependentes: "0",
-        data_admissao: new Date().toISOString().split('T')[0],
+        data_admissao: dataLocalISO(new Date()),
         usuario: "",
         senha: "",
         nivel_acesso: "CAIXA",
@@ -292,7 +293,7 @@ export default function EmployeesPage() {
             cargo: "Atendente",
             salario: "",
             numero_dependentes: "0",
-            data_admissao: new Date().toISOString().split('T')[0],
+            data_admissao: dataLocalISO(new Date()),
             usuario: "",
             senha: "",
             nivel_acesso: "CAIXA",
@@ -425,7 +426,7 @@ export default function EmployeesPage() {
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `funcionarios-${new Date().toISOString().split('T')[0]}.csv`);
+            link.setAttribute("download", `funcionarios-${dataLocalISO(new Date())}.csv`);
             link.style.visibility = "hidden";
             document.body.appendChild(link);
             link.click();
@@ -466,7 +467,7 @@ export default function EmployeesPage() {
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             link.setAttribute("href", url);
-            link.setAttribute("download", `funcionarios-${new Date().toISOString().split('T')[0]}.xls`);
+            link.setAttribute("download", `funcionarios-${dataLocalISO(new Date())}.xls`);
             link.style.visibility = "hidden";
             document.body.appendChild(link);
             link.click();
@@ -526,7 +527,7 @@ export default function EmployeesPage() {
                 doc.text(`Página ${i} de ${pageCount} - MercadinhoSys`, 105, 290, { align: "center" });
             }
 
-            doc.save(`funcionarios-${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`funcionarios-${dataLocalISO(new Date())}.pdf`);
 
             setMenuExportarAberto(false);
             showToast.info("PDF exportado com sucesso!");

@@ -93,16 +93,34 @@ def documento_contem(coluna, termo):
     return or_(*clausulas)
 
 
+def local_ts(column):
+    """A coluna (gravada em UTC naive) no fuso da loja, dentro do SQL.
+
+    Hora, dia da semana e dia de uma venda são os da loja: extrair direto do UTC
+    punha a venda das 17h de São Paulo na barra das 20h e a das 22h no dia seguinte.
+    """
+    from datetime import timedelta
+    from app.utils.timezone import LOCAL_TZ
+    horas = int(LOCAL_TZ.utcoffset(None).total_seconds() // 3600)
+    if _get_db().engine.name == 'sqlite':
+        return func.datetime(column, f'{horas} hours')
+    return column + timedelta(hours=horas)
+
+
+def get_local_date(column):
+    """Dia da loja (não o dia UTC) de uma coluna de data/hora."""
+    return func.date(local_ts(column))
+
+
 def get_hour_extract(column):
     """
-    Returns the dialect-specific expression to extract the hour.
-    Casts to Integer for cross-database consistency.
+    Hora do dia NO FUSO DA LOJA (0-23), como inteiro.
     """
     db = _get_db()
     engine_name = db.engine.name
     if engine_name == 'sqlite':
-        return func.cast(func.strftime('%H', column), db.Integer)
-    return func.cast(extract('hour', column), db.Integer)
+        return func.cast(func.strftime('%H', local_ts(column)), db.Integer)
+    return func.cast(extract('hour', local_ts(column)), db.Integer)
 
 def get_dow_extract(column):
     """
@@ -113,8 +131,8 @@ def get_dow_extract(column):
     db = _get_db()
     engine_name = db.engine.name
     if engine_name == 'sqlite':
-        return func.cast(func.strftime('%w', column), db.Integer)
-    return func.cast(extract('dow', column), db.Integer)
+        return func.cast(func.strftime('%w', local_ts(column)), db.Integer)
+    return func.cast(extract('dow', local_ts(column)), db.Integer)
 
 def get_year_extract(column):
     """

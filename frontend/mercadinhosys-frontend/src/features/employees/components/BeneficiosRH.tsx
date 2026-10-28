@@ -3,6 +3,7 @@ import { Sparkles, Plus, Search, CheckCircle, Settings, Edit, Trash2 } from 'luc
 import { showToast } from '../../../components/elements/Toast';
 import beneficiosService, { Beneficio, FuncionarioSimples, BeneficioCatalogo } from '../beneficiosService';
 import { formatCurrency } from '../../../utils/formatters';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 export default function BeneficiosRH() {
   const [activeTab, setActiveTab] = useState<'atribuicoes' | 'catalogo'>('atribuicoes');
@@ -77,7 +78,7 @@ export default function BeneficiosRH() {
         nome_beneficio: catItem?.nome, // fallback optional
         valor_mensal: parseFloat(valorMensal.replace(',', '.')),
         observacao: obs,
-        data_inicio: new Date().toISOString().split('T')[0]
+        data_inicio: dataLocalISO(new Date())
       });
       showToast.success('Benefício atribuído com sucesso!');
       setShowModalAtribuir(false);

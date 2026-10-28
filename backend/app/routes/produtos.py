@@ -32,7 +32,8 @@ from app.models import (
     CatalogoMestre,
 )
 from app.utils import calcular_margem_lucro, formatar_codigo_barras
-from app.utils.timezone import now_utc
+from app.utils.timezone import now_utc, fmt_local
+from app.utils.query_helpers import get_local_date
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import gerente_required, resource_required
@@ -1311,6 +1312,9 @@ def listar_produtos():
             estoque_status = "baixo"
         elif filtro_alerta == "validade":
             validade_proxima = "true"
+
+        # Modelo de grade não é item de estoque: quem aparece são as variações.
+        query = query.filter(Produto.eh_grade_modelo.isnot(True))
 
         # 1. Filtro de Ativo/Inativo
         if ativo is not None:
@@ -2864,6 +2868,10 @@ def ajustar_estoque(id):
         ).first_or_404()
 
         data = request.get_json()
+
+        if produto.eh_grade_modelo:
+            return jsonify({"success": False,
+                            "message": "Este é o modelo da grade: ajuste o estoque de cada número."}), 400
 
         tipo = data.get("tipo")  # 'entrada' ou 'saida'
         quantidade = to_decimal(data.get("quantidade", 0), precision=3)
@@ -4667,7 +4675,7 @@ def exportar_produtos():
                     classificacao,
                     "SIM" if produto.ativo else "NÃO",
                     (
-                        produto.created_at.strftime("%d/%m/%Y %H:%M:%S")
+                        fmt_local(produto.created_at, "%d/%m/%Y %H:%M:%S")
                         if produto.created_at
                         else ""
                     ),
@@ -4785,7 +4793,7 @@ def exportar_csv():
                 calcular_margem_lucro(float(produto.preco_venda), float(produto.preco_custo)),
                 fornecedor_nome,
                 "Sim" if produto.ativo else "Não",
-                produto.created_at.strftime("%d/%m/%Y %H:%M") if produto.created_at else ""
+                fmt_local(produto.created_at)
             ])
         
         csv_content = output.getvalue()
@@ -5208,6 +5216,49 @@ def obter_historico_precos(id):
         )
 
 
+@produtos_bp.route("/<int:id>/grade", methods=["GET"])
+@funcionario_required
+def obter_grade(id):
+    """Grade do modelo (a partir dele ou de qualquer variação): números × cores com estoque."""
+    from app.services import grade_service
+    from app.utils.query_helpers import get_authorized_establishment_id
+    produto = Produto.query.filter_by(id=id, estabelecimento_id=get_authorized_establishment_id()).first_or_404()
+    return jsonify({"success": True, "grade": grade_service.matriz(produto)})
+
+
+@produtos_bp.route("/<int:id>/grade", methods=["POST"])
+@jwt_required()
+@permission_required('produtos')
+@quota_required('produto')
+def criar_grade(id):
+    """Cria as variações (número × cor) do produto, que passa a ser o modelo da grade.
+
+    Body: {"numeracoes": ["37", "38"], "cores": ["Preto"], "quantidades": {"37|Preto": 2}}
+    """
+    from flask_jwt_extended import get_jwt_identity
+    from app.services import grade_service
+    from app.utils.query_helpers import get_authorized_establishment_id
+    produto = Produto.query.filter_by(id=id, estabelecimento_id=get_authorized_establishment_id()).first_or_404()
+    modelo = grade_service.modelo_de(produto) or produto
+    data = request.get_json() or {}
+    try:
+        funcionario_id = int(get_jwt_identity())
+    except (TypeError, ValueError):
+        funcionario_id = None
+    try:
+        criadas = grade_service.gerar_grade(
+            modelo, data.get("numeracoes"), data.get("cores"), data.get("quantidades"), funcionario_id)
+        db.session.commit()
+    except grade_service.GradeError as erro:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(erro)}), 400
+    except Exception as erro:
+        db.session.rollback()
+        current_app.logger.error(f"Erro ao gerar grade do produto {id}: {erro}")
+        return jsonify({"success": False, "error": "Erro ao gerar a grade"}), 500
+    return jsonify({"success": True, "criadas": len(criadas), "grade": grade_service.matriz(modelo)}), 201
+
+
 @produtos_bp.route("/<int:id>/hub", methods=["GET"])
 @funcionario_required
 def obter_produto_hub(id):
@@ -5416,7 +5467,7 @@ def obter_vendas_historico(id):
         
         query_vendas = (
             db.session.query(
-                func.date(Venda.data_venda).label('data'),
+                get_local_date(Venda.data_venda).label('data'),
                 func.sum(VendaItem.quantidade).label('quantidade_total'),
                 func.sum(VendaItem.total_item).label('valor_total'),
                 func.count(VendaItem.id).label('numero_vendas')
@@ -5434,8 +5485,8 @@ def obter_vendas_historico(id):
             
         vendas_por_dia = (
             query_vendas
-            .group_by(func.date(Venda.data_venda))
-            .order_by(func.date(Venda.data_venda).asc())
+            .group_by(get_local_date(Venda.data_venda))
+            .order_by(get_local_date(Venda.data_venda).asc())
             .all()
         )
         

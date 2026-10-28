@@ -10,6 +10,7 @@ import { ArrowLeft, TrendingUp, DollarSign, Activity, Truck, AlertTriangle, Perc
 import { showToast } from '../../utils/toast';
 import ImageZoomModal from '../../components/ui/ImageZoomModal';
 import './ProductHubPage.css';
+import { dataDoDia } from '../../utils/dataLocal';
 
 export default function ProductHubPage() {
     const { id } = useParams<{ id: string }>();
@@ -214,7 +215,7 @@ export default function ProductHubPage() {
         let fornecedorNome = 'Ajuste Manual / Sem Lote';
         if (lotes && lotes.length > 0) {
             // Tenta achar lote que causou esse custo
-            const loteRelacionado = lotes.find((l: any) => Math.abs(l.preco_custo_unitario - hp.preco_custo_novo) < 0.1 || new Date(l.data_entrada).getTime() <= dataAlteracao.getTime());
+            const loteRelacionado = lotes.find((l: any) => Math.abs(l.preco_custo_unitario - hp.preco_custo_novo) < 0.1 || dataDoDia(l.data_entrada).getTime() <= dataAlteracao.getTime());
             if (loteRelacionado && loteRelacionado.fornecedor?.nome_fantasia) {
                 fornecedorNome = loteRelacionado.fornecedor.nome_fantasia;
             } else if (loteRelacionado && loteRelacionado.fornecedor?.razao_social) {
@@ -352,7 +353,7 @@ export default function ProductHubPage() {
                         <div className="status-item" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <span className="status-label">Próx. Validade</span>
                             <span className="status-value highlight-green">
-                                {new Date(Math.min(...lotes.filter((l: any) => l.data_validade).map((l: any) => new Date(l.data_validade).getTime()))).toLocaleDateString('pt-BR')}
+                                {new Date(Math.min(...lotes.filter((l: any) => l.data_validade).map((l: any) => dataDoDia(l.data_validade).getTime()))).toLocaleDateString('pt-BR')}
                             </span>
                         </div>
                     )}
@@ -667,7 +668,7 @@ export default function ProductHubPage() {
                                             data_fabricacao: lote.data_fabricacao || '',
                                             data_validade: lote.data_validade || '',
                                         };
-                                        const diasValidade = Math.ceil((new Date(lote.data_validade).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                                        const diasValidade = Math.ceil((dataDoDia(lote.data_validade).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
                                         const isVencido = diasValidade < 0;
                                         const isProximo = diasValidade >= 0 && diasValidade <= 30;
                                         return (
@@ -682,7 +683,7 @@ export default function ProductHubPage() {
                                                         />
                                                     ) : lote.numero_lote}
                                                 </td>
-                                                <td style={{ padding: '12px' }}>{new Date(lote.data_entrada).toLocaleDateString('pt-BR')}</td>
+                                                <td style={{ padding: '12px' }}>{dataDoDia(lote.data_entrada).toLocaleDateString('pt-BR')}</td>
                                                 <td style={{ padding: '12px' }}>
                                                     {emEdicao ? (
                                                         <input
@@ -692,7 +693,7 @@ export default function ProductHubPage() {
                                                             className="w-full px-2.5 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-50"
                                                         />
                                                     ) : (
-                                                        lote.data_fabricacao ? new Date(lote.data_fabricacao).toLocaleDateString('pt-BR') : '---'
+                                                        lote.data_fabricacao ? dataDoDia(lote.data_fabricacao).toLocaleDateString('pt-BR') : '---'
                                                     )}
                                                 </td>
                                                 <td style={{ padding: '12px', color: isVencido ? '#ef4444' : (isProximo ? '#f59e0b' : '#10b981'), fontWeight: isVencido || isProximo ? 'bold' : 'normal' }}>
@@ -705,7 +706,7 @@ export default function ProductHubPage() {
                                                         />
                                                     ) : (
                                                         <>
-                                                            {new Date(lote.data_validade).toLocaleDateString('pt-BR')}
+                                                            {dataDoDia(lote.data_validade).toLocaleDateString('pt-BR')}
                                                             {isVencido && ' (Vencido)'}
                                                             {isProximo && ` (${diasValidade} dias)`}
                                                         </>

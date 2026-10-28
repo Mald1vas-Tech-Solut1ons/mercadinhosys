@@ -13,6 +13,7 @@ import autoTable from 'jspdf-autotable';
 import HoleriteModal from './HoleriteModal';
 import folhaService, { HoleriteBreakdown } from '../folhaService';
 import { showToast } from '../../../components/elements/Toast';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface RHMetrics {
   total_beneficios_mensal: number;
@@ -146,7 +147,7 @@ export default function RHDashboard() {
     doc.setTextColor(0, 0, 0);
     doc.text(`Total Folha: R$ ${rhData.custo_folha_estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, finalY);
 
-    doc.save(`folha-pagamento-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`folha-pagamento-${dataLocalISO(new Date())}.pdf`);
   };
 
   if (loading) {

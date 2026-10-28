@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, AlertTriangle, X, CreditCard } from 'lucide-react';
 import { trialService, TrialStatus } from './trialService';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 const DISMISS_KEY = 'trial_notice_dismissed_em';
-const hojeKey = () => new Date().toISOString().slice(0, 10);
+const hojeKey = () => dataLocalISO(new Date());
 
 type Urgencia = 'medio' | 'alto' | 'critico' | 'vencido';
 

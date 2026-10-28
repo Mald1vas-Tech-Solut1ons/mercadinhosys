@@ -8,6 +8,7 @@ import {
 import { pontoService, RegistroPonto } from './pontoService';
 import { authService } from '../../features/auth/authService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 // Função auxiliar para construir URL completa da foto
 const construirUrlFoto = (fotoUrl: string | null | undefined): string => {
@@ -28,9 +29,9 @@ const PontoHistoricoPage: React.FC = () => {
   const [registros, setRegistros] = useState<RegistroPonto[]>([]);
   const [loading, setLoading] = useState(false);
   const [dataInicio, setDataInicio] = useState(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    dataLocalISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
   );
-  const [dataFim, setDataFim] = useState(new Date().toISOString().split('T')[0]);
+  const [dataFim, setDataFim] = useState(dataLocalISO(new Date()));
   const [tipoFiltro, setTipoFiltro] = useState<string | null>(null);
   const [statusFiltro, setStatusFiltro] = useState<string | null>(null);
   const [funcionarioFiltro, setFuncionarioFiltro] = useState<string | null>(null);

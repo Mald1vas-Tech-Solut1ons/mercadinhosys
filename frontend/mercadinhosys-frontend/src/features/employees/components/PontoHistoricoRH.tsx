@@ -3,6 +3,7 @@ import { Clock, Filter, Download, ChevronLeft, ChevronRight, User, AlertCircle }
 import { apiClient } from '../../../api/apiClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { dataLocalISO, dataDoDia } from '../../../utils/dataLocal';
 
 interface PontoRegistro {
   id: number;
@@ -112,7 +113,7 @@ export default function PontoHistoricoRH() {
 
     const headers = [['Data', 'Hora', 'Funcionário', 'Cargo', 'Tipo', 'Atraso', 'Extras']];
     const data = registros.map(r => [
-      new Date(r.data).toLocaleDateString('pt-BR'),
+      dataDoDia(r.data).toLocaleDateString('pt-BR'),
       r.hora,
       r.funcionario_nome,
       r.funcionario_cargo,
@@ -131,7 +132,7 @@ export default function PontoHistoricoRH() {
       alternateRowStyles: { fillColor: [245, 245, 245] }
     });
 
-    doc.save(`historico-ponto-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`historico-ponto-${dataLocalISO(new Date())}.pdf`);
   };
 
   const getTipoLabel = (tipo: string) => {
@@ -295,7 +296,7 @@ export default function PontoHistoricoRH() {
                       <tr key={registro.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/40 transition-colors group">
                         <td className="px-6 py-4">
                           <span className="font-bold text-gray-900 dark:text-white whitespace-nowrap">
-                            {new Date(registro.data).toLocaleDateString('pt-BR')}
+                            {dataDoDia(registro.data).toLocaleDateString('pt-BR')}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-black text-indigo-600 dark:text-indigo-400 tabular-nums">

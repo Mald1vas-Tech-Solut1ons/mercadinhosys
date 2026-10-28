@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Gift, Plus, Trash2, Edit2, AlertCircle } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface Beneficio {
   id: number;
@@ -35,7 +36,7 @@ export default function BeneficiosFuncionario() {
     nome_beneficio: '',
     tipo: 'vale_refeicao' as any,
     valor_mensal: '',
-    data_inicio: new Date().toISOString().split('T')[0],
+    data_inicio: dataLocalISO(new Date()),
     data_fim: '',
     observacao: ''
   });
@@ -85,7 +86,7 @@ export default function BeneficiosFuncionario() {
         nome_beneficio: '',
         tipo: 'vale_refeicao',
         valor_mensal: '',
-        data_inicio: new Date().toISOString().split('T')[0],
+        data_inicio: dataLocalISO(new Date()),
         data_fim: '',
         observacao: ''
       });

@@ -1,4 +1,5 @@
 import { apiClient } from "../../api/apiClient";
+import { dataLocalISO } from '../../utils/dataLocal';
 
 export interface SalesAnalyticsData {
     vendasPorDia: Array<{ data: string; quantidade: number; total: number }>;
@@ -66,7 +67,7 @@ export const salesService = {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement("a");
             link.href = url;
-            link.setAttribute("download", `vendas-${new Date().toISOString().split("T")[0]}.xlsx`);
+            link.setAttribute("download", `vendas-${dataLocalISO(new Date())}.xlsx`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -87,7 +88,7 @@ export const salesService = {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement("a");
             link.href = url;
-            link.setAttribute("download", `vendas-${new Date().toISOString().split("T")[0]}.pdf`);
+            link.setAttribute("download", `vendas-${dataLocalISO(new Date())}.pdf`);
             document.body.appendChild(link);
             link.click();
             link.remove();

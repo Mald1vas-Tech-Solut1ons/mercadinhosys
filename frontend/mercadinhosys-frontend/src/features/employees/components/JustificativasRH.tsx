@@ -2,6 +2,7 @@ import { ProtectedDocumentLink } from '@/components/common/ProtectedDocumentLink
 import { useState, useEffect } from 'react';
 import { Upload, Download, AlertCircle, CheckCircle, Clock, Filter, ThumbsUp, ThumbsDown, X } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
+import { dataDoDia } from '../../../utils/dataLocal';
 
 interface Justificativa {
   id: number;
@@ -269,7 +270,7 @@ export default function JustificativasRH() {
                           {j.tipo === 'atraso' ? 'Atraso' : 'Ausência'}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300 font-medium">{new Date(j.data).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-5 py-4 text-gray-700 dark:text-gray-300 font-medium">{dataDoDia(j.data).toLocaleDateString('pt-BR')}</td>
                       <td className="px-5 py-4 text-gray-600 dark:text-gray-400 max-w-xs truncate" title={j.motivo}>{j.motivo}</td>
                       <td className="px-5 py-4">
                         {j.documento_url ? (
@@ -438,7 +439,7 @@ export default function JustificativasRH() {
                 <div className="flex justify-between items-center border-t border-gray-200 dark:border-gray-700/50 pt-2">
                   <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold">Data & Tipo</p>
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    {new Date(justificativaSelecionada.data).toLocaleDateString('pt-BR')} • {justificativaSelecionada.tipo === 'atraso' ? 'Atraso' : 'Ausência'}
+                    {dataDoDia(justificativaSelecionada.data).toLocaleDateString('pt-BR')} • {justificativaSelecionada.tipo === 'atraso' ? 'Atraso' : 'Ausência'}
                   </p>
                 </div>
                 <div className="border-t border-gray-200 dark:border-gray-700/50 pt-2">

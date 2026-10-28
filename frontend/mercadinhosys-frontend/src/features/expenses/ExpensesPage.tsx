@@ -22,6 +22,7 @@ import BoletosAVencerPanel from "./components/BoletosAVencerPanel";
 import ResumoFinanceiroPanel from "./components/ResumoFinanceiroPanel";
 import PinDialog from "../../components/modals/PinDialog";
 import { InsightCard as ConsultorInsightCard } from "../../components/consultor/InsightCard";
+import { dataLocalISO } from '../../utils/dataLocal';
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, PointElement,
     LineElement, ArcElement, Tooltip, Legend, Filler);
@@ -121,13 +122,13 @@ function fmtDate(s: string) {
     if (!s) return "—";
     return new Date(s + "T00:00:00").toLocaleDateString("pt-BR");
 }
-function today() { return new Date().toISOString().split("T")[0]; }
+function today() { return dataLocalISO(new Date()); }
 function firstDayOfMonth(d = new Date()) {
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split("T")[0];
+    return dataLocalISO(new Date(d.getFullYear(), d.getMonth(), 1));
 }
 function daysAgo(n: number) {
     const d = new Date(); d.setDate(d.getDate() - n);
-    return d.toISOString().split("T")[0];
+    return dataLocalISO(d);
 }
 function getPeriodoDates(v: string): { inicio: string; fim: string } {
     const t = today();
@@ -139,7 +140,7 @@ function getPeriodoDates(v: string): { inicio: string; fim: string } {
         case "mes_ant": {
             const ant = new Date(d.getFullYear(), d.getMonth() - 1, 1);
             const ultAnt = new Date(d.getFullYear(), d.getMonth(), 0);
-            return { inicio: ant.toISOString().split("T")[0], fim: ultAnt.toISOString().split("T")[0] };
+            return { inicio: dataLocalISO(ant), fim: dataLocalISO(ultAnt) };
         }
         case "90d": return { inicio: daysAgo(89), fim: t };
         default: return { inicio: firstDayOfMonth(), fim: t };

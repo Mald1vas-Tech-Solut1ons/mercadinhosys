@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { pontoService } from './pontoService';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 /**
  * Componente de diagnóstico para verificar:
@@ -19,8 +20,8 @@ export const DiagnosticoFotos: React.FC = () => {
     try {
       // Busca o histórico de hoje
       const historico = await pontoService.obterHistorico({
-        data_inicio: new Date().toISOString().split('T')[0],
-        data_fim: new Date().toISOString().split('T')[0],
+        data_inicio: dataLocalISO(new Date()),
+        data_fim: dataLocalISO(new Date()),
         per_page: 100,
       });
 

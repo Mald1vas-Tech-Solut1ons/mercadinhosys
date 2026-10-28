@@ -15,6 +15,7 @@ import PageContainer from '../../components/layout/PageContainer';
 import PageHeader from '../../components/layout/PageHeader';
 import PinDialog from '../../components/modals/PinDialog';
 import { InsightCard as ConsultorInsightCard } from '../../components/consultor/InsightCard';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 // Tipos atualizados - todas as propriedades do Fornecedor estão disponíveis
 
@@ -358,7 +359,7 @@ const SuppliersPage: React.FC = () => {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `fornecedores_${new Date().toISOString().split('T')[0]}.csv`;
+            link.download = `fornecedores_${dataLocalISO(new Date())}.csv`;
             link.click();
 
             showToast.info('CSV exportado com sucesso');
@@ -391,7 +392,7 @@ const SuppliersPage: React.FC = () => {
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Fornecedores");
-            XLSX.writeFile(wb, `fornecedores_${new Date().toISOString().split('T')[0]}.xlsx`);
+            XLSX.writeFile(wb, `fornecedores_${dataLocalISO(new Date())}.xlsx`);
 
             showToast.success('Excel exportado com sucesso');
             setShowExportMenu(false);
@@ -449,7 +450,7 @@ const SuppliersPage: React.FC = () => {
                 doc.text(`Página ${i} de ${pageCount} - MercadinhoSys`, 105, 290, { align: "center" });
             }
 
-            doc.save(`fornecedores-${new Date().toISOString().split('T')[0]}.pdf`);
+            doc.save(`fornecedores-${dataLocalISO(new Date())}.pdf`);
 
             showToast.success('PDF exportado com sucesso');
             setShowExportMenu(false);

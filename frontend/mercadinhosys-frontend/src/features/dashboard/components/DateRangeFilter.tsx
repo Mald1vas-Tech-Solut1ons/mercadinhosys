@@ -10,6 +10,7 @@
 
 import React, { useState } from 'react';
 import './DateRangeFilter.css';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface DateRangeFilterProps {
   onDateRangeChange: (startDate: Date | undefined, endDate: Date | undefined) => void;
@@ -92,19 +93,20 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   };
 
   const handleCustomStartDate = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newStart = new Date(e.target.value);
+    // "AAAA-MM-DD" sem hora é lido como meia-noite UTC (21h do dia anterior aqui); com hora é local.
+    const newStart = new Date(`${e.target.value}T00:00:00`);
     onDateRangeChange(newStart, endDate);
   };
 
   const handleCustomEndDate = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newEnd = new Date(e.target.value);
+    const newEnd = new Date(`${e.target.value}T00:00:00`);
     newEnd.setHours(23, 59, 59, 999);
     onDateRangeChange(startDate, newEnd);
   };
 
   const formatDate = (date?: Date) => {
     if (!date) return '';
-    return date.toISOString().split('T')[0];
+    return dataLocalISO(date);
   };
 
   return (

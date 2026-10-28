@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Bike, Route, DollarSign, Fuel, Wallet, Clock, Users, MapPin, Filter } from 'lucide-react';
 import deliveryService, { DashboardLogistica, DashboardFiltros, Motorista, Veiculo } from './deliveryService';
 import { showToast } from '../../utils/toast';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 /**
  * Central Logística — dashboard com filtros (período, entregador, veículo) e
@@ -14,7 +15,7 @@ const fmtInt = (n?: number) => Math.round(n || 0).toLocaleString('pt-BR');
 
 function hojeMenos(dias: number) {
     const d = new Date(); d.setDate(d.getDate() - dias);
-    return d.toISOString().split('T')[0];
+    return dataLocalISO(d);
 }
 
 const STATUS_COR: Record<string, string> = {

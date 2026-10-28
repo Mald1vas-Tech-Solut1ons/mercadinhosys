@@ -3,6 +3,7 @@ import { Calendar, Download, Filter, ChevronDown, ChevronUp, AlertCircle } from 
 import { apiClient } from '../../../api/apiClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { dataLocalISO, dataDoDia } from '../../../utils/dataLocal';
 
 interface EspelhoPontoData {
   funcionario_id: number;
@@ -51,8 +52,8 @@ export default function EspelhoPonto() {
 
     const hoje = new Date();
     const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    setDataInicio(primeiroDia.toISOString().split('T')[0]);
-    setDataFim(hoje.toISOString().split('T')[0]);
+    setDataInicio(dataLocalISO(primeiroDia));
+    setDataFim(dataLocalISO(hoje));
   }, []);
 
   const loadFuncionarios = async () => {
@@ -121,7 +122,7 @@ export default function EspelhoPonto() {
 
     const headers = [['Data', 'Entrada', 'Saída', 'Int. Início', 'Int. Fim', 'Atraso', 'Extras', 'H. Trab.']];
     const data = espelhoData.registros_diarios.map(r => [
-      new Date(r.data).toLocaleDateString('pt-BR'),
+      dataDoDia(r.data).toLocaleDateString('pt-BR'),
       r.entrada || '-',
       r.saida || '-',
       r.intervalo_inicio || '-',
@@ -153,7 +154,7 @@ export default function EspelhoPonto() {
     doc.text(`Total Horas Trabalhadas: ${espelhoData.resumo.total_horas_trabalhadas.toFixed(1)}h`, 14, finalY + 29);
     doc.text(`Média Horas/Dia: ${espelhoData.resumo.media_horas_dia.toFixed(1)}h`, 14, finalY + 36);
 
-    doc.save(`espelho-ponto-${espelhoData.nome.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`espelho-ponto-${espelhoData.nome.replace(/\s+/g, '-')}-${dataLocalISO(new Date())}.pdf`);
   };
 
   return (
@@ -293,7 +294,7 @@ export default function EspelhoPonto() {
                       </div>
                       <div>
                         <p className="font-bold text-gray-900 dark:text-white text-lg">
-                          {new Date(registro.data).toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          {dataDoDia(registro.data).toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 font-medium mt-0.5">
                           {registro.entrada || '---'} às {registro.saida || '---'} • <span className="text-indigo-600 dark:text-indigo-400 font-bold">{(registro.horas_trabalhadas / 60).toFixed(1)}h</span> trabalhadas

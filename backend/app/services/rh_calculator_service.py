@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import datetime, date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import calendar
+from app.utils.query_helpers import get_local_date
 
 JORNADA_PADRAO_MIN = 480  # 8h/dia (CLT)
 
@@ -553,8 +554,8 @@ def calcular_retrospectiva(funcionario, data_inicio: date, data_fim: date) -> di
     escopo_venda = and_(
         Venda.funcionario_id == funcionario.id,
         Venda.status == "finalizada",
-        sqlfunc.date(Venda.data_venda) >= data_inicio,
-        sqlfunc.date(Venda.data_venda) <= data_fim,
+        get_local_date(Venda.data_venda) >= data_inicio,
+        get_local_date(Venda.data_venda) <= data_fim,
     )
 
     # --- Vendas / faturamento / clientes ---

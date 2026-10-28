@@ -113,7 +113,7 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
 
       setFormData(prev => ({
         ...prev,
-        data_vencimento: dataVencimento.toISOString().split('T')[0],
+        data_vencimento: dataLocalISO(dataVencimento),
         numero_documento: `BOL-${detalhes.numero_pedido}`
       }));
 
@@ -727,3 +727,4 @@ const ReceivePurchaseModal: React.FC<ReceivePurchaseModalProps> = ({
 };
 
 export default ReceivePurchaseModal;
+import { dataLocalISO } from '../../../utils/dataLocal';

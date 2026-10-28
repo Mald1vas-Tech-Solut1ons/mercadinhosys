@@ -8,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { pontoService } from './pontoService';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 interface RelatorioData {
   success: boolean;
@@ -29,9 +30,9 @@ interface Funcionario {
 const RelatoriosPontoPage: React.FC = () => {
   const [tipoRelatorio, setTipoRelatorio] = useState<'geral' | 'funcionario' | 'atrasos'>('geral');
   const [dataInicio, setDataInicio] = useState(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    dataLocalISO(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
   );
-  const [dataFim, setDataFim] = useState(new Date().toISOString().split('T')[0]);
+  const [dataFim, setDataFim] = useState(dataLocalISO(new Date()));
   const [funcionarioSelecionado, setFuncionarioSelecionado] = useState<number | null>(null);
   const [relatorioData, setRelatorioData] = useState<RelatorioData | null>(null);
   const [loading, setLoading] = useState(false);

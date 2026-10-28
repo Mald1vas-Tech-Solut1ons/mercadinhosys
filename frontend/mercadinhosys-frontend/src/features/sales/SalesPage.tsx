@@ -14,6 +14,7 @@ import { showToast } from "../../utils/toast";
 import { fiscalService } from "../fiscal/fiscalService";
 import SFAPedidosTab from "./SFAPedidosTab";
 import { InsightCard as ConsultorInsightCard } from "../../components/consultor/InsightCard";
+import { dataLocalISO } from '../../utils/dataLocal';
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend, Filler);
 
@@ -45,7 +46,7 @@ interface Analytics {
 // ──────────────────────────────────────────────────────────────
 const brl = (v: unknown) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (v: unknown) => Number(v || 0).toLocaleString("pt-BR");
-const isoDate = (d = new Date()) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().split("T")[0]; };
+const isoDate = (d = new Date()) => dataLocalISO(new Date(d));
 const fmtDateTime = (s?: string) => { if (!s) return "—"; try { return new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return "—"; } };
 const fmtDM = (s: string) => { try { const x = new Date(s.includes("T") ? s : s + "T00:00:00"); return `${String(x.getDate()).padStart(2, "0")}/${String(x.getMonth() + 1).padStart(2, "0")}`; } catch { return s; } };
 const statusChip = (s = "") => { const k = s.toLowerCase(); if (k === "finalizada") return "bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300"; if (k === "cancelada") return "bg-error-100 text-error-700 dark:bg-error-900/30 dark:text-error-300"; return "bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300"; };

@@ -29,6 +29,7 @@ import ProductImportModal from './components/ProductImportModal';
 import ProdutoDetalhesModal from './components/ProdutoDetalhesModal';
 import AdvancedAnalyticsModal from './components/AdvancedAnalyticsModal';
 import AdvancedFiltersModal from './components/AdvancedFiltersModal';
+import { dataLocalISO } from '../../utils/dataLocal';
 
 type LoteNoPeriodo = { id: number | null; numero_lote: string; data_validade: string | null; quantidade: number; preco_venda: number | null; preco_produto: number };
 type ProdutoComLotes = Produto & { lotes_no_periodo?: LoteNoPeriodo[] };
@@ -392,7 +393,7 @@ const ProductsPage: React.FC = () => {
       const blob = new Blob([response.csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = `produtos_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `produtos_${dataLocalISO(new Date())}.csv`;
       link.click();
       showToast.info(`${response.total_produtos} produtos exportados!`);
     } catch {

@@ -1265,7 +1265,22 @@ def cancelar_venda(venda_id):
                 return jsonify({"error": "Esta venda é de um caixa já fechado. Para devolver o dinheiro, "
                                          "abra um caixa e faça o cancelamento por ele."}), 400
             else:
-                destino_estorno[original.id] = original.caixa_id  # Pix/cartão: não mexe na gaveta
+                # Pix/cartão sem caixa aberto: o estorno fica no pagamento e na auditoria. Caixa já
+                # fechado nunca recebe lançamento (o fechamento conferido não pode mudar depois).
+                destino_estorno[original.id] = None
+
+        # Fiado que o cliente já pagou (no todo ou em parte) volta para ele em dinheiro pela
+        # gaveta de quem cancela; antes o título "pago" ficava e o dinheiro sumia na loja.
+        contas_venda = ContaReceber.query.filter(ContaReceber.venda_id == venda.id,
+                                                 ContaReceber.status != "cancelado").all()
+        fiado_ja_pago = sum((Decimal(str(c.valor_recebido or 0)) for c in contas_venda), Decimal("0"))
+        if fiado_ja_pago > 0:
+            if caixa_de_quem_cancela is None:
+                return jsonify({"error": f"O cliente já pagou R$ {fiado_ja_pago:.2f} deste fiado. "
+                                         "Abra um caixa para devolver o valor e cancele de novo."}), 400
+            if Decimal(str(caixa_de_quem_cancela.saldo_atual or 0)) < fiado_ja_pago:
+                return jsonify({"error": f"O cliente já pagou R$ {fiado_ja_pago:.2f} deste fiado e a gaveta "
+                                         "não tem esse valor para devolver. Faça um suprimento e cancele de novo."}), 400
 
         db.session.begin_nested()
         try:
@@ -1315,6 +1330,8 @@ def cancelar_venda(venda_id):
 
             for original in movimentos_venda:
                 caixa_id_estorno = destino_estorno[original.id]
+                if caixa_id_estorno is None:
+                    continue
                 cashbox = Caixa.query.filter_by(id=caixa_id_estorno, estabelecimento_id=venda.estabelecimento_id).with_for_update().first()
                 descricao = f'Estorno da venda {venda.codigo}'
                 if caixa_id_estorno != original.caixa_id:
@@ -1325,15 +1342,50 @@ def cancelar_venda(venda_id):
                 if cashbox and cashbox.status == "aberto" and original.forma_pagamento == 'dinheiro':
                     cashbox.saldo_atual = Decimal(str(cashbox.saldo_atual or 0)) - Decimal(str(original.valor))
 
-            contas = ContaReceber.query.filter_by(venda_id=venda.id, status="aberto").with_for_update().all()
+            contas = ContaReceber.query.filter(ContaReceber.venda_id == venda.id,
+                                               ContaReceber.status != "cancelado").with_for_update().all()
             for conta in contas:
-                conta.status = "cancelado"
-                if cliente:
+                if conta.status == "aberto" and cliente:
                     cliente.saldo_devedor = max(
                         Decimal(0), Decimal(str(cliente.saldo_devedor or 0)) - Decimal(str(conta.valor_atual or 0))
                     )
+                conta.status = "cancelado"
+            if fiado_ja_pago > 0:
+                gaveta = Caixa.query.filter_by(id=caixa_de_quem_cancela.id).with_for_update().first()
+                db.session.add(MovimentacaoCaixa(
+                    estabelecimento_id=venda.estabelecimento_id, caixa_id=gaveta.id, venda_id=venda.id,
+                    tipo='estorno', forma_pagamento='dinheiro', valor=fiado_ja_pago,
+                    descricao=f'Devolução de fiado pago - venda {venda.codigo}'))
+                gaveta.saldo_atual = Decimal(str(gaveta.saldo_atual or 0)) - fiado_ja_pago
 
             reabrir_expedicao(venda)  # saída de pedido B2B: o item volta a ser saldo do pedido
+
+            # NFC-e autorizada acompanha o destino da venda: mesma transação, sem
+            # commit parcial (o cancelar_nfce do serviço faz commit próprio — aqui
+            # o gateway é chamado diretamente e a gravação do doc fica na transação
+            # do cancelamento inteiro; SEFAZ recusou → rollback de TUDO).
+            from app.models import DocumentoFiscal
+            doc_fiscal = DocumentoFiscal.query.filter_by(venda_id=venda.id).first()
+            status_nfce_na_sefaz = None
+            if doc_fiscal and doc_fiscal.status == "autorizado":
+                from app.services.fiscal.gateways import get_gateway, FiscalGateway
+                from app.services.fiscal.emissao_service import EmissaoError
+                from app.models import Estabelecimento
+                estab_doc = db.session.get(Estabelecimento, venda.estabelecimento_id)
+                gateway = get_gateway(estab_doc)
+                resp = gateway.cancelar(doc_fiscal.referencia, justificativa=(motivo or "Cancelamento da venda no PDV"))
+                if resp.get("status") == "cancelado":
+                    doc_fiscal.status = "cancelado"
+                    doc_fiscal.cancelado_em = datetime.now()
+                    doc_fiscal.justificativa_cancelamento = (motivo or "Cancelamento da venda no PDV")[:255]
+                else:
+                    # SEFAZ recusou o cancelamento: a venda NÃO é cancelada e nada
+                    # é gravado (estoque/caixa/pagamento ficam como estavam).
+                    raise RuntimeError(
+                        f"SEFAZ recusou o cancelamento da NFC-e. "
+                        f"{resp.get('mensagem') or 'Tente novamente ou procure o suporte'}"
+                    )
+
             venda.status = "cancelada"
             agora = datetime.now()
             venda.data_cancelamento = agora

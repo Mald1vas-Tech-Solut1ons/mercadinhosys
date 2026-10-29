@@ -123,7 +123,7 @@ def _vender(client, ctx, produto, quantidade):
 def test_modelo_oficial_importa_todas_as_linhas(client, session, ctx):
     with open(os.path.join(BACKEND, "import_template.csv"), "rb") as f:
         _ok(_importar(client, ctx, f.read(), "import_template.csv"), 5)
-    assert Produto.query.filter_by(codigo_barras="7891234567890").first().preco_venda == Decimal("29.90")
+    assert Produto.query.filter_by(codigo_barras="7891234567895").first().preco_venda == Decimal("29.90")
 
 
 @pytest.mark.parametrize("delimitador", [";", ","])

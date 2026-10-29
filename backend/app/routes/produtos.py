@@ -1183,17 +1183,23 @@ def catalogo_importar():
             categoria_id=resolver_categoria(item.categoria).id,
             familia_produto=familia_item,
             fornecedor_id=fornecedor_id,
-            nome=item.nome or f"Produto {ean_limpo}",
+            # Guardião: nome do catálogo pode vir minúsculo de onde a fonte trouxe;
+            # grava canônico (UPPER) — importação segue a mesma qualidade do form.
+            nome=(item.nome or f"Produto {ean_limpo}").upper(),
             descricao=f"Importado do catálogo mestre ({item.marca or 'sem marca'}).",
-            marca=item.marca or "",
-            fabricante=item.fabricante or item.marca or "",
-            unidade_medida=item.unidade or "UN",
+            marca=(item.marca or "").upper(),
+            fabricante=(item.fabricante or item.marca or "").upper(),
+            unidade_medida=(item.unidade or "UN").upper(),
             codigo_barras=ean_limpo,
             codigo_interno=f"CAT-{ean_limpo[-6:]}",
             preco_custo=preco_custo,
             preco_venda=preco_venda,
             margem_lucro=margem,
+            # Importação entra sem estoque por definição: entra na Lista de
+            # Revisão do dono (dará entrada pelo inventário real).
             quantidade=0,
+            cadastro_pendente_revisao=True,
+            origem_cadastro="import",
             quantidade_minima=Decimal("10"),
             ncm=item.ncm or None,  # sem NCM real fica vazio para conferir: "00000000" ia para a nota
             controlar_validade=usa_validade(familia_item),
@@ -2068,6 +2074,29 @@ def criar_produto():
             data,
             tipo_item=tipo_item,
         )
+
+        # Guardião do cadastro: qualidade em toda entrada (nome!=EAN, GTIN,
+        # estoque>0 com exceção consciente, UPPER canônico, unidade canônica).
+        # Depois de _resolver_contexto_produto: usa a lista de unidades e as
+        # flags do schema do segmento/família da loja.
+        from app.services.cadastro_guardiao import validar_entrada as guardiao_validar
+        erros_guardiao, guardiao_subst = guardiao_validar(
+            data,
+            unidades_permitidas=schema.get("unidades"),
+            tipo_item=tipo_item,
+            controlar_estoque=bool(
+                schema.get("flags", {}).get("usa_estoque", True)
+                and data.get("controlar_estoque", True)
+            ),
+        )
+        if erros_guardiao:
+            return (
+                jsonify(
+                    {"success": False, "message": "Erros de validação", "errors": erros_guardiao,
+                     "code": "GUARDIAO_REPROVADO"}
+                ),
+                400,
+            )
         atributos_limpos = sanitizar_atributos(
             schema, data.get("atributos"), tipo_item=tipo_item
         )
@@ -2257,7 +2286,10 @@ def criar_produto():
                 )
 
         # Decimal preserva estoque fracionado (kg, litro) no cadastro.
-        quantidade_inicial = Decimal("0") if tipo_item == "servico" else safe_decimal(data.get("quantidade"), "0")
+        # Guardião: quantidade do fluxo dele (exceção consciente marca revisão).
+        quantidade_inicial = Decimal(str(guardiao_subst["quantidade"])) \
+            if "quantidade" in guardiao_subst \
+            else (Decimal("0") if tipo_item == "servico" else safe_decimal(data.get("quantidade"), "0"))
         quantidade_minima = Decimal("0") if tipo_item == "servico" else safe_decimal(data.get("quantidade_minima"), "10")
         if not quantidade_inicial.is_finite() or quantidade_inicial < 0 or not quantidade_minima.is_finite() or quantidade_minima < 0:
             return jsonify({"success": False, "error": "Quantidade inválida"}), 400
@@ -2268,12 +2300,17 @@ def criar_produto():
             fornecedor_id=safe_int(data.get("fornecedor_id"), None),
             codigo_barras=codigo_barras_novo,
             codigo_interno=codigo_interno_novo,
-            nome=data["nome"].strip(),
+            # Guardião: campos canônicos quando veio do validador (UPPER, unidade).
+            nome=guardiao_subst.get("nome", data["nome"]).strip() if "nome" in guardiao_subst else data["nome"].strip(),
             descricao=(data.get("descricao", "") or "").strip(),
-            marca=(data.get("marca", "") or "").strip(),
-            fabricante=(data.get("fabricante", "") or "").strip(),
+            marca=guardiao_subst.get("marca", (data.get("marca", "") or "").strip()),
+            fabricante=guardiao_subst.get("fabricante", (data.get("fabricante", "") or "").strip()),
             subcategoria=(data.get("subcategoria", "") or "").strip(),
-            unidade_medida=(data.get("unidade_medida", "UN") or "UN").strip(),
+            unidade_medida=guardiao_subst.get("unidade_medida", (data.get("unidade_medida", "UN") or "UN").strip()),
+            # Estoque 0 consciente: entra na Lista de Revisão do dono. Sem add-on
+            # de emissão o cadastro originado por bipagem marca a origem (métrica).
+            cadastro_pendente_revisao=bool(guardiao_subst.get("cadastro_pendente_revisao", False)),
+            origem_cadastro="manual",
             quantidade=quantidade_inicial,
             quantidade_minima=quantidade_minima,
             preco_custo=preco_custo,
@@ -2487,6 +2524,29 @@ def atualizar_produto(id):
 
         if "tipo_item" in data:
             produto.tipo_item = tipo_item
+
+        # Guardião na edição: mesma qualidade do cadastro (nome!=EAN, GTIN,
+        # UPPER canônico, unidade canônica). Estoque NÃO é revalidado na edição
+        # (a quantidade edita por outra rota, de entrada/baixa).
+        from app.services.cadastro_guardiao import (
+            canonicalizar_texto, gtin_valido, e_somente_codigo_de_barras,
+            normalizar_unidade,
+        )
+        erros_edicao = []
+        nome_provisorio = data.get("nome")
+        if nome_provisorio is not None:
+            if e_somente_codigo_de_barras(nome_provisorio, data.get("codigo_barras", produto.codigo_barras)):
+                erros_edicao.append("O nome do produto não pode ser o próprio código de barras.")
+        if "codigo_barras" in data and data.get("codigo_barras"):
+            digitos = re.sub(r"\D", "", str(data["codigo_barras"]))
+            from app.services.codigo_barras_service import eh_codigo_interno
+            if not eh_codigo_interno(digitos) and not gtin_valido(digitos):
+                erros_edicao.append("Código de barras com dígito verificador inválido — "
+                                    "confira a digitação ou a bipagem.")
+        if erros_edicao:
+            db.session.rollback()
+            return jsonify({"success": False, "message": "Erros de validação",
+                            "errors": erros_edicao, "code": "GUARDIAO_REPROVADO"}), 400
         if "familia_produto" in data or "tipo_item" in data:
             produto.familia_produto = familia_produto
         if "perfil_fiscal" in data or "familia_produto" in data or "tipo_item" in data:
@@ -2591,7 +2651,14 @@ def atualizar_produto(id):
                     elif campo == "unidade_tributavel":
                         produto.unidade_tributavel = clean_nullable_str(data[campo], 6)
                     elif campo == "unidade_medida":
-                        produto.unidade_medida = clean_nullable_str(data[campo], 20) or "UN"
+                        # Guardião: unidade canônica (UPPER) também na edição.
+                        unidade_edicao, erro_unidade_edicao = normalizar_unidade(data[campo], schema.get("unidades"))
+                        if erro_unidade_edicao:
+                            raise ValueError(erro_unidade_edicao)
+                        produto.unidade_medida = unidade_edicao
+                    elif campo in ("nome", "marca", "fabricante"):
+                        # Guardião: UPPER canônico nos campos de identificação.
+                        setattr(produto, campo, canonicalizar_texto(data[campo]))
                     else:
                         setattr(produto, campo, data[campo])
                 except Exception as field_error:
@@ -6080,6 +6147,10 @@ def importar_produtos_csv():
                     familia_ok, perfil, sugestao_fiscal_para_familia(familia_ok, tipo_item="produto"))
             return contexto_por_familia[familia]
 
+        # Guardião: regras de qualidade compartilhadas com o cadastro individual.
+        from app.services.cadastro_guardiao import e_somente_codigo_de_barras, gtin_valido
+        from app.services.codigo_barras_service import eh_codigo_interno
+
         hoje = hoje_local()
         importados, erros, linhas_lidas = 0, [], 0
         eans_na_planilha, internos_na_planilha = {}, {}
@@ -6099,7 +6170,13 @@ def importar_produtos_csv():
             rotulo = f"Linha {numero}" + (f" ({valores.get('nome')[:60]})" if valores.get("nome") else "")
             try:
                 d = _imp_ler_linha(valores)
+                # Guardião linha a linha: mesma qualidade do cadastro individual.
+                nome_guardiao = d["nome"].upper()
                 ean, interno = d["codigo_barras"], d["codigo_interno"]
+                if e_somente_codigo_de_barras(nome_guardiao, ean):
+                    raise ValueError("nome é o próprio código de barras — informe o nome real do produto")
+                if ean and not eh_codigo_interno(ean) and not gtin_valido(ean):
+                    raise ValueError(f"código de barras {ean} tem dígito verificador inválido")
                 if ean and ean in eans_na_planilha:
                     raise ValueError(f"código de barras {ean} repetido — já aparece na linha {eans_na_planilha[ean]}")
                 if ean and ean in eans_da_loja:

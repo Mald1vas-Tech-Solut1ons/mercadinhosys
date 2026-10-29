@@ -16,6 +16,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from './authService';
 import { showToast } from '../../utils/toast';
+import { erroSenha } from '../../utils/validators';
 import logo from '../../../logoprincipal.png';
 
 export function RegisterPage() {
@@ -49,8 +50,9 @@ export function RegisterPage() {
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (formData.senha.length < 6) {
-            setError('A senha deve ter ao menos 6 caracteres.');
+        const problemaSenha = erroSenha(formData.senha);
+        if (problemaSenha) {
+            setError(problemaSenha);
             return;
         }
         if (formData.senha !== formData.confirmar_senha) {
@@ -214,7 +216,7 @@ export function RegisterPage() {
                             </Box>
 
                             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 2 }}>
-                                <TextField fullWidth type="password" label="Senha (mín. 6 caracteres) *" name="senha" value={formData.senha} onChange={handleChange} required autoComplete="new-password" />
+                                <TextField fullWidth type="password" label="Senha (mín. 8, letras e números) *" name="senha" value={formData.senha} onChange={handleChange} required autoComplete="new-password" />
                                 <TextField fullWidth type="password" label="Confirmar senha *" name="confirmar_senha" value={formData.confirmar_senha} onChange={handleChange} required autoComplete="new-password"
                                     error={!!formData.confirmar_senha && formData.senha !== formData.confirmar_senha}
                                     helperText={formData.confirmar_senha && formData.senha !== formData.confirmar_senha ? 'As senhas não conferem' : ' '} />

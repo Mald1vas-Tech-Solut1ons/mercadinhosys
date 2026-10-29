@@ -21,7 +21,7 @@ import {
 import { apiClient } from '../../api/apiClient';
 import { toast } from 'react-hot-toast';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
-import { isValidCNPJ, isValidCPF, isValidEmail } from '../../utils/validators';
+import { isValidCNPJ, isValidCPF, isValidEmail, erroSenha } from '../../utils/validators';
 import { confirmar } from '../../components/ui/Confirmacao';
 
 interface Log {
@@ -156,7 +156,8 @@ const SystemMonitorPage: React.FC = () => {
         if (!isValidCNPJ(formData.cnpj)) return toast.error('CNPJ da loja é inválido!');
         if (!isValidCPF(formData.cpf_admin)) return toast.error('CPF do administrador é inválido!');
         if (!isValidEmail(formData.email_loja) || !isValidEmail(formData.email_admin)) return toast.error('E-mail fornecido é inválido!');
-        if ((formData.senha || '').length < 6) return toast.error('A senha deve ter ao menos 6 caracteres!');
+        const problemaSenha = erroSenha(formData.senha || '');
+        if (problemaSenha) return toast.error(problemaSenha);
         
         setSubmitting(true);
         try {
@@ -702,11 +703,11 @@ const SystemMonitorPage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Senha de Acesso (mín. 6) *</label>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Senha de Acesso (mín. 8, letras e números) *</label>
                                         <input
                                             required
                                             type="password"
-                                            minLength={6}
+                                            minLength={8}
                                             autoComplete="new-password"
                                             className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             value={formData.senha}

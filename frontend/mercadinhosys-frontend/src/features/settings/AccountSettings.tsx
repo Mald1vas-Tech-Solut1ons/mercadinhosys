@@ -3,7 +3,7 @@ import { User, Mail, Lock, Save, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { authService } from '../auth/authService';
 import { showToast } from '../../utils/toast';
-import { isValidEmail, checkPasswordStrength } from '../../utils/validators';
+import { isValidEmail, checkPasswordStrength, erroSenha } from '../../utils/validators';
 
 /**
  * Aba "Minha Conta" — o próprio usuário altera nome/e-mail e a senha.
@@ -39,7 +39,8 @@ const AccountSettings: React.FC = () => {
 
     const trocarSenha = async () => {
         if (!senhaAtual) { showToast.error('Informe a senha atual'); return; }
-        if (novaSenha.length < 6) { showToast.error('A nova senha deve ter ao menos 6 caracteres'); return; }
+        const problemaSenha = erroSenha(novaSenha);
+        if (problemaSenha) { showToast.error(problemaSenha); return; }
         if (novaSenha !== confirmar) { showToast.error('A confirmação não confere com a nova senha'); return; }
         setSalvandoSenha(true);
         try {
@@ -107,7 +108,7 @@ const AccountSettings: React.FC = () => {
                     </div>
                     <div>
                         <label className={labelCls}>Nova senha</label>
-                        <input className={`${inputCls} ${novaSenha ? (checkPasswordStrength(novaSenha) === 'weak' ? 'border-red-500! focus:border-red-500!' : checkPasswordStrength(novaSenha) === 'medium' ? 'border-yellow-500! focus:border-yellow-500!' : 'border-green-500! focus:border-green-500!') : ''}`} type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" placeholder="mín. 6 caracteres" />
+                        <input className={`${inputCls} ${novaSenha ? (checkPasswordStrength(novaSenha) === 'weak' ? 'border-red-500! focus:border-red-500!' : checkPasswordStrength(novaSenha) === 'medium' ? 'border-yellow-500! focus:border-yellow-500!' : 'border-green-500! focus:border-green-500!') : ''}`} type="password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} autoComplete="new-password" placeholder="mín. 8, letras e números" />
                         {novaSenha && (
                             <div className="mt-2 flex items-center gap-2">
                                 <div className={`flex-1 h-1.5 rounded-full transition-colors ${checkPasswordStrength(novaSenha) === 'weak' ? 'bg-red-500' : checkPasswordStrength(novaSenha) === 'medium' ? 'bg-yellow-500' : 'bg-green-500'}`} />

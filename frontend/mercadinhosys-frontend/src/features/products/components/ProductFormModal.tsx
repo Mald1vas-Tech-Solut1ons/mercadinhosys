@@ -242,6 +242,10 @@ const ProductFormModal = ({
         ultimaSugestaoAplicada.current = { cfop: sugestao.cfop_padrao_sugerido, csosn: sugestao.csosn_sugerido };
     }, [show, schema]);
 
+    // Família é a 1ª decisão do cadastro: se o operador já escolheu, a busca respeita e preenche os campos dela.
+    const familiaEscolhida = useRef(false);
+    useEffect(() => { if (show) familiaEscolhida.current = !!produto; }, [show, produto]);
+
     const handleScanCodigo = async (codigo: string, force: boolean = false) => {
         setShowScanner(false);
         setFormData(prev => ({ ...prev, codigo_barras: codigo }));
@@ -249,25 +253,38 @@ const ProductFormModal = ({
         setShowForceSync(false);
         const toastId = showToast.loading(force ? 'Buscando dados do produto…' : 'Consultando banco de dados de produtos...');
         try {
-            const res = await cosmosService.lookup(codigo, force);
+            const res = await cosmosService.lookup(codigo, force,
+                familiaEscolhida.current ? formData.familia_produto || undefined : undefined);
             if (res.success && res.data) {
                 const d = res.data;
+                const s = d.sugestoes;
+                // Produto novo recebe a família identificada (NCM → tipo → IA, só do mix da loja);
+                // na edição a família já gravada não muda.
+                const familiaNova = !produto && !familiaEscolhida.current && s?.familia_produto ? s.familia_produto : null;
                 setFormData(prev => ({
                     ...prev,
                     nome: d.nome || prev.nome,
-                    // Categoria da base vai para Categoria (obrigatória) — antes caía
-                    // em Descrição e o salvar falhava com "Categoria é obrigatória".
-                    // Não sobrescreve o que o usuário já escolheu.
-                    categoria: prev.categoria || d.categoria || '',
+                    // Não sobrescreve o que o usuário já escolheu; categoria casa com as da loja.
+                    categoria: prev.categoria || s?.categoria || d.categoria || '',
                     marca: d.marca || prev.marca,
+                    fabricante: prev.fabricante || d.fabricante || '',
+                    descricao: prev.descricao || s?.descricao || '',
                     ncm: d.ncm || prev.ncm,
                     cest: d.cest || prev.cest,
-                    imagem_url: d.imagem_url || prev.imagem_url,
+                    imagem_url: prev.imagem_url || d.imagem_url || '',
+                    familia_produto: familiaNova || prev.familia_produto,
+                    preco_referencia_mercado: prev.preco_referencia_mercado || d.preco_referencia || 0,
+                    // O que o lojista já digitou vale mais que a base.
+                    atributos: { ...(s?.atributos || {}), ...prev.atributos },
                 }));
-                const origem = res.source === 'catalogo' ? 'catálogo local'
-                    : 'base de produtos';
-                const temNcm = d.ncm ? ` NCM ${d.ncm} preenchido.` : ' (sem NCM — preencha manualmente).';
-                showToast.success(`Dados preenchidos (${origem}).${temNcm}`, { id: toastId });
+                const preenchidos = [
+                    d.nome && 'nome', d.marca && 'marca', d.ncm && 'NCM', familiaNova && 'família',
+                    d.preco_referencia && 'preço de mercado', d.imagem_url && 'foto',
+                    s && Object.keys(s.atributos || {}).length > 0 && `${Object.keys(s.atributos).length} atributo(s)`,
+                ].filter(Boolean).join(', ');
+                const origem = res.source === 'catalogo' ? 'catálogo' : 'base de produtos';
+                const semNcm = d.ncm ? '' : ' Sem NCM: confira com a nota do fornecedor.';
+                showToast.success(`Preenchido (${origem}): ${preenchidos}.${semNcm}`, { id: toastId });
             } else {
                 // Mensagem verdadeira conforme a causa (não mais "não encontrado" genérico)
                 const msg = res.message || 'Não foi possível consultar o produto.';
@@ -571,7 +588,7 @@ const ProductFormModal = ({
                                     </label>
                                     <select
                                         value={formData.familia_produto}
-                                        onChange={e => field('familia_produto', e.target.value)}
+                                        onChange={e => { familiaEscolhida.current = true; field('familia_produto', e.target.value); }}
                                         className={inputClass}
                                         disabled={editMode && ehServico}
                                     >

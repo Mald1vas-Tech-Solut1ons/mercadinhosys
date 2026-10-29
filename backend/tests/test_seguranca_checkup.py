@@ -202,7 +202,6 @@ def test_force_e_so_para_gerente(client, session, ctx, monkeypatch):
 
 
 def test_base_aberta_nao_sobrescreve_item_do_cosmos_nem_com_force(client, session, ctx, monkeypatch):
-    monkeypatch.setenv("COSMOS_TOKEN", "token-de-teste")
     session.add(CatalogoMestre(ean="7891000100103", nome="Leite Moca 395g", status="encontrado", fonte="cosmos",
                                imagem_url="https://cosmos.example/moca.png"))
     session.commit()
@@ -227,7 +226,6 @@ def test_base_aberta_nao_grava_imagem_de_dominio_alheio(client, session, ctx, mo
 
 
 def test_ean_inexistente_vira_cache_negativo_com_ttl(client, session, ctx, monkeypatch):
-    monkeypatch.setenv("COSMOS_TOKEN", "token-de-teste")
     chamadas = []
 
     def _get(url, *a, **k):
@@ -238,23 +236,22 @@ def test_ean_inexistente_vira_cache_negativo_com_ttl(client, session, ctx, monke
     ean = "7891000000003"
 
     assert client.get(f"/api/produtos/catalogo/lookup/{ean}", headers=h).status_code == 404
-    assert len(chamadas) == 4  # Cosmos + 3 bases abertas
-    # prazo: Cosmos curto e cada base aberta dentro do orçamento total de ~8 s
-    assert chamadas[0][1] <= 6 and all(t <= 4.0 for _, t in chamadas[1:])
+    assert len(chamadas) == 3  # 3 bases abertas (Cosmos saiu; BigDataCorp sem credencial no teste)
+    # prazo: cada base aberta dentro do orçamento total de ~8 s
+    assert all(t <= 4.0 for _, t in chamadas)
     assert CatalogoMestre.query.filter_by(ean=ean).first().status == "nao_encontrado"
 
     assert client.get(f"/api/produtos/catalogo/lookup/{ean}", headers=h).status_code == 404
-    assert len(chamadas) == 4  # dentro do TTL: nenhuma chamada externa
+    assert len(chamadas) == 3  # dentro do TTL: nenhuma chamada externa
 
     item = CatalogoMestre.query.filter_by(ean=ean).first()
     item.consultado_em = datetime.utcnow() - timedelta(days=produtos_mod.CACHE_NEGATIVO_DIAS + 1)
     session.commit()
     client.get(f"/api/produtos/catalogo/lookup/{ean}", headers=h)
-    assert len(chamadas) == 8  # TTL vencido: consulta de novo
+    assert len(chamadas) == 6  # TTL vencido: consulta de novo
 
 
 def test_falha_de_rede_nao_vira_cache_negativo(client, session, ctx, monkeypatch):
-    monkeypatch.setenv("COSMOS_TOKEN", "token-de-teste")
     monkeypatch.setattr(produtos_mod.requests, "get", lambda *a, **k: _Resp(429))
     client.get("/api/produtos/catalogo/lookup/7891000000004", headers=_hdr(ctx["caixa"], ctx["estab"], "caixa"))
     assert CatalogoMestre.query.filter_by(ean="7891000000004").first() is None

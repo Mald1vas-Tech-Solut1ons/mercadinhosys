@@ -12,7 +12,7 @@ from decimal import Decimal, ROUND_HALF_UP, DecimalException
 import re
 import os
 import math
-import requests  # proxy Cosmos (buscar_cosmos_gtin / catalogo_lookup) — sem isto o endpoint quebrava com NameError
+import requests  # bases abertas do catálogo (catalogo_lookup)
 from sqlalchemy.orm import joinedload, selectinload, subqueryload
 from app.models import (
     db,
@@ -509,16 +509,11 @@ def verificar_validade_proxima(produto):
 def ping_produtos():
     return jsonify({"status": "ok", "message": "Blueprint Produtos Ativo"})
 
-def _cosmos_token():
-    """Token só vem do ambiente: sem COSMOS_TOKEN o Cosmos é pulado (nunca há token no código)."""
-    return (os.environ.get("COSMOS_TOKEN") or "").strip() or None
-
-
 # Confiança da fonte de um item do Catálogo Mestre (global, compartilhado entre lojas).
 # Uma consulta só pode sobrescrever item de fonte igual ou pior: base aberta (editável por
-# qualquer pessoa) nunca troca um item que veio do Cosmos ou foi curado manualmente.
+# qualquer pessoa) nunca troca um item que veio da BigDataCorp ou foi curado manualmente.
 _RANK_FONTE_ABERTA = 1
-_RANK_FONTE = {"openfoodfacts": 1, "openbeautyfacts": 1, "openproductsfacts": 1, "tenant": 1, "cosmos": 2}
+_RANK_FONTE = {"openfoodfacts": 1, "openbeautyfacts": 1, "openproductsfacts": 1, "tenant": 1, "bigdatacorp": 2}
 CACHE_NEGATIVO_DIAS = 7
 
 
@@ -557,76 +552,6 @@ def _gravar_cache_negativo(ean):
         current_app.logger.warning(f"Catálogo: falha ao gravar cache negativo ({ean}): {e}")
 
 
-@produtos_bp.route("/cosmos/<gtin>", methods=["GET"])
-@funcionario_required
-def buscar_cosmos_gtin(gtin):
-    """
-    Consulta o banco de dados geral do Cosmos através do GTIN.
-    Atua como um proxy para evitar exposição do Token no frontend e contornar CORS.
-    """
-    token = _cosmos_token()
-    if not token:
-        return jsonify({"success": False, "message": "Consulta ao Cosmos não configurada (COSMOS_TOKEN)."}), 503
-    gtin = "".join(c for c in str(gtin) if c.isdigit())[:14]
-    if len(gtin) < 8:
-        return jsonify({"success": False, "message": "GTIN inválido"}), 400
-    url = f"https://api.cosmos.bluesoft.com.br/gtins/{gtin}.json"
-
-    headers = {
-        'X-Cosmos-Token': token,
-        'Content-Type': 'application/json',
-        'User-Agent': 'Cosmos-API-Request'
-    }
-    
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            return jsonify(response.json())
-        elif response.status_code == 404:
-            return jsonify({"success": False, "message": "Produto não encontrado no Cosmos"}), 404
-        elif response.status_code == 429:
-            return jsonify({"success": False, "message": "Limite de requisições excedido no Cosmos"}), 429
-        else:
-            return jsonify({"success": False, "message": f"Erro na API Cosmos: {response.status_code}"}), response.status_code
-            
-    except requests.exceptions.RequestException as e:
-        current_app.logger.error(f"Erro ao conectar com API Cosmos: {str(e)}")
-        return jsonify({"success": False, "message": "Erro de conexão com o serviço Cosmos"}), 502
-
-
-def _cosmos_para_catalogo(ean: str, j: dict) -> "CatalogoMestre":
-    """Mapeia o JSON do Cosmos para o CatalogoMestre e faz upsert (cache global)."""
-    import json as _json
-    brand = (j.get("brand") or {}) if isinstance(j.get("brand"), dict) else {}
-    ncm = (j.get("ncm") or {}) if isinstance(j.get("ncm"), dict) else {}
-    cat = (j.get("category") or {}) if isinstance(j.get("category"), dict) else {}
-    gpc = (j.get("gpc") or {}) if isinstance(j.get("gpc"), dict) else {}
-    preco = j.get("avg_price") or j.get("price") or None
-    try:
-        preco = float(preco) if preco not in (None, "", "0") else None
-    except (TypeError, ValueError):
-        preco = None
-
-    item = CatalogoMestre.query.filter_by(ean=ean).first()
-    if not _pode_sobrescrever(item, _RANK_FONTE["cosmos"]):
-        return item  # curadoria manual vale mais que o Cosmos
-    if not item:
-        item = CatalogoMestre(ean=ean)
-        db.session.add(item)
-    item.nome = j.get("description") or item.nome
-    item.marca = brand.get("name") or item.marca
-    item.ncm = (ncm.get("code") or item.ncm or "")[:8] or None
-    item.categoria = cat.get("name") or gpc.get("description") or item.categoria
-    item.imagem_url = j.get("thumbnail") or item.imagem_url
-    item.preco_referencia = preco if preco is not None else item.preco_referencia
-    item.fonte = "cosmos"
-    item.status = "encontrado"
-    item.payload_json = _json.dumps(j)[:60000]
-    item.consultado_em = now_utc()
-    return item
-
-
 OPEN_FACTS_BASES = (
     "https://world.openfoodfacts.org",      # alimentos e bebidas
     "https://world.openbeautyfacts.org",    # higiene e beleza
@@ -638,11 +563,11 @@ OPEN_FACTS_PRAZO_TOTAL_S = 8.0  # soma das 3 bases; antes eram até 18 s (3 × 6
 
 
 def _buscar_open_facts(ean: str):
-    """Bases abertas (sem token e sem cota diária): fallback quando o Cosmos falha.
+    """Bases abertas (sem token e sem cota): última fonte, depois da BigDataCorp.
 
     Devolve ``(item, todas_responderam)``: o CatalogoMestre gravado (sem commit) ou None,
     e se todas as bases responderam de fato (só então "não achou" vira cache negativo).
-    Item já de fonte melhor (Cosmos/curadoria) não é sobrescrito por base aberta.
+    Item já de fonte melhor (BigDataCorp/curadoria) não é sobrescrito por base aberta.
     """
     import json as _json
     import time as _time
@@ -694,31 +619,177 @@ def _buscar_open_facts(ean: str):
     return None, todas_responderam
 
 
-def _responder_open_facts(ean: str, motivo_cosmos: str):
-    """Tenta as bases abertas; se não achar, explica o motivo real ao lojista."""
+def _casar_opcao(campo: dict, valor):
+    """Valor bruto da base -> opção válida do campo (select/multiselect); None se não casar."""
+    from app.services.bigdatacorp_service import _chave
+    opcoes = campo.get("opcoes") or []
+    valores = valor if isinstance(valor, list) else [v for v in str(valor).replace(";", "/").split("/")]
+    escolhidas = []
+    for bruto in valores:
+        alvo = _chave(bruto)
+        if not alvo:
+            continue
+        if campo.get("chave") == "voltagem_eletro":
+            opcao = ("Bivolt" if ("BIVOLT" in alvo or ("127" in alvo and "220" in alvo))
+                     else "220V" if "220" in alvo else "110V" if ("127" in alvo or "110" in alvo) else None)
+        elif not opcoes:  # multiselect livre (ex.: numeração do calçado)
+            opcao = str(bruto).strip()
+        else:
+            opcao = next((o for o in opcoes if _chave(o) == alvo), None) or next(
+                (o for o in opcoes if _chave(o) in alvo or alvo in _chave(o)), None)
+        if opcao and opcao not in escolhidas:
+            escolhidas.append(opcao)
+    if campo.get("tipo") == "multiselect":
+        return escolhidas or None
+    return escolhidas[0] if escolhidas else None
+
+
+def _familia_por_ia(item, mix: list):
+    """3ª camada: a IA classifica o produto, mas só pode responder uma família do mix da loja."""
+    from app.services.view_schema_service import FAMILIAS_PRODUTO
+    opcoes = {k: FAMILIAS_PRODUTO[k]["nome"] for k in mix if k in FAMILIAS_PRODUTO and k != "servico"}
+    if len(opcoes) < 2 or not ia_disponivel():
+        return None
+    lista = "\n".join(f"- {k}: {nome}" for k, nome in opcoes.items())
+    resposta = gerar_texto(
+        "Você classifica produtos de varejo brasileiro. Responda SOMENTE com a chave da família, sem mais nada.",
+        f"Produto: {item.nome or ''}\nMarca: {item.marca or ''}\nTipo/categoria: {item.categoria or ''}\n"
+        f"NCM: {item.ncm or 'não informado'}\nEAN: {item.ean}\n\nFamílias possíveis:\n{lista}\n\nChave da família:",
+        max_tokens=20,
+    )
+    chave = str(resposta or "").strip().strip("`'\".").lower().split()[0] if resposta else ""
+    return chave if chave in opcoes else None
+
+
+def _sugestoes_cadastro(item, familia_escolhida=None) -> dict:
+    """Família, categoria, atributos e descrição para o cadastro DESTA loja (mix e categorias dela).
+
+    Calculado a cada consulta a partir do item global (e da ficha bruta da BigDataCorp), então o
+    catálogo serve todas as lojas e cada uma recebe só família e campos que existem no seu cadastro.
+    """
+    import json as _json
+    from app.services import bigdatacorp_service as bdc
+    from app.services.view_schema_service import (mix_permitido_para_estabelecimento, resolver_view_schema,
+                                                  campos_de_atributo, sanitizar_atributos)
+    vazio = {"familia_produto": None, "categoria": item.categoria, "atributos": {}, "descricao": ""}
+    try:
+        estab_id = get_authorized_establishment_id()
+        if not estab_id or str(estab_id).lower() == "all":
+            return vazio
+        estab = db.session.get(Estabelecimento, int(estab_id))
+        resultado = _json.loads(item.payload_bigdatacorp) if item.payload_bigdatacorp else {}
+        mix = mix_permitido_para_estabelecimento(estab)
+        # Família que o catálogo já conhece (confirmada por outra loja ou pelo NCM) é gravada uma vez;
+        # o NCM/palavras valem para todas as lojas e ficam no catálogo para a próxima herdar.
+        if not item.familia_produto:
+            from app.services.view_schema_service import FAMILIAS_PRODUTO
+            global_ = bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome],
+                                                [f for f in FAMILIAS_PRODUTO if f != "servico"])
+            if global_:
+                item.familia_produto = global_
+                db.session.commit()
+        # Família é a 1ª decisão: a que o operador escolheu manda; sem escolha, as camadas
+        # catálogo -> NCM/palavras -> loja de uma família só -> IA (sempre restrita ao mix).
+        familia = ((familia_escolhida if familia_escolhida in mix else None)
+                   or (item.familia_produto if item.familia_produto in mix else None)
+                   or bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome], mix)
+                   or (mix[0] if len([m for m in mix if m != "servico"]) == 1 else None)
+                   or _familia_por_ia(item, mix))
+        categorias = [c.nome for c in CategoriaProduto.query.filter_by(estabelecimento_id=estab.id).all() if c.nome]
+        alvo = bdc._chave(item.categoria or "")
+        categoria = next((c for c in categorias if bdc._chave(c) == alvo), None) or next(
+            (c for c in categorias if alvo and (bdc._chave(c) in alvo or alvo in bdc._chave(c))), None)
+        atributos = {}
+        if resultado and familia:
+            schema = resolver_view_schema(estab, familia_produto=familia)
+            campos = campos_de_atributo(schema)
+            brutos = bdc.atributos_candidatos(resultado)
+            candidatos = {}
+            for chave, campo in campos.items():
+                if chave not in brutos:
+                    continue
+                valor = brutos[chave]
+                if campo.get("tipo") in ("select", "multiselect"):
+                    valor = _casar_opcao(campo, valor)
+                if valor not in (None, "", []):
+                    candidatos[chave] = valor
+            atributos = sanitizar_atributos(schema, candidatos)
+        return {"familia_produto": familia, "categoria": categoria or item.categoria, "atributos": atributos,
+                "descricao": bdc.descricao_produto(resultado) if resultado else ""}
+    except Exception as e:
+        current_app.logger.warning(f"Sugestões de cadastro falharam ({item.ean}): {e}")
+        return vazio
+
+
+def _resposta_catalogo(item, source):
+    dados = item.to_dict()
+    dados["sugestoes"] = _sugestoes_cadastro(item, (request.args.get("familia") or "").strip().lower() or None)
+    return jsonify({"success": True, "source": source, "data": dados}), 200
+
+
+def _buscar_bigdatacorp(ean: str):
+    """BigDataCorp antes das bases abertas, dentro da franquia mensal (contador no banco).
+
+    Toda resposta encontrada fica guardada em payload_bigdatacorp (catálogo próprio cresce e o
+    EAN não é reconsultado); só vira o item do catálogo se trouxer nome e não houver fonte melhor.
+    """
+    import json as _json
+    from app.services import bigdatacorp_service as bdc
+    motivo, resultado, datasets = bdc.consultar_ean(ean)
+    if motivo != "encontrado":
+        return None
+    campos = bdc.mapear(resultado)
+    item = CatalogoMestre.query.filter_by(ean=ean).first()
+    if not item:
+        item = CatalogoMestre(ean=ean, status="nao_encontrado")
+        db.session.add(item)
+    item.payload_bigdatacorp = _json.dumps(resultado, ensure_ascii=False)[:60000]
+    item.consultado_em = now_utc()
+    if campos["nome"] and _pode_sobrescrever(item, _RANK_FONTE["bigdatacorp"]):
+        item.nome = campos["nome"]
+        item.marca = campos["marca"] or item.marca
+        item.fabricante = campos["fabricante"] or item.fabricante
+        item.categoria = campos["categoria"] or item.categoria
+        item.ncm = campos["ncm"] or item.ncm
+        item.fonte = "bigdatacorp"
+        item.status = "encontrado"
+    # Preço e foto completam o item mesmo quando a ficha veio de fonte melhor.
+    if campos["preco_referencia"]:
+        item.preco_referencia = campos["preco_referencia"]
+    if campos["imagem_url"] and not item.imagem_url:
+        item.imagem_url = campos["imagem_url"]
+    for dataset, achou in (("extra_info_data", campos["nome"]), ("current_pricing_data", campos["preco_referencia"]),
+                           ("images_data", campos["imagem_url"])):
+        if dataset in datasets and achou:
+            bdc.registrar_encontrado(dataset)
+    db.session.commit()
+    return item if item.status == "encontrado" else None
+
+
+def _responder_fontes_externas(ean: str):
+    """BigDataCorp (franquia do mês) e depois as bases abertas; sem achar, explica ao lojista."""
+    try:
+        item_bdc = _buscar_bigdatacorp(ean)
+        if item_bdc:
+            return _resposta_catalogo(item_bdc, item_bdc.fonte)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"BigDataCorp erro ao gravar catálogo ({ean}): {e}")
     try:
         item, todas_responderam = _buscar_open_facts(ean)
         if item:
             db.session.commit()
-            return jsonify({"success": True, "source": item.fonte, "data": item.to_dict()}), 200
-        # Ninguém conhece o EAN (Cosmos disse 404 ou está fora, e as bases abertas
-        # responderam "não existe"): cache negativo evita 4 chamadas externas por repetição.
-        # Cota/token/conexão do Cosmos NÃO entram: lá o Cosmos não foi de fato consultado.
-        if todas_responderam and motivo_cosmos in ("nao_encontrado", "sem_token"):
+            return _resposta_catalogo(item, item.fonte)
+        # Ninguém conhece o EAN: cache negativo evita repetir as chamadas externas.
+        if todas_responderam:
             _gravar_cache_negativo(ean)
+            return jsonify({"success": False, "code": "nao_encontrado",
+                            "message": "Este código não está nas bases de produtos. Preencha os dados manualmente."}), 404
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Open Facts erro ao gravar catálogo ({ean}): {e}")
-    mensagens = {
-        "quota": "Cosmos sem cota hoje e o produto não está nas bases abertas. Preencha nome e preço manualmente.",
-        "token": "Token do Cosmos inválido e o produto não está nas bases abertas. Preencha manualmente.",
-        "conexao": "Sem conexão com as bases de produtos. Preencha manualmente.",
-        "nao_encontrado": "Este código não existe no Cosmos nem nas bases abertas. Preencha os dados manualmente.",
-        "sem_token": "Este código não está nas bases de produtos. Preencha os dados manualmente.",
-    }
-    status = {"nao_encontrado": 404, "sem_token": 404, "quota": 429}.get(motivo_cosmos, 502)
-    return jsonify({"success": False, "code": motivo_cosmos,
-                    "message": mensagens.get(motivo_cosmos, mensagens["nao_encontrado"])}), status
+    return jsonify({"success": False, "code": "conexao",
+                    "message": "Sem conexão com as bases de produtos. Preencha manualmente."}), 502
 
 
 @produtos_bp.route("/catalogo/lookup/<ean>", methods=["GET"])
@@ -726,9 +797,9 @@ def _responder_open_facts(ean: str, motivo_cosmos: str):
 def catalogo_lookup(ean):
     """
     Lookup inteligente por EAN para o cadastro rápido (câmera/leitor):
-      1) tenta o Catálogo Mestre local (NÃO consome quota Cosmos);
-      2) no miss, consulta o Cosmos e GRAVA no catálogo (cresce sozinho);
-      3) erros transparentes: distingue não-encontrado, quota e conexão.
+      1) tenta o Catálogo Mestre local (não gasta franquia);
+      2) no miss, consulta BigDataCorp e bases abertas e GRAVA no catálogo (cresce sozinho);
+      3) erros transparentes: distingue não-encontrado e conexão.
 
     Resposta sempre normalizada: {success, source, data:{ean,nome,marca,ncm,
     categoria,imagem_url,preco_referencia}}.
@@ -750,7 +821,7 @@ def catalogo_lookup(ean):
     force = request.args.get("force", "false").lower() == "true"
     if force:
         # Forçar reconsulta reescreve o catálogo GLOBAL (todas as lojas) e gasta cota:
-        # só gerente/admin. Mesmo forçado, base aberta nunca rebaixa item do Cosmos.
+        # só gerente/admin. Mesmo forçado, base aberta nunca rebaixa item da BigDataCorp.
         from app.decorators.rbac import nivel_do_role
         from app.models import Funcionario
         usuario = getattr(request, "current_user", None)
@@ -765,52 +836,16 @@ def catalogo_lookup(ean):
     if not force:
         item = CatalogoMestre.query.filter_by(ean=ean_limpo, status="encontrado").first()
         if item:
-            return jsonify({"success": True, "source": "catalogo", "data": item.to_dict()}), 200
+            return _resposta_catalogo(item, "catalogo")
         # Cache negativo (TTL de CACHE_NEGATIVO_DIAS): EAN que nenhuma fonte conhece não
-        # reconsulta Cosmos nem bases abertas. Gerente pode forçar com ?force=true.
+        # reconsulta BigDataCorp nem bases abertas. Gerente pode forçar com ?force=true.
         negativo = CatalogoMestre.query.filter_by(ean=ean_limpo, status="nao_encontrado").first()
         if _cache_negativo_vigente(negativo):
             return jsonify({"success": False, "source": "catalogo", "code": "nao_encontrado",
                             "message": "EAN já consultado e ausente nas bases. Preencha os dados manualmente."}), 404
 
-    # 2) Cosmos (só com COSMOS_TOKEN no ambiente); sem token, direto às bases abertas
-    token = _cosmos_token()
-    if not token:
-        return _responder_open_facts(ean_limpo, "sem_token")
-    url = f"https://api.cosmos.bluesoft.com.br/gtins/{ean_limpo}.json"
-    headers = {"X-Cosmos-Token": token, "Content-Type": "application/json", "User-Agent": "Cosmos-API-Request"}
-    try:
-        resp = requests.get(url, headers=headers, timeout=6)
-    except requests.exceptions.RequestException as e:
-        current_app.logger.error(f"Cosmos lookup falha de conexão ({ean_limpo}): {e}")
-        return _responder_open_facts(ean_limpo, "conexao")
-
-    if resp.status_code == 200:
-        try:
-            j = resp.json()
-            item = _cosmos_para_catalogo(ean_limpo, j)
-            db.session.commit()
-            return jsonify({"success": True, "source": "cosmos", "data": item.to_dict()}), 200
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Cosmos lookup erro ao gravar catálogo ({ean_limpo}): {e}")
-            return jsonify({"success": False, "code": "erro_interno",
-                            "message": "Produto encontrado, mas houve erro ao salvar no catálogo."}), 500
-
-    if resp.status_code == 404:
-        # Não gravamos cache negativo para permitir que o usuário cadastre manualmente 
-        # sem ser bloqueado em consultas futuras caso a API do Cosmos seja atualizada.
-        return _responder_open_facts(ean_limpo, "nao_encontrado")
-
-    if resp.status_code in (401, 403):
-        current_app.logger.error(f"Cosmos token inválido/expirado (HTTP {resp.status_code}).")
-        return _responder_open_facts(ean_limpo, "token")
-    if resp.status_code == 429:
-        current_app.logger.warning("Cosmos sem cota (HTTP 429); usando bases abertas.")
-        return _responder_open_facts(ean_limpo, "quota")
-
-    current_app.logger.error(f"Cosmos lookup HTTP {resp.status_code} para {ean_limpo}.")
-    return _responder_open_facts(ean_limpo, "conexao")
+    # 2) Fontes externas: BigDataCorp (dentro da franquia) e bases abertas; tudo grava no catálogo
+    return _responder_fontes_externas(ean_limpo)
 
 
 # ============================================
@@ -1018,14 +1053,14 @@ def codigo_barras_gerar():
 
 
 # ============================================
-# CATÁLOGO MESTRE (alimentado pelo harvester Cosmos)
+# CATÁLOGO MESTRE (BigDataCorp, bases abertas e cadastros das lojas)
 # ============================================
 
 @produtos_bp.route("/catalogo/buscar/<ean>", methods=["GET"])
 @funcionario_required
 def catalogo_buscar_ean(ean):
     """
-    Busca um produto no catálogo mestre por EAN — SEM consumir quota Cosmos.
+    Busca um produto no catálogo mestre por EAN — sem gastar franquia externa.
     Usado no cadastro rápido: preenche nome, marca, NCM, categoria e imagem.
     """
     ean_limpo = "".join(c for c in str(ean) if c.isdigit())
@@ -1069,7 +1104,7 @@ def catalogo_importar():
     """
     Importa em massa produtos do catálogo mestre para o estoque da loja.
     Body: { "eans": [...], "fornecedor_id": int (opcional), "margem": float (opcional) }
-    Não consome quota Cosmos. Pula EANs já cadastrados na loja.
+    Não gasta franquia externa. Pula EANs já cadastrados na loja.
     """
     estabelecimento_id = get_authorized_establishment_id()
     if not estabelecimento_id or str(estabelecimento_id).lower() == "all":
@@ -1090,6 +1125,25 @@ def catalogo_importar():
         db.session.flush()
 
     cat_cache = {}
+    # Família de cada item: a do catálogo se a loja usa; senão a identificada pelo NCM/nome no mix
+    # da loja; senão a padrão do segmento. Controle de validade segue a família (parafuso não vence).
+    from app.services import bigdatacorp_service as _bdc
+    from app.services.view_schema_service import mix_permitido_para_estabelecimento, resolver_view_schema
+    _estab = db.session.get(Estabelecimento, int(estabelecimento_id))
+    _mix = mix_permitido_para_estabelecimento(_estab)
+    _validade_por_familia = {}
+
+    def familia_do_item(item):
+        if item.familia_produto in _mix:
+            return item.familia_produto
+        return _bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome], _mix) or _mix[0]
+
+    def usa_validade(familia):
+        if familia not in _validade_por_familia:
+            schema = resolver_view_schema(_estab, familia_produto=familia)
+            _validade_por_familia[familia] = bool((schema.get("flags") or {}).get("usa_validade", True))
+        return _validade_por_familia[familia]
+
     def resolver_categoria(nome):
         if not nome:
             return cat_padrao
@@ -1123,9 +1177,11 @@ def catalogo_importar():
             preco_custo = Decimal("0.01")
             preco_venda = Decimal("0.01")
 
+        familia_item = familia_do_item(item)
         novo = Produto(
             estabelecimento_id=estabelecimento_id,
             categoria_id=resolver_categoria(item.categoria).id,
+            familia_produto=familia_item,
             fornecedor_id=fornecedor_id,
             nome=item.nome or f"Produto {ean_limpo}",
             descricao=f"Importado do catálogo mestre ({item.marca or 'sem marca'}).",
@@ -1139,8 +1195,8 @@ def catalogo_importar():
             margem_lucro=margem,
             quantidade=0,
             quantidade_minima=Decimal("10"),
-            ncm=item.ncm or "00000000",
-            controlar_validade=True,
+            ncm=item.ncm or None,  # sem NCM real fica vazio para conferir: "00000000" ia para a nota
+            controlar_validade=usa_validade(familia_item),
             ativo=True,
             imagem_url=item.imagem_url or "",
         )

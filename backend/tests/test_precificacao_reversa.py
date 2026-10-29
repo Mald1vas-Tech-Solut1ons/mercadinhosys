@@ -65,6 +65,7 @@ def ctx(session):
 
 def _payload_mercado(**overrides):
     base = {
+        "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Blusa Surpresa",
         "categoria": "Bazar",
         "modo_precificacao": "mercado",
@@ -170,6 +171,7 @@ def test_post_modo_mercado_sem_referencia_retorna_400(client, ctx):
 
 def test_post_modo_venda(client, ctx):
     r = client.post("/api/produtos/", json={
+        "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Vaso Decorativo", "categoria": "Bazar",
         "modo_precificacao": "venda", "preco_venda": "50.00",
         "margem_alvo_venda_pct": "40",
@@ -183,6 +185,7 @@ def test_post_modo_venda(client, ctx):
 
 def test_post_sem_modo_regressao_comportamento_antigo(client, ctx):
     r = client.post("/api/produtos/", json={
+        "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Produto Comum", "categoria": "Bazar",
         "preco_custo": 10.0, "preco_venda": 15.0, "quantidade": 5,
     }, headers=_headers(ctx["estab"].id, ctx["admin"].id))

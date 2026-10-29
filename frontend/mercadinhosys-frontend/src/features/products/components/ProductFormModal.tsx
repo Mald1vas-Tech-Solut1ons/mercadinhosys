@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { confirmar } from '../../../components/ui/Confirmacao';
 import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2, Loader2 } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import FotoUpload from '../../../components/ui/FotoUpload';
@@ -362,6 +363,28 @@ const ProductFormModal = ({
     const field = (key: keyof typeof emptyForm, value: any) =>
         setFormData(prev => ({ ...prev, [key]: value }));
 
+    // Auto-focus: o cursor sempre no próximo campo que exige decisão.
+    // EAN ao abrir; preço de custo assim que o lookup preenche; nome quando
+    // ninguém conhece o produto (caminho manual orientado).
+    const refEan = useRef<HTMLInputElement | null>(null);
+    const refNome = useRef<HTMLInputElement | null>(null);
+    const refPrecoCusto = useRef<HTMLInputElement | null>(null);
+    const focoComAtraso = (el: HTMLInputElement | null) =>
+        setTimeout(() => el?.focus(), 60);
+    useEffect(() => {
+        if (show && !produto) setTimeout(() => refEan.current?.focus(), 120);
+    }, [show, produto]);
+    useEffect(() => {
+        if (show && !produto && !isSearchingCosmos) {
+            if (formData.nome && !formData.preco_custo) {
+                focoComAtraso(refPrecoCusto.current);
+            } else if (!formData.nome) {
+                focoComAtraso(refNome.current);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSearchingCosmos]);
+
     // Pré-visualização do custo estimado (modos mercado/venda): mesma matemática
     // do servidor (precificacao_reversa.py) — só para exibição; o servidor
     // recalcula com Decimal no salvar. Zerado para serviço e modo custo.
@@ -423,9 +446,23 @@ const ProductFormModal = ({
             return;
         }
 
+        // Guardião: produto físico novo com estoque zero só entra por exceção consciente
+        // (vai para a Lista de Revisão do dono). Sem isso o servidor recusa o cadastro.
+        let entrarSemEstoque = false;
+        if (!editMode && !ehServico && !(Number(formData.quantidade) > 0)) {
+            entrarSemEstoque = await confirmar({
+                titulo: 'Cadastrar sem estoque?',
+                mensagem: 'Com estoque zero o PDV não vende este produto. Ele entra na Lista de Revisão para você dar entrada quando a mercadoria chegar.',
+                acao: 'Entrar sem estoque agora',
+                cancelar: 'Informar a quantidade',
+            });
+            if (!entrarSemEstoque) return;
+        }
+
         const payload: any = {
             ...formData,
             controlar_estoque: !ehServico,
+            ...(entrarSemEstoque ? { entrar_sem_estoque: true } : {}),
         };
         // Modo custo: insumos dos modos estimados fora do payload (servidor
         // grava informado; payload com origem_custo é ignorado de qualquer jeito).
@@ -466,7 +503,9 @@ const ProductFormModal = ({
                 }
 
                 if (!result.success) {
-                    showToast.error(result.message || 'Erro ao salvar');
+                    // Guardião devolve os motivos em `errors`: mostra o primeiro, que ensina o que corrigir.
+                    const motivos = (result as any).errors as string[] | undefined;
+                    showToast.error(motivos?.[0] || result.message || 'Erro ao salvar', { duration: 8000 });
                     return;
                 }
 
@@ -603,16 +642,28 @@ const ProductFormModal = ({
                             <div className="sm:col-span-2">
                                 <label className={labelClass}>{ehServico ? 'Nome do Serviço *' : 'Nome do Produto *'}</label>
                                 <input type="text" value={formData.nome} required
+                                    ref={refNome}
                                     onChange={e => field('nome', e.target.value)}
                                     className={inputClass}
                                     placeholder={ehServico ? exemplos.nome_servico : exemplos.nome} />
+                                {!ehServico && /^[0-9]{7,14}$/.test(formData.nome.trim()) && (
+                                    <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        ⚠ Isso parece um código de barras, não um nome. Escaneie o EAN ou busque que o sistema preenche os dados para você.
+                                    </p>
+                                )}
+                                {!ehServico && formData.codigo_barras && formData.nome.trim() && formData.nome.replace(/\D/g, '') === formData.codigo_barras.replace(/\D/g, '') && (
+                                    <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                        ⚠ O nome não pode ser igual ao código de barras — o servidor recusará. Use o botão de câmera para buscar os dados reais.
+                                    </p>
+                                )}
                             </div>
                             {!ehServico && visivel('codigo_barras') && (
                                 <div>
                                     <label className={labelClass}>Código de Barras</label>
                                     <div className="flex gap-2">
                                         <input type="text" value={formData.codigo_barras}
-                                            onChange={e => {
+                                                ref={(el) => { refEan.current = el; }}
+                                                onChange={e => {
                                                 field('codigo_barras', e.target.value);
                                                 setShowForceSync(false);
                                             }}
@@ -899,6 +950,7 @@ const ProductFormModal = ({
                                 {ehServico ? 'Custo do Serviço (R$)' : 'Preço de Custo (R$) *'}
                             </label>
                             <input type="number" step="0.01" min={ehServico ? '0' : '0.01'} required={!ehServico}
+                                ref={refPrecoCusto}
                                 value={formData.preco_custo || ''} placeholder="0"
                                 onChange={e => {
                                     // Ao vivo: sem preço digitado, o preço acompanha custo × margem;
@@ -961,6 +1013,11 @@ const ProductFormModal = ({
                                     <input type="number" min="0" step="any" value={formData.quantidade || ''} placeholder="0"
                                         onChange={e => field('quantidade', Math.max(0, parseFloat(e.target.value) || 0))}
                                         className={inputClass} />
+                                    {!editMode && !formData.quantidade && (
+                                        <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                            ⚠ Estoque zero não vende no PDV. Informe a quantidade que chegou — ou será marcado para revisão.
+                                        </p>
+                                    )}
                                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                                         {editMode
                                             ? 'Alterar aqui registra a diferença como movimentação de estoque (ajuste manual).'

@@ -1164,6 +1164,13 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     imagem_url = db.Column(db.String(500))  # ampliado de 255 para suportar URLs longas
     controlar_validade = db.Column(db.Boolean, default=True)
     # ---- Motor de renderização contextual (nível Produto da cascata) ----
+    # ---- Guardião do cadastro ----
+    # Produto salvo com estoque 0 por exceção consciente ("Entrar sem estoque
+    # agora"): entra na Lista de Revisão do dashboard do dono.
+    cadastro_pendente_revisao = db.Column(db.Boolean, nullable=True, default=False)
+    # Como o produto entrou: ean_bdc | ean_open | catalogo | palavra | manual | import | pallet
+    origem_cadastro = db.Column(db.String(20), nullable=True)
+
     tipo_item = db.Column(db.String(10), default="produto")   # produto | servico
     controlar_estoque = db.Column(db.Boolean, default=True)   # False p/ serviços: venda não movimenta estoque
     familia_produto = db.Column(db.String(40))
@@ -1576,7 +1583,7 @@ class ConsumoApiExterna(db.Model):
     """
     __tablename__ = "consumo_api_externa"
     id = db.Column(db.Integer, primary_key=True)
-    provedor = db.Column(db.String(30), nullable=False)
+    provedor = db.Column(db.String(60), nullable=False)  # 'bigdatacorp:<dataset>'
     mes = db.Column(db.String(7), nullable=False)  # 'AAAA-MM'
     consultas = db.Column(db.Integer, nullable=False, default=0)
     encontrados = db.Column(db.Integer, nullable=False, default=0)

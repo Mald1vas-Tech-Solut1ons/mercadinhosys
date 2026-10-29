@@ -119,7 +119,7 @@ def test_produto_cadastrado_com_estoque_inicial_vende_e_baixa(client, session, c
         "nome": "Sabonete Demo", "categoria": "Demo", "preco_custo": 1.5, "preco_venda": 3.5,
         "quantidade": 12})
     assert r.status_code == 201, r.get_json()
-    produto = Produto.query.filter_by(nome="Sabonete Demo").first()
+    produto = Produto.query.filter_by(nome="SABONETE DEMO").first()
     r = _vender(client, ctx, produto, quantidade=2, preco=3.5)
     assert r.status_code == 201, r.get_json()
     session.expire_all()

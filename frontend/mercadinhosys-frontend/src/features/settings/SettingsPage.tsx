@@ -4,7 +4,7 @@ import {
     Shield, Upload, MapPin,
     Save, CheckCircle, Building2, Clock,
     ShoppingCart, Package, X, XCircle, Edit2, RefreshCw,
-    Database, HardDrive, Keyboard, DollarSign, User
+    Database, Keyboard, DollarSign, User
 } from 'lucide-react';
 import settingsService, { Configuracao, Estabelecimento, PontoConfig } from './settingsService';
 import ShortcutsHelp from '../../shortcuts/ShortcutsHelp';
@@ -17,8 +17,6 @@ import { apiClient } from '../../api/apiClient';
 import SubscriptionSettings from './SubscriptionSettings';
 import SegmentSettings from './SegmentSettings';
 import PermissoesSettings from './PermissoesSettings';
-import SyncManager from '../../components/sync/SyncManager';
-import { SyncDataButton } from './SyncDataButton';
 import { useTheme } from '../../theme/useTheme';
 import { authService } from '../auth/authService';
 import { getSettingsTabs } from '../../utils/permissions';
@@ -550,7 +548,6 @@ const SettingsPage: React.FC = () => {
         { id: 'estoque', label: 'Estoque', icon: Package },
         { id: 'ponto', label: 'Ponto & RH', icon: Clock },
         { id: 'sistema', label: 'Sistema & Segurança', icon: Shield },
-        { id: 'sincronizacao', label: 'Sincronização Híbrida', icon: HardDrive },
         { id: 'assinatura', label: 'Assinatura', icon: CreditCard },
         { id: 'lojas', label: 'Meus Clientes', icon: Building2 },
     ];
@@ -1279,13 +1276,6 @@ const SettingsPage: React.FC = () => {
                     )}
 
                     {/* ABA SINCRONIZAÇÃO */}
-                    {activeTab === 'sincronizacao' && (
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 space-y-6 animate-fadeIn">
-                            <SyncDataButton />
-                            <SyncManager />
-                        </div>
-                    )}
-
                     {/* ABA ASSINATURA */}
                     {activeTab === 'assinatura' && (
                         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 space-y-6 animate-fadeIn">

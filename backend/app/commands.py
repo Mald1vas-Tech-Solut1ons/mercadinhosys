@@ -175,3 +175,48 @@ def register_commands(app):
                 click.echo(f"[OK] {atualizados} produtos recalculados a partir do ledger.")
             else:
                 click.echo(f"[DRY-RUN] {atualizados} produtos seriam recalculados. Use --apply.")
+
+    register_normalizar_produtos(app)
+
+
+def register_normalizar_produtos(app):
+    @app.cli.command("normalizar-produtos")
+    @click.option("--apply", is_flag=True, help="Aplica a normalizacao (sem esta flag, apenas mostra — dry-run).")
+    @with_appcontext
+    def normalizar_produtos(apply):
+        """Normaliza o legado ao padrao canônico do Guardião: UPPER em nome/marca/
+        fabricante e unidade em sigla UPPER. Idempotente: rodar 2x não muda nada.
+        Sem --apply é dry-run (mostra quantos/quaes e nao altera nada)."""
+        from app.models import db, Produto, allow_all_tenants
+        from app.services.cadastro_guardiao import canonicalizar_texto
+
+        with allow_all_tenants():
+            nomes, marcas, unidades = [], [], []
+            produtos = Produto.query.with_deleted().all()
+            for p in produtos:
+                nome_novo = canonicalizar_texto(p.nome)
+                if nome_novo and nome_novo != p.nome:
+                    nomes.append((p.id, p.nome, nome_novo))
+                if p.marca and canonicalizar_texto(p.marca) != p.marca:
+                    marcas.append((p.id, p.marca, canonicalizar_texto(p.marca)))
+                if p.unidade_medida and canonicalizar_texto(p.unidade_medida) != p.unidade_medida:
+                    unidades.append((p.id, p.unidade_medida, canonicalizar_texto(p.unidade_medida)))
+
+            click.echo(f"[{'APLICANDO' if apply else 'DRY-RUN'}] Nomes a normalizar: {len(nomes)} / "
+                       f"Marcas: {len(marcas)} / Unidades: {len(unidades)} (de {len(produtos)} produtos)")
+            for pid, antes, depois in nomes[:20]:
+                click.echo(f"  nome #{pid}: '{antes}' -> '{depois}'")
+            for pid, antes, depois in marcas[:10]:
+                click.echo(f"  marca #{pid}: '{antes}' -> '{depois}'")
+
+            if not apply:
+                click.echo("-> Rode com --apply para efetivar a normalizacao.")
+                return
+            for pid, _, novo in nomes:
+                Produto.query.get(pid).nome = novo
+            for pid, _, novo in marcas:
+                Produto.query.get(pid).marca = novo
+            for pid, _, novo in unidades:
+                Produto.query.get(pid).unidade_medida = novo
+            db.session.commit()
+            click.echo(f"[OK] Normalizados {len(nomes)} nomes, {len(marcas)} marcas, {len(unidades)} unidades.")

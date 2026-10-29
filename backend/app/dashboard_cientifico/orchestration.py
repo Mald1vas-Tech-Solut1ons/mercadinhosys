@@ -40,6 +40,30 @@ def run_in_parallel(task_dict: Dict[str, Any], max_workers: int = 3) -> Dict[str
 
     app = flask.current_app._get_current_object()
     results = {}
+    critical_tasks = [
+        "financials_data", "sales_current_summary",
+        "expense_details", "sales_previous_summary", "sales_timeseries"
+    ]
+
+    if max_workers <= 1:
+        # Sequencial na conexão da própria requisição. Em paralelo, cada thread pega uma conexão
+        # do pool (2+1 em produção) além da que a requisição já segura: a 4ª esperava 30 s e o
+        # dashboard levava 35 s ou falhava (QueuePool limit ... timeout 30). O banco gasta ~0,1 s
+        # no total, então o paralelismo não ganhava nada.
+        from app.models import db
+        for name, func in task_dict.items():
+            t_start = time.time()
+            try:
+                results[name] = func()
+                _logger.info(f"⚡ Task '{name}' finished in {time.time() - t_start:.3f}s")
+            except Exception as ex:
+                db.session.rollback()  # transação falha não contamina as próximas consultas
+                _logger.error(f"❌ Task '{name}' failed: {ex}", exc_info=True)
+                if name in critical_tasks:
+                    _logger.critical(f"Aborting dashboard generation due to critical task failure: {name}")
+                    raise Exception(f"Critical task '{name}' failed: {ex}")
+                results[name] = None
+        return results
 
     def worker(name, func):
         with app.app_context():
@@ -60,12 +84,8 @@ def run_in_parallel(task_dict: Dict[str, Any], max_workers: int = 3) -> Dict[str
         futures = [executor.submit(worker, name, func) for name, func in task_dict.items()]
         for fut in futures:
             name, res, err = fut.result()
-            
+
             # Critical tasks must not fail silently, otherwise the dashboard caches zeros.
-            critical_tasks = [
-                "financials_data", "sales_current_summary", 
-                "expense_details", "sales_previous_summary", "sales_timeseries"
-            ]
             if err and name in critical_tasks:
                 _logger.critical(f"Aborting dashboard generation due to critical task failure: {name}")
                 raise Exception(f"Critical task '{name}' failed: {err}")
@@ -327,7 +347,8 @@ class DashboardOrchestrator:
         }
 
         try:
-            parallel_results = run_in_parallel(tasks, max_workers=3)
+            import os as _os
+            parallel_results = run_in_parallel(tasks, max_workers=int(_os.environ.get("DASHBOARD_PARALLEL_WORKERS", "1")))
         except Exception as parallel_err:
             _logger.critical(f"Falha critica no executor paralelo (re-lançando para evitar cache falso): {parallel_err}")
             raise parallel_err

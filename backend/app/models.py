@@ -1519,7 +1519,7 @@ class ProdutoLote(db.Model, MultiTenantMixin):
 class CatalogoMestre(db.Model):
     """
     Catálogo GLOBAL de produtos com EAN real (não pertence a nenhum tenant).
-    Alimentado diariamente pelo harvester da API Cosmos (24/dia).
+    Alimentado pela BigDataCorp (franquia mensal), bases abertas e cadastros das lojas.
     Serve de base para o cadastro rápido por EAN e importação em massa.
     """
     __tablename__ = "catalogo_mestre"
@@ -1534,7 +1534,7 @@ class CatalogoMestre(db.Model):
     preco_referencia = db.Column(db.Numeric(19, 4))
     imagem_url = db.Column(db.String(500))
     fonte = db.Column(db.String(20), default="cosmos")
-    # status: 'encontrado' (Cosmos retornou dados) | 'nao_encontrado' (404, não reconsultar)
+    # status: 'encontrado' (alguma fonte trouxe dados) | 'nao_encontrado' (cache negativo)
     status = db.Column(db.String(20), default="encontrado", index=True)
     payload_json = db.Column(db.Text)
     consultado_em = db.Column(db.DateTime, default=utcnow)
@@ -1544,6 +1544,12 @@ class CatalogoMestre(db.Model):
     # pois o catálogo é global e não deve quebrar se o estabelecimento for removido.
     descoberto_por_estabelecimento_id = db.Column(db.Integer, nullable=True)
     descoberto_via = db.Column(db.String(20), nullable=True)  # 'modal' | 'xml'
+    # Resposta bruta da BigDataCorp (todas as fontes): fica guardada mesmo quando outra base
+    # preenche o item, para o catálogo próprio crescer sem reconsultar (cada consulta custa).
+    payload_bigdatacorp = db.Column(db.Text, nullable=True)
+    # Família do produto (chave de FAMILIAS_PRODUTO): a que a loja confirmou no cadastro ou a
+    # identificada pelo NCM/tipo. A próxima loja herda em vez de recalcular.
+    familia_produto = db.Column(db.String(40), nullable=True, index=True)
     __table_args__ = (db.Index("ix_catalogo_status", "status"), db.Index("ix_catalogo_categoria", "categoria"))
 
     def to_dict(self):
@@ -1556,8 +1562,41 @@ class CatalogoMestre(db.Model):
             "consultado_em": iso_utc(self.consultado_em) if self.consultado_em else None,
             "descoberto_por_estabelecimento_id": self.descoberto_por_estabelecimento_id,
             "descoberto_via": self.descoberto_via,
+            "familia_produto": self.familia_produto,
         }
 
+
+
+class ConsumoApiExterna(db.Model):
+    """Consultas feitas a uma API externa paga, por mês-calendário (fuso da loja/Brasília).
+
+    Global (não é de tenant): a franquia do contrato é da Maldivas Tech, compartilhada por
+    todas as lojas. A vaga é reservada ANTES da chamada, com trava de linha, para duas
+    lojas ao mesmo tempo nunca passarem do limite.
+    """
+    __tablename__ = "consumo_api_externa"
+    id = db.Column(db.Integer, primary_key=True)
+    provedor = db.Column(db.String(30), nullable=False)
+    mes = db.Column(db.String(7), nullable=False)  # 'AAAA-MM'
+    consultas = db.Column(db.Integer, nullable=False, default=0)
+    encontrados = db.Column(db.Integer, nullable=False, default=0)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+    __table_args__ = (db.UniqueConstraint("provedor", "mes", name="uq_consumo_api_provedor_mes"),)
+
+
+class ConfigApiExterna(db.Model):
+    """Limite mensal e liga/desliga de cada serviço pago, editável pelo super admin.
+
+    Sem linha = franquia grátis do contrato (500) e serviço ligado. Limite acima da franquia
+    é cobrado pela BigDataCorp no boleto do mês: só o super admin libera, conscientemente.
+    """
+    __tablename__ = "config_api_externa"
+    id = db.Column(db.Integer, primary_key=True)
+    provedor = db.Column(db.String(60), nullable=False, unique=True)
+    limite_mensal = db.Column(db.Integer, nullable=False, default=500)
+    ativo = db.Column(db.Boolean, nullable=False, default=True)
+    atualizado_por = db.Column(db.Integer, nullable=True)  # funcionarios.id do super admin
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
 class ViewRegistry(db.Model):
     """

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Database, Search, RefreshCw, Package } from 'lucide-react';
 import { apiClient } from '../../api/apiClient';
+import ConsumoApisPanel from './ConsumoApisPanel';
 import { showToast } from '../../utils/toast';
 
 interface ItemCatalogo {
@@ -19,6 +20,7 @@ interface ItemCatalogo {
     consultado_em: string | null;
     descoberto_por_estabelecimento_id: number | null;
     descoberto_via: string | null;
+    familia_produto: string | null;
 }
 
 const POR_PAGINA = 50;
@@ -28,7 +30,11 @@ const fmtData = (s?: string | null) => {
     try { return new Date(s).toLocaleDateString('pt-BR'); } catch { return '—'; }
 };
 
-const fonteLabel = (f: string) => (f === 'cosmos' ? 'Cosmos' : f === 'tenant' ? 'Cadastro de loja' : f);
+const FONTES: Record<string, string> = {
+    bigdatacorp: 'BigDataCorp', openfoodfacts: 'Open Food Facts', openbeautyfacts: 'Open Beauty Facts',
+    openproductsfacts: 'Open Products Facts', tenant: 'Cadastro de loja', cosmos: 'Cosmos (antigo)',
+};
+const fonteLabel = (f: string) => FONTES[f] || f;
 const viaLabel = (v: string | null) => (v === 'modal' ? 'Modal' : v === 'xml' ? 'XML NF-e' : '—');
 
 export default function MasterCatalogPage() {
@@ -40,6 +46,8 @@ export default function MasterCatalogPage() {
     const [categoria, setCategoria] = useState('');
     const [fonte, setFonte] = useState('');
     const [segmentoOrigem, setSegmentoOrigem] = useState('');
+    const [familia, setFamilia] = useState('');
+    const [familias, setFamilias] = useState<{ chave: string; nome: string }[]>([]);
 
     const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
@@ -54,19 +62,22 @@ export default function MasterCatalogPage() {
                     categoria: categoria || undefined,
                     fonte: fonte || undefined,
                     segmento_origem: segmentoOrigem || undefined,
+                    familia: familia || undefined,
                 },
             });
             setItens(data.data || []);
             setTotal(data.total || 0);
+            if (Array.isArray(data.familias)) setFamilias(data.familias);
             setPage(data.pagina || 1);
         } catch {
             showToast.error('Erro ao carregar o Catálogo Mestre');
         } finally {
             setLoading(false);
         }
-    }, [busca, categoria, fonte, segmentoOrigem]);
+    }, [busca, categoria, fonte, segmentoOrigem, familia]);
 
     useEffect(() => { carregar(1); }, [carregar]);
+
 
     return (
         <div className="p-4 md:p-6 space-y-6">
@@ -80,6 +91,8 @@ export default function MasterCatalogPage() {
                     <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
+
+            <ConsumoApisPanel />
 
             <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
@@ -103,8 +116,9 @@ export default function MasterCatalogPage() {
                     className="md:w-48 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-primary-500"
                 >
                     <option value="">Todas as fontes</option>
-                    <option value="cosmos">Cosmos</option>
-                    <option value="tenant">Cadastro de loja</option>
+                    {Object.entries(FONTES).filter(([k]) => k !== 'cosmos').map(([k, rotulo]) => (
+                        <option key={k} value={k}>{rotulo}</option>
+                    ))}
                 </select>
                 <select
                     value={segmentoOrigem}
@@ -118,6 +132,15 @@ export default function MasterCatalogPage() {
                     <option value="autopecas">Autopeças</option>
                     <option value="generico">Genérico</option>
                 </select>
+                <select
+                    value={familia}
+                    onChange={(e) => setFamilia(e.target.value)}
+                    className="md:w-56 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                    <option value="">Todas as famílias</option>
+                    <option value="sem">Sem família</option>
+                    {familias.map(f => <option key={f.chave} value={f.chave}>{f.nome}</option>)}
+                </select>
             </div>
 
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
@@ -127,6 +150,7 @@ export default function MasterCatalogPage() {
                             <th className="p-3 font-semibold">Produto</th>
                             <th className="p-3 font-semibold">EAN</th>
                             <th className="p-3 font-semibold">Categoria</th>
+                            <th className="p-3 font-semibold">Família</th>
                             <th className="p-3 font-semibold">Fonte</th>
                             <th className="p-3 font-semibold">Origem</th>
                             <th className="p-3 font-semibold">Atualizado</th>
@@ -134,9 +158,9 @@ export default function MasterCatalogPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {loading ? (
-                            <tr><td colSpan={6} className="p-10 text-center text-slate-400">Carregando…</td></tr>
+                            <tr><td colSpan={7} className="p-10 text-center text-slate-400">Carregando…</td></tr>
                         ) : itens.length === 0 ? (
-                            <tr><td colSpan={6} className="p-10 text-center text-slate-400">Nenhum item no catálogo ainda.</td></tr>
+                            <tr><td colSpan={7} className="p-10 text-center text-slate-400">Nenhum item no catálogo ainda.</td></tr>
                         ) : itens.map((item) => (
                             <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <td className="p-3">
@@ -156,6 +180,7 @@ export default function MasterCatalogPage() {
                                 </td>
                                 <td className="p-3 font-mono text-xs text-slate-500 dark:text-gray-400">{item.ean}</td>
                                 <td className="p-3 text-slate-600 dark:text-slate-300">{item.categoria || '—'}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-300">{familias.find(f => f.chave === item.familia_produto)?.nome || '—'}</td>
                                 <td className="p-3">
                                     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${item.fonte === 'cosmos' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'}`}>
                                         {fonteLabel(item.fonte)}

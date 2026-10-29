@@ -31,6 +31,9 @@ def registrar_produto_se_novo(produto, estabelecimento, via: str) -> None:
             return
         existente = CatalogoMestre.query.filter_by(ean=ean).first()
         if existente and existente.status != "nao_encontrado":
+            # Item já catalogado: a loja só ensina a família quando o catálogo ainda não tem.
+            if not existente.familia_produto and getattr(produto, "familia_produto", None):
+                existente.familia_produto = produto.familia_produto
             return
         categoria_nome = produto.categoria.nome if produto.categoria else None
         campos = dict(
@@ -41,6 +44,7 @@ def registrar_produto_se_novo(produto, estabelecimento, via: str) -> None:
             categoria=categoria_nome,
             unidade=produto.unidade_medida,
             imagem_url=produto.imagem_url,
+            familia_produto=getattr(produto, "familia_produto", None) or None,
             fonte="tenant",
             status="encontrado",
             descoberto_por_estabelecimento_id=estabelecimento.id if estabelecimento else None,

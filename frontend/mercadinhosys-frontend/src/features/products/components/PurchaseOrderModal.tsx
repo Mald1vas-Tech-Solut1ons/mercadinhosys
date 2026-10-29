@@ -150,15 +150,23 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
         return;
       }
       const c = res.data;
+      const s = c.sugestoes;
       const precoRef = c.preco_referencia ?? 0;
+      // Custo de verdade vem na entrada da nota; o preço de mercado vira referência e venda inicial.
       const criado = await productsService.create({
         nome: c.nome || `Produto ${ean}`,
-        categoria: c.categoria || 'Geral',
+        categoria: s?.categoria || c.categoria || 'Geral',
         codigo_barras: ean,
-        preco_custo: precoRef || 0.01,
+        preco_custo: 0.01,
         preco_venda: precoRef || 0.01,
+        preco_referencia_mercado: precoRef || undefined,
         marca: c.marca || undefined,
+        fabricante: c.fabricante || undefined,
         ncm: c.ncm || undefined,
+        descricao: s?.descricao || undefined,
+        imagem_url: c.imagem_url || undefined,
+        familia_produto: s?.familia_produto || undefined,
+        atributos: s?.atributos || undefined,
         quantidade: 0,
       } as any);
 
@@ -169,7 +177,7 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
         return;
       }
       handleAddItem(prod);
-      showToast.success(`"${prod.nome}" cadastrado via ${res.source === 'catalogo' ? 'catálogo' : 'COSMOS'} e adicionado.`);
+      showToast.success(`"${prod.nome}" cadastrado via ${res.source === 'catalogo' ? 'catálogo' : 'base de produtos'} e adicionado.`);
       setSearchProduto('');
       setEanNaoEncontrado(null);
     } catch (e: any) {

@@ -1164,7 +1164,11 @@ def criar_funcionario():
         from app.decorators.rbac import nivel_do_role
         novo_funcionario.nivel_acesso = nivel_do_role(novo_funcionario.role)
 
-        # Definir senha
+        # Definir senha (mesma política do self-service /definir-senha: 8+ letras+números)
+        from app.services.acesso_conta_service import validar_forca_senha
+        erro_senha = validar_forca_senha(data["senha"] or "")
+        if erro_senha:
+            return jsonify({"success": False, "error": erro_senha}), 400
         novo_funcionario.set_senha(data["senha"])
 
         # Definir PIN de cancelamento se fornecido (4 a 6 dígitos, armazenado com hash)
@@ -1342,8 +1346,12 @@ def atualizar_funcionario(id):
             from app.decorators.rbac import nivel_do_role
             funcionario.nivel_acesso = nivel_do_role(funcionario.role)
 
-        # Atualizar senha se fornecida
+        # Atualizar senha se fornecida (mesma política do self-service: 8+ letras+números)
         if "senha" in data and data["senha"]:
+            from app.services.acesso_conta_service import validar_forca_senha
+            erro_senha = validar_forca_senha(data["senha"])
+            if erro_senha:
+                return jsonify({"success": False, "error": erro_senha}), 400
             funcionario.set_senha(data["senha"])
 
         # Atualizar PIN de cancelamento se fornecido (4 a 6 dígitos, armazenado com hash)

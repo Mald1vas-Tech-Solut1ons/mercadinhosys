@@ -2872,10 +2872,11 @@ def ajustar_estoque(id):
         claims = get_jwt()
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
-        
+
+        # Trava o produto como o checkout: ajuste e venda simultâneos não perdem baixa.
         produto = Produto.query.filter_by(
             id=id, estabelecimento_id=estabelecimento_id
-        ).first_or_404()
+        ).populate_existing().with_for_update().first_or_404()
 
         data = request.get_json()
 
@@ -3060,12 +3061,19 @@ def ajustar_estoque(id):
                     ),
                     400,
                 )
+            # A saída manual (descarte, avaria, consumo) consome os lotes: vencido primeiro, depois
+            # FEFO. Sem isso o lote vencido ficava em quarentena e travava a venda do lote bom.
+            import json as _json
+            consumidos = produto.consumir_estoque_fifo(quantidade, incluir_vencidos=True)
             produto.quantidade = to_decimal(quantidade_anterior - quantidade, precision=3)
+            if consumidos:
+                observacoes = (f"{observacoes} " if observacoes else "") + _json.dumps(
+                    {"lotes_consumidos": [[c["lote_id"], str(c["quantidade_consumida"])] for c in consumidos]})
             movimentacao = MovimentacaoEstoque(
                 estabelecimento_id=estabelecimento_id,
                 produto_id=produto.id,
                 funcionario_id=int(get_jwt_identity()),
-                lote_id=None,
+                lote_id=consumidos[0]["lote_id"] if len(consumidos) == 1 else None,
                 tipo=tipo,
                 quantidade=quantidade,
                 quantidade_anterior=quantidade_anterior,

@@ -120,6 +120,15 @@ def test_turno_que_vira_a_meia_noite_pode_sair(client, ctx, monkeypatch):
     assert _bater(client, ctx["h_admin"], "saida").status_code == 201
 
 
+def test_previsao_ignora_dias_antes_da_primeira_venda():
+    from app.dashboard_cientifico.models_layer import PracticalModels
+    zeros = [{"data": (date(2026, 9, 1) + timedelta(days=d)).isoformat(), "total": 0} for d in range(20)]
+    vendas = [{"data": (date(2026, 9, 21) + timedelta(days=d)).isoformat(), "total": 700} for d in range(8)]
+    r = PracticalModels.generate_forecast(zeros + vendas, days_ahead=30)
+    assert r["observations"] == 8
+    assert sum(f["valor_previsto"] for f in r["forecast"]) == pytest.approx(30 * 700)
+
+
 def _faltas(estab_id):
     from app.dashboard_cientifico.data_layer import DataLayer
     rh = DataLayer.get_rh_metrics(estab_id, 30)

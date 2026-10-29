@@ -132,7 +132,8 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
     devolve ``movimento=None``. O saldo vendável desconta o que está reservado para
     pedidos; a expedição de um pedido passa ``ignorar_pedido_id`` para usar a própria reserva.
     ``permitir_sem_estoque`` (config da loja, só no balcão): vende além do saldo; os lotes
-    vendáveis são consumidos até zerar e o agregado fica no piso 0 (lote vencido nunca sai).
+    vendáveis são consumidos até zerar e o agregado fica negativo até a entrada da nota
+    (lote vencido nunca sai).
     """
     quantidade = quantidade_valida(quantidade)
     custo = custo_historico(produto)
@@ -149,12 +150,13 @@ def registrar_saida(produto, quantidade, *, venda_id, funcionario_id, motivo, da
     if quantidade > disponivel and not permitir_sem_estoque:
         raise EstoqueIndisponivelError(produto, quantidade, max(disponivel, Decimal('0')), quarentena, reservado)
     anterior = Decimal(str(produto.quantidade or 0))
-    # Venda além do saldo só baixa o vendável: reserva e quarentena ficam intactas.
-    baixa = quantidade if quantidade <= disponivel else max(disponivel, Decimal('0'))
-    consumidos = produto.consumir_estoque_fifo(baixa, incluir_vencidos=not bloqueia)
+    # Venda além do saldo: os lotes vendáveis saem até zerar (reserva e quarentena intactas) e o
+    # agregado fica NEGATIVO — a mercadoria chegou antes da nota. Com piso em zero, a entrada
+    # posterior somava em cima do zero e criava estoque fantasma; o razão também não fechava.
+    baixa_lotes = quantidade if quantidade <= disponivel else max(disponivel, Decimal('0'))
+    consumidos = produto.consumir_estoque_fifo(baixa_lotes, incluir_vencidos=not bloqueia)
+    produto.quantidade = anterior - quantidade
     rastro = {'lotes_consumidos': [[c['lote_id'], str(c['quantidade_consumida'])] for c in consumidos]}
-    if baixa != quantidade:
-        rastro['baixa_efetiva'] = str(baixa)  # o estorno devolve só o que saiu de fato
     movimento = MovimentacaoEstoque(
         estabelecimento_id=produto.estabelecimento_id,
         produto_id=produto.id,

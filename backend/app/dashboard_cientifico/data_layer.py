@@ -1911,13 +1911,21 @@ class DataLayer:
                 # ── MovimentacaoCaixa do PDV (sangrias e suprimentos) ─────────
                 try:
                     from app.models import MovimentacaoCaixa
+                    # Recebimento de fiado é gravado como suprimento, mas é dinheiro que ENTRA na
+                    # empresa; sangria e suprimento comuns só movem dinheiro entre gaveta e cofre.
+                    eh_receb_fiado = and_(MovimentacaoCaixa.tipo == 'suprimento',
+                                          MovimentacaoCaixa.descricao.ilike('Receb. Fiado%'))
                     q_mov_stats = db.session.query(
                         func.coalesce(
                             func.sum(case((MovimentacaoCaixa.tipo == 'sangria', MovimentacaoCaixa.valor), else_=0)), 0
                         ).label('sangrias'),
                         func.coalesce(
-                            func.sum(case((MovimentacaoCaixa.tipo == 'suprimento', MovimentacaoCaixa.valor), else_=0)), 0
+                            func.sum(case((and_(MovimentacaoCaixa.tipo == 'suprimento', ~eh_receb_fiado),
+                                           MovimentacaoCaixa.valor), else_=0)), 0
                         ).label('suprimentos'),
+                        func.coalesce(
+                            func.sum(case((eh_receb_fiado, MovimentacaoCaixa.valor), else_=0)), 0
+                        ).label('recebimentos_fiado'),
                     ).filter(
                         MovimentacaoCaixa.created_at >= start_dt,
                         MovimentacaoCaixa.created_at <= end_dt,
@@ -1927,10 +1935,11 @@ class DataLayer:
                     result["caixa_pdv"] = {
                         "sangrias": float(mov_stats.sangrias or 0),
                         "suprimentos": float(mov_stats.suprimentos or 0),
+                        "recebimentos_fiado": float(mov_stats.recebimentos_fiado or 0),
                     }
                 except Exception as e_mov:
                     logger.warning(f"Erro ao ler MovimentacaoCaixa: {e_mov}")
-                    result["caixa_pdv"] = {"sangrias": 0.0, "suprimentos": 0.0}
+                    result["caixa_pdv"] = {"sangrias": 0.0, "suprimentos": 0.0, "recebimentos_fiado": 0.0}
 
             except Exception as e:
                 logger.error(f"Erro processando VENDAS em get_consolidated_financial_summary: {e}")

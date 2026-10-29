@@ -1166,9 +1166,8 @@ def resumo_financeiro():
             })
 
         # Fluxo de Caixa REAL (regime de caixa): entradas = o que de fato foi
-        # recebido nas vendas + suprimentos (inclui recebimento de fiado, que
-        # entra como suprimento na data do pagamento); saídas = boletos pagos
-        # no período + despesas desembolsadas + sangrias.
+        # recebido nas vendas + recebimentos de fiado na data do pagamento;
+        # saídas = boletos pagos no período + despesas desembolsadas.
         # `despesas_caixa` exclui os espelhos de boleto (senão o mesmo boleto
         # contava aqui E em pago_periodo) e NÃO inclui a folha provisionada
         # (provisão não é dinheiro que saiu do caixa; os pagamentos manuais de
@@ -1176,8 +1175,10 @@ def resumo_financeiro():
         despesas_operacionais = desp.get('despesas_operacionais', desp.get('total', 0.0))
         despesas_caixa = desp.get('despesas_caixa', despesas_operacionais)
 
-        entradas_reais = vendas.get("total_recebido", 0.0) + caixa_pdv['suprimentos']
-        saidas_reais = cp['pago_periodo'] + despesas_caixa + caixa_pdv['sangrias']
+        # Sangria e suprimento só movem dinheiro entre gaveta e cofre: não entram nem saem da
+        # empresa. Recebimento de fiado (gravado como suprimento) é entrada real.
+        entradas_reais = vendas.get("total_recebido", 0.0) + caixa_pdv.get('recebimentos_fiado', 0.0)
+        saidas_reais = cp['pago_periodo'] + despesas_caixa
 
         # DRE: receita bruta − impostos sobre vendas = receita líquida; − CMV = lucro bruto.
         _config = (Configuracao.query.filter_by(estabelecimento_id=estabelecimento_id).first()
@@ -1260,6 +1261,7 @@ def resumo_financeiro():
             "caixa_pdv": {
                 "sangrias": caixa_pdv['sangrias'],
                 "suprimentos": caixa_pdv['suprimentos'],
+                "recebimentos_fiado": caixa_pdv.get('recebimentos_fiado', 0.0),
             },
             "fluxo_caixa_real": {
                 "entradas": entradas_reais,

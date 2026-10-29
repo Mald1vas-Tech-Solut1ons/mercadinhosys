@@ -222,6 +222,53 @@ def create_app(config_name=None):
     cache.init_app(app)
     mail.init_app(app)
 
+    # Medição de lentidão: duração de cada request e quanto dela foi banco. Request acima de
+    # REQUEST_LENTO_MS vai para o log com rota, loja, nº de queries e tempo de banco; o
+    # cabeçalho Server-Timing deixa o mesmo número visível no DevTools do navegador.
+    import time as _time
+    from flask import g as _g, request as _request
+    from sqlalchemy import event as _event
+    request_lento_ms = float(os.getenv("REQUEST_LENTO_MS", "800"))
+
+    @app.before_request
+    def _medir_inicio():
+        _g._t0 = _time.perf_counter()
+        _g._db_ms = 0.0
+        _g._db_n = 0
+
+    with app.app_context():
+        @_event.listens_for(db.engine, "before_cursor_execute")
+        def _db_antes(conn, cursor, statement, parameters, context, executemany):
+            conn.info.setdefault("_t_query", []).append(_time.perf_counter())
+
+        @_event.listens_for(db.engine, "after_cursor_execute")
+        def _db_depois(conn, cursor, statement, parameters, context, executemany):
+            pilha = conn.info.get("_t_query")
+            if not pilha:
+                return
+            gasto = (_time.perf_counter() - pilha.pop()) * 1000
+            try:
+                _g._db_ms += gasto
+                _g._db_n += 1
+            except (RuntimeError, AttributeError):
+                pass  # fora de request (CLI, agendador)
+
+    @app.after_request
+    def _medir_fim(response):
+        t0 = getattr(_g, "_t0", None)
+        if t0 is None:
+            return response
+        total_ms = (_time.perf_counter() - t0) * 1000
+        db_ms = getattr(_g, "_db_ms", 0.0)
+        response.headers["Server-Timing"] = f"app;dur={total_ms:.0f}, db;dur={db_ms:.0f}"
+        if total_ms >= request_lento_ms and _request.method != "OPTIONS":
+            logger.warning(
+                "REQUEST_LENTO %s %s status=%s total_ms=%.0f db_ms=%.0f queries=%d loja=%s",
+                _request.method, _request.path, response.status_code, total_ms, db_ms,
+                getattr(_g, "_db_n", 0), getattr(_g, "estabelecimento_id", "-"),
+            )
+        return response
+
     @app.before_request
     def load_tenant_context():
         """

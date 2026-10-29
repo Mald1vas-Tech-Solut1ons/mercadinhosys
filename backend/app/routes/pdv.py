@@ -1158,9 +1158,23 @@ def finalizar_venda():
 
                 cliente.saldo_devedor = to_decimal(cliente.saldo_devedor or 0) + valor_fiado
 
-                from datetime import timedelta
+                from datetime import timedelta, datetime as _dt
                 from app.models import ContaReceber
-                data_vencimento = to_local(data_venda).date() + timedelta(days=30)
+                # Vencimento escolhido no PDV vale (mesma regra do /vendas/); sem escolha, 30 dias.
+                dia_venda = to_local(data_venda).date()
+                data_vencimento = dia_venda + timedelta(days=30)
+                vencimento_escolhido = data.get("data_vencimento_fiado")
+                if vencimento_escolhido:
+                    try:
+                        data_vencimento = _dt.strptime(str(vencimento_escolhido)[:10], "%Y-%m-%d").date()
+                    except ValueError:
+                        db.session.rollback()
+                        return jsonify({"success": False, "error": "VENCIMENTO_INVALIDO",
+                                        "message": "Data de vencimento do fiado inválida."}), 400
+                    if data_vencimento < dia_venda:
+                        db.session.rollback()
+                        return jsonify({"success": False, "error": "VENCIMENTO_INVALIDO",
+                                        "message": "O vencimento do fiado não pode ser antes da data da venda."}), 400
                 conta = ContaReceber(
                     estabelecimento_id=funcionario_data.get("estabelecimento_id"),
                     cliente_id=cliente_id,

@@ -21,7 +21,7 @@ import {
 import { deliveryService, Motorista, Veiculo, CreateMotoristaData, CreateVeiculoData } from './deliveryService';
 import ChecklistModal from './ChecklistModal';
 import ConformidadeModal from './ConformidadeModal';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const motoristaVazio: CreateMotoristaData = {
@@ -81,7 +81,7 @@ const DriverManagement: React.FC = () => {
             if (motRes.success) setMotoristas(motRes.motoristas);
             if (veiRes.success) setVeiculos(veiRes.veiculos);
         } catch (error) {
-            toast.error('Erro ao carregar frota');
+            showToast.error('Erro ao carregar frota');
         } finally {
             setLoading(false);
         }
@@ -117,9 +117,9 @@ const DriverManagement: React.FC = () => {
                 const motoristaId = res.motorista.id;
                 if (cnhArquivo) {
                     try { await deliveryService.uploadDocumentoMotorista(motoristaId, cnhArquivo); }
-                    catch (e: any) { toast.error(e?.response?.data?.error || 'Motorista salvo, mas o upload da CNH falhou.'); }
+                    catch (e: any) { showToast.error(e?.response?.data?.error || 'Motorista salvo, mas o upload da CNH falhou.'); }
                 }
-                toast.success(editandoMotoristaId ? 'Motorista atualizado!' : 'Motorista cadastrado com sucesso!');
+                showToast.success(editandoMotoristaId ? 'Motorista atualizado!' : 'Motorista cadastrado com sucesso!');
                 setIsMotoristaModalOpen(false);
                 setEditandoMotoristaId(null);
                 setNewMotorista(motoristaVazio);
@@ -127,7 +127,7 @@ const DriverManagement: React.FC = () => {
                 fetchData();
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Erro ao salvar motorista');
+            showToast.error(error.response?.data?.error || 'Erro ao salvar motorista');
         } finally {
             setSubmitting(false);
         }
@@ -175,9 +175,9 @@ const DriverManagement: React.FC = () => {
                 const veiculoId = res.veiculo.id;
                 if (crlvArquivo) {
                     try { await deliveryService.uploadDocumentoVeiculo(veiculoId, crlvArquivo); }
-                    catch (e: any) { toast.error(e?.response?.data?.error || 'Veículo salvo, mas o upload do CRLV falhou.'); }
+                    catch (e: any) { showToast.error(e?.response?.data?.error || 'Veículo salvo, mas o upload do CRLV falhou.'); }
                 }
-                toast.success(editandoVeiculoId ? 'Veículo atualizado!' : 'Veículo cadastrado com sucesso!');
+                showToast.success(editandoVeiculoId ? 'Veículo atualizado!' : 'Veículo cadastrado com sucesso!');
                 setIsVeiculoModalOpen(false);
                 setEditandoVeiculoId(null);
                 setNewVeiculo(veiculoVazio);
@@ -185,7 +185,7 @@ const DriverManagement: React.FC = () => {
                 fetchData();
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Erro ao salvar veículo');
+            showToast.error(error.response?.data?.error || 'Erro ao salvar veículo');
         } finally {
             setSubmitting(false);
         }

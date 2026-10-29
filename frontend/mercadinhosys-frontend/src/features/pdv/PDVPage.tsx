@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { showToast } from '../../utils/toast';
-import toast from 'react-hot-toast';
 import {
     ShoppingCart,
     Check,
@@ -87,7 +86,7 @@ const PDVPage: React.FC = () => {
     } = usePDV();
 
     // Fila offline — vendas salvas localmente quando sem internet
-    const { pendingCount, isSyncing, isOnline, enqueue, processQueue } = useOfflineQueue();
+    const { pendingCount, isSyncing, isOnline, enqueue, processQueue, rejeitadas, descartar } = useOfflineQueue();
 
     // Catálogo offline — baixa quando online para permitir vender sem sinal
     const [catalogoCount, setCatalogoCount] = useState(0);
@@ -386,6 +385,31 @@ const PDVPage: React.FC = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            {rejeitadas.length > 0 && (
+                <div className="px-4 py-2 bg-red-50 dark:bg-red-950/40 border-b border-red-200 dark:border-red-900 text-xs space-y-1">
+                    <p className="font-bold text-red-700 dark:text-red-300">
+                        {rejeitadas.length} venda(s) offline recusada(s) pelo servidor. Corrija o motivo e reenvie, ou descarte.
+                    </p>
+                    {rejeitadas.map(v => (
+                        <div key={v.id} className="flex flex-wrap items-center gap-2 text-red-800 dark:text-red-200">
+                            <span className="font-mono">{new Date(v.timestamp).toLocaleString('pt-BR')}</span>
+                            <span>R$ {Number(v.payload?.total ?? 0).toFixed(2).replace('.', ',')}</span>
+                            <span className="flex-1 min-w-0 break-words">{v.error_message || 'Motivo não informado'}</span>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!(await confirmar({ titulo: 'Descartar venda offline?', mensagem: 'A venda não será registrada no sistema. Confira se ela não foi lançada de outro jeito.', acao: 'Descartar venda', perigo: true }))) return;
+                                    await descartar(v.id);
+                                    showToast.success('Venda offline descartada');
+                                }}
+                                className="min-h-[32px] px-3 rounded-lg border border-red-300 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900"
+                            >
+                                Descartar
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
             <CaixaManager
                 caixaAtual={caixaAberto}
                 setCaixaAtual={setCaixaAberto}
@@ -628,18 +652,18 @@ const PDVPage: React.FC = () => {
                                                                                 distancia_km: res.data.distancia_km,
                                                                                 taxa_entrega: res.data.taxa_sugerida 
                                                                             });
-                                                                            import('react-hot-toast').then(m => m.default.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' }));
+                                                                            showToast.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' });
                                                                         } else {
-                                                                            import('react-hot-toast').then(m => m.default.error(res.data?.error || "Erro ao calcular taxa pelo CEP.", { id: 'cep-toast' }));
+                                                                            showToast.error(res.data?.error || "Erro ao calcular taxa pelo CEP.", { id: 'cep-toast' });
                                                                         }
                                                                     } catch (err: any) {
                                                                         console.warn("Não foi possível estimar a taxa: ", err.response?.data?.error);
                                                                     }
                                                                 } else {
-                                                                    import('react-hot-toast').then(m => m.default.success("Cliente sem CEP. Insira a taxa de entrega manualmente.", { id: 'cep-toast' }));
+                                                                    showToast.success("Cliente sem CEP. Insira a taxa de entrega manualmente.", { id: 'cep-toast' });
                                                                 }
                                                             } else if (paraEntregar && (!c || !c.cep)) {
-                                                                toast.success("Cliente sem CEP. Insira a taxa de entrega manualmente.");
+                                                                showToast.success("Cliente sem CEP. Insira a taxa de entrega manualmente.");
                                                             }
                                                             setActiveSection('pagamento'); 
                                                         }} 
@@ -671,7 +695,7 @@ const PDVPage: React.FC = () => {
                                                 checked={paraEntregar}
                                                 onChange={async (e) => {
                                                     if (e.target.checked && !cliente) {
-                                                        import('react-hot-toast').then(m => m.default.error("Selecione ou cadastre um cliente primeiro para calcular a entrega."));
+                                                        showToast.error("Selecione ou cadastre um cliente primeiro para calcular a entrega.");
                                                         return;
                                                     }
                                                     setParaEntregar(e.target.checked);
@@ -700,18 +724,18 @@ const PDVPage: React.FC = () => {
                                                                         distancia_km: res.data.distancia_km,
                                                                         taxa_entrega: res.data.taxa_sugerida 
                                                                     });
-                                                                    import('react-hot-toast').then(m => m.default.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' }));
+                                                                    showToast.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' });
                                                                 } else {
-                                                                    import('react-hot-toast').then(m => m.default.error(res.data?.error || "Erro ao calcular taxa pelo CEP.", { id: 'cep-toast' }));
+                                                                    showToast.error(res.data?.error || "Erro ao calcular taxa pelo CEP.", { id: 'cep-toast' });
                                                                 }
                                                             } catch (err: any) {
                                                                 console.warn("Não foi possível estimar a taxa: ", err.response?.data?.error);
                                                             }
                                                         } else {
-                                                            import('react-hot-toast').then(m => m.default.success("Cliente sem CEP. Insira a taxa de entrega manualmente.", { id: 'cep-toast' }));
+                                                            showToast.success("Cliente sem CEP. Insira a taxa de entrega manualmente.", { id: 'cep-toast' });
                                                         }
                                                     } else if (e.target.checked && !cliente?.cep) {
-                                                        import('react-hot-toast').then(m => m.default.success("Cliente sem CEP. Insira a taxa de entrega manualmente.", { id: 'cep-toast' }));
+                                                        showToast.success("Cliente sem CEP. Insira a taxa de entrega manualmente.", { id: 'cep-toast' });
                                                     }
                                                 }}
                                             />
@@ -758,15 +782,15 @@ const PDVPage: React.FC = () => {
                                                                                         distancia_km: res.data.distancia_km,
                                                                                         taxa_entrega: res.data.taxa_sugerida
                                                                                     });
-                                                                                    import('react-hot-toast').then(m => m.default.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' }));
+                                                                                    showToast.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' });
                                                                                 } else {
-                                                                                    import('react-hot-toast').then(m => m.default.error(res.data?.error || "Erro ao calcular.", { id: 'cep-toast' }));
+                                                                                    showToast.error(res.data?.error || "Erro ao calcular.", { id: 'cep-toast' });
                                                                                 }
                                                                             } catch {
-                                                                                import('react-hot-toast').then(m => m.default.error("Erro na API.", { id: 'cep-toast' }));
+                                                                                showToast.error("Erro na API.", { id: 'cep-toast' });
                                                                             }
                                                                         } else {
-                                                                            import('react-hot-toast').then(m => m.default.error("Digite um CEP válido.", { id: 'cep-toast' }));
+                                                                            showToast.error("Digite um CEP válido.", { id: 'cep-toast' });
                                                                         }
                                                                     }}
                                                                     className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 rounded-xl px-3 flex items-center justify-center text-slate-500 dark:text-slate-300 transition-all"
@@ -795,12 +819,12 @@ const PDVPage: React.FC = () => {
                                                                                     distancia_km: res.data.distancia_km,
                                                                                     taxa_entrega: res.data.taxa_sugerida 
                                                                                 });
-                                                                                import('react-hot-toast').then(m => m.default.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' }));
+                                                                                showToast.success(`Taxa calculada: R$ ${res.data.taxa_sugerida.toFixed(2)}`, { id: 'cep-toast' });
                                                                             } else {
-                                                                                import('react-hot-toast').then(m => m.default.error(res.data?.error || "Erro ao recalcular.", { id: 'cep-toast' }));
+                                                                                showToast.error(res.data?.error || "Erro ao recalcular.", { id: 'cep-toast' });
                                                                             }
                                                                         } catch {
-                                                                            import('react-hot-toast').then(m => m.default.error("Erro na API.", { id: 'cep-toast' }));
+                                                                            showToast.error("Erro na API.", { id: 'cep-toast' });
                                                                         }
                                                                     }
                                                                 }}
@@ -988,7 +1012,7 @@ const PDVPage: React.FC = () => {
                 onImprimir={async () => {
                     if (!vendaFinalizada) return;
                     if (vendaFinalizada.offline) {
-                        import('react-hot-toast').then(m => m.default.error("Não é possível imprimir comprovante de venda offline. Aguarde a sincronização."));
+                        showToast.error("Não é possível imprimir comprovante de venda offline. Aguarde a sincronização.");
                         return;
                     }
                     setMostrarModalNotaFiscal(false);
@@ -997,7 +1021,7 @@ const PDVPage: React.FC = () => {
                 onEnviarEmail={async (email) => {
                     if (!vendaFinalizada) return;
                     if (vendaFinalizada.offline) {
-                        import('react-hot-toast').then(m => m.default.error("Não é possível enviar email de venda offline. Aguarde a sincronização."));
+                        showToast.error("Não é possível enviar email de venda offline. Aguarde a sincronização.");
                         return;
                     }
                     setEnviandoEmail(true);
@@ -1019,7 +1043,7 @@ const PDVPage: React.FC = () => {
                 onVisualizar={async () => {
                     if (!vendaFinalizada) return;
                     if (vendaFinalizada.offline) {
-                        import('react-hot-toast').then(m => m.default.error("Não é possível visualizar cupom de venda offline. Aguarde a sincronização."));
+                        showToast.error("Não é possível visualizar cupom de venda offline. Aguarde a sincronização.");
                         return;
                     }
                     setMostrarModalNotaFiscal(false);

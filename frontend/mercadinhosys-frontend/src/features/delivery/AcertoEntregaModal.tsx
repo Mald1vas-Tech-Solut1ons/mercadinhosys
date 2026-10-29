@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { isAxiosError } from 'axios';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { deliveryService, Entrega } from './deliveryService';
 
 export default function AcertoEntregaModal({ entrega, onClose, onSuccess }: {
@@ -27,13 +27,13 @@ export default function AcertoEntregaModal({ entrega, onClose, onSuccess }: {
         setEnviando(true);
         try {
             await deliveryService.receberEntrega(entrega.id, chave, pagamentos);
-            toast.success('Acerto da entrega registrado');
+            showToast.success('Acerto da entrega registrado');
             onSuccess();
         } catch (error: unknown) {
             // Em erro de rede, repetir exatamente a mesma operação evita duplicação.
             const resposta = isAxiosError<{ error?: string }>(error) ? error.response : undefined;
             if (resposta && resposta.status < 500) setTentativa(null);
-            toast.error(resposta?.data?.error || 'Resposta não confirmada. Tente novamente para conferir o acerto.');
+            showToast.error(resposta?.data?.error || 'Resposta não confirmada. Tente novamente para conferir o acerto.');
         } finally {
             setEnviando(false);
         }

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { deliveryService, Motorista, Veiculo } from './deliveryService';
 import { productsService } from '../products/productsService';
 import { customerService } from '../customers/customerService';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import MultiPaymentManager, { PagamentoItem } from '../pdv/components/MultiPaymentManager';
 import { FormaPagamentoPDV } from '../pdv/pdvService';
 import BarcodeScanner from '../pdv/components/BarcodeScanner';
@@ -79,7 +79,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
             setMotoristas(mots.motoristas || []);
             setVeiculos(veics.veiculos || []);
         } catch (error) {
-            toast.error("Erro ao carregar dados auxiliares");
+            showToast.error("Erro ao carregar dados auxiliares");
         }
     };
 
@@ -114,7 +114,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                 total_item: product.preco_venda
             }]);
         }
-        toast.success(`${product.nome} adicionado`);
+        showToast.success(`${product.nome} adicionado`);
     };
 
     const removeFromCart = (id: number) => setCart(cart.filter(i => i.produto_id !== id));
@@ -132,14 +132,14 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
     const calculateTotal = () => cart.reduce((acc, curr) => acc + curr.total_item, 0) + (cobrarTaxa ? logistics.taxa_entrega : 0);
 
     const handleSubmit = async () => {
-        if (cart.length === 0) return toast.error("Adicione itens ao carrinho");
-        if (!logistics.motorista_id || !logistics.veiculo_id) return toast.error("Selecione motorista e veículo");
+        if (cart.length === 0) return showToast.error("Adicione itens ao carrinho");
+        if (!logistics.motorista_id || !logistics.veiculo_id) return showToast.error("Selecione motorista e veículo");
 
         const totalVenda = calculateTotal();
         const totalPago = pagamentosDelivery.reduce((sum, p) => sum + p.valor, 0);
 
         if (!pagamentoNaEntrega && totalPago < (totalVenda - 0.01)) {
-            return toast.error(`Valor pago insuficiente (R$ ${totalPago.toFixed(2)}). Faltam R$ ${(totalVenda - totalPago).toFixed(2)}`);
+            return showToast.error(`Valor pago insuficiente (R$ ${totalPago.toFixed(2)}). Faltam R$ ${(totalVenda - totalPago).toFixed(2)}`);
         }
 
         try {
@@ -162,12 +162,12 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
             };
             const res = await deliveryService.criarVendaEntrega(payload);
             if (res.success) {
-                toast.success(`Venda #${res.codigo} criada com sucesso!`);
+                showToast.success(`Venda #${res.codigo} criada com sucesso!`);
                 onCreated();
                 onClose();
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Erro ao processar venda");
+            showToast.error(error.response?.data?.error || "Erro ao processar venda");
         } finally {
             setLoading(false);
         }
@@ -185,7 +185,7 @@ const UnifiedDeliverySaleModal: React.FC<Props> = ({ isOpen, onClose, onCreated,
                         endereco_logradouro: data.logradouro || prev.endereco_logradouro,
                         endereco_bairro: data.bairro || prev.endereco_bairro,
                     }));
-                    toast.success("Endereço preenchido automaticamente!");
+                    showToast.success("Endereço preenchido automaticamente!");
                 }
             } catch (error) {
                 console.error("Erro ao buscar CEP", error);

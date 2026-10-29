@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw, AlertCircle, CheckCircle, TrendingUp, HelpCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { consultorService } from '../../services/consultorService';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { authService } from '../../features/auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
 
@@ -52,14 +52,14 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
       if (response.success && response.insights) {
         setInsights(response.insights);
         if (response.aviso) {
-           if (isManual) toast.error(response.aviso);
+           if (isManual) showToast.error(response.aviso);
         } else {
-           if (isManual) toast.success('Insights atualizados com sucesso!');
+           if (isManual) showToast.success('Insights atualizados com sucesso!');
         }
       } else if (response.error) {
         if (response.error.includes('Limite')) {
            setError('Limite diário de atualizações atingido.');
-           if (isManual) toast.error('Limite diário atingido.');
+           if (isManual) showToast.error('Limite diário atingido.');
         } else {
            setError(response.error);
         }

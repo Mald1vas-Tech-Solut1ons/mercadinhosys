@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { Wrench, Settings, AlertCircle } from 'lucide-react';
 import { deliveryService } from './deliveryService';
 
@@ -25,12 +25,12 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
         const kmNum = parseFloat(kmAtual);
 
         if (!valorNum || !kmNum) {
-            toast.error("Preencha KM e Valor corretamente.");
+            showToast.error("Preencha KM e Valor corretamente.");
             return;
         }
 
         if (kmNum < kmAtualVeiculo) {
-            toast.error(`O KM Atual não pode ser menor que o último KM registrado (${kmAtualVeiculo}).`);
+            showToast.error(`O KM Atual não pode ser menor que o último KM registrado (${kmAtualVeiculo}).`);
             return;
         }
 
@@ -45,14 +45,14 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
             });
 
             if (res.success) {
-                toast.success("Manutenção salva e lançada nas Despesas!");
+                showToast.success("Manutenção salva e lançada nas Despesas!");
                 onSuccess();
                 onClose();
                 setDescricao('');
                 setValorTotal('');
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Erro ao salvar manutenção.");
+            showToast.error(error.response?.data?.error || "Erro ao salvar manutenção.");
         } finally {
             setLoading(false);
         }

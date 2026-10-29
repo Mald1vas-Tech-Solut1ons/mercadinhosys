@@ -19,9 +19,9 @@ import {
     Settings
 } from 'lucide-react';
 import { apiClient } from '../../api/apiClient';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
-import { isValidCNPJ, isValidCPF, isValidEmail } from '../../utils/validators';
+import { isValidCNPJ, isValidCPF, isValidEmail, erroSenha } from '../../utils/validators';
 import { confirmar } from '../../components/ui/Confirmacao';
 
 interface Log {
@@ -153,16 +153,17 @@ const SystemMonitorPage: React.FC = () => {
 
     const handleCreateAccount = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isValidCNPJ(formData.cnpj)) return toast.error('CNPJ da loja é inválido!');
-        if (!isValidCPF(formData.cpf_admin)) return toast.error('CPF do administrador é inválido!');
-        if (!isValidEmail(formData.email_loja) || !isValidEmail(formData.email_admin)) return toast.error('E-mail fornecido é inválido!');
-        if ((formData.senha || '').length < 6) return toast.error('A senha deve ter ao menos 6 caracteres!');
+        if (!isValidCNPJ(formData.cnpj)) return showToast.error('CNPJ da loja é inválido!');
+        if (!isValidCPF(formData.cpf_admin)) return showToast.error('CPF do administrador é inválido!');
+        if (!isValidEmail(formData.email_loja) || !isValidEmail(formData.email_admin)) return showToast.error('E-mail fornecido é inválido!');
+        const problemaSenha = erroSenha(formData.senha || '');
+        if (problemaSenha) return showToast.error(problemaSenha);
         
         setSubmitting(true);
         try {
             const res = await apiClient.post('/onboarding/registrar', formData);
             if (res.data.success) {
-                toast.success('Conta criada! Entregue ao cliente o usuário e a senha definidos.');
+                showToast.success('Conta criada! Entregue ao cliente o usuário e a senha definidos.');
                 setIsModalOpen(false);
                 setFormData({
                     nome_fantasia: '', cnpj: '', telefone_loja: '', email_loja: '',
@@ -171,7 +172,7 @@ const SystemMonitorPage: React.FC = () => {
                 fetchData();
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Erro ao criar conta');
+            showToast.error(error.response?.data?.error || 'Erro ao criar conta');
         } finally {
             setSubmitting(false);
         }
@@ -181,11 +182,11 @@ const SystemMonitorPage: React.FC = () => {
         try {
             const res = await apiClient.put(`/saas/monitor/establishments/${id}/status`, { ativo: !currentStatus });
             if (res.data.success) {
-                toast.success(res.data.message);
+                showToast.success(res.data.message);
                 fetchData();
             }
         } catch (err) {
-            toast.error('Erro ao alterar status');
+            showToast.error('Erro ao alterar status');
         }
     };
 
@@ -195,11 +196,11 @@ const SystemMonitorPage: React.FC = () => {
         try {
             const res = await apiClient.delete(`/saas/monitor/establishments/${id}`);
             if (res.data.success) {
-                toast.success(res.data.message);
+                showToast.success(res.data.message);
                 fetchData();
             }
         } catch (err) {
-            toast.error('Erro ao excluir conta');
+            showToast.error('Erro ao excluir conta');
         }
     };
 
@@ -231,19 +232,19 @@ const SystemMonitorPage: React.FC = () => {
         e.preventDefault();
         if (!editingTenant) return;
         
-        if (editFormData.cnpj && !isValidCNPJ(editFormData.cnpj)) return toast.error('CNPJ inválido!');
-        if (editFormData.email && !isValidEmail(editFormData.email)) return toast.error('E-mail inválido!');
+        if (editFormData.cnpj && !isValidCNPJ(editFormData.cnpj)) return showToast.error('CNPJ inválido!');
+        if (editFormData.email && !isValidEmail(editFormData.email)) return showToast.error('E-mail inválido!');
 
         setSubmitting(true);
         try {
             const res = await apiClient.put(`/saas/estabelecimentos/${editingTenant.id}`, editFormData);
             if (res.data.success) {
-                toast.success('Estabelecimento atualizado com sucesso!');
+                showToast.success('Estabelecimento atualizado com sucesso!');
                 setIsEditModalOpen(false);
                 fetchData();
             }
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Erro ao atualizar estabelecimento');
+            showToast.error(err.response?.data?.error || 'Erro ao atualizar estabelecimento');
         } finally {
             setSubmitting(false);
         }
@@ -702,11 +703,11 @@ const SystemMonitorPage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Senha de Acesso (mín. 6) *</label>
+                                        <label className="block text-[10px] font-black text-gray-400 uppercase mb-1 ml-1">Senha de Acesso (mín. 8, letras e números) *</label>
                                         <input
                                             required
                                             type="password"
-                                            minLength={6}
+                                            minLength={8}
                                             autoComplete="new-password"
                                             className="w-full px-4 py-3 bg-gray-50 border-0 rounded-2xl focus:ring-2 focus:ring-indigo-600 transition-all font-bold text-gray-700 dark:bg-gray-900 dark:text-gray-200"
                                             value={formData.senha}

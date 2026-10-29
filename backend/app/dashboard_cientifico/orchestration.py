@@ -15,6 +15,11 @@ from .serializers import DashboardSerializer
 from .cache_layer import cache_response
 from app.utils.timezone import iso_utc
 
+def _brl(valor, casas=2):
+    """Número no formato brasileiro (1.234,56) para as mensagens que o lojista lê."""
+    return f"{float(valor or 0):,.{casas}f}".translate(str.maketrans(",.", ".,"))
+
+
 # Alias para facilitar uso em cálculos
 _PM = PracticalModels
 
@@ -185,7 +190,7 @@ class DashboardOrchestrator:
             "inventory": {
                 "total_value": {
                     "value": inventory_summary["valor_total"],
-                    "display": f"R$ {inventory_summary['valor_total']:,.0f}",
+                    "display": f"R$ {_brl(inventory_summary['valor_total'], 0)}",
                     "status": "high_confidence",
                 },
                 "low_stock_alert": {
@@ -718,20 +723,20 @@ class DashboardOrchestrator:
         if net_profit < 0:
             causa = ""
             if total_despesas_periodo > gross_profit:
-                causa = (f"Suas despesas (R$ {total_despesas_periodo:,.2f}) "
-                         f"consumiram {(total_despesas_periodo/gross_profit*100 if gross_profit > 0 else 0):.0f}% "
-                         f"do Lucro Bruto (R$ {gross_profit:,.2f}).")
+                causa = (f"Suas despesas (R$ {_brl(total_despesas_periodo)}) "
+                         f"consumiram {_brl((total_despesas_periodo/gross_profit*100 if gross_profit > 0 else 0), 0)}% "
+                         f"do Lucro Bruto (R$ {_brl(gross_profit)}).")
             elif gross_margin < 20:
-                causa = (f"A Margem Bruta de {gross_margin:.1f}% está muito baixa "
+                causa = (f"A Margem Bruta de {_brl(gross_margin, 1)}% está muito baixa "
                          f"— você está vendendo quase a preço de custo.")
             else:
-                causa = f"A estrutura de custos superou o faturamento em R$ {abs(net_profit):,.2f}."
+                causa = f"A estrutura de custos superou o faturamento em R$ {_brl(abs(net_profit))}."
             recomendacoes.append({
                 "tipo": "financeiro_critico",
                 "prioridade": 1,
                 "mensagem": (
-                    f"🚨 PREJUÍZO DE R$ {abs(net_profit):,.2f} no período. {causa} "
-                    f"Corte pelo menos R$ {abs(net_profit):,.2f} em custos para zerar o prejuízo."
+                    f"🚨 PREJUÍZO DE R$ {_brl(abs(net_profit))} no período. {causa} "
+                    f"Corte pelo menos R$ {_brl(abs(net_profit))} em custos para zerar o prejuízo."
                 ),
                 "impacto_estimado": round(abs(net_profit), 2),
                 "cta": "Auditar Despesas",
@@ -745,8 +750,8 @@ class DashboardOrchestrator:
                 "tipo": "eficiencia",
                 "prioridade": 2,
                 "mensagem": (
-                    f"⚠️ MARGEM LÍQUIDA FRÁGIL: {net_margin:.1f}% — qualquer imprevisto coloca o negócio no vermelho. "
-                    f"Com faturamento de R$ {revenue:,.2f}, você tem apenas R$ {net_profit:,.2f} de colchão. "
+                    f"⚠️ MARGEM LÍQUIDA FRÁGIL: {_brl(net_margin, 1)}% — qualquer imprevisto coloca o negócio no vermelho. "
+                    f"Com faturamento de R$ {_brl(revenue)}, você tem apenas R$ {_brl(net_profit)} de colchão. "
                     f"Meta recomendada para varejo: margem líquida ≥ 8%."
                 ),
                 "impacto_estimado": round((0.08 - net_margin / 100) * revenue, 2),
@@ -764,10 +769,10 @@ class DashboardOrchestrator:
                 "tipo": "precificacao",
                 "prioridade": 1 if gross_margin < 15 else 2,
                 "mensagem": (
-                    f"💰 MARKUP ABAIXO DO MERCADO: Margem Bruta {gross_margin:.1f}% "
+                    f"💰 MARKUP ABAIXO DO MERCADO: Margem Bruta {_brl(gross_margin, 1)}% "
                     f"(referência saudável: 25-35% para supermercado). "
                     f"Aumentar o markup médio em 5 p.p. geraria "
-                    f"+R$ {revenue * 0.05:,.2f} adicionais por período."
+                    f"+R$ {_brl(revenue * 0.05)} adicionais por período."
                 ),
                 "impacto_estimado": round(impacto_markup, 2),
                 "cta": "Revisar Precificação",
@@ -787,8 +792,8 @@ class DashboardOrchestrator:
                 "prioridade": 2,
                 "mensagem": (
                     f"👥 {count_risco} CLIENTES EM RISCO DE ABANDONO identificados pelo modelo RFM. "
-                    f"Ticket médio deles: R$ {_ticket_medio:,.2f}. "
-                    f"Recuperar metade deste grupo geraria ~R$ {impacto_retencao:,.2f} adicionais. "
+                    f"Ticket médio deles: R$ {_brl(_ticket_medio)}. "
+                    f"Recuperar metade deste grupo geraria ~R$ {_brl(impacto_retencao)} adicionais. "
                     f"Consulte a lista de nomes nos detalhes para ação direta."
                 ),
                 "impacto_estimado": round(impacto_retencao, 2),
@@ -806,10 +811,10 @@ class DashboardOrchestrator:
                     "tipo": "fiado_critico",
                     "prioridade": 1,
                     "mensagem": (
-                        f"🤝 ALERTA DE CRÉDITO: R$ {_fiado_total:,.2f} de fiado em aberto "
-                        f"({_fiado_perc_fat:.1f}% do seu faturamento) com {_fiado_clientes} clientes. "
+                        f"🤝 ALERTA DE CRÉDITO: R$ {_brl(_fiado_total)} de fiado em aberto "
+                        f"({_brl(_fiado_perc_fat, 1)}% do seu faturamento) com {_fiado_clientes} clientes. "
                         f"Maior devedor: {fiado_metrics.get('maior_devedor_nome', 'N/A')} "
-                        f"(R$ {fiado_metrics.get('maior_devedor_valor', 0):,.2f}). "
+                        f"(R$ {_brl(fiado_metrics.get('maior_devedor_valor', 0))}). "
                         f"Fiado excessivo compromete o fluxo de caixa."
                     ),
                     "impacto_estimado": round(_fiado_total, 2),
@@ -823,8 +828,8 @@ class DashboardOrchestrator:
                     "tipo": "fiado_atencao",
                     "prioridade": 3,
                     "mensagem": (
-                        f"🤝 Carteira de fiado: R$ {_fiado_total:,.2f} em aberto "
-                        f"({_fiado_perc_fat:.1f}% do faturamento) com {_fiado_clientes} clientes. "
+                        f"🤝 Carteira de fiado: R$ {_brl(_fiado_total)} em aberto "
+                        f"({_brl(_fiado_perc_fat, 1)}% do faturamento) com {_fiado_clientes} clientes. "
                         f"Monitore para evitar crescimento da inadimplência."
                     ),
                     "impacto_estimado": round(_fiado_total, 2),
@@ -843,7 +848,7 @@ class DashboardOrchestrator:
                 "mensagem": (
                     f"📦 {_baixo_estoque} produto{'s' if _baixo_estoque > 1 else ''} abaixo do estoque mínimo. "
                     f"Ruptura em itens Classe A pode gerar perda estimada de "
-                    f"R$ {perda_potencial:,.2f} em vendas. Priorize a reposição imediata."
+                    f"R$ {_brl(perda_potencial)} em vendas. Priorize a reposição imediata."
                 ),
                 "impacto_estimado": round(perda_potencial, 2),
                 "cta": "Ver Estoque Baixo",
@@ -858,8 +863,8 @@ class DashboardOrchestrator:
                 "tipo": "vendas_queda",
                 "prioridade": 2,
                 "mensagem": (
-                    f"📉 QUEDA DE {abs(_growth_val):.1f}% NO FATURAMENTO vs período anterior. "
-                    f"Isso representa R$ {delta_receita:,.2f} a menos em receita. "
+                    f"📉 QUEDA DE {_brl(abs(_growth_val), 1)}% NO FATURAMENTO vs período anterior. "
+                    f"Isso representa R$ {_brl(delta_receita)} a menos em receita. "
                     f"Verifique produtos Classe A em falta, promoções da concorrência ou sazonalidade."
                 ),
                 "impacto_estimado": round(delta_receita, 2),
@@ -874,8 +879,8 @@ class DashboardOrchestrator:
                 "tipo": "margem_oportunidade",
                 "prioridade": 3,
                 "mensagem": (
-                    f"💡 OPORTUNIDADE DE MARGEM: Produtos Classe B rendem {_margem_b:.1f}% "
-                    f"de margem vs {_margem_a:.1f}% da Classe A. "
+                    f"💡 OPORTUNIDADE DE MARGEM: Produtos Classe B rendem {_brl(_margem_b, 1)}% "
+                    f"de margem vs {_brl(_margem_a, 1)}% da Classe A. "
                     f"Aumentar o mix de B pode melhorar a rentabilidade "
                     f"sem depender de maior volume de vendas."
                 ),
@@ -894,7 +899,7 @@ class DashboardOrchestrator:
                 "prioridade": 1,
                 "mensagem": (
                     f"⚠️ ALERTA DE VALIDADE: {total_expiring} produto(s) vencerão nos próximos 30 dias. "
-                    f"Risco de perda financeira (estoque encalhado): R$ {loss_estimate:,.2f}. "
+                    f"Risco de perda financeira (estoque encalhado): R$ {_brl(loss_estimate)}. "
                     f"Recomendação: Crie promoções atrativas imediatamente para liquidar esses lotes."
                 ),
                 "impacto_estimado": round(loss_estimate, 2),
@@ -943,7 +948,7 @@ class DashboardOrchestrator:
                     f"📦 RISCO DE RUPTURA: {len(ruptura)} produto(s) devem acabar em menos de 7 dias "
                     f"no ritmo de venda atual. Os mais urgentes: {nomes}. "
                     f"Faça o pedido ao fornecedor agora — cada dia sem esses itens deixa de faturar "
-                    f"cerca de R$ {sum(r['perda_dia'] for r in criticos):,.2f}."
+                    f"cerca de R$ {_brl(sum(r['perda_dia'] for r in criticos))}."
                 ),
                 "impacto_estimado": round(perda_semana, 2),
                 "cta": "Fazer Pedido",
@@ -968,7 +973,7 @@ class DashboardOrchestrator:
                 "prioridade": 2,
                 "mensagem": (
                     f"🐌 PRODUTOS PARADOS: {len(encalhe)} item(ns) não venderam nada no período e "
-                    f"têm R$ {capital_parado:,.2f} do seu dinheiro parado na prateleira. "
+                    f"têm R$ {_brl(capital_parado)} do seu dinheiro parado na prateleira. "
                     f"Exemplos: {nomes}. Crie uma promoção ou combo para transformar esse estoque em caixa."
                 ),
                 "impacto_estimado": round(capital_parado, 2),
@@ -1080,21 +1085,21 @@ class DashboardOrchestrator:
                     if growth_homologo_week
                     else {"value": None, "display": "--", "status": "no_data", "is_positive": False, "icon": "minus"}
                 ),
-                "revenue": {"value": revenue, "display": f"R$ {revenue:,.2f}"},
-                "faturamento": {"value": revenue, "display": f"R$ {revenue:,.2f}"},
-                "total_vendas": {"value": revenue, "display": f"R$ {revenue:,.2f}"},
-                "expenses": {"value": total_despesas_periodo, "display": f"R$ {total_despesas_periodo:,.2f}"},
-                "total_despesas": {"value": total_despesas_periodo, "display": f"R$ {total_despesas_periodo:,.2f}"},
-                "gross_profit": {"value": gross_profit, "display": f"R$ {gross_profit:,.2f}"},
-                "lucro_bruto": {"value": gross_profit, "display": f"R$ {gross_profit:,.2f}"},
-                "net_profit": {"value": net_profit, "display": f"R$ {net_profit:,.2f}"},
-                "lucro_liquido": {"value": net_profit, "display": f"R$ {net_profit:,.2f}"},
+                "revenue": {"value": revenue, "display": f"R$ {_brl(revenue)}"},
+                "faturamento": {"value": revenue, "display": f"R$ {_brl(revenue)}"},
+                "total_vendas": {"value": revenue, "display": f"R$ {_brl(revenue)}"},
+                "expenses": {"value": total_despesas_periodo, "display": f"R$ {_brl(total_despesas_periodo)}"},
+                "total_despesas": {"value": total_despesas_periodo, "display": f"R$ {_brl(total_despesas_periodo)}"},
+                "gross_profit": {"value": gross_profit, "display": f"R$ {_brl(gross_profit)}"},
+                "lucro_bruto": {"value": gross_profit, "display": f"R$ {_brl(gross_profit)}"},
+                "net_profit": {"value": net_profit, "display": f"R$ {_brl(net_profit)}"},
+                "lucro_liquido": {"value": net_profit, "display": f"R$ {_brl(net_profit)}"},
                 "inventory_value": inventory_summary.get("valor_total", 0),
                 "low_stock_count": inventory_summary.get("baixo_estoque", 0),
                 "unique_customers": customer_metrics.get("clientes_unicos", 0),
                 "avg_ticket": {
                     "value": sales_current_summary.get("ticket_medio", 0),
-                    "display": f"R$ {sales_current_summary.get('ticket_medio', 0):,.2f}",
+                    "display": f"R$ {_brl(sales_current_summary.get('ticket_medio', 0))}",
                     "status": "high_confidence",
                 },
                 "fiado_aberto": fiado_metrics.get("total_aberto", 0.0), # SSD: Real exposure

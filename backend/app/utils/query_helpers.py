@@ -294,6 +294,20 @@ def get_configuracao_safe(estab_id):
                 {"desconto_mercado_padrao_pct": 15.0, "margem_alvo_venda_pct": 50.0}
             )
             pct_extra["bloquear_venda_vencido"] = bloquear_venda_vencido(estab_id)
+            # Impressão e alíquota do DRE: o PUT gravava, mas o GET não devolvia (a tela
+            # recarregava a opção desligada/vazia). Lidas à parte, como as colunas novas acima.
+            try:
+                row_imp = db.session.execute(text(
+                    "SELECT impressao_automatica, tipo_impressora, aliquota_impostos_venda "
+                    "FROM configuracoes WHERE estabelecimento_id = :eid LIMIT 1"
+                ), {"eid": estab_id}).fetchone()
+            except Exception:
+                row_imp = None
+            pct_extra.update({
+                "impressao_automatica": bool(row_imp[0]) if row_imp else False,
+                "tipo_impressora": (row_imp[1] if row_imp and row_imp[1] else "termica_80mm"),
+                "aliquota_impostos_venda": float(row_imp[2]) if row_imp and row_imp[2] is not None else None,
+            })
             if row:
                 # Se sucesso, monta o dict direto (Fast!)
                 import json
@@ -403,6 +417,10 @@ def get_configuracao_safe(estab_id):
         res["desconto_mercado_padrao_pct"] = float(_fetch_col("desconto_mercado_padrao_pct", 15.0))
         res["margem_alvo_venda_pct"] = float(_fetch_col("margem_alvo_venda_pct", 50.0))
         res["bloquear_venda_vencido"] = bloquear_venda_vencido(estab_id)
+        res["impressao_automatica"] = bool(_fetch_col("impressao_automatica", False))
+        res["tipo_impressora"] = _fetch_col("tipo_impressora", "termica_80mm") or "termica_80mm"
+        aliquota = _fetch_col("aliquota_impostos_venda")
+        res["aliquota_impostos_venda"] = float(aliquota) if aliquota is not None else None
 
         if isinstance(res["formas_pagamento"], str):
             import json

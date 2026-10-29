@@ -36,6 +36,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { dataLocalISO } from '../../utils/dataLocal';
 import { confirmar } from '../../components/ui/Confirmacao';
+import { useConfig } from '../../contexts/ConfigContext';
 
 export interface VendaConcluida {
     id: number;
@@ -121,6 +122,9 @@ const PDVPage: React.FC = () => {
     const [managerCaixaAberto, setManagerCaixaAberto] = useState(false);
     const [dataVencimentoFiado, setDataVencimentoFiado] = useState('');  // data prevista pagamento do fiado
     const [cupomModalAberto, setCupomModalAberto] = useState(false);
+    // Configurações → "Impressão automática": a venda concluída vai direto para a impressora.
+    const { config: configLoja } = useConfig();
+    const [imprimirCupomAuto, setImprimirCupomAuto] = useState(false);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
     const [produtoPendentePeso, setProdutoPendentePeso] = useState<any>(null);
     // NFC-e: marcada por padrão SÓ quando o backend diz que a emissão fiscal
@@ -262,7 +266,12 @@ const PDVPage: React.FC = () => {
                 checkoutUuidRef.current = null;
                 setDataVencimentoFiado('');
                 setEmitirNfce(nfcePronta);
-                setMostrarModalNotaFiscal(true);
+                if (configLoja?.impressao_automatica && !venda.offline) {
+                    setImprimirCupomAuto(true);
+                    setCupomModalAberto(true);
+                } else {
+                    setMostrarModalNotaFiscal(true);
+                }
                 if (venda.offline) {
                     showToast.warning(`📡 ${pendingCount + 1} venda(s) aguardando sync. Serão enviadas automaticamente quando o sinal voltar.`, { duration: 6000 });
                 }
@@ -1022,8 +1031,10 @@ const PDVPage: React.FC = () => {
             <CupomFiscalModal
                 aberto={cupomModalAberto}
                 vendaId={vendaFinalizada?.id ?? null}
+                imprimirAoCarregar={imprimirCupomAuto}
                 onFechar={() => {
                     setCupomModalAberto(false);
+                    setImprimirCupomAuto(false);
                     setVendaFinalizada(null);
                 }}
             />

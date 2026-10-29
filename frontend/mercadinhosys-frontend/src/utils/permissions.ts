@@ -151,7 +151,7 @@ export function getDefaultRoute(user?: UsuarioLogado | null): string {
 export function getSettingsTabs(user?: UsuarioLogado | null): string[] {
     const todas = [
         'geral', 'conta', 'segmento', 'estabelecimento', 'fiscal', 'vendas', 'estoque',
-        'ponto', 'sistema', 'sincronizacao', 'assinatura',
+        'ponto', 'sistema', 'assinatura',
     ];
     if (user?.is_super_admin) return [...todas, 'lojas'];
 

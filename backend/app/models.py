@@ -1519,7 +1519,7 @@ class ProdutoLote(db.Model, MultiTenantMixin):
 class CatalogoMestre(db.Model):
     """
     Catálogo GLOBAL de produtos com EAN real (não pertence a nenhum tenant).
-    Alimentado diariamente pelo harvester da API Cosmos (24/dia).
+    Alimentado pela BigDataCorp (franquia mensal), bases abertas e cadastros das lojas.
     Serve de base para o cadastro rápido por EAN e importação em massa.
     """
     __tablename__ = "catalogo_mestre"
@@ -1534,7 +1534,7 @@ class CatalogoMestre(db.Model):
     preco_referencia = db.Column(db.Numeric(19, 4))
     imagem_url = db.Column(db.String(500))
     fonte = db.Column(db.String(20), default="cosmos")
-    # status: 'encontrado' (Cosmos retornou dados) | 'nao_encontrado' (404, não reconsultar)
+    # status: 'encontrado' (alguma fonte trouxe dados) | 'nao_encontrado' (cache negativo)
     status = db.Column(db.String(20), default="encontrado", index=True)
     payload_json = db.Column(db.Text)
     consultado_em = db.Column(db.DateTime, default=utcnow)

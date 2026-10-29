@@ -29,6 +29,13 @@ os.environ["SENTRY_ENVIRONMENT"] = "testing"
 from app import create_app, db
 from app.models import Estabelecimento, Funcionario, Configuracao
 
+
+@pytest.fixture(autouse=True)
+def _sem_api_paga(monkeypatch):
+    """Teste nunca chega a API paga com credencial real (o .env local tem as chaves)."""
+    for nome in ("API_BIG_DATA_CORP", "API_BIG_DATA_CORP_TOKEN_ID", "COSMOS_TOKEN"):
+        monkeypatch.delenv(nome, raising=False)
+
 def random_string(length=10):
     return ''.join(random.choices(string.digits, k=length))
 

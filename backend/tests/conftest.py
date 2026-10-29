@@ -25,14 +25,32 @@ os.environ["FLASK_ENV"] = "simulation" # Bypass CNPJ/CPF strict validation
 os.environ["SKIP_DB_SETUP"] = "true"
 os.environ["SENTRY_DSN"] = ""
 os.environ["SENTRY_ENVIRONMENT"] = "testing"
+# load_dotenv() sobe pastas e, num worktree, acha o .env REAL da raiz do projeto: teste chegou a
+# mandar e-mail pelo Gmail e consultar a BigDataCorp. Valor vazio aqui vence (load_dotenv não
+# sobrescreve variável que já existe), então nenhuma credencial externa entra na suíte.
+for _segredo in ("MAIL_USERNAME", "MAIL_PASSWORD", "EMAIL_APP_PASSWORD", "MAIL_DEFAULT_SENDER",
+                 "API_BIG_DATA_CORP", "API_BIG_DATA_CORP_TOKEN_ID", "COSMOS_TOKEN",
+                 "GROQ_API_KEY", "DEEPSEEK_API", "CLOUDINARY_URL",
+                 "EFI_CLIENT_ID_PROD", "EFI_CLIENT_SECRET_PROD", "EFI_CLIENT_ID_HOMOL", "EFI_CLIENT_SECRET_HOMOL"):
+    os.environ[_segredo] = ""
+os.environ["MAIL_SERVER"] = "smtp.invalid"
 
 from app import create_app, db
 from app.models import Estabelecimento, Funcionario, Configuracao
 
 
+class _SmtpBloqueado:
+    """Nenhum teste abre conexão SMTP de verdade."""
+    def __init__(self, *a, **k):
+        raise ConnectionRefusedError("SMTP bloqueado nos testes")
+
+
 @pytest.fixture(autouse=True)
 def _sem_api_paga(monkeypatch):
-    """Teste nunca chega a API paga com credencial real (o .env local tem as chaves)."""
+    """Teste nunca chega a API paga nem a e-mail real, mesmo que um teste sete credencial."""
+    import smtplib
+    monkeypatch.setattr(smtplib, "SMTP", _SmtpBloqueado)
+    monkeypatch.setattr(smtplib, "SMTP_SSL", _SmtpBloqueado)
     for nome in ("API_BIG_DATA_CORP", "API_BIG_DATA_CORP_TOKEN_ID", "COSMOS_TOKEN"):
         monkeypatch.delenv(nome, raising=False)
 

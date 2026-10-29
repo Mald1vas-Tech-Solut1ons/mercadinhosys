@@ -172,3 +172,17 @@ backend/tmp?*
 
 # Vínculo local da Vercel CLI (project/org id): nunca versionar
 .vercel/
+
+# ==================== RUIDO DO WINDOWS/EXPLORER (nunca versionar) =============
+**/desktop.ini
+* (1).*
+* (2).*
+* (1)
+* (2)
+backend/pip-build-tracker-*/
+backend/pip-ephem-wheel-cache-*/
+backend/pip-install-*/
+backend/app/tests/
+output/
+.claude/worktrees/
+.continue/mcpServers/

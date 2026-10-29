@@ -206,6 +206,8 @@ def _novo(client, ctx, **campos):
     corpo = {"nome": "Perfume Floral 100ml", "categoria": "Perfumaria", "preco_custo": 40,
              "preco_venda": 89.9, "familia_produto": "perfumaria_higiene", "ncm": "33030010"}
     corpo.update(campos)
+    corpo.setdefault("entrar_sem_estoque", True)  # guardião: estoque 0 só com exceção consciente
+    corpo.setdefault("entrar_sem_estoque", True)  # guardião: estoque 0 só com exceção consciente
     return client.post("/api/produtos/", headers=ctx["headers"], json=corpo)
 
 

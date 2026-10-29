@@ -73,8 +73,10 @@ def registrar_conta():
         # A senha é obrigatória: o envio de credenciais por e-mail não existe de fato, então uma
         # senha gerada pelo sistema nunca chegaria ao dono e a conta ficaria inacessível.
         senha_escolhida = (data.get("senha") or "").strip()
-        if len(senha_escolhida) < 6:
-            return jsonify({"success": False, "error": "Defina uma senha com ao menos 6 caracteres."}), 400
+        from app.services.acesso_conta_service import validar_forca_senha
+        erro_senha = validar_forca_senha(senha_escolhida)
+        if erro_senha:
+            return jsonify({"success": False, "error": erro_senha}), 400
         senha_temporaria = senha_escolhida
         senha_foi_gerada = False
 

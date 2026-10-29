@@ -105,10 +105,26 @@ def receber_sincronia():
         logger.error(f"💥 Erro fatal no recebimento: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# Tabelas cuja escrita pelo receptor da sincronia é escalonamento de privilégio:
+# funcionarios (role/is_super_admin/senha/pin_cancelamento), estabelecimentos
+# (plano/status) e configuracoes (politica_acoes etc.) definem PERMISSÕES.
+# Sincronia de operação só trafega em dados de negócio.
+TABELAS_SENSIVEIS_SYNC = {"estabelecimentos", "funcionarios", "configuracoes", "saas_metrics", "auditoria", "login_history"}
+
+# Colunas que definem credencial/autoridade em qualquer tabela mapeada.
+COLUNAS_CREDENCIAIS_SYNC = {"senha", "pin_cancelamento", "role", "is_super_admin", "permissoes", "permissoes_json", "is_admin"}
+
+
 def _process_sync_data(data: Dict[str, Any], session) -> bool:
     """Upsert atômico de dados sincronizados no destino correto"""
     try:
         tabela = data["tabela"]
+
+        # Guarda de escalonamento: o receptor nunca define permissões/credenciais.
+        if str(tabela).lower() in TABELAS_SENSIVEIS_SYNC:
+            logger.warning(f"🚫 Sincronia bloqueada: tabela sensível '{tabela}' não é escrita via /sync/receive")
+            return False
+
         operacao = str(data["operacao"]).upper()
         payload = data.get("payload")
         if payload is None and data.get("payload_json"):
@@ -145,7 +161,7 @@ def _process_sync_data(data: Dict[str, Any], session) -> bool:
             if registro:
                 # UPDATE
                 for key, value in payload.items():
-                    if key in columns and key != 'id':
+                    if key in columns and key != 'id' and key not in COLUNAS_CREDENCIAIS_SYNC:
                         # Tratar datas
                         if (key.endswith("_at") or "data_" in key) and isinstance(value, str):
                             try:
@@ -160,7 +176,7 @@ def _process_sync_data(data: Dict[str, Any], session) -> bool:
                 novo_registro = model_class()
                 setattr(novo_registro, 'id', registro_id)
                 for key, value in payload.items():
-                    if key in columns and key != 'id':
+                    if key in columns and key != 'id' and key not in COLUNAS_CREDENCIAIS_SYNC:
                          # Tratar datas
                         if (key.endswith("_at") or "data_" in key) and isinstance(value, str):
                             try:

@@ -40,7 +40,7 @@ export default function MasterCatalogPage() {
     const [categoria, setCategoria] = useState('');
     const [fonte, setFonte] = useState('');
     const [segmentoOrigem, setSegmentoOrigem] = useState('');
-    const [consumo, setConsumo] = useState<{consultas:number;limite:number;restantes:number;encontrados:number;configurado:boolean;mes:string}|null>(null);
+    const [consumo, setConsumo] = useState<{servico:string;consultas:number;limite:number;restantes:number;encontrados:number;configurado:boolean;mes:string}[]>([]);
 
     const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
@@ -74,7 +74,7 @@ export default function MasterCatalogPage() {
         (async () => {
             try {
                 const { data } = await apiClient.get('/super-admin/consumo-apis');
-                if (ativo) setConsumo(data?.data?.[0] ?? null);
+                if (ativo) setConsumo(Array.isArray(data?.data) ? data.data : []);
             } catch (err) {
                 console.warn('Erro ao carregar consumo BigDataCorp', err);
             }
@@ -82,8 +82,7 @@ export default function MasterCatalogPage() {
         return () => { ativo = false; };
     }, []);
 
-    const pctConsumo = consumo && consumo.limite > 0 ? Math.min(100, (consumo.consultas / consumo.limite) * 100) : 0;
-    const corConsumo = pctConsumo >= 100 ? 'bg-red-500' : pctConsumo >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
+    const corDe = (pct: number) => pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
 
     return (
         <div className="p-4 md:p-6 space-y-6">
@@ -98,20 +97,29 @@ export default function MasterCatalogPage() {
                 </button>
             </div>
 
-            {consumo && (
+            {consumo.length > 0 && (
                 <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800">
                     <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-                        Consultas BigDataCorp em {consumo.mes ? consumo.mes.split('-').reverse().join('/') : '—'}
+                        Consultas BigDataCorp em {consumo[0].mes.split('-').reverse().join('/')} (500 grátis por serviço)
                     </h2>
-                    <p className="mt-1 text-2xl font-black text-gray-900 dark:text-white">{consumo.consultas} de {consumo.limite}</p>
-                    <div className="mt-2 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                        <div className={`h-full rounded-full ${corConsumo}`} style={{ width: `${pctConsumo}%` }} />
-                    </div>
-                    {consumo.configurado ? (
-                        <p className="mt-2 text-xs text-slate-500 dark:text-gray-400">{consumo.encontrados} produtos encontrados · {consumo.restantes} grátis restantes</p>
-                    ) : (
-                        <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">Credenciais não configuradas no servidor</p>
+                    {!consumo[0].configurado && (
+                        <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">Credenciais não configuradas no servidor</p>
                     )}
+                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                        {consumo.map(c => {
+                            const pct = c.limite > 0 ? Math.min(100, (c.consultas / c.limite) * 100) : 0;
+                            return (
+                                <div key={c.servico}>
+                                    <p className="text-xs text-slate-500 dark:text-gray-400">{c.servico}</p>
+                                    <p className="text-lg font-black text-gray-900 dark:text-white">{c.consultas} de {c.limite}</p>
+                                    <div className="mt-1 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                                        <div className={`h-full rounded-full ${corDe(pct)}`} style={{ width: `${pct}%` }} />
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">{c.encontrados} encontrados · {c.restantes} restantes</p>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
 

@@ -460,9 +460,9 @@ def catalogo_mestre():
 @super_admin_dashboard_bp.route("/consumo-apis", methods=["GET"])
 @super_admin_required
 def consumo_apis():
-    """Consumo do mês das APIs pagas (hoje: BigDataCorp, franquia de 500 consultas grátis)."""
+    """Consumo do mês das APIs pagas: BigDataCorp, um serviço por linha, 500 consultas grátis cada."""
     from app.services.bigdatacorp_service import consumo_do_mes
-    return jsonify({"success": True, "data": [consumo_do_mes()]})
+    return jsonify({"success": True, "data": consumo_do_mes()})
 
 
 @super_admin_dashboard_bp.route("/logs-acesso", methods=["GET"])

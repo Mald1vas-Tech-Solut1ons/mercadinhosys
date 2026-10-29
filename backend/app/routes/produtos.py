@@ -619,6 +619,102 @@ def _buscar_open_facts(ean: str):
     return None, todas_responderam
 
 
+def _casar_opcao(campo: dict, valor):
+    """Valor bruto da base -> opção válida do campo (select/multiselect); None se não casar."""
+    from app.services.bigdatacorp_service import _chave
+    opcoes = campo.get("opcoes") or []
+    valores = valor if isinstance(valor, list) else [v for v in str(valor).replace(";", "/").split("/")]
+    escolhidas = []
+    for bruto in valores:
+        alvo = _chave(bruto)
+        if not alvo:
+            continue
+        if campo.get("chave") == "voltagem_eletro":
+            opcao = ("Bivolt" if ("BIVOLT" in alvo or ("127" in alvo and "220" in alvo))
+                     else "220V" if "220" in alvo else "110V" if ("127" in alvo or "110" in alvo) else None)
+        elif not opcoes:  # multiselect livre (ex.: numeração do calçado)
+            opcao = str(bruto).strip()
+        else:
+            opcao = next((o for o in opcoes if _chave(o) == alvo), None) or next(
+                (o for o in opcoes if _chave(o) in alvo or alvo in _chave(o)), None)
+        if opcao and opcao not in escolhidas:
+            escolhidas.append(opcao)
+    if campo.get("tipo") == "multiselect":
+        return escolhidas or None
+    return escolhidas[0] if escolhidas else None
+
+
+def _familia_por_ia(item, mix: list):
+    """3ª camada: a IA classifica o produto, mas só pode responder uma família do mix da loja."""
+    from app.services.view_schema_service import FAMILIAS_PRODUTO
+    opcoes = {k: FAMILIAS_PRODUTO[k]["nome"] for k in mix if k in FAMILIAS_PRODUTO and k != "servico"}
+    if len(opcoes) < 2 or not ia_disponivel():
+        return None
+    lista = "\n".join(f"- {k}: {nome}" for k, nome in opcoes.items())
+    resposta = gerar_texto(
+        "Você classifica produtos de varejo brasileiro. Responda SOMENTE com a chave da família, sem mais nada.",
+        f"Produto: {item.nome or ''}\nMarca: {item.marca or ''}\nTipo/categoria: {item.categoria or ''}\n"
+        f"NCM: {item.ncm or 'não informado'}\nEAN: {item.ean}\n\nFamílias possíveis:\n{lista}\n\nChave da família:",
+        max_tokens=20,
+    )
+    chave = str(resposta or "").strip().strip("`'\".").lower().split()[0] if resposta else ""
+    return chave if chave in opcoes else None
+
+
+def _sugestoes_cadastro(item) -> dict:
+    """Família, categoria, atributos e descrição para o cadastro DESTA loja (mix e categorias dela).
+
+    Calculado a cada consulta a partir do item global (e da ficha bruta da BigDataCorp), então o
+    catálogo serve todas as lojas e cada uma recebe só família e campos que existem no seu cadastro.
+    """
+    import json as _json
+    from app.services import bigdatacorp_service as bdc
+    from app.services.view_schema_service import (mix_permitido_para_estabelecimento, resolver_view_schema,
+                                                  campos_de_atributo, sanitizar_atributos)
+    vazio = {"familia_produto": None, "categoria": item.categoria, "atributos": {}, "descricao": ""}
+    try:
+        estab_id = get_authorized_establishment_id()
+        if not estab_id or str(estab_id).lower() == "all":
+            return vazio
+        estab = db.session.get(Estabelecimento, int(estab_id))
+        resultado = _json.loads(item.payload_bigdatacorp) if item.payload_bigdatacorp else {}
+        mix = mix_permitido_para_estabelecimento(estab)
+        # Camadas: NCM -> palavras do tipo/nome -> IA (restrita ao mix); loja de uma família só já está certa.
+        familia = (bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome], mix)
+                   or (mix[0] if len([m for m in mix if m != "servico"]) == 1 else None)
+                   or _familia_por_ia(item, mix))
+        categorias = [c.nome for c in CategoriaProduto.query.filter_by(estabelecimento_id=estab.id).all() if c.nome]
+        alvo = bdc._chave(item.categoria or "")
+        categoria = next((c for c in categorias if bdc._chave(c) == alvo), None) or next(
+            (c for c in categorias if alvo and (bdc._chave(c) in alvo or alvo in bdc._chave(c))), None)
+        atributos = {}
+        if resultado and familia:
+            schema = resolver_view_schema(estab, familia_produto=familia)
+            campos = campos_de_atributo(schema)
+            brutos = bdc.atributos_candidatos(resultado)
+            candidatos = {}
+            for chave, campo in campos.items():
+                if chave not in brutos:
+                    continue
+                valor = brutos[chave]
+                if campo.get("tipo") in ("select", "multiselect"):
+                    valor = _casar_opcao(campo, valor)
+                if valor not in (None, "", []):
+                    candidatos[chave] = valor
+            atributos = sanitizar_atributos(schema, candidatos)
+        return {"familia_produto": familia, "categoria": categoria or item.categoria, "atributos": atributos,
+                "descricao": bdc.descricao_produto(resultado) if resultado else ""}
+    except Exception as e:
+        current_app.logger.warning(f"Sugestões de cadastro falharam ({item.ean}): {e}")
+        return vazio
+
+
+def _resposta_catalogo(item, source):
+    dados = item.to_dict()
+    dados["sugestoes"] = _sugestoes_cadastro(item)
+    return jsonify({"success": True, "source": source, "data": dados}), 200
+
+
 def _buscar_bigdatacorp(ean: str):
     """BigDataCorp antes das bases abertas, dentro da franquia mensal (contador no banco).
 
@@ -627,7 +723,7 @@ def _buscar_bigdatacorp(ean: str):
     """
     import json as _json
     from app.services import bigdatacorp_service as bdc
-    motivo, resultado = bdc.consultar_ean(ean)
+    motivo, resultado, datasets = bdc.consultar_ean(ean)
     if motivo != "encontrado":
         return None
     campos = bdc.mapear(resultado)
@@ -640,11 +736,20 @@ def _buscar_bigdatacorp(ean: str):
     if campos["nome"] and _pode_sobrescrever(item, _RANK_FONTE["bigdatacorp"]):
         item.nome = campos["nome"]
         item.marca = campos["marca"] or item.marca
+        item.fabricante = campos["fabricante"] or item.fabricante
         item.categoria = campos["categoria"] or item.categoria
         item.ncm = campos["ncm"] or item.ncm
         item.fonte = "bigdatacorp"
         item.status = "encontrado"
-        bdc.registrar_encontrado()
+    # Preço e foto completam o item mesmo quando a ficha veio de fonte melhor.
+    if campos["preco_referencia"]:
+        item.preco_referencia = campos["preco_referencia"]
+    if campos["imagem_url"] and not item.imagem_url:
+        item.imagem_url = campos["imagem_url"]
+    for dataset, achou in (("extra_info_data", campos["nome"]), ("current_pricing_data", campos["preco_referencia"]),
+                           ("images_data", campos["imagem_url"])):
+        if dataset in datasets and achou:
+            bdc.registrar_encontrado(dataset)
     db.session.commit()
     return item if item.status == "encontrado" else None
 
@@ -654,7 +759,7 @@ def _responder_fontes_externas(ean: str):
     try:
         item_bdc = _buscar_bigdatacorp(ean)
         if item_bdc:
-            return jsonify({"success": True, "source": item_bdc.fonte, "data": item_bdc.to_dict()}), 200
+            return _resposta_catalogo(item_bdc, item_bdc.fonte)
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"BigDataCorp erro ao gravar catálogo ({ean}): {e}")
@@ -662,7 +767,7 @@ def _responder_fontes_externas(ean: str):
         item, todas_responderam = _buscar_open_facts(ean)
         if item:
             db.session.commit()
-            return jsonify({"success": True, "source": item.fonte, "data": item.to_dict()}), 200
+            return _resposta_catalogo(item, item.fonte)
         # Ninguém conhece o EAN: cache negativo evita repetir as chamadas externas.
         if todas_responderam:
             _gravar_cache_negativo(ean)
@@ -719,7 +824,7 @@ def catalogo_lookup(ean):
     if not force:
         item = CatalogoMestre.query.filter_by(ean=ean_limpo, status="encontrado").first()
         if item:
-            return jsonify({"success": True, "source": "catalogo", "data": item.to_dict()}), 200
+            return _resposta_catalogo(item, "catalogo")
         # Cache negativo (TTL de CACHE_NEGATIVO_DIAS): EAN que nenhuma fonte conhece não
         # reconsulta BigDataCorp nem bases abertas. Gerente pode forçar com ?force=true.
         negativo = CatalogoMestre.query.filter_by(ean=ean_limpo, status="nao_encontrado").first()

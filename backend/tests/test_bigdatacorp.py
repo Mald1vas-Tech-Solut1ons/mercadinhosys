@@ -1,4 +1,4 @@
-"""BigDataCorp: contador da franquia mensal (500 grátis), nome montado da ficha e gravação no catálogo."""
+"""BigDataCorp: franquia mensal por serviço, mapeamento da ficha/preço/imagem e gravação no catálogo."""
 from datetime import timedelta
 from decimal import Decimal
 
@@ -18,6 +18,14 @@ RESULTADO_OK = {
                                              "UNID CONTEUDO LIQUIDO": "L"}},
         "LojaB": {"UncategorizedExtraInfo": {"MARCA": "Coca-Cola", "VOLUME": "2 L"}},
     }},
+    "CurrentPriceData": {
+        "AggregatedPriceData": {"AverageSalePrice": 12.49},
+        "PriceDataBySource": [{"SiteSourceName": "PaoDeAcucar", "SalePrice": 12.49}],
+    },
+    "ImagesData": {"ImagesPerSource": {"PaoDeAcucar": {"ImagesDetailsHistory": {
+        "06/16/2024 00:00:00": [{"ImageUrl": "https://img.example/velha.png"}],
+        "12/30/2024 00:00:00": [{"ImageUrl": "https://img.example/nova.png"}],
+    }}}},
 }
 
 
@@ -57,7 +65,6 @@ def bdc_env(monkeypatch, session):
     monkeypatch.setenv("API_BIG_DATA_CORP", "tok")
     monkeypatch.setenv("API_BIG_DATA_CORP_TOKEN_ID", "id")
     monkeypatch.setenv("BIGDATACORP_LIMITE_MENSAL", "2")
-    monkeypatch.delenv("COSMOS_TOKEN", raising=False)  # teste nunca sai para a rede
     session.query(ConsumoApiExterna).delete(synchronize_session=False)
     session.query(CatalogoMestre).filter(CatalogoMestre.ean.like("789000000%")).delete(synchronize_session=False)
     session.commit()
@@ -65,8 +72,8 @@ def bdc_env(monkeypatch, session):
 
 def _fake_post(chamadas):
     def fake(*args, **kwargs):
-        chamadas.append(kwargs.get("json"))
-        return _Resp({"Status": {"extra_info_data": [{"Code": 0}]}, "Result": [RESULTADO_OK]})
+        chamadas.append(kwargs["json"])
+        return _Resp({"Status": {d: [{"Code": 0}] for d in bdc.SERVICOS}, "Result": [RESULTADO_OK]})
     return fake
 
 
@@ -80,12 +87,25 @@ def test_mapear_sem_tipo_nem_marca_nao_tem_nome():
     assert bdc.mapear({"ExtraInfoData": {"ExtraInfoPerSource": {}}})["nome"] == ""
 
 
+def test_mapear_traz_preco_e_imagem_mais_recente():
+    mapeado = bdc.mapear(RESULTADO_OK)
+    assert mapeado["preco_referencia"] == 12.49
+    assert mapeado["imagem_url"] == "https://img.example/nova.png"
+
+
 def test_reserva_para_no_limite():
-    assert bdc.reservar_consulta() is True
-    assert bdc.reservar_consulta() is True
-    assert bdc.reservar_consulta() is False
-    consumo = bdc.consumo_do_mes()
-    assert consumo["consultas"] == 2 and consumo["restantes"] == 0
+    assert bdc.reservar_consulta("extra_info_data") is True
+    assert bdc.reservar_consulta("extra_info_data") is True
+    assert bdc.reservar_consulta("extra_info_data") is False
+    item = next(c for c in bdc.consumo_do_mes() if c["provedor"] == "bigdatacorp:extra_info_data")
+    assert item["consultas"] == 2 and item["restantes"] == 0
+
+
+def test_reserva_por_servico_independente():
+    assert bdc.reservar_consulta("extra_info_data") is True
+    assert bdc.reservar_consulta("extra_info_data") is True
+    assert bdc.reservar_consulta("extra_info_data") is False
+    assert bdc.reservar_consulta("images_data") is True
 
 
 def test_sem_credencial_nao_chama_api(monkeypatch):
@@ -95,7 +115,35 @@ def test_sem_credencial_nao_chama_api(monkeypatch):
         raise AssertionError("requests.post não deveria ser chamado")
 
     monkeypatch.setattr(bdc.requests, "post", falhar)
-    assert bdc.consultar_ean("7890000000017") == ("nao_configurado", None)
+    assert bdc.consultar_ean("7890000000017") == ("nao_configurado", None, [])
+
+
+def test_sem_cota_em_um_servico_tira_so_ele_da_chamada(session, monkeypatch):
+    session.add(ConsumoApiExterna(provedor="bigdatacorp:images_data", mes=hoje_local().strftime("%Y-%m"),
+                                  consultas=2, encontrados=0))
+    session.commit()
+    chamadas = []
+    monkeypatch.setattr(bdc.requests, "post", _fake_post(chamadas))
+    motivo, _, datasets = bdc.consultar_ean("7890000000017")
+    assert motivo == "encontrado"
+    assert "images_data" not in datasets
+    assert "images_data" not in chamadas[0]["Datasets"]
+
+
+def test_familia_por_evidencia():
+    assert bdc.familia_por_evidencia(None, ["Refrigerante"], ["alimento", "bebida"]) == "bebida"
+    assert bdc.familia_por_evidencia("85365090", ["Disjuntor"], ["construcao_eletrica", "eletro"]) == "construcao_eletrica"
+    assert bdc.familia_por_evidencia(None, ["Tenis Nike"], ["alimento"]) is None
+
+
+def test_atributos_candidatos_eletro():
+    resultado = {"ExtraInfoData": {"ExtraInfoPerSource": {"LojaA": {"UncategorizedExtraInfo": {
+        "VOLTAGEM": "Bivolt", "POTENCIA": "1.200 W", "GARANTIA": "1 ano", "MODELO": "X100"}}}}}
+    candidatos = bdc.atributos_candidatos(resultado)
+    assert candidatos["potencia_w"] == 1200.0
+    assert candidatos["garantia_meses"] == 12.0
+    assert candidatos["modelo"] == "X100"
+    assert candidatos["voltagem_eletro"] == "Bivolt"
 
 
 def test_lookup_grava_no_catalogo_e_nao_reconsulta(client, session, loja, monkeypatch):
@@ -104,19 +152,25 @@ def test_lookup_grava_no_catalogo_e_nao_reconsulta(client, session, loja, monkey
 
     r1 = client.get("/api/produtos/catalogo/lookup/7890000000017", headers=loja["headers"])
     assert r1.status_code == 200, r1.get_json()
+    dados = r1.get_json()["data"]
     assert r1.get_json()["source"] == "bigdatacorp"
-    assert r1.get_json()["data"]["nome"] == "Refrigerante Coca-Cola Cola Original 2 L"
+    assert dados["nome"] == "Refrigerante Coca-Cola Cola Original 2 L"
+    assert dados["preco_referencia"] == 12.49
+    assert "sugestoes" in dados
     assert chamadas[0]["q"] == "ean{7890000000017}"
     assert CatalogoMestre.query.filter_by(ean="7890000000017").first().payload_bigdatacorp
 
     r2 = client.get("/api/produtos/catalogo/lookup/7890000000017", headers=loja["headers"])
     assert r2.get_json()["source"] == "catalogo"
     assert len(chamadas) == 1
-    assert bdc.consumo_do_mes()["encontrados"] == 1
+    ficha = next(c for c in bdc.consumo_do_mes() if c["servico"] == "Ficha técnica")
+    assert ficha["encontrados"] == 1
 
 
 def test_sem_cota_nao_chama_bigdatacorp(client, session, loja, monkeypatch):
-    session.add(ConsumoApiExterna(provedor="bigdatacorp", mes=hoje_local().strftime("%Y-%m"), consultas=2, encontrados=0))
+    for dataset in bdc.SERVICOS:
+        session.add(ConsumoApiExterna(provedor=f"bigdatacorp:{dataset}", mes=hoje_local().strftime("%Y-%m"),
+                                      consultas=2, encontrados=0))
     session.commit()
     chamadas = []
     monkeypatch.setattr(bdc.requests, "post", _fake_post(chamadas))

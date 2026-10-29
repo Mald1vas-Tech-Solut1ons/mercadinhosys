@@ -41,25 +41,28 @@ export interface CatalogoLookupData {
     categoria: string | null;
     imagem_url: string | null;
     preco_referencia: number | null;
+    fabricante?: string | null;
+    /** Calculado para a loja que consultou: família do mix dela, categoria dela, atributos da família. */
+    sugestoes?: {
+        familia_produto: string | null;
+        categoria: string | null;
+        atributos: Record<string, any>;
+        descricao: string;
+    };
 }
 
 export interface CatalogoLookupResult {
     success: boolean;
-    source?: 'catalogo' | 'cosmos' | 'openfoodfacts' | 'openbeautyfacts' | 'openproductsfacts';
+    source?: 'catalogo' | 'bigdatacorp' | 'openfoodfacts' | 'openbeautyfacts' | 'openproductsfacts';
     code?: 'ean_invalido' | 'nao_encontrado' | 'interno' | 'quota' | 'token' | 'conexao' | 'api' | 'erro_interno';
     message?: string;
     data?: CatalogoLookupData;
 }
 
 export const cosmosService = {
-    async buscarPorGtin(gtin: string): Promise<CosmosProductData> {
-        const response = await apiClient.get<CosmosProductData>(`/produtos/cosmos/${gtin}`);
-        return response.data;
-    },
-
     /**
-     * Lookup inteligente por EAN: tenta o catálogo local (sem quota) e, no miss,
-     * o Cosmos (gravando no catálogo). Não lança em falha de negócio — retorna
+     * Lookup inteligente por EAN: tenta o catálogo local (sem franquia) e, no miss,
+     * BigDataCorp e bases abertas (gravando no catálogo). Não lança em falha de negócio — retorna
      * o objeto com success/code/message para a UI exibir a causa real.
      */
     async lookup(ean: string, force: boolean = false): Promise<CatalogoLookupResult> {

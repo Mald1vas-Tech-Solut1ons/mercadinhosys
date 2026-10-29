@@ -400,7 +400,10 @@ def create_app(config_name=None):
         if os.getenv("VERCEL_URL"):
             cors_origins = [f"https://{os.getenv('VERCEL_URL')}", "https://mercadinhosys.vercel.app"]
         else:
-            cors_origins = ["*"] # Desenvolvimento ou fallback absoluto
+            # Desenvolvimento: origem explícita do dev server. NUNCA ["*"] com
+            # supports_credentials=True — o flask-cors 6.x ecoa a origem do pedido
+            # (refletida) e entrega um CORS credenciado aberto a qualquer site.
+            cors_origins = ["http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:5173"]
     
     CORS(app, resources={r"/api/*": {
         "origins": cors_origins,

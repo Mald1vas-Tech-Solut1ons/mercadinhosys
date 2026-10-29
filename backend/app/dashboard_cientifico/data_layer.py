@@ -1362,15 +1362,39 @@ class DataLayer:
             # Obter total de dias justificados (aprovados) por funcionário
             from app.models import JustificativaPonto
             
+            # Faltas só valem para quem está sob controle de ponto: dono/admin (nível 1) não bate
+            # ponto e loja que nunca usou o ponto não tem falta. A contagem vai do mais tardio entre
+            # o 1º dia do mês, a admissão e o 1º ponto da loja até ONTEM (hoje ainda dá para chegar),
+            # e só abate justificativas aprovadas do próprio mês.
+            from app.decorators.rbac import nivel_do_role
+            from app.utils.timezone import hoje_local
+            ontem_loja = hoje_local() - timedelta(days=1)
+            inicio_mes_loja = hoje_local().replace(day=1)
+            primeiro_ponto_query = db.session.query(func.min(RegistroPonto.data))
+            if str(estabelecimento_id).lower() != 'all':
+                primeiro_ponto_query = primeiro_ponto_query.filter(RegistroPonto.estabelecimento_id == estabelecimento_id)
+            primeiro_ponto_loja = primeiro_ponto_query.scalar()
+            if isinstance(primeiro_ponto_loja, datetime):
+                primeiro_ponto_loja = primeiro_ponto_loja.date()
+
             justificativas_aprov_query = db.session.query(
-                JustificativaPonto.funcionario_id,
-                func.count(func.distinct(func.date(JustificativaPonto.data))).label('dias')
-            ).filter(JustificativaPonto.status == 'aprovado')
-            
+                JustificativaPonto.funcionario_id, JustificativaPonto.data
+            ).filter(JustificativaPonto.status == 'aprovado', JustificativaPonto.data >= inicio_mes_loja)
             if str(estabelecimento_id).lower() != 'all':
                 justificativas_aprov_query = justificativas_aprov_query.filter(JustificativaPonto.estabelecimento_id == estabelecimento_id)
-                
-            justificativas_aprovadas = {r.funcionario_id: int(r.dias or 0) for r in justificativas_aprov_query.group_by(JustificativaPonto.funcionario_id).all()}
+            dias_justificados_por_id = {}
+            for fid, dia in justificativas_aprov_query.all():
+                dias_justificados_por_id.setdefault(fid, set()).add(dia.date() if isinstance(dia, datetime) else dia)
+
+            def _faltas_do_mes(f):
+                if primeiro_ponto_loja is None or f.is_super_admin or nivel_do_role(f.role) == 1:
+                    return 0
+                admissao = f.data_admissao.date() if isinstance(f.data_admissao, datetime) else f.data_admissao
+                inicio = max(d for d in (inicio_mes_loja, primeiro_ponto_loja, admissao) if d)
+                presentes = dias_entrada_func_dates.get(f.id, set())
+                justificados = dias_justificados_por_id.get(f.id, set())
+                dias = (inicio + timedelta(days=n) for n in range((ontem_loja - inicio).days + 1))
+                return sum(1 for d in dias if d.weekday() != 6 and d not in presentes and d not in justificados)
 
             atrasos_por_funcionario_mes = []
             horas_extras_por_funcionario_mes = []
@@ -1384,17 +1408,14 @@ class DataLayer:
                 beneficios_total = float(beneficios_por_func_id.get(f.id, 0))
                 dias_presenca = int(dias_com_entrada_mes_por_id.get(f.id, 0))
                 
-                # Descontar dias justificados do cálculo de faltas
-                dias_justificados = justificativas_aprovadas.get(f.id, 0)
-                faltas_calculadas = dias_uteis_mes - dias_presenca
-                faltas = max(0, faltas_calculadas - dias_justificados)
-                
+                faltas = _faltas_do_mes(f)
+
                 banco = banco_horas_por_id.get(f.id, {"saldo_minutos": 0, "valor_hora_extra": 0.0, "horas_trabalhadas_minutos": 0, "horas_esperadas_minutos": 0})
 
                 custo_extras_func = round((extras_min / 60) * valor_hora_medio * 1.5, 2)
-                
-                # Desconto de faltas no holerite
-                valor_diario = float(f.salario_base or 0) / dias_uteis_mes if dias_uteis_mes > 0 else 0
+
+                # Desconto de faltas no holerite: dia = salário / 30 (CLT)
+                valor_diario = float(f.salario_base or 0) / 30
                 desconto_faltas = faltas * valor_diario
                 
                 total_estimado = float(f.salario_base or 0) + beneficios_total + custo_extras_func - desconto_faltas
@@ -1890,13 +1911,21 @@ class DataLayer:
                 # ── MovimentacaoCaixa do PDV (sangrias e suprimentos) ─────────
                 try:
                     from app.models import MovimentacaoCaixa
+                    # Recebimento de fiado é gravado como suprimento, mas é dinheiro que ENTRA na
+                    # empresa; sangria e suprimento comuns só movem dinheiro entre gaveta e cofre.
+                    eh_receb_fiado = and_(MovimentacaoCaixa.tipo == 'suprimento',
+                                          MovimentacaoCaixa.descricao.ilike('Receb. Fiado%'))
                     q_mov_stats = db.session.query(
                         func.coalesce(
                             func.sum(case((MovimentacaoCaixa.tipo == 'sangria', MovimentacaoCaixa.valor), else_=0)), 0
                         ).label('sangrias'),
                         func.coalesce(
-                            func.sum(case((MovimentacaoCaixa.tipo == 'suprimento', MovimentacaoCaixa.valor), else_=0)), 0
+                            func.sum(case((and_(MovimentacaoCaixa.tipo == 'suprimento', ~eh_receb_fiado),
+                                           MovimentacaoCaixa.valor), else_=0)), 0
                         ).label('suprimentos'),
+                        func.coalesce(
+                            func.sum(case((eh_receb_fiado, MovimentacaoCaixa.valor), else_=0)), 0
+                        ).label('recebimentos_fiado'),
                     ).filter(
                         MovimentacaoCaixa.created_at >= start_dt,
                         MovimentacaoCaixa.created_at <= end_dt,
@@ -1906,10 +1935,11 @@ class DataLayer:
                     result["caixa_pdv"] = {
                         "sangrias": float(mov_stats.sangrias or 0),
                         "suprimentos": float(mov_stats.suprimentos or 0),
+                        "recebimentos_fiado": float(mov_stats.recebimentos_fiado or 0),
                     }
                 except Exception as e_mov:
                     logger.warning(f"Erro ao ler MovimentacaoCaixa: {e_mov}")
-                    result["caixa_pdv"] = {"sangrias": 0.0, "suprimentos": 0.0}
+                    result["caixa_pdv"] = {"sangrias": 0.0, "suprimentos": 0.0, "recebimentos_fiado": 0.0}
 
             except Exception as e:
                 logger.error(f"Erro processando VENDAS em get_consolidated_financial_summary: {e}")

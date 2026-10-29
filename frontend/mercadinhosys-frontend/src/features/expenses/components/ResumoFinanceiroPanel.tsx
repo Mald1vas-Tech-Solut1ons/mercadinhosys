@@ -249,21 +249,30 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                   <div className="p-2 bg-emerald-500 text-white dark:text-white rounded-xl">
                     <TrendingUp className="w-5 h-5" />
                   </div>
-                  <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">Cashflow Realizado</span>
+                  <span className="text-[10px] font-black text-slate-300 dark:text-slate-600 uppercase tracking-widest">Dinheiro que entrou e saiu</span>
                 </div>
                 <div className={`text-4xl font-black mb-2 leading-none tracking-tighter ${fluxoPositivo ? 'text-emerald-400 dark:text-emerald-600' : 'text-rose-400 dark:text-rose-600'}`}>
                   {fluxoPositivo ? '+' : ''}{formatCurrency(fluxo.saldo)}
                 </div>
-                <div className="flex items-center gap-4 mt-6">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                    <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />
-                    <span className="text-[10px] font-black text-emerald-400 dark:text-emerald-600 uppercase tracking-tighter">Entradas</span>
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                  <div className="px-3 py-2 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
+                    <span className="flex items-center gap-1 text-[10px] font-black text-emerald-400 dark:text-emerald-600 uppercase tracking-tighter">
+                      <ArrowUpRight className="w-3.5 h-3.5" /> Entradas
+                    </span>
+                    <p className="text-sm font-bold text-white dark:text-slate-900 tabular-nums">{formatCurrency(fluxo.entradas)}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">vendas recebidas + fiado pago</p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 rounded-full border border-rose-500/20">
-                    <ArrowDownRight className="w-3.5 h-3.5 text-rose-400 dark:text-rose-600" />
-                    <span className="text-[10px] font-black text-rose-400 dark:text-rose-600 uppercase tracking-tighter">Saídas</span>
+                  <div className="px-3 py-2 bg-rose-500/10 rounded-2xl border border-rose-500/20">
+                    <span className="flex items-center gap-1 text-[10px] font-black text-rose-400 dark:text-rose-600 uppercase tracking-tighter">
+                      <ArrowDownRight className="w-3.5 h-3.5" /> Saídas
+                    </span>
+                    <p className="text-sm font-bold text-white dark:text-slate-900 tabular-nums">{formatCurrency(fluxo.saidas)}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">boletos e despesas pagos</p>
                   </div>
                 </div>
+                <p className="mt-3 text-[10px] text-slate-400 dark:text-slate-500">
+                  Sangria e suprimento só movem dinheiro entre gaveta e cofre: não contam aqui.
+                </p>
               </div>
             </div>
 

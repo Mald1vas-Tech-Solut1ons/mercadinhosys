@@ -144,8 +144,8 @@ def calcular_espelho_ponto(funcionario, data_inicio, data_fim, config=None):
                 entrada = _fmt_hora(r.hora)
                 minutos_atraso += r.minutos_atraso or 0
             elif r.tipo_registro == "saida_almoco":
+                # Sair tarde para o almoço não é atraso (marcações antigas gravavam assim).
                 intervalo_inicio = _fmt_hora(r.hora)
-                minutos_atraso += r.minutos_atraso or 0
             elif r.tipo_registro == "retorno_almoco":
                 intervalo_fim = _fmt_hora(r.hora)
                 minutos_atraso += r.minutos_atraso or 0

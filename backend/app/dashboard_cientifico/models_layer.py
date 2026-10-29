@@ -504,6 +504,14 @@ class PracticalModels:
                     continue
                 observed[parsed] = value
 
+            # Dias antes da primeira venda não são "venda zero": a loja ainda não usava o sistema.
+            # A série chega completada com zeros (90 dias) e a reta lia a estreia como crescimento
+            # (R$ 4,8 mil em 7 dias viravam R$ 63 mil previstos em 30).
+            com_venda = [d for d, v in observed.items() if v > 0]
+            if com_venda:
+                estreia = min(com_venda)
+                observed = {d: v for d, v in observed.items() if d >= estreia}
+
             n_total = len(observed)
             if n_total == 0:
                 return PracticalModels._unavailable_forecast(

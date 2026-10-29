@@ -4,11 +4,14 @@ import { QRCodeSVG } from 'qrcode.react';
 import { pdvService, ComprovanteVendaResponse } from '../pdvService';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import { printHtml } from '../../../utils/printHtml';
+import { useConfig } from '../../../contexts/ConfigContext';
 
 interface CupomFiscalModalProps {
     aberto: boolean;
     vendaId: number | null;
     onFechar: () => void;
+    /** Configuração "Impressão automática": manda para a impressora assim que o cupom carrega. */
+    imprimirAoCarregar?: boolean;
 }
 
 const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
@@ -22,7 +25,7 @@ const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
 const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar }) => {
+const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false }) => {
     const [dados, setDados] = useState<ComprovanteVendaResponse | null>(null);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
@@ -41,6 +44,20 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
 
     useBodyScrollLock(aberto);
 
+    // Largura do papel vem de Configurações → Tipo de impressora (antes era 80 mm fixo).
+    const { config } = useConfig();
+    const papel = config?.tipo_impressora === 'termica_58mm' ? '58mm'
+        : config?.tipo_impressora === 'a4' ? '190mm' : '80mm';
+
+    const impressoRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (!imprimirAoCarregar || !dados || !vendaId || impressoRef.current === vendaId) return;
+        impressoRef.current = vendaId;
+        const t = setTimeout(() => handleImprimir(), 0);  // depois do cupom renderizar
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [imprimirAoCarregar, dados, vendaId]);
+
     const handleImprimir = () => {
         if (!cupomRef.current) return;
         const conteudo = cupomRef.current.innerHTML;
@@ -57,12 +74,12 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
       font-size: 12px;
       color: #111;
       background: #fff;
-      width: 80mm;
-      max-width: 80mm;
+      width: ${papel};
+      max-width: ${papel};
       padding: 4mm;
     }
     @media print {
-      body { width: 80mm; padding: 2mm; }
+      body { width: ${papel}; padding: 2mm; }
       .no-print { display: none !important; }
     }
     ${CUPOM_CSS}

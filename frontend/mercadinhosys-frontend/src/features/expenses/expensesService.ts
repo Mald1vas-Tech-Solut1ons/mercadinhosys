@@ -136,6 +136,7 @@ export interface ResumoFinanceiro {
     caixa_pdv?: {
         sangrias: number;
         suprimentos: number;
+        recebimentos_fiado?: number;
     };
     alertas: AlertaFinanceiro[];
     total_alertas: number;

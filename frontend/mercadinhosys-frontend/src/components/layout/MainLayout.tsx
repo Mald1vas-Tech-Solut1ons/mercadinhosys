@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { RefreshCw } from 'lucide-react';
 import Sidebar from './Sidebar';
 import HeaderProfessional from './HeaderProfessional';
@@ -44,6 +44,7 @@ const MainLayout: React.FC = () => {
         () => window.location.reload(),
     );
     const prontoParaSoltar = distance >= threshold;
+    const emPdv = useLocation().pathname.startsWith('/pdv');
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -76,8 +77,8 @@ const MainLayout: React.FC = () => {
                     )}
                     <Outlet />
                 </main>
-                {/* Desktop Footer (Hidden on mobile to avoid clutter) */}
-                <div className="hidden md:block">
+                {/* Desktop Footer (Hidden on mobile to avoid clutter; no PDV o caixa precisa da altura toda) */}
+                <div className={emPdv ? 'hidden' : 'hidden md:block'}>
                     <FootPage />
                 </div>
             </div>

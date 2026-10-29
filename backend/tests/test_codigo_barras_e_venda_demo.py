@@ -140,14 +140,15 @@ def test_loja_que_permite_vende_sem_estoque_e_cancelamento_nao_cria_fantasma(cli
     r = _vender(client, ctx, produto, quantidade=3)
     assert r.status_code == 201, r.get_json()
     session.expire_all()
-    assert session.get(Produto, produto.id).quantidade == Decimal("0")  # piso: nunca negativo
+    # Saldo negativo: 2 vendidos antes de a nota entrar (com piso 0, a nota criaria estoque fantasma)
+    assert session.get(Produto, produto.id).quantidade == Decimal("-2")
 
     venda_id = r.get_json()["venda"]["id"]
     r = client.post(f"/api/vendas/{venda_id}/cancelar", headers=ctx["headers"],
                     json={"motivo": "Teste", "senha_admin": "industrial-secret"})
     assert r.status_code == 200, r.get_json()
     session.expire_all()
-    # Devolve só o 1 que saiu de fato, não os 3 vendidos
+    # Cancelamento devolve os 3 vendidos: volta ao saldo de antes da venda
     assert session.get(Produto, produto.id).quantidade == Decimal("1")
 
 
@@ -168,3 +169,14 @@ def test_ip_do_cliente_vem_do_proxy_e_nao_do_caddy(app, client):
     finally:
         request_started.disconnect(capturar, app)
     assert vistos == ["200.100.50.25"]
+
+
+def test_nota_lancada_depois_da_venda_sem_estoque_nao_cria_fantasma(client, session, ctx):
+    _permitir_sem_estoque(session, ctx["estab"].id, True)
+    produto = _produto(session, ctx, "Chegou antes da nota", quantidade=0)
+    assert _vender(client, ctx, produto, quantidade=5).status_code == 201
+    r = client.post(f"/api/produtos/{produto.id}/estoque", headers=ctx["headers"],
+                    json={"tipo": "entrada", "quantidade": 12, "motivo": "Entrada NF", "custo_unitario": 1})
+    assert r.status_code == 200, r.get_json()
+    session.expire_all()
+    assert session.get(Produto, produto.id).quantidade == Decimal("7")  # 12 recebidos - 5 já vendidos

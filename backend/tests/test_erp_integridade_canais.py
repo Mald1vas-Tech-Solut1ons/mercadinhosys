@@ -349,3 +349,16 @@ def test_compra_fracionada_nao_trunca(client, session, ctx):
     item = _get(session, PedidoCompraItem, item_id)
     assert item.quantidade_solicitada == Decimal("2.500")
     assert _get(session, PedidoCompra, pedido_id).total == Decimal("15.00")
+
+
+def test_descarte_manual_de_vencido_baixa_o_lote_e_libera_o_lote_bom(client, session, ctx):
+    session.add(ProdutoLote(estabelecimento_id=ctx["estab"].id, produto_id=ctx["prod"].id, numero_lote="L-VENC-D",
+                            quantidade=4, quantidade_inicial=4, data_entrada=date.today() - timedelta(days=90),
+                            data_validade=date.today() - timedelta(days=1), preco_custo_unitario=4, ativo=True))
+    _get(session, Produto, ctx["prod"].id).quantidade = Decimal("14")
+    session.commit()
+    r = client.post(f"/api/produtos/{ctx['prod'].id}/estoque", headers=ctx["headers"],
+                    json={"tipo": "saida", "quantidade": 4, "motivo": "Descarte - vencido"})
+    assert r.status_code == 200, r.get_json()
+    assert session.query(ProdutoLote).filter_by(numero_lote="L-VENC-D").one().quantidade == 0
+    assert _pdv(client, ctx, 10).status_code == 201  # as 10 boas continuam vendáveis

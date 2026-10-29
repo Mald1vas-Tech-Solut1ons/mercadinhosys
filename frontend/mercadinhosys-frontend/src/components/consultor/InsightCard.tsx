@@ -37,6 +37,8 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
   const [insights, setInsights] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  // Servidor sem chave de IA: o card não aparece (antes ocupava o topo do painel só para dizer isso).
+  const [iaIndisponivel, setIaIndisponivel] = useState<boolean>(false);
 
   if (planoGratis) {
     return null;
@@ -62,7 +64,8 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
            setError(response.error);
         }
       } else if (response.aviso) {
-         setError(response.aviso);
+         if (/não configurada/i.test(response.aviso)) setIaIndisponivel(true);
+         else setError(response.aviso);
       }
     } catch (err) {
       setError('Falha ao carregar insights.');
@@ -94,6 +97,10 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
   };
 
   const Icon = iconMap[especialista] || Sparkles;
+
+  if (iaIndisponivel) {
+    return null;
+  }
 
   return (
     <motion.div 

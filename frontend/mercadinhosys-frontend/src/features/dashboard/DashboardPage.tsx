@@ -82,7 +82,7 @@ export default function DashboardPageV2() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-2 tour-indicadores">
-            Intelligence Hub <span className="text-blue-500">•</span>
+            Painel do Negócio <span className="text-blue-500">•</span>
           </h1>
           <p className="text-gray-500 dark:text-slate-400 mt-1">Resumo estratégico do período selecionado</p>
         </div>
@@ -134,7 +134,7 @@ export default function DashboardPageV2() {
         </div>
       </div>
 
-      <InsightCard especialista="geral" titulo="Consultor M-IA - Inteligência do Negócio" className="mb-6 tour-ia-consultor" />
+      <InsightCard especialista="geral" titulo="Consultor M-IA" className="mb-6 tour-ia-consultor" />
 
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
           (snap + sangria até as bordas) para nunca cortar/embaralhar os rótulos. */}
@@ -179,7 +179,7 @@ export default function DashboardPageV2() {
              </h3>
              <p className="text-gray-500 dark:text-slate-400 mt-2">
                {erroDados === 'plano'
-                 ? 'O Intelligence Hub completo faz parte do plano Pro. Fale com a gente para liberar.'
+                 ? 'O Painel do Negócio completo faz parte do plano Pro. Fale com a gente para liberar.'
                  : erroDados === 'assinatura'
                    ? 'Regularize a assinatura em Configurações para voltar a ver os indicadores.'
                    : 'Não foi possível obter as estatísticas do servidor.'}

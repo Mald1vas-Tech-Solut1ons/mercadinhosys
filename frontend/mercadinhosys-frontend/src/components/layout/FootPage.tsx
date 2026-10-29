@@ -7,16 +7,11 @@ const FootPage: React.FC = () => {
     return (
         <>
             <footer className="w-full border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-1 sm:gap-3">
-                        <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-200 font-medium">
-                            MaldivaSky Tech Solutions - Sistema ERP -
-                        </div>
-                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                            © {year} • Todos os direitos reservados
-                        </div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs">
+                    <div className="min-w-0 truncate text-gray-600 dark:text-gray-300">
+                        © {year} MaldivaSky Tech Solutions
                     </div>
-                    <div className="flex items-center gap-3 text-xs sm:text-sm">
+                    <div className="flex items-center gap-3 whitespace-nowrap">
                         <a 
                             href="https://wa.me/5511919889233" 
                             target="_blank" 

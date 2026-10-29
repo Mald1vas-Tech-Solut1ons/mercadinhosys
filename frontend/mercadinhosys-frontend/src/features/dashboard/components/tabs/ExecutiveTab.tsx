@@ -108,7 +108,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
               <TrendingUp className="w-5 h-5 text-blue-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter whitespace-nowrap tabular-nums">
             {formatCurrency(faturamento)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm">
@@ -137,13 +137,13 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
               <Target className="w-5 h-5 text-emerald-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter whitespace-nowrap tabular-nums">
             {formatCurrency(lucroLiquido)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm">
-             <span className="text-gray-500 dark:text-slate-400">Margem Liquida: </span>
+             <span className="text-gray-500 dark:text-slate-400">Margem líquida: </span>
              <span className={`font-bold ${margemLiquida >= 10 ? 'text-emerald-400' : margemLiquida > 0 ? 'text-amber-400' : 'text-red-400'}`}>
-               {margemLiquida.toFixed(1)}%
+               {margemLiquida.toFixed(1).replace('.', ',')}%
              </span>
           </div>
         </div>
@@ -156,18 +156,18 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
               Ticket Médio
               <Info className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help" />
               <div className="invisible group-hover/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
-                Valor médio que cada cliente gasta em uma única compra. Um ticket maior significa compras mais volumosas.
+                Faturamento dividido pelo número de vendas: quanto, em média, cada venda deixa no caixa.
               </div>
             </h3>
             <div className="p-2 bg-purple-500/20 rounded-lg">
               <Shield className="w-5 h-5 text-purple-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter whitespace-nowrap tabular-nums">
             {formatCurrency(ticketMedio)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm text-gray-500 dark:text-slate-400">
-             <span className="text-gray-500 dark:text-slate-400">Gasto médio por cliente</span>
+             <span className="text-gray-500 dark:text-slate-400">Valor médio por venda</span>
           </div>
         </div>
         
@@ -186,7 +186,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
               <AlertTriangle className="w-5 h-5 text-orange-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter wrap-break-word">
+          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter whitespace-nowrap tabular-nums">
             {formatCurrency(data?.receivables?.total_recebivel || 0)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm mb-3">
@@ -274,7 +274,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
             <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
               <BarChart3 className="w-5 h-5" />
             </div>
-            <h3 className="text-gray-600 dark:text-slate-300 font-bold">Impacto Financeiro da IA por Ação</h3>
+            <h3 className="text-gray-600 dark:text-slate-300 font-bold">Quanto cada alerta vale em R$</h3>
           </div>
           <div className="h-[280px] w-full">
             {radarData.length > 0 ? (
@@ -311,7 +311,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
                <Brain className="w-6 h-6 text-blue-400" />
              </div>
              <div>
-               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Briefing de Inteligência</h2>
+               <h2 className="text-lg font-bold text-gray-900 dark:text-white">O que fazer hoje</h2>
                <p className="text-sm text-gray-500 dark:text-slate-400">O que você precisa saber hoje sobre seu negócio</p>
              </div>
            </div>

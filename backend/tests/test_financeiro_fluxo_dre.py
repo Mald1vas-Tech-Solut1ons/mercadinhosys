@@ -127,3 +127,20 @@ def test_aliquota_de_impostos_validada_na_configuracao(client, session, fin):
     assert limpa.status_code == 200
     session.expire_all()
     assert session.query(Configuracao).filter_by(estabelecimento_id=fin["estab"].id).one().aliquota_impostos_venda is None
+
+
+def test_fluxo_real_ignora_transferencia_entre_gaveta_e_cofre(client, session):
+    from flask_jwt_extended import create_access_token
+    from app.models import Caixa, Estabelecimento, Funcionario
+    estab = session.query(Estabelecimento).first()
+    admin = session.query(Funcionario).filter_by(estabelecimento_id=estab.id).first()
+    session.add(Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="FX-1",
+                      saldo_inicial=0, saldo_atual=0, status="aberto"))
+    session.commit()
+    h = {"Authorization": "Bearer " + create_access_token(
+        identity=str(admin.id), additional_claims={"estabelecimento_id": estab.id, "role": "admin"})}
+    for tipo, valor in (("suprimento", 400), ("sangria", 300)):
+        assert client.post("/api/caixas/movimentacao", headers=h, json={
+            "tipo": tipo, "valor": valor, "forma_pagamento": "dinheiro", "descricao": "cofre"}).status_code in (200, 201)
+    fluxo = client.get("/api/despesas/resumo-financeiro/", headers=h).get_json()["fluxo_caixa_real"]
+    assert (fluxo["entradas"], fluxo["saidas"]) == (0, 0)

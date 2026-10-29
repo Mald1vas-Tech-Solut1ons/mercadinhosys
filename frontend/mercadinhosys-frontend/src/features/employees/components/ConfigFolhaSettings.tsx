@@ -87,7 +87,6 @@ export default function ConfigFolhaSettings() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <NumField label="Divisor horas/mês" value={cfg.divisor_horas_mensais} suffix="h" disabled={!podeEditar} onChange={v => set({ divisor_horas_mensais: Math.round(v) })} />
                     <NumField label="Hora extra" value={cfg.percentual_hora_extra} suffix="%" disabled={!podeEditar} onChange={v => set({ percentual_hora_extra: v })} />
-                    <NumField label="Adicional noturno" value={cfg.percentual_adicional_noturno} suffix="%" disabled={!podeEditar} onChange={v => set({ percentual_adicional_noturno: v })} />
                     <NumField label="Desconto VT" value={cfg.desconto_vt_percentual} suffix="%" disabled={!podeEditar} onChange={v => set({ desconto_vt_percentual: v })} />
                     <NumField label="FGTS" value={cfg.fgts_percentual} suffix="%" disabled={!podeEditar} onChange={v => set({ fgts_percentual: v })} />
                     <NumField label="Multa FGTS (dispensa)" value={cfg.multa_fgts_dispensa} suffix="%" disabled={!podeEditar} onChange={v => set({ multa_fgts_dispensa: v })} />

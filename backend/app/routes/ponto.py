@@ -85,6 +85,61 @@ def _agora_brasil():
     return datetime.now(timezone.utc).astimezone(TZ_BRASILIA).replace(tzinfo=None)
 
 
+# Diferença tolerada entre o relógio do aparelho e o do servidor antes de anotar a marcação.
+TOLERANCIA_RELOGIO_APARELHO_MIN = 5
+
+
+def _agora_loja(funcionario):
+    """Hora oficial do ponto: relógio do SERVIDOR no fuso da loja (pelo estado).
+
+    A hora do aparelho não vale como marcação: com ela, qualquer funcionário batia ponto
+    retroativo (outro dia, outro horário) e fabricava hora extra paga no holerite.
+    """
+    from app.utils.timezone import fuso_da_uf
+    estab = db.session.get(Estabelecimento, funcionario.estabelecimento_id)
+    fuso = fuso_da_uf(estab.estado if estab else None)
+    return datetime.now(timezone.utc).astimezone(fuso).replace(tzinfo=None)
+
+
+def _divergencia_do_aparelho(payload, agora_oficial):
+    """Minutos entre o relógio do aparelho e o oficial, quando passam da tolerância; senão None."""
+    if not (payload.get('data_local') and payload.get('hora_local')) and not payload.get('timestamp_local'):
+        return None
+    aparelho = _resolver_datahora_local(payload)
+    minutos = (aparelho - agora_oficial).total_seconds() / 60
+    return (round(minutos), aparelho) if abs(minutos) > TOLERANCIA_RELOGIO_APARELHO_MIN else None
+
+
+def _observacao_com_divergencia(observacao, divergencia):
+    """Anota na marcação que o relógio do aparelho não batia com o oficial (rastro para o gerente)."""
+    if not divergencia:
+        return observacao
+    minutos, aparelho = divergencia
+    nota = f"[Relógio do aparelho divergia {minutos:+d} min: {aparelho.strftime('%d/%m %H:%M')}]"
+    return f"{observacao} {nota}".strip() if observacao else nota
+
+
+def _erro_ordem_ponto(tipo, marcados, entrada_aberta_ontem=False):
+    """Marcação fora de ordem no dia (saída sem entrada, retorno sem saída para o almoço...)."""
+    if tipo == 'saida_almoco':
+        if 'entrada' not in marcados:
+            return 'Registre a entrada antes da saída para o almoço.'
+        if 'saida' in marcados:
+            return 'O expediente de hoje já foi encerrado.'
+    elif tipo == 'retorno_almoco':
+        if 'saida_almoco' not in marcados:
+            return 'Registre a saída para o almoço antes do retorno.'
+        if 'saida' in marcados:
+            return 'O expediente de hoje já foi encerrado.'
+    elif tipo == 'saida':
+        # Turno que vira a meia-noite: a entrada ficou no dia anterior.
+        if 'entrada' not in marcados and not entrada_aberta_ontem:
+            return 'Registre a entrada antes da saída.'
+        if 'saida_almoco' in marcados and 'retorno_almoco' not in marcados:
+            return 'Registre o retorno do almoço antes da saída.'
+    return None
+
+
 def _resolver_datahora_local(payload):
     """Resolve a data/hora do registro priorizando o relógio LOCAL do dispositivo (multi-fuso).
 
@@ -222,24 +277,15 @@ def registrar_ponto():
         data = request.get_json()
         tipo_registro = data.get('tipo_registro')
         
-        # DEBUG: Log completo do que foi recebido
-        logger.info(f"🔍 RECEBIDO NA API PONTO:")
-        logger.info(f"   Funcionário: {funcionario.id} - {funcionario.nome}")
-        logger.info(f"   Tipo: {tipo_registro}")
-        logger.info(f"   Tem foto: {bool(data.get('foto'))}")
-        if data.get('foto'):
-            foto_str = data.get('foto')
-            logger.info(f"   Tamanho foto: {len(foto_str)} caracteres")
-            logger.info(f"   Começa com: {foto_str[:80]}")
-        logger.info(f"   Latitude: {data.get('latitude')}")
-        logger.info(f"   Longitude: {data.get('longitude')}")
-        
+        # Sem coordenadas nem trecho da foto no log (dado pessoal do funcionário, LGPD).
+        logger.info(f"Ponto recebido: funcionário {funcionario.id}, tipo {tipo_registro}, "
+                    f"foto={bool(data.get('foto'))}, gps={bool(data.get('latitude') and data.get('longitude'))}")
+
         if tipo_registro not in ['entrada', 'saida_almoco', 'retorno_almoco', 'saida']:
             return jsonify({'success': False, 'message': 'Tipo de registro inválido'}), 400
 
-        # Data/hora do registro: usar o relógio LOCAL do dispositivo (multi-fuso).
-        # Sem isso, o servidor (UTC) gravaria a hora adiantada.
-        agora_local = _resolver_datahora_local(data)
+        agora_local = _agora_loja(funcionario)
+        divergencia = _divergencia_do_aparelho(data, agora_local)
         hoje = agora_local.date()
 
         # Verificar se já existe registro do mesmo tipo hoje
@@ -254,7 +300,17 @@ def registrar_ponto():
                 'success': False,
                 'message': f'Você já registrou {tipo_registro.replace("_", " ")} hoje às {registro_existente.hora.strftime("%H:%M")}'
             }), 400
-        
+
+        marcados = {r.tipo_registro for r in RegistroPonto.query.filter_by(funcionario_id=funcionario.id, data=hoje).all()}
+        entrada_aberta_ontem = False
+        if tipo_registro == 'saida' and 'entrada' not in marcados:
+            ontem = {r.tipo_registro for r in RegistroPonto.query.filter_by(
+                funcionario_id=funcionario.id, data=hoje - timedelta(days=1)).all()}
+            entrada_aberta_ontem = 'entrada' in ontem and 'saida' not in ontem
+        erro_ordem = _erro_ordem_ponto(tipo_registro, marcados, entrada_aberta_ontem)
+        if erro_ordem:
+            return jsonify({'success': False, 'code': 'ORDEM_PONTO', 'message': erro_ordem}), 400
+
         # Obter configuração de horário
         config = obter_configuracao_com_cache(funcionario.estabelecimento_id)
         
@@ -288,7 +344,7 @@ def registrar_ponto():
                         'message': f'Você está a {int(distancia or 0)} m da loja. O ponto só pode ser batido a até {raio} m.'
                     }), 400
         
-        # Hora atual (relógio local do dispositivo — resolvido acima)
+        # Hora oficial (servidor, fuso da loja — resolvido acima)
         hora_atual = agora_local.time()
         
         # Calcular atraso
@@ -300,13 +356,19 @@ def registrar_ponto():
                 minutos_atraso = calcular_minutos_atraso(
                     hora_atual, config.hora_entrada, config.tolerancia_entrada
                 )
-            elif tipo_registro == 'saida_almoco':
-                minutos_atraso = calcular_minutos_atraso(
-                    hora_atual, config.hora_saida_almoco, config.tolerancia_saida_almoco
-                )
+            # Sair para o almoço depois do horário é trabalhar mais, não atraso.
             elif tipo_registro == 'retorno_almoco':
+                # O atraso do retorno é medido pela DURAÇÃO do intervalo previsto a partir da
+                # saída real: quem saiu 12:40 com 1 h de almoço tem de voltar às 13:40, não às 13:00.
+                saida_almoco = RegistroPonto.query.filter_by(
+                    funcionario_id=funcionario.id, data=hoje, tipo_registro='saida_almoco').first()
+                retorno_previsto = config.hora_retorno_almoco
+                if saida_almoco and saida_almoco.hora:
+                    intervalo = (datetime.combine(hoje, config.hora_retorno_almoco)
+                                 - datetime.combine(hoje, config.hora_saida_almoco))
+                    retorno_previsto = (datetime.combine(hoje, saida_almoco.hora) + intervalo).time()
                 minutos_atraso = calcular_minutos_atraso(
-                    hora_atual, config.hora_retorno_almoco, config.tolerancia_retorno_almoco
+                    hora_atual, retorno_previsto, config.tolerancia_retorno_almoco
                 )
             elif tipo_registro == 'saida':
                 # Para saída, não há atraso (pode sair mais tarde)
@@ -335,7 +397,7 @@ def registrar_ponto():
             foto_url=foto_url,
             dispositivo=data.get('dispositivo'),
             ip_address=request.remote_addr,
-            observacao=data.get('observacao'),
+            observacao=_observacao_com_divergencia(data.get('observacao'), divergencia),
             status=status,
             minutos_atraso=minutos_atraso
         )
@@ -377,7 +439,7 @@ def pontos_hoje():
         if not funcionario:
             return jsonify({'success': False, 'message': 'Funcionário não encontrado'}), 404
         
-        hoje = _agora_brasil().date()
+        hoje = _agora_loja(funcionario).date()
         registros = RegistroPonto.query.filter_by(
             funcionario_id=funcionario.id,
             data=hoje

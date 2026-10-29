@@ -881,17 +881,24 @@ const SettingsPage: React.FC = () => {
                             <div className="space-y-4">
                                 <SwitchField
                                     label="Impressão Automática"
-                                    description="Imprimir cupom automaticamente ao finalizar venda"
+                                    description="Ao concluir a venda, o cupom vai direto para a impressora (sem perguntar)"
                                     checked={config.impressao_automatica}
                                     onChange={(val: boolean) => setConfig({ ...config, impressao_automatica: val })}
                                 />
 
-                                <SwitchField
-                                    label="Exibir Preço na Tela"
-                                    description="Mostrar preço unitário grande na tela de venda"
-                                    checked={config.exibir_preco_tela}
-                                    onChange={(val: boolean) => setConfig({ ...config, exibir_preco_tela: val })}
-                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Papel da impressora de cupom</label>
+                                    <select
+                                        value={config.tipo_impressora || 'termica_80mm'}
+                                        onChange={(e) => setConfig({ ...config, tipo_impressora: e.target.value as typeof config.tipo_impressora })}
+                                        className="w-full md:w-80 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
+                                    >
+                                        <option value="termica_80mm">Térmica 80 mm (mais comum)</option>
+                                        <option value="termica_58mm">Térmica 58 mm (bobina estreita)</option>
+                                        <option value="a4">Folha A4</option>
+                                    </select>
+                                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Define a largura do cupom impresso.</p>
+                                </div>
 
                                 <SwitchField
                                     label="Mostrar Foto do Produto no PDV"
@@ -906,13 +913,6 @@ const SettingsPage: React.FC = () => {
                                     checked={config.permitir_venda_sem_estoque}
                                     onChange={(val: boolean) => setConfig({ ...config, permitir_venda_sem_estoque: val })}
                                 />
-
-                                <SwitchField
-                                    label="Arredondamento de Valores"
-                                    description="Arredondar centavos automaticamente no total"
-                                    checked={config.arredondamento_valores}
-                                    onChange={(val: boolean) => setConfig({ ...config, arredondamento_valores: val })}
-                                />
                             </div>
 
                             <SectionTitle title="Notas Fiscais" icon={Printer} />
@@ -922,12 +922,6 @@ const SettingsPage: React.FC = () => {
                                     description="Habilitar emissão de Nota Fiscal de Consumidor Eletrônica"
                                     checked={config.emitir_nfce}
                                     onChange={(val: boolean) => setConfig({ ...config, emitir_nfce: val })}
-                                />
-                                <SwitchField
-                                    label="Emitir NF-e"
-                                    description="Habilitar emissão de Nota Fiscal Eletrônica (Grande porte)"
-                                    checked={config.emitir_nfe}
-                                    onChange={(val: boolean) => setConfig({ ...config, emitir_nfe: val })}
                                 />
                             </div>
 

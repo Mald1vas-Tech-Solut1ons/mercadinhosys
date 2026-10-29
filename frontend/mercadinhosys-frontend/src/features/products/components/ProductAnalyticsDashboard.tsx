@@ -851,6 +851,12 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
                                             }`}>
                                             {produto.quantidade} un
                                         </span>
+                                        {Number(produto.quantidade) < 0 && (
+                                            <p className="mt-1 text-[11px] text-red-600 dark:text-red-400"
+                                               title="Vendido antes de a nota de compra ser lançada">
+                                                Falta lançar a entrada
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             ))

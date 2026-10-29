@@ -7,7 +7,9 @@ Uma chamada pede até três serviços, cada um com a própria franquia de 500 co
   - images_data           (Imagens):       foto mais recente
 
 O contador fica no banco (ConsumoApiExterna, um provedor por serviço) e a vaga é reservada
-ANTES da chamada; serviço com franquia esgotada sai da chamada e os outros continuam.
+ANTES da chamada; serviço com franquia esgotada ou pausado sai da chamada e os outros continuam.
+Limite e liga/desliga por serviço ficam em ConfigApiExterna, editáveis no painel do super admin
+(acima de 500 a BigDataCorp cobra no boleto do mês: liberar é decisão consciente do super admin).
 
 Credenciais só do ambiente: API_BIG_DATA_CORP (AccessToken, JWT do BDC Center) e
 API_BIG_DATA_CORP_TOKEN_ID (o "Token Id" da mesma linha no BDC Center, não é o jti do JWT).
@@ -35,11 +37,52 @@ def _provedor(dataset: str) -> str:
     return f"bigdatacorp:{dataset}"
 
 
-def limite_mensal() -> int:
+FRANQUIA_GRATIS = 500
+PRECO_EXCEDENTE = 0.06  # R$ por consulta acima da franquia (tabela pública, faixa 1-10.000)
+
+
+def limite_mensal(dataset: str = None) -> int:
+    """Limite do serviço: o que o super admin gravou no painel; sem isso, o do ambiente (padrão 500)."""
+    if dataset:
+        from app.models import ConfigApiExterna
+        config = ConfigApiExterna.query.filter_by(provedor=_provedor(dataset)).first()
+        if config is not None:
+            return max(0, int(config.limite_mensal or 0))
     try:
-        return max(0, int(os.environ.get("BIGDATACORP_LIMITE_MENSAL", "500")))
+        return max(0, int(os.environ.get("BIGDATACORP_LIMITE_MENSAL", str(FRANQUIA_GRATIS))))
     except ValueError:
-        return 500
+        return FRANQUIA_GRATIS
+
+
+def servico_ativo(dataset: str) -> bool:
+    from app.models import ConfigApiExterna
+    config = ConfigApiExterna.query.filter_by(provedor=_provedor(dataset)).first()
+    return True if config is None else bool(config.ativo)
+
+
+def configurar_servico(dataset: str, limite_mensal_novo=None, ativo=None, usuario_id=None):
+    """Grava limite e/ou liga-desliga do serviço (painel do super admin)."""
+    from app.models import ConfigApiExterna
+    if dataset not in SERVICOS:
+        raise ValueError("Serviço desconhecido")
+    config = ConfigApiExterna.query.filter_by(provedor=_provedor(dataset)).first()
+    if config is None:
+        config = ConfigApiExterna(provedor=_provedor(dataset), limite_mensal=limite_mensal(), ativo=True)
+        db.session.add(config)
+    if limite_mensal_novo is not None:
+        valor = int(limite_mensal_novo)
+        if not 0 <= valor <= 100000:
+            raise ValueError("Limite deve ficar entre 0 e 100.000 consultas por mês")
+        config.limite_mensal = valor
+    if ativo is not None:
+        config.ativo = bool(ativo)
+    config.atualizado_por = usuario_id
+    return config
+
+
+def custo_estimado(consultas: int) -> float:
+    """Valor que entra no boleto do mês: só o que passa da franquia grátis."""
+    return round(max(0, consultas - FRANQUIA_GRATIS) * PRECO_EXCEDENTE, 2)
 
 
 def configurado() -> bool:
@@ -52,23 +95,40 @@ def _mes_atual() -> str:
 
 
 def consumo_do_mes() -> list:
-    """Uma linha por serviço: consultas, encontrados e quanto resta da franquia."""
-    mes, limite = _mes_atual(), limite_mensal()
+    """Uma linha por serviço: consultas, encontrados, limite, se está ligado e o custo do excedente."""
+    mes = _mes_atual()
     linhas = {l.provedor: l for l in ConsumoApiExterna.query.filter(
         ConsumoApiExterna.mes == mes, ConsumoApiExterna.provedor.in_([_provedor(d) for d in SERVICOS])).all()}
     saida = []
     for dataset, nome in SERVICOS.items():
         linha = linhas.get(_provedor(dataset))
         usadas = linha.consultas if linha else 0
-        saida.append({"provedor": _provedor(dataset), "servico": nome, "mes": mes, "consultas": usadas,
-                      "encontrados": linha.encontrados if linha else 0, "limite": limite,
-                      "restantes": max(0, limite - usadas), "configurado": configurado()})
+        limite = limite_mensal(dataset)
+        saida.append({"dataset": dataset, "provedor": _provedor(dataset), "servico": nome, "mes": mes,
+                      "consultas": usadas, "encontrados": linha.encontrados if linha else 0,
+                      "limite": limite, "restantes": max(0, limite - usadas), "ativo": servico_ativo(dataset),
+                      "franquia_gratis": FRANQUIA_GRATIS, "custo_estimado": custo_estimado(usadas),
+                      "custo_maximo_no_limite": custo_estimado(limite), "configurado": configurado()})
     return saida
+
+
+def historico(meses: int = 6) -> list:
+    """Consumo dos últimos meses por serviço, mais recente primeiro."""
+    linhas = (ConsumoApiExterna.query.filter(ConsumoApiExterna.provedor.in_([_provedor(d) for d in SERVICOS]))
+              .order_by(ConsumoApiExterna.mes.desc()).all())
+    por_mes = {}
+    for l in linhas:
+        dataset = l.provedor.split(":", 1)[1]
+        por_mes.setdefault(l.mes, {})[dataset] = {"consultas": l.consultas, "encontrados": l.encontrados,
+                                                  "custo_estimado": custo_estimado(l.consultas)}
+    return [{"mes": m, "servicos": por_mes[m]} for m in sorted(por_mes, reverse=True)[:max(1, meses)]]
 
 
 def reservar_consulta(dataset: str) -> bool:
     """Reserva 1 consulta do serviço no mês, com trava de linha; False quando a franquia acabou."""
-    provedor, mes, limite = _provedor(dataset), _mes_atual(), limite_mensal()
+    if not servico_ativo(dataset):  # pausado no painel do super admin
+        return False
+    provedor, mes, limite = _provedor(dataset), _mes_atual(), limite_mensal(dataset)
     for _ in range(2):
         linha = (ConsumoApiExterna.query.filter_by(provedor=provedor, mes=mes)
                  .with_for_update().first())

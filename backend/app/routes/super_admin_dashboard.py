@@ -460,9 +460,45 @@ def catalogo_mestre():
 @super_admin_dashboard_bp.route("/consumo-apis", methods=["GET"])
 @super_admin_required
 def consumo_apis():
-    """Consumo do mês das APIs pagas: BigDataCorp, um serviço por linha, 500 consultas grátis cada."""
-    from app.services.bigdatacorp_service import consumo_do_mes
-    return jsonify({"success": True, "data": consumo_do_mes()})
+    """Consumo do mês das APIs pagas (BigDataCorp, um serviço por linha) e histórico dos últimos meses."""
+    from app.services import bigdatacorp_service as bdc
+    meses = min(max(request.args.get("meses", 6, type=int), 1), 24)
+    return jsonify({"success": True, "data": bdc.consumo_do_mes(), "historico": bdc.historico(meses),
+                    "preco_excedente": bdc.PRECO_EXCEDENTE, "franquia_gratis": bdc.FRANQUIA_GRATIS})
+
+
+@super_admin_dashboard_bp.route("/consumo-apis/<dataset>", methods=["PUT"])
+@super_admin_required
+def configurar_consumo_api(dataset):
+    """Pausa/retoma o serviço e muda o limite do mês. Acima de 500 a BigDataCorp cobra no boleto:
+    exige confirmar_cobranca=true para o super admin não liberar por engano."""
+    from app.services import bigdatacorp_service as bdc
+    data = request.get_json(silent=True) or {}
+    limite = data.get("limite_mensal")
+    ativo = data.get("ativo")
+    if limite is None and ativo is None:
+        return jsonify({"success": False, "error": "Informe limite_mensal e/ou ativo"}), 400
+    try:
+        if limite is not None and int(limite) > bdc.FRANQUIA_GRATIS and not data.get("confirmar_cobranca"):
+            excedente = int(limite) - bdc.FRANQUIA_GRATIS
+            return jsonify({"success": False, "code": "confirmar_cobranca",
+                            "error": f"Liberar {excedente} consultas acima da franquia pode custar até "
+                                     f"R$ {bdc.custo_estimado(int(limite)):.2f} no boleto. Confirme para salvar."}), 409
+        usuario_id = int(get_jwt_identity())
+        config = bdc.configurar_servico(dataset, limite_mensal_novo=limite, ativo=ativo, usuario_id=usuario_id)
+        usuario = db.session.get(Funcionario, usuario_id)
+        Auditoria.registrar(
+            estabelecimento_id=usuario.estabelecimento_id if usuario else None,
+            tipo_evento="consumo_api_configurado",
+            descricao=(f"BigDataCorp {bdc.SERVICOS[dataset]}: limite {config.limite_mensal}/mês, "
+                       f"{'ligado' if config.ativo else 'pausado'}"),
+            usuario_id=usuario_id,
+        )
+        db.session.commit()
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+    return jsonify({"success": True, "data": bdc.consumo_do_mes()})
 
 
 @super_admin_dashboard_bp.route("/logs-acesso", methods=["GET"])

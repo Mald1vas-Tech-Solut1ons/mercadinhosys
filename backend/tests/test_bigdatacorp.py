@@ -65,6 +65,8 @@ def bdc_env(monkeypatch, session):
     monkeypatch.setenv("API_BIG_DATA_CORP", "tok")
     monkeypatch.setenv("API_BIG_DATA_CORP_TOKEN_ID", "id")
     monkeypatch.setenv("BIGDATACORP_LIMITE_MENSAL", "2")
+    from app.models import ConfigApiExterna
+    session.query(ConfigApiExterna).delete(synchronize_session=False)
     session.query(ConsumoApiExterna).delete(synchronize_session=False)
     session.query(CatalogoMestre).filter(CatalogoMestre.ean.like("789000000%")).delete(synchronize_session=False)
     session.commit()
@@ -179,3 +181,70 @@ def test_sem_cota_nao_chama_bigdatacorp(client, session, loja, monkeypatch):
     resposta = client.get("/api/produtos/catalogo/lookup/7890000000024", headers=loja["headers"])
     assert resposta.status_code == 404
     assert chamadas == []
+
+
+# ───────────── painel do super admin: pausa, limite, custo e histórico ─────────────
+
+def test_servico_pausado_nao_reserva(session):
+    bdc.configurar_servico("images_data", ativo=False)
+    session.commit()
+    assert bdc.reservar_consulta("images_data") is False
+    assert bdc.reservar_consulta("extra_info_data") is True
+
+
+def test_limite_do_painel_vence_o_ambiente(session):
+    bdc.configurar_servico("extra_info_data", limite_mensal_novo=3)
+    session.commit()
+    assert bdc.limite_mensal("extra_info_data") == 3
+    assert [bdc.reservar_consulta("extra_info_data") for _ in range(4)] == [True, True, True, False]
+
+
+def test_configuracao_invalida():
+    with pytest.raises(ValueError):
+        bdc.configurar_servico("xyz")
+    with pytest.raises(ValueError):
+        bdc.configurar_servico("extra_info_data", limite_mensal_novo=-1)
+
+
+def test_custo_estimado():
+    assert bdc.custo_estimado(500) == 0
+    assert bdc.custo_estimado(600) == 6.0
+
+
+def test_historico_traz_meses(session):
+    mes_atual = hoje_local().strftime("%Y-%m")
+    session.add_all([
+        ConsumoApiExterna(provedor="bigdatacorp:extra_info_data", mes="2026-09", consultas=520, encontrados=400),
+        ConsumoApiExterna(provedor="bigdatacorp:extra_info_data", mes=mes_atual, consultas=10, encontrados=5),
+    ])
+    session.commit()
+    h = bdc.historico(6)
+    assert h[0]["mes"] == mes_atual
+    setembro = next(item for item in h if item["mes"] == "2026-09")
+    assert setembro["servicos"]["extra_info_data"]["custo_estimado"] == 1.2
+
+
+def test_painel_exige_super_admin(client, session, loja):
+    loja["admin"].is_super_admin = False
+    session.commit()
+    assert client.get("/api/super-admin/consumo-apis", headers=loja["headers"]).status_code == 403
+
+
+def test_liberar_acima_da_franquia_exige_confirmacao(client, session, loja):
+    from app.models import ConfigApiExterna
+    loja["admin"].is_super_admin = True
+    session.commit()
+    try:
+        url = "/api/super-admin/consumo-apis/extra_info_data"
+        r = client.put(url, json={"limite_mensal": 600}, headers=loja["headers"])
+        assert r.status_code == 409 and r.get_json()["code"] == "confirmar_cobranca"
+        r = client.put(url, json={"limite_mensal": 600, "confirmar_cobranca": True}, headers=loja["headers"])
+        assert r.status_code == 200
+        assert bdc.limite_mensal("extra_info_data") == 600
+        r = client.put(url, json={"ativo": False}, headers=loja["headers"])
+        assert r.status_code == 200
+        assert bdc.reservar_consulta("extra_info_data") is False
+    finally:
+        loja["admin"].is_super_admin = False
+        session.query(ConfigApiExterna).delete(synchronize_session=False)
+        session.commit()

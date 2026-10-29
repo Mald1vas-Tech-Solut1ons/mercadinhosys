@@ -1,4 +1,4 @@
-"""BigDataCorp: contador mensal de consultas (consumo_api_externa) e resposta bruta no catálogo.
+"""BigDataCorp: contador mensal (consumo_api_externa), limite por serviço (config_api_externa) e resposta bruta no catálogo.
 
 Migração expansiva e idempotente: tabela nova e coluna nula; a versão anterior ignora as duas.
 """
@@ -24,6 +24,16 @@ def upgrade():
             sa.Column('updated_at', sa.DateTime(), nullable=True),
             sa.UniqueConstraint('provedor', 'mes', name='uq_consumo_api_provedor_mes'),
         )
+    if 'config_api_externa' not in insp.get_table_names():
+        op.create_table(
+            'config_api_externa',
+            sa.Column('id', sa.Integer(), primary_key=True),
+            sa.Column('provedor', sa.String(60), nullable=False, unique=True),
+            sa.Column('limite_mensal', sa.Integer(), nullable=False, server_default='500'),
+            sa.Column('ativo', sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column('atualizado_por', sa.Integer(), nullable=True),
+            sa.Column('updated_at', sa.DateTime(), nullable=True),
+        )
     existentes = {c['name'] for c in insp.get_columns('catalogo_mestre')}
     if 'payload_bigdatacorp' not in existentes:
         with op.batch_alter_table('catalogo_mestre') as lote:
@@ -36,5 +46,6 @@ def downgrade():
     if 'payload_bigdatacorp' in existentes:
         with op.batch_alter_table('catalogo_mestre') as lote:
             lote.drop_column('payload_bigdatacorp')
-    if 'consumo_api_externa' in insp.get_table_names():
-        op.drop_table('consumo_api_externa')
+    for tabela in ('config_api_externa', 'consumo_api_externa'):
+        if tabela in insp.get_table_names():
+            op.drop_table(tabela)

@@ -1579,6 +1579,21 @@ class ConsumoApiExterna(db.Model):
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     __table_args__ = (db.UniqueConstraint("provedor", "mes", name="uq_consumo_api_provedor_mes"),)
 
+
+class ConfigApiExterna(db.Model):
+    """Limite mensal e liga/desliga de cada serviço pago, editável pelo super admin.
+
+    Sem linha = franquia grátis do contrato (500) e serviço ligado. Limite acima da franquia
+    é cobrado pela BigDataCorp no boleto do mês: só o super admin libera, conscientemente.
+    """
+    __tablename__ = "config_api_externa"
+    id = db.Column(db.Integer, primary_key=True)
+    provedor = db.Column(db.String(60), nullable=False, unique=True)
+    limite_mensal = db.Column(db.Integer, nullable=False, default=500)
+    ativo = db.Column(db.Boolean, nullable=False, default=True)
+    atualizado_por = db.Column(db.Integer, nullable=True)  # funcionarios.id do super admin
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+
 class ViewRegistry(db.Model):
     """
     Registro GLOBAL do Motor de Renderização Contextual (nível Sistema da cascata

@@ -36,11 +36,6 @@ export const productsService = {
         return response.data.descricao;
     },
 
-    quickAdd: async (data: Partial<Produto>): Promise<Produto> => {
-        const response = await apiClient.post<{ success: boolean; produto: Produto }>('/produtos/quick-add', data);
-        return response.data.produto;
-    },
-
     // ==================== CRUD COMPLETO ESTOQUE ====================
     getAllEstoque: async (pagina = 1, porPagina = 25, filtros?: ProdutoFiltros): Promise<ProdutosResponse> => {
         const params: any = {
@@ -185,20 +180,6 @@ export const productsService = {
         return response.data;
     },
 
-    getRelatorioEstoque: async (
-        pagina = 1,
-        porPagina = 50,
-        filtros?: { categoria?: string; estoque_status?: string; ativos?: boolean }
-    ): Promise<any> => {
-        const params: any = { pagina, por_pagina: porPagina };
-        if (filtros) {
-            if (filtros.categoria) params.categoria = filtros.categoria;
-            if (filtros.estoque_status) params.estoque_status = filtros.estoque_status;
-            if (filtros.ativos !== undefined) params.ativos = filtros.ativos;
-        }
-        const response = await apiClient.get<any>('/produtos/relatorio/estoque', { params });
-        return response.data;
-    },
 
     async getProductSalesHistory(id: number, dias: number = 90): Promise<any> {
         try {

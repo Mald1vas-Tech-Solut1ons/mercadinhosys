@@ -40,6 +40,7 @@ export default function MasterCatalogPage() {
     const [categoria, setCategoria] = useState('');
     const [fonte, setFonte] = useState('');
     const [segmentoOrigem, setSegmentoOrigem] = useState('');
+    const [consumo, setConsumo] = useState<{consultas:number;limite:number;restantes:number;encontrados:number;configurado:boolean;mes:string}|null>(null);
 
     const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
@@ -68,6 +69,22 @@ export default function MasterCatalogPage() {
 
     useEffect(() => { carregar(1); }, [carregar]);
 
+    useEffect(() => {
+        let ativo = true;
+        (async () => {
+            try {
+                const { data } = await apiClient.get('/super-admin/consumo-apis');
+                if (ativo) setConsumo(data?.data?.[0] ?? null);
+            } catch (err) {
+                console.warn('Erro ao carregar consumo BigDataCorp', err);
+            }
+        })();
+        return () => { ativo = false; };
+    }, []);
+
+    const pctConsumo = consumo && consumo.limite > 0 ? Math.min(100, (consumo.consultas / consumo.limite) * 100) : 0;
+    const corConsumo = pctConsumo >= 100 ? 'bg-red-500' : pctConsumo >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
+
     return (
         <div className="p-4 md:p-6 space-y-6">
             <div className="flex items-center gap-3">
@@ -80,6 +97,23 @@ export default function MasterCatalogPage() {
                     <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                 </button>
             </div>
+
+            {consumo && (
+                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800">
+                    <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
+                        Consultas BigDataCorp em {consumo.mes ? consumo.mes.split('-').reverse().join('/') : '—'}
+                    </h2>
+                    <p className="mt-1 text-2xl font-black text-gray-900 dark:text-white">{consumo.consultas} de {consumo.limite}</p>
+                    <div className="mt-2 h-2 w-full rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                        <div className={`h-full rounded-full ${corConsumo}`} style={{ width: `${pctConsumo}%` }} />
+                    </div>
+                    {consumo.configurado ? (
+                        <p className="mt-2 text-xs text-slate-500 dark:text-gray-400">{consumo.encontrados} produtos encontrados · {consumo.restantes} grátis restantes</p>
+                    ) : (
+                        <p className="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">Credenciais não configuradas no servidor</p>
+                    )}
+                </div>
+            )}
 
             <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">

@@ -457,6 +457,14 @@ def catalogo_mestre():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@super_admin_dashboard_bp.route("/consumo-apis", methods=["GET"])
+@super_admin_required
+def consumo_apis():
+    """Consumo do mês das APIs pagas (hoje: BigDataCorp, franquia de 500 consultas grátis)."""
+    from app.services.bigdatacorp_service import consumo_do_mes
+    return jsonify({"success": True, "data": [consumo_do_mes()]})
+
+
 @super_admin_dashboard_bp.route("/logs-acesso", methods=["GET"])
 @super_admin_required
 def logs_acesso():

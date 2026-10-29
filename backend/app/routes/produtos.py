@@ -518,7 +518,8 @@ def _cosmos_token():
 # Uma consulta só pode sobrescrever item de fonte igual ou pior: base aberta (editável por
 # qualquer pessoa) nunca troca um item que veio do Cosmos ou foi curado manualmente.
 _RANK_FONTE_ABERTA = 1
-_RANK_FONTE = {"openfoodfacts": 1, "openbeautyfacts": 1, "openproductsfacts": 1, "tenant": 1, "cosmos": 2}
+_RANK_FONTE = {"openfoodfacts": 1, "openbeautyfacts": 1, "openproductsfacts": 1, "tenant": 1, "cosmos": 2,
+               "bigdatacorp": 2}
 CACHE_NEGATIVO_DIAS = 7
 
 
@@ -694,8 +695,45 @@ def _buscar_open_facts(ean: str):
     return None, todas_responderam
 
 
+def _buscar_bigdatacorp(ean: str):
+    """BigDataCorp antes das bases abertas, dentro da franquia mensal (contador no banco).
+
+    Toda resposta encontrada fica guardada em payload_bigdatacorp (catálogo próprio cresce e o
+    EAN não é reconsultado); só vira o item do catálogo se trouxer nome e não houver fonte melhor.
+    """
+    import json as _json
+    from app.services import bigdatacorp_service as bdc
+    motivo, resultado = bdc.consultar_ean(ean)
+    if motivo != "encontrado":
+        return None
+    campos = bdc.mapear(resultado)
+    item = CatalogoMestre.query.filter_by(ean=ean).first()
+    if not item:
+        item = CatalogoMestre(ean=ean, status="nao_encontrado")
+        db.session.add(item)
+    item.payload_bigdatacorp = _json.dumps(resultado, ensure_ascii=False)[:60000]
+    item.consultado_em = now_utc()
+    if campos["nome"] and _pode_sobrescrever(item, _RANK_FONTE["bigdatacorp"]):
+        item.nome = campos["nome"]
+        item.marca = campos["marca"] or item.marca
+        item.categoria = campos["categoria"] or item.categoria
+        item.ncm = campos["ncm"] or item.ncm
+        item.fonte = "bigdatacorp"
+        item.status = "encontrado"
+        bdc.registrar_encontrado()
+    db.session.commit()
+    return item if item.status == "encontrado" else None
+
+
 def _responder_open_facts(ean: str, motivo_cosmos: str):
-    """Tenta as bases abertas; se não achar, explica o motivo real ao lojista."""
+    """BigDataCorp (franquia do mês) e depois as bases abertas; sem achar, explica o motivo."""
+    try:
+        item_bdc = _buscar_bigdatacorp(ean)
+        if item_bdc:
+            return jsonify({"success": True, "source": item_bdc.fonte, "data": item_bdc.to_dict()}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"BigDataCorp erro ao gravar catálogo ({ean}): {e}")
     try:
         item, todas_responderam = _buscar_open_facts(ean)
         if item:

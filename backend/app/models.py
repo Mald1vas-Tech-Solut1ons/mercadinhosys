@@ -1544,6 +1544,9 @@ class CatalogoMestre(db.Model):
     # pois o catálogo é global e não deve quebrar se o estabelecimento for removido.
     descoberto_por_estabelecimento_id = db.Column(db.Integer, nullable=True)
     descoberto_via = db.Column(db.String(20), nullable=True)  # 'modal' | 'xml'
+    # Resposta bruta da BigDataCorp (todas as fontes): fica guardada mesmo quando outra base
+    # preenche o item, para o catálogo próprio crescer sem reconsultar (cada consulta custa).
+    payload_bigdatacorp = db.Column(db.Text, nullable=True)
     __table_args__ = (db.Index("ix_catalogo_status", "status"), db.Index("ix_catalogo_categoria", "categoria"))
 
     def to_dict(self):
@@ -1558,6 +1561,23 @@ class CatalogoMestre(db.Model):
             "descoberto_via": self.descoberto_via,
         }
 
+
+
+class ConsumoApiExterna(db.Model):
+    """Consultas feitas a uma API externa paga, por mês-calendário (fuso da loja/Brasília).
+
+    Global (não é de tenant): a franquia do contrato é da Maldivas Tech, compartilhada por
+    todas as lojas. A vaga é reservada ANTES da chamada, com trava de linha, para duas
+    lojas ao mesmo tempo nunca passarem do limite.
+    """
+    __tablename__ = "consumo_api_externa"
+    id = db.Column(db.Integer, primary_key=True)
+    provedor = db.Column(db.String(30), nullable=False)
+    mes = db.Column(db.String(7), nullable=False)  # 'AAAA-MM'
+    consultas = db.Column(db.Integer, nullable=False, default=0)
+    encontrados = db.Column(db.Integer, nullable=False, default=0)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
+    __table_args__ = (db.UniqueConstraint("provedor", "mes", name="uq_consumo_api_provedor_mes"),)
 
 class ViewRegistry(db.Model):
     """

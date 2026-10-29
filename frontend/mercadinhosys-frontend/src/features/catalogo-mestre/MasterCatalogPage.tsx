@@ -29,7 +29,11 @@ const fmtData = (s?: string | null) => {
     try { return new Date(s).toLocaleDateString('pt-BR'); } catch { return '—'; }
 };
 
-const fonteLabel = (f: string) => (f === 'cosmos' ? 'Cosmos' : f === 'tenant' ? 'Cadastro de loja' : f);
+const FONTES: Record<string, string> = {
+    bigdatacorp: 'BigDataCorp', openfoodfacts: 'Open Food Facts', openbeautyfacts: 'Open Beauty Facts',
+    openproductsfacts: 'Open Products Facts', tenant: 'Cadastro de loja', cosmos: 'Cosmos (antigo)',
+};
+const fonteLabel = (f: string) => FONTES[f] || f;
 const viaLabel = (v: string | null) => (v === 'modal' ? 'Modal' : v === 'xml' ? 'XML NF-e' : '—');
 
 export default function MasterCatalogPage() {
@@ -107,8 +111,9 @@ export default function MasterCatalogPage() {
                     className="md:w-48 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-800 dark:text-slate-100 outline-none focus:ring-2 focus:ring-primary-500"
                 >
                     <option value="">Todas as fontes</option>
-                    <option value="cosmos">Cosmos</option>
-                    <option value="tenant">Cadastro de loja</option>
+                    {Object.entries(FONTES).filter(([k]) => k !== 'cosmos').map(([k, rotulo]) => (
+                        <option key={k} value={k}>{rotulo}</option>
+                    ))}
                 </select>
                 <select
                     value={segmentoOrigem}

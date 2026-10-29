@@ -23,8 +23,7 @@ import CreateDeliveryModal from './CreateDeliveryModal';
 import UnifiedDeliverySaleModal from './UnifiedDeliverySaleModal';
 import DetalheEntregaModal from './DetalheEntregaModal';
 import { apiClient } from '../../api/apiClient';
-import toast from 'react-hot-toast';
-
+import { showToast } from '../../utils/toast';
 interface DeliveryDashboardProps {
     onVerTodas?: () => void;
 }
@@ -67,7 +66,7 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
             if (entregasRes.success) setEntregasRecentes(entregasRes.entregas.slice(0, 5));
             if (metricasRes?.metricas) setMetricas(metricasRes.metricas);
         } catch (error) {
-            toast.error('Erro ao carregar dados do delivery');
+            showToast.error('Erro ao carregar dados do delivery');
         } finally {
             setLoading(false);
         }
@@ -84,10 +83,10 @@ const DeliveryDashboard: React.FC<DeliveryDashboardProps> = ({ onVerTodas }) => 
         setSavingConfig(true);
         try {
             await apiClient.put('/logistica/configuracao', config);
-            toast.success("Configurações de Logística salvas!");
+            showToast.success("Configurações de Logística salvas!");
             setShowConfig(false);
         } catch (error) {
-            toast.error("Erro ao salvar configurações.");
+            showToast.error("Erro ao salvar configurações.");
         } finally {
             setSavingConfig(false);
         }

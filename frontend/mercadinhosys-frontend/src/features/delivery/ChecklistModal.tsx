@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ClipboardCheck, CheckCircle2, XCircle, History } from 'lucide-react';
 import { deliveryService, Veiculo, ChecklistItem, Checklist } from './deliveryService';
-import toast from 'react-hot-toast';
-
+import { showToast } from '../../utils/toast';
 /** Rótulos amigáveis para os itens padrão do checklist de saída. */
 const ROTULOS: Record<string, string> = {
     pneus: 'Pneus', freios: 'Freios', setas: 'Setas', farol: 'Farol',
@@ -54,7 +53,7 @@ export default function ChecklistModal({ veiculo, onClose }: Props) {
     const salvar = async () => {
         const reprovados = itens.filter(i => !i.ok);
         if (reprovados.some(i => !i.observacao?.trim())) {
-            toast.error('Descreva o problema dos itens reprovados');
+            showToast.error('Descreva o problema dos itens reprovados');
             return;
         }
         setSalvando(true);
@@ -66,10 +65,10 @@ export default function ChecklistModal({ veiculo, onClose }: Props) {
                 motorista_id: veiculo.motorista_id || undefined,
             });
             const aprovado = reprovados.length === 0;
-            toast.success(aprovado ? 'Checklist aprovado! Veículo liberado.' : 'Checklist registrado com itens reprovados.');
+            showToast.success(aprovado ? 'Checklist aprovado! Veículo liberado.' : 'Checklist registrado com itens reprovados.');
             onClose();
         } catch (e: any) {
-            toast.error(e?.response?.data?.error || 'Erro ao registrar checklist');
+            showToast.error(e?.response?.data?.error || 'Erro ao registrar checklist');
         } finally {
             setSalvando(false);
         }

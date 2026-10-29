@@ -1,6 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
-
+import { showToast } from '../utils/toast';
 interface UseInactivityTimeoutProps {
     isAuthenticated: boolean;
     logout: () => void;
@@ -28,7 +27,7 @@ export const useInactivityTimeout = ({ isAuthenticated, logout }: UseInactivityT
         const timeoutMs = getInactivityTimeoutMs();
 
         timeoutRef.current = window.setTimeout(() => {
-            toast.error('Sessão encerrada por inatividade de segurança.', {
+            showToast.error('Sessão encerrada por inatividade de segurança.', {
                 duration: 5000,
                 icon: '🔒'
             });

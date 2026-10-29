@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Bot, User } from 'lucide-react';
 import { consultorService } from '../services/consultorService';
-import toast from 'react-hot-toast';
+import { showToast } from '../utils/toast';
 import ReactMarkdown from 'react-markdown';
 
 interface Mensagem {
@@ -60,7 +60,7 @@ export const ConsultorPage: React.FC = () => {
           timestamp: new Date()
         }]);
       } else {
-        toast.error(response.error || 'Erro ao processar mensagem.');
+        showToast.error(response.error || 'Erro ao processar mensagem.');
         setMensagens(prev => [...prev, {
           id: Date.now(),
           texto: `Desculpe, ocorreu um erro: ${response.error || 'Falha na conexão'}`,
@@ -69,7 +69,7 @@ export const ConsultorPage: React.FC = () => {
         }]);
       }
     } catch (err) {
-      toast.error('Erro de conexão');
+      showToast.error('Erro de conexão');
     } finally {
       setLoading(false);
     }

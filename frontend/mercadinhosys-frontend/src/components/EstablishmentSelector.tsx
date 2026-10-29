@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Building, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
-import toast from 'react-hot-toast';
+import { showToast } from '../utils/toast';
 import { useSuperAdmin } from '../contexts/SuperAdminContext';
 
 interface Establishment {
@@ -70,7 +70,7 @@ const EstablishmentSelector: React.FC<EstablishmentSelectorProps> = ({
       onEstablishmentChange(id);
     } else {
       setSelectedTenantId(stringId);
-      toast.success(id === 'all' ? 'Contexto alterado para Visão Global' : 'Contexto de auditoria alterado');
+      showToast.success(id === 'all' ? 'Contexto alterado para Visão Global' : 'Contexto de auditoria alterado');
 
       // Forçar recarregamento apenas para modo não-controlado
       setTimeout(() => {

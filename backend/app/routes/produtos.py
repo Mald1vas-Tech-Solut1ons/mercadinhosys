@@ -3005,7 +3005,16 @@ def ajustar_estoque(id):
                         estabelecimento_id,
                         lote_str if lote_str else f"ENT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
                     )
-                    validade_final = _parse_optional_date(data_validade_str) or (date.today() + timedelta(days=365))
+                    # Mesma regra do recebimento de pedido: produto com controle de validade não ganha
+                    # data inventada (o lote "vencia" em 1 ano e escapava do bloqueio de vencido).
+                    validade_final = _parse_optional_date(data_validade_str)
+                    if validade_final is None:
+                        if produto.controlar_validade:
+                            db.session.rollback()
+                            return jsonify({"success": False,
+                                            "error": f"Informe a validade do lote de {produto.nome} (data no formato AAAA-MM-DD)."}), 400
+                        from app.utils.timezone import hoje_local
+                        validade_final = hoje_local() + timedelta(days=365)  # sem controle: não restringe a venda
                     fabricacao_final = _parse_optional_date(data_fabricacao_str)
 
                     novo_lote = ProdutoLote(

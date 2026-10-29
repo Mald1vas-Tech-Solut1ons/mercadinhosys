@@ -20,12 +20,15 @@ export function useOfflineQueue() {
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Vendas que o servidor recusou (dado inválido): não somem sozinhas nem ficam invisíveis.
+  const [rejeitadas, setRejeitadas] = useState<VendaOffline[]>([]);
 
   // Atualiza contagem de pendências
   const refreshCount = useCallback(async () => {
     try {
       const count = await db.vendas.count();
       setPendingCount(count);
+      setRejeitadas(await db.vendas.filter(v => v.status === 'error' && !!v.rejeitada).toArray());
     } catch {
       // Dexie pode não estar disponível em alguns contextos
     }
@@ -99,7 +102,7 @@ export function useOfflineQueue() {
           } else {
             // Erro do servidor (400/500) — pode ser dado inválido; marca como falha permanente
             console.error(`❌ Venda offline rejeitada pelo servidor (${item.id}):`, erroMsg);
-            await db.vendas.update(item.id, { status: 'error', error_message: erroMsg });
+            await db.vendas.update(item.id, { status: 'error', error_message: erroMsg, rejeitada: true });
             failed++;
           }
         }
@@ -138,8 +141,16 @@ export function useOfflineQueue() {
     };
   }, [processQueue, refreshCount]);
 
+  // Tira da fila uma venda recusada pelo servidor (depois que o operador conferiu o motivo).
+  const descartar = useCallback(async (id: string) => {
+    await db.vendas.delete(id);
+    await refreshCount();
+  }, [refreshCount]);
+
   return {
     pendingCount,
+    rejeitadas,
+    descartar,
     isSyncing,
     isOnline,
     enqueue,

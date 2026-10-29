@@ -597,6 +597,18 @@ def simular_rescisao():
     return jsonify({"success": True, "data": resultado}), 200
 
 
+def _desfazer_despesa_rescisao(despesa, motivo):
+    """Despesa de rescisão ainda não vencida é apagada; vencida fica (o dinheiro já saiu e entra no
+    fluxo de caixa pela data) e só ganha a anotação. Devolve True quando a despesa foi mantida."""
+    from app.utils.timezone import hoje_local
+    if despesa.data_vencimento and despesa.data_vencimento > hoje_local():
+        db.session.delete(despesa)
+        return False
+    nota = f"[{motivo} em {hoje_local().strftime('%d/%m/%Y')}: valor já pago mantido. Se o funcionário devolver, lance a devolução.]"
+    despesa.observacoes = f"{despesa.observacoes or ''} {nota}".strip()
+    return True
+
+
 @rh_bp.route("/rescisao", methods=["POST"])
 @funcionario_required
 @plan_required('Pro')
@@ -619,7 +631,7 @@ def registrar_rescisao():
             if getattr(ant, "despesa_id", None):
                 desp_ant = Despesa.query.get(ant.despesa_id)
                 if desp_ant:
-                    db.session.delete(desp_ant)
+                    _desfazer_despesa_rescisao(desp_ant, "Rescisão substituída")
             db.session.delete(ant)
         db.session.flush()
 
@@ -708,11 +720,12 @@ def cancelar_rescisao(rescisao_id):
             funcionario.ativo = True
             funcionario.status = "ativo"
 
-        # Estorno financeiro: exclui a despesa associada de Rescisão Trabalhista
+        # Estorno financeiro: despesa ainda não vencida sai; já vencida (paga) fica anotada.
+        despesa_mantida = False
         if getattr(rescisao, "despesa_id", None):
             desp = Despesa.query.get(rescisao.despesa_id)
             if desp:
-                db.session.delete(desp)
+                despesa_mantida = _desfazer_despesa_rescisao(desp, "Rescisão cancelada")
         elif funcionario:
             # Fallback de limpeza para dados legados por busca de descrição
             desp_legada = Despesa.query.filter(
@@ -721,14 +734,17 @@ def cancelar_rescisao(rescisao_id):
                 Despesa.descricao.like(f"%Rescisão Trabalhista - {funcionario.nome}%")
             ).first()
             if desp_legada:
-                db.session.delete(desp_legada)
+                despesa_mantida = _desfazer_despesa_rescisao(desp_legada, "Rescisão cancelada")
 
         db.session.delete(rescisao)
         db.session.commit()
 
         return jsonify({
             "success": True,
-            "message": "Rescisão e despesa financeira canceladas, e funcionário reativado com sucesso"
+            "message": ("Rescisão cancelada e funcionário reativado. A despesa já paga foi mantida no financeiro; "
+                        "se o funcionário devolver o valor, lance a devolução.") if despesa_mantida else
+                       "Rescisão e despesa financeira canceladas, e funcionário reativado com sucesso",
+            "despesa_mantida": despesa_mantida,
         }), 200
     except Exception as e:
         db.session.rollback()

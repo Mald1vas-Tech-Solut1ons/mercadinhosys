@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, Building2, Users, Package, ShoppingBag, TrendingUp, MapPin, Phone, CreditCard, Settings, Edit2, Check, Loader2, Save, KeyRound } from 'lucide-react';
-import toast from 'react-hot-toast';
 import LinkAcessoPainel, { LinkAcesso } from './LinkAcessoPainel';
 import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../api/apiClient';
@@ -47,7 +46,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
                 telefone: estabelecimento.telefone,
             });
         } catch (error: any) {
-            toast.error(error?.response?.data?.error || 'Não foi possível gerar o link de acesso.');
+            showToast.error(error?.response?.data?.error || 'Não foi possível gerar o link de acesso.');
         } finally {
             setGerandoLink(false);
         }

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Copy, MessageCircle, MailCheck, MailWarning, X } from 'lucide-react';
-import toast from 'react-hot-toast';
-
+import { showToast } from '../../utils/toast';
 export interface LinkAcesso {
   loja: string;
   username: string;
@@ -24,9 +23,9 @@ const LinkAcessoPainel: React.FC<{ acesso: LinkAcesso; onClose: () => void }> = 
   const copiar = async () => {
     try {
       await navigator.clipboard.writeText(acesso.link);
-      toast.success('Link copiado');
+      showToast.success('Link copiado');
     } catch {
-      toast.error('Não foi possível copiar; selecione o link e copie manualmente.');
+      showToast.error('Não foi possível copiar; selecione o link e copie manualmente.');
     }
   };
 

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, Package, MapPin, Truck, ChevronRight, DollarSign, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { deliveryService } from './deliveryService';
-import toast from 'react-hot-toast';
-
+import { showToast } from '../../utils/toast';
 interface CreateDeliveryModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -57,7 +56,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
             const res = await deliveryService.getVendasPendentes();
             if (res.success) setVendas(res.vendas);
         } catch (error) {
-            toast.error('Erro ao buscar vendas pendentes');
+            showToast.error('Erro ao buscar vendas pendentes');
         } finally {
             setLoading(false);
         }
@@ -92,7 +91,7 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
                         endereco_cidade: data.localidade || prev.endereco_cidade,
                         endereco_estado: data.uf || prev.endereco_estado
                     }));
-                    toast.success("Endereço preenchido automaticamente!");
+                    showToast.success("Endereço preenchido automaticamente!");
                 }
             } catch (error) {
                 console.error("Erro ao buscar CEP", error);
@@ -117,12 +116,12 @@ const CreateDeliveryModal: React.FC<CreateDeliveryModalProps> = ({ isOpen, onClo
 
             const res = await deliveryService.criarEntrega(payload);
             if (res.success) {
-                toast.success('Entrega criada com sucesso!');
+                showToast.success('Entrega criada com sucesso!');
                 onCreated();
                 onClose();
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Erro ao criar entrega');
+            showToast.error(error.response?.data?.error || 'Erro ao criar entrega');
         } finally {
             setLoading(false);
         }

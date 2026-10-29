@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Fuel, TrendingDown, DollarSign } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { apiClient } from '../../api/apiClient';
 
 interface AbastecimentoModalProps {
@@ -26,12 +26,12 @@ export const AbastecimentoModal: React.FC<AbastecimentoModalProps> = ({ isOpen, 
         const kmAtualNum = parseFloat(kmAtual);
 
         if (!litrosNum || !valorTotalNum || !kmAtualNum) {
-            toast.error("Preencha todos os campos corretamente.");
+            showToast.error("Preencha todos os campos corretamente.");
             return;
         }
 
         if (kmAtualNum < kmAtualVeiculo) {
-            toast.error(`O KM Atual não pode ser menor que o último KM registrado (${kmAtualVeiculo}).`);
+            showToast.error(`O KM Atual não pode ser menor que o último KM registrado (${kmAtualVeiculo}).`);
             return;
         }
 
@@ -45,15 +45,15 @@ export const AbastecimentoModal: React.FC<AbastecimentoModalProps> = ({ isOpen, 
             });
 
             if (res.data.success) {
-                toast.success("Abastecimento registrado! Inteligência atualizada.");
+                showToast.success("Abastecimento registrado! Inteligência atualizada.");
                 onSuccess(res.data.novo_consumo_medio);
                 onClose();
             } else {
-                toast.error(res.data.error || "Erro ao registrar");
+                showToast.error(res.data.error || "Erro ao registrar");
             }
         } catch (error) {
             console.error(error);
-            toast.error("Falha de comunicação ao registrar abastecimento.");
+            showToast.error("Falha de comunicação ao registrar abastecimento.");
         } finally {
             setLoading(false);
         }

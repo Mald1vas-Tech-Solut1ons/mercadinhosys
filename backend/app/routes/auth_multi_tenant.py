@@ -129,7 +129,7 @@ def login():
                 cursor.execute("""
                     SELECT f.id, f.nome, f.email, f.senha, f.role, f.estabelecimento_id,
                            e.nome_fantasia, 'postgresql' as database_name, e.ativo, e.razao_social, e.cnpj, f.is_super_admin,
-                           e.plano, e.plano_status
+                           e.plano, e.plano_status, f.status
                     FROM public.funcionarios f
                     JOIN public.estabelecimentos e ON f.estabelecimento_id = e.id
                     WHERE (LOWER(f.email) = LOWER(%s) OR LOWER(f.username) = LOWER(%s)) 
@@ -208,11 +208,19 @@ def login():
         user_data = all_matches[0]
         (user_id, user_nome, user_email, senha_val, role, estabelecimento_id,
          estabelecimento_nome, database_name, estabelecimento_status, razao_social, cnpj, is_super_db,
-         plano_estab, plano_status_estab) = user_data
+         plano_estab, plano_status_estab, status_funcionario) = user_data
         
         if not check_password_hash(senha_val, senha):
             _registrar_falha_login(username, estabelecimento_id)
             return jsonify({'success': False, 'error': 'Usuário ou senha inválidos'}), 401
+
+        # Demitido/suspenso não recebe token (mesma régua do caminho local:
+        # is_user_active via normalize_status — None/legado sem status = ativo).
+        from app.utils.auth_utils import is_user_active
+        if not is_user_active(status_funcionario):
+            _registrar_falha_login(username, estabelecimento_id)
+            return jsonify({'success': False, 'error': 'Conta inativa'}), 401
+
         from app import cache
         cache.delete(_chave_login(username))
         
@@ -300,18 +308,19 @@ def refresh():
         ):
             return jsonify({'success': False, 'error': 'Contexto de acesso inválido'}), 401
 
-        # Extrair claims do token atual para manter persistência de contexto
-        # IMPORTANTE: Manter exatamente os mesmos campos do /login
+        # Claims que definem autoridade/plano são RECARGADOS do banco, não herdados
+        # do token antigo (o access token vive 24h: role/status/plano podem mudar).
+        estab_vigente = user.estabelecimento
         additional_claims = {
-            'role': user.role,
-            'status': user.status or 'ativo',
+            'role': (user.role or 'FUNCIONARIO').upper(),
+            'status': 'ativo',  # user.status já validado por is_user_active acima
             'is_super_admin': bool(user.is_super_admin),
             'estabelecimento_id': claims.get('estabelecimento_id'),
-            'estabelecimento_nome': claims.get('estabelecimento_nome'),
+            'estabelecimento_nome': estab_vigente.nome_fantasia if estab_vigente else claims.get('estabelecimento_nome'),
             'database_name': claims.get('database_name'),
             'user_id': claims.get('user_id'),
-            'plano': normalize_plan_name(claims.get('plano')),
-            'plano_status': claims.get('plano_status')
+            'plano': normalize_plan_name(estab_vigente.plano, estab_vigente.plano_status) if estab_vigente else normalize_plan_name(claims.get('plano')),
+            'plano_status': (estab_vigente.plano_status if estab_vigente else None) or claims.get('plano_status') or 'ativo'
         }
 
         # Criar novo access token
@@ -471,15 +480,20 @@ def verify_tenant():
 @auth_bp.route('/list-tenants', methods=['GET'])
 @jwt_required()
 def list_tenants():
-    """Lista todos os tenants (apenas admin)"""
+    """Lista todos os tenants (apenas SUPER ADMIN do SaaS).
+
+    Endpoints que expõem razão social/CNPJ de TODOS os tenants do SaaS não podem
+    passar só por role 'admin': qualquer dono de loja cliente é 'admin' no
+    próprio tenant. O gate correto é is_super_admin validado no banco
+    (super_admin_required), não o claim do JWT.
+    """
     try:
-        claims = get_jwt()
-        user_role = claims.get('role')
-        
-        if user_role not in ['admin', 'ADMIN']:
+        user_id = get_jwt_identity()
+        usuario = Funcionario.query.get(int(user_id)) if user_id is not None else None
+        if not usuario or not bool(usuario.is_super_admin):
             return jsonify({
                 'success': False,
-                'error': 'Sem permissão'
+                'error': 'Acesso restrito ao Super Admin'
             }), 403
         
         conn = get_main_connection()
@@ -689,8 +703,10 @@ def update_profile():
                     "success": False, "error": "Senha atual incorreta",
                     "code": "WRONG_CURRENT_PASSWORD",
                 }), 400
-            if len(data["nova_senha"]) < 6:
-                return jsonify({"success": False, "error": "A nova senha deve ter ao menos 6 caracteres"}), 400
+            from app.services.acesso_conta_service import validar_forca_senha
+            erro_senha = validar_forca_senha(data["nova_senha"])
+            if erro_senha:
+                return jsonify({"success": False, "error": erro_senha}), 400
             funcionario.set_senha(data["nova_senha"])
             atualizados.append("senha")
 

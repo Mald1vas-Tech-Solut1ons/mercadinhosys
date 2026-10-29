@@ -345,7 +345,9 @@ const PDVPage: React.FC = () => {
     if (loading && !configuracoes) return <PDVSkeleton />;
 
     return (
-        <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden font-sans text-slate-900 dark:text-slate-100">
+        // h-full (não h-screen): o PDV mora dentro do layout, abaixo do cabeçalho; com a altura da
+        // tela inteira o botão de pagar ficava cortado no rodapé.
+        <div className="h-full min-h-[520px] bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden font-sans text-slate-900 dark:text-slate-100">
             {/* Barra de status: offline + vendas pendentes */}
             <AnimatePresence>
                 {(!isOnline || pendingCount > 0) && (
@@ -449,7 +451,7 @@ const PDVPage: React.FC = () => {
                     {/* No mobile o rodapé tem 2 barras fixas (nav 4rem + barra "Pagar" ~5rem).
                         Reservamos esse espaço para que o último item do carrinho e seus
                         controles de quantidade nunca fiquem encobertos. lg: sem reserva. */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pb-[calc(9rem+env(safe-area-inset-bottom))] lg:pb-0">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar pb-[calc(9rem+env(safe-area-inset-bottom))] md:pb-0">
                         {carrinho.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center opacity-20 pointer-events-none">
                                 <ShoppingCart className="w-24 h-24 mb-4 text-slate-400" />
@@ -473,6 +475,27 @@ const PDVPage: React.FC = () => {
                             </div>
                         )}
                     </div>
+
+                    {/* Tablet / notebook estreito (menu lateral visível, sem resumo lateral): total e
+                        pagamento no rodapé da própria coluna — nunca por cima do menu. */}
+                    {!managerCaixaAberto && (
+                        <div className="hidden md:flex lg:hidden shrink-0 items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">Total Geral</span>
+                                <span className="text-2xl font-black text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(total)}</span>
+                            </div>
+                            <button
+                                onClick={() => handleAbrirCheckout('pagamento')}
+                                className={`h-12 px-8 rounded-2xl font-black uppercase text-xs tracking-widest whitespace-nowrap shadow-lg ${
+                                    caixaEstaAberto
+                                        ? 'bg-red-600 text-white shadow-red-500/20'
+                                        : 'bg-amber-500 text-white shadow-amber-500/20'
+                                }`}
+                            >
+                                {caixaEstaAberto ? 'Pagar (F4)' : 'Abrir Caixa'}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* 🏷️ RESUMO LATERAL (PROFISSIONAL E SÓBRIO) */}
@@ -1008,7 +1031,7 @@ const PDVPage: React.FC = () => {
             {/* MOBILE BAR — escondida enquanto o Gerenciador de Caixa está aberto, para que
                 a Gestão de Caixa prevaleça sobre o PDV (botões de Sangria/Fechamento livres). */}
             {!managerCaixaAberto && (
-                <div className="lg:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 flex items-center justify-between z-50">
+                <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 flex items-center justify-between z-50">
                     <div className="flex flex-col pl-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Total Geral</span>
                         <span className="text-xl lg:text-xl xl:text-3xl font-black text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(total)}</span>

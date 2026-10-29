@@ -115,6 +115,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
     };
 
     const getStockLabel = (produto: Produto) => {
+        // Negativo: vendido antes de a nota de compra ser lançada (loja que vende sem estoque).
+        if (produto.quantidade < 0) return 'Falta lançar entrada';
         if (produto.quantidade <= 0) return 'Esgotado';
         if (produto.quantidade <= produto.quantidade_minima) return 'Baixo';
         return 'Normal';

@@ -169,3 +169,6 @@ desktop.ini
 
 # Temporários soltos de teste (tempfile no backend/)
 backend/tmp?*
+
+# Vínculo local da Vercel CLI (project/org id): nunca versionar
+.vercel/

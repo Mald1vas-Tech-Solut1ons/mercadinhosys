@@ -389,6 +389,9 @@ class Estabelecimento(db.Model, EnderecoMixin, SerializableMixin, AuditMixin):
 
     def to_dict(self, depth=0):
         data = super().to_dict(depth=depth)
+        # Credenciais do emissor fiscal nunca vão para a API; quem emite lê o atributo direto.
+        for segredo in ("fiscal_token", "fiscal_csc"):
+            data[f"{segredo}_configurado"] = bool(data.pop(segredo, None))
         data["endereco_completo"] = self.endereco_completo()
         if self.vencimento_assinatura:
             data["vencimento_assinatura"] = iso_utc(self.vencimento_assinatura)

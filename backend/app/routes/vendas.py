@@ -1246,6 +1246,27 @@ def cancelar_venda(venda_id):
         if dias_venda > 7:
             return jsonify({"error": f"Vendas com mais de 7 dias não podem ser canceladas. Esta venda tem {dias_venda} dias."}), 400
 
+        # Dinheiro devolvido sai da gaveta ABERTA agora. Caixa original já fechado não é
+        # mexido: o estorno vai para o caixa aberto de quem cancela; sem caixa aberto e com
+        # dinheiro a devolver, recusa antes de alterar qualquer coisa.
+        from app.models import Caixa, MovimentacaoCaixa
+        caixa_de_quem_cancela = Caixa.query.filter_by(
+            funcionario_id=int(solicitante_id), estabelecimento_id=venda.estabelecimento_id, status="aberto"
+        ).order_by(Caixa.data_abertura.desc()).first() if str(solicitante_id).isdigit() else None
+        movimentos_venda = MovimentacaoCaixa.query.filter_by(venda_id=venda.id, tipo='venda').all()
+        destino_estorno = {}
+        for original in movimentos_venda:
+            caixa_original = db.session.get(Caixa, original.caixa_id)
+            if caixa_original is not None and caixa_original.status == "aberto":
+                destino_estorno[original.id] = caixa_original.id
+            elif caixa_de_quem_cancela is not None:
+                destino_estorno[original.id] = caixa_de_quem_cancela.id
+            elif original.forma_pagamento == 'dinheiro' and Decimal(str(original.valor or 0)) > 0:
+                return jsonify({"error": "Esta venda é de um caixa já fechado. Para devolver o dinheiro, "
+                                         "abra um caixa e faça o cancelamento por ele."}), 400
+            else:
+                destino_estorno[original.id] = original.caixa_id  # Pix/cartão: não mexe na gaveta
+
         db.session.begin_nested()
         try:
             from app.utils.checkout_locking import lock_checkout
@@ -1292,13 +1313,16 @@ def cancelar_venda(venda_id):
             for pag in Pagamento.query.filter_by(venda_id=venda.id).all():
                 pag.status = "estornado"
 
-            from app.models import Caixa, MovimentacaoCaixa
-            for original in MovimentacaoCaixa.query.filter_by(venda_id=venda.id, tipo='venda').all():
-                cashbox = Caixa.query.filter_by(id=original.caixa_id, estabelecimento_id=venda.estabelecimento_id).with_for_update().first()
-                db.session.add(MovimentacaoCaixa(estabelecimento_id=venda.estabelecimento_id, caixa_id=original.caixa_id,
+            for original in movimentos_venda:
+                caixa_id_estorno = destino_estorno[original.id]
+                cashbox = Caixa.query.filter_by(id=caixa_id_estorno, estabelecimento_id=venda.estabelecimento_id).with_for_update().first()
+                descricao = f'Estorno da venda {venda.codigo}'
+                if caixa_id_estorno != original.caixa_id:
+                    descricao += f' (venda do caixa {original.caixa_id}, já fechado)'
+                db.session.add(MovimentacaoCaixa(estabelecimento_id=venda.estabelecimento_id, caixa_id=caixa_id_estorno,
                     venda_id=venda.id, tipo='estorno', forma_pagamento=original.forma_pagamento, valor=original.valor,
-                    descricao=f'Estorno da venda {venda.codigo}'))
-                if cashbox and original.forma_pagamento == 'dinheiro':
+                    descricao=descricao))
+                if cashbox and cashbox.status == "aberto" and original.forma_pagamento == 'dinheiro':
                     cashbox.saldo_atual = Decimal(str(cashbox.saldo_atual or 0)) - Decimal(str(original.valor))
 
             contas = ContaReceber.query.filter_by(venda_id=venda.id, status="aberto").with_for_update().all()

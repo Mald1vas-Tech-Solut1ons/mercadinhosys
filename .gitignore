@@ -166,3 +166,6 @@ coverage/
 
 # Windows / Google Drive
 desktop.ini
+
+# Temporários soltos de teste (tempfile no backend/)
+backend/tmp?*

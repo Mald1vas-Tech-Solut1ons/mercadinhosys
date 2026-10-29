@@ -287,3 +287,20 @@ def test_ponto_fora_do_raio_da_loja_e_recusado(client, session, loja):
     perto = client.post("/api/ponto/registrar", headers=_h(loja["caixa"]), json={
         "tipo_registro": "entrada", "latitude": -23.4545, "longitude": -46.5334})
     assert perto.status_code in (200, 201), perto.get_data(as_text=True)
+
+
+def test_sync_download_nao_aceita_usuario_comum(client, session, loja):
+    r = client.post("/api/sync-hybrid/download", headers=_h(loja["caixa"]), json={"data": {"funcionarios": [
+        {"estabelecimento_id": loja["estab"].id, "nome": "Invasor", "username": "invasor", "role": "ADMIN",
+         "is_super_admin": True}]}})
+    assert r.status_code in (401, 403)
+    assert Funcionario.query.filter_by(username="invasor").count() == 0
+
+
+def test_token_fiscal_nunca_sai_na_api(client, session, loja):
+    loja["estab"].fiscal_token = "segredo-focus"
+    loja["estab"].fiscal_csc = "csc-secreto"
+    session.commit()
+    corpo = client.get("/api/configuracao/estabelecimento", headers=_h(loja["caixa"])).get_data(as_text=True)
+    assert "segredo-focus" not in corpo and "csc-secreto" not in corpo
+    assert '"fiscal_token_configurado": true' in corpo or '"fiscal_token_configurado":true' in corpo

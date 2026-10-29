@@ -218,13 +218,26 @@ def get_estabelecimento():
             return jsonify({"success": False, "error": "Dados do estabelecimento não encontrados"}), 404
 
         return jsonify({
-            "success": True, 
-            "estabelecimento": dados
+            "success": True,
+            "estabelecimento": _sem_segredos_fiscais(dados)
         }), 200
 
     except Exception as e:
         current_app.logger.error(f"❌ Erro em get_estabelecimento: {str(e)}")
         return jsonify({"success": False, "error": "Erro ao carregar dados da empresa"}), 500
+
+
+SEGREDOS_FISCAIS = ("fiscal_token", "fiscal_csc")
+
+
+def _sem_segredos_fiscais(dados):
+    """Token do emissor e CSC nunca saem do servidor: a tela só precisa saber se existem."""
+    if not dados:
+        return dados
+    dados = dict(dados)
+    for campo in SEGREDOS_FISCAIS:
+        dados[f"{campo}_configurado"] = bool(dados.pop(campo, None))
+    return dados
 
 
 @configuracao_bp.route("/estabelecimentos", methods=["GET"])
@@ -338,6 +351,9 @@ def update_estabelecimento():
         
         for c in campos_update:
             if c in data:
+                # Segredo fiscal vazio = "não mexer" (a tela não recebe o valor atual para reenviar).
+                if c in SEGREDOS_FISCAIS and not str(data[c] or "").strip():
+                    continue
                 # Sanitização básica para CEP
                 val = data[c]
                 if c == "cep" and val:
@@ -359,7 +375,7 @@ def update_estabelecimento():
         return jsonify({
             "success": True, 
             "message": "Dados da empresa atualizados",
-            "estabelecimento": get_estabelecimento_full_safe(estabelecimento_id)
+            "estabelecimento": _sem_segredos_fiscais(get_estabelecimento_full_safe(estabelecimento_id))
         }), 200
 
     except Exception as e:

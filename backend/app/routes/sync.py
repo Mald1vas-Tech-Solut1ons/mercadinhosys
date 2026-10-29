@@ -187,7 +187,7 @@ def sync_health():
 
 
 @sync_bp.route("/api/sync/db-info", methods=["GET"])
-@gerente_ou_admin_required
+@super_admin_required  # infraestrutura da plataforma: não é dado da loja
 def db_info():
     try:
         uri = current_app.config.get("SQLALCHEMY_DATABASE_URI") or ""

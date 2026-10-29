@@ -813,8 +813,8 @@ const SettingsPage: React.FC = () => {
                                     </select>
                                 </div>
                                 <InputField label="Série NFC-e" type="number" value={estab.serie_nfce ?? 1} onChange={(e) => setEstab({ ...estab, serie_nfce: parseInt(e.target.value) || 1 })} />
-                                <InputField label="Token do Gateway" value={estab.fiscal_token || ''} onChange={(e) => setEstab({ ...estab, fiscal_token: e.target.value })} placeholder="Token da API (Focus NFe)" />
-                                <InputField label="CSC (Código de Segurança)" value={estab.fiscal_csc || ''} onChange={(e) => setEstab({ ...estab, fiscal_csc: e.target.value })} placeholder="Obtido na SEFAZ (NFC-e)" />
+                                <InputField label="Token do Gateway" value={estab.fiscal_token || ''} onChange={(e) => setEstab({ ...estab, fiscal_token: e.target.value })} type="password" placeholder={estab.fiscal_token_configurado ? 'Configurado — digite só para trocar' : 'Token da API (Focus NFe)'} />
+                                <InputField label="CSC (Código de Segurança)" value={estab.fiscal_csc || ''} onChange={(e) => setEstab({ ...estab, fiscal_csc: e.target.value })} type="password" placeholder={estab.fiscal_csc_configurado ? 'Configurado — digite só para trocar' : 'Obtido na SEFAZ (NFC-e)'} />
                                 <InputField label="ID do CSC (idToken)" value={estab.fiscal_csc_id || ''} onChange={(e) => setEstab({ ...estab, fiscal_csc_id: e.target.value })} placeholder="Ex: 000001" />
                             </div>
                             <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">

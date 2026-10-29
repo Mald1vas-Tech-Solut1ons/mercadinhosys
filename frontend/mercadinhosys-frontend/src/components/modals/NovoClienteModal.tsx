@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Building2, CheckCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { API_CONFIG } from '../../api/apiConfig';
 import { formatCnpj, formatCpf, formatPhone, formatCep, buscarCep } from '../../utils/cepUtils';
 import { validarCPF } from '../../features/customers/components/inputMasks';
@@ -94,23 +94,23 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
 
   const validateStep1 = () => {
     if (!formData.nome_fantasia.trim()) {
-      toast.error('Nome fantasia é obrigatório');
+      showToast.error('Nome fantasia é obrigatório');
       return false;
     }
     if (!formData.razao_social.trim()) {
-      toast.error('Razão social é obrigatória');
+      showToast.error('Razão social é obrigatória');
       return false;
     }
     if (!formData.cnpj.trim() && !formData.cpf.trim()) {
-      toast.error('CNPJ ou CPF é obrigatório');
+      showToast.error('CNPJ ou CPF é obrigatório');
       return false;
     }
     if (!formData.telefone.trim()) {
-      toast.error('Telefone é obrigatório');
+      showToast.error('Telefone é obrigatório');
       return false;
     }
     if (!formData.email_estabelecimento.trim()) {
-      toast.error('Email do estabelecimento é obrigatório');
+      showToast.error('Email do estabelecimento é obrigatório');
       return false;
     }
     return true;
@@ -118,29 +118,29 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
 
   const validateStep2 = () => {
     if (!formData.nome_admin.trim()) {
-      toast.error('Nome do administrador é obrigatório');
+      showToast.error('Nome do administrador é obrigatório');
       return false;
     }
     if (!formData.cpf_admin.trim()) {
-      toast.error('CPF do administrador é obrigatório');
+      showToast.error('CPF do administrador é obrigatório');
       return false;
     }
     if (!validarCPF(formData.cpf_admin)) {
-      toast.error('CPF do administrador inválido');
+      showToast.error('CPF do administrador inválido');
       return false;
     }
     if (!formData.email_admin.trim()) {
-      toast.error('Email do administrador é obrigatório');
+      showToast.error('Email do administrador é obrigatório');
       return false;
     }
     // Senha opcional: em branco, o cliente cria a dele pelo link de ativação.
     const problemaSenha = formData.senha_admin ? erroSenha(formData.senha_admin) : null;
     if (problemaSenha) {
-      toast.error(problemaSenha);
+      showToast.error(problemaSenha);
       return false;
     }
     if (formData.senha_admin !== formData.confirmar_senha) {
-      toast.error('As senhas não conferem');
+      showToast.error('As senhas não conferem');
       return false;
     }
     return true;
@@ -152,7 +152,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
     }
 
     setIsLoading(true);
-    toast.loading('Provisionando ambiente do cliente...', { id: 'onboarding' });
+    showToast.loading('Provisionando ambiente do cliente...', { id: 'onboarding' });
 
     try {
       const payload = {
@@ -190,7 +190,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Ambiente criado com sucesso!', { id: 'onboarding' });
+        showToast.success('Ambiente criado com sucesso!', { id: 'onboarding' });
         onSuccess();
         // O painel de acesso fica aberto até o super admin mandar o link (o modal fecha junto).
         setAcesso({
@@ -203,11 +203,11 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
         });
         resetForm();
       } else {
-        toast.error(data.error || 'Erro ao criar ambiente', { id: 'onboarding' });
+        showToast.error(data.error || 'Erro ao criar ambiente', { id: 'onboarding' });
       }
     } catch (error) {
       console.error('Erro no onboarding:', error);
-      toast.error('Erro de conexão. Tente novamente.', { id: 'onboarding' });
+      showToast.error('Erro de conexão. Tente novamente.', { id: 'onboarding' });
     } finally {
       setIsLoading(false);
     }

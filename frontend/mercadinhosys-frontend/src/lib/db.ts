@@ -8,6 +8,7 @@ export interface VendaOffline {
   timestamp: string;
   status: 'pending' | 'syncing' | 'error';
   error_message?: string;
+  rejeitada?: boolean; // o servidor recusou (400/500): reenviar ou descartar na mão
 }
 
 export interface ClienteOffline {

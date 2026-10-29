@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import { authService } from '../../features/auth/authService';
 import { canAccess, getDefaultRoute, isPlanoGratis, MODULOS_PLANO_GRATIS, Modulo, UsuarioLogado } from '../../utils/permissions';
 
@@ -27,7 +27,7 @@ const ModuleGuard: React.FC<ModuleGuardProps> = ({ modulo, children }) => {
     useEffect(() => {
         if (!permitido && user) {
             const bloqueadoPeloPlano = isPlanoGratis(user) && !MODULOS_PLANO_GRATIS.includes(modulo);
-            toast.error(
+            showToast.error(
                 bloqueadoPeloPlano
                     ? 'Este módulo não está incluído no Plano Grátis. Faça upgrade para desbloquear.'
                     : 'Seu cargo não tem permissão para acessar este módulo.',

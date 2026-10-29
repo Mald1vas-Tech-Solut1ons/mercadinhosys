@@ -572,16 +572,17 @@ def estatisticas_vendas():
 def relatorio_diario():
     try:
         estabelecimento_id = get_authorized_establishment_id()
-        data_str = request.args.get("data", datetime.now().strftime("%Y-%m-%d"))
+        data_str = request.args.get("data") or hoje_local().strftime("%Y-%m-%d")
         formato = request.args.get("formato", "json")
 
         try:
             data_dt = datetime.strptime(data_str, "%Y-%m-%d")
         except ValueError:
-            data_dt = datetime.now()
+            data_dt = datetime.combine(hoje_local(), datetime.min.time())
 
-        inicio_dia = datetime.combine(data_dt.date(), datetime.min.time())
-        fim_dia = datetime.combine(data_dt.date(), datetime.max.time())
+        # O dia é o da loja: meia-noite local convertida para UTC, como a coluna do banco.
+        inicio_dia = local_date_to_utc_naive(data_dt.date())
+        fim_dia = local_date_to_utc_naive(data_dt.date(), fim_do_dia=True)
 
         query = Venda.query.filter(
             Venda.status == "finalizada",

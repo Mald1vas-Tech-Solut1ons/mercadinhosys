@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { deliveryService, Entrega } from './deliveryService';
 import DetalheEntregaModal from './DetalheEntregaModal';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import AcertoEntregaModal from './AcertoEntregaModal';
 import { authService } from '../auth/authService';
 import { canAccess } from '../../utils/permissions';
@@ -74,7 +74,7 @@ const DeliveryList: React.FC = () => {
             const res = await deliveryService.getEntregas(filtroStatus);
             if (res.success) setEntregas(res.entregas);
         } catch {
-            toast.error('Erro ao listar entregas');
+            showToast.error('Erro ao listar entregas');
         } finally {
             setLoading(false);
         }
@@ -105,13 +105,13 @@ const DeliveryList: React.FC = () => {
             if (novoStatus === 'em_rota') payload.motorista_id = motoristaId;
             const res = await deliveryService.atualizarStatus(entregaId, novoStatus, payload);
             if (res.success) {
-                toast.success(`Entrega atualizada: ${STATUS_CONFIG[novoStatus]?.label || novoStatus}`);
+                showToast.success(`Entrega atualizada: ${STATUS_CONFIG[novoStatus]?.label || novoStatus}`);
                 await carregarEntregas();
             } else {
-                toast.error(res.error || 'Não foi possível atualizar a entrega');
+                showToast.error(res.error || 'Não foi possível atualizar a entrega');
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Erro ao atualizar status da entrega');
+            showToast.error(error.response?.data?.error || 'Erro ao atualizar status da entrega');
         } finally {
             setAcaoId(null);
         }

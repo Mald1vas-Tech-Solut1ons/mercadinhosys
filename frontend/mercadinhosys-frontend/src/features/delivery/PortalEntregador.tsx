@@ -8,7 +8,7 @@ import {
     Smartphone, Package, Radio, WifiOff, Fuel, CalendarDays, Timer, Wrench
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { showToast } from '../../utils/toast';
 import DetalheEntregaModal from './DetalheEntregaModal';
 import { AbastecimentoModal } from './AbastecimentoModal';
 import { MeuVeiculoPanel } from './MeuVeiculoPanel';
@@ -148,7 +148,7 @@ const CardEntrega: React.FC<{ entrega: Entrega; onRefresh: () => void; onClickDe
         if (!next) return;
         
         if (assumindo && !meuMotoristaId) {
-            toast.error("Motorista não identificado. Confira seu CPF no cadastro de funcionário e de motorista.");
+            showToast.error("Motorista não identificado. Confira seu CPF no cadastro de funcionário e de motorista.");
             return;
         }
 
@@ -160,14 +160,14 @@ const CardEntrega: React.FC<{ entrega: Entrega; onRefresh: () => void; onClickDe
             }
             
             await deliveryService.atualizarStatus(entrega.id, next, payload);
-            toast.success(
+            showToast.success(
                 next === 'em_rota'
                     ? '🚀 Rota iniciada! GPS ativado automaticamente.'
                     : '✅ Entrega confirmada! GPS desativado.'
             );
             onRefresh();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || 'Erro ao atualizar status');
+            showToast.error(error.response?.data?.error || 'Erro ao atualizar status');
         } finally {
             setLoading(false);
         }
@@ -312,7 +312,7 @@ const AberturaTurno: React.FC<{ onTurnoIniciado: () => void, motoristaId: number
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!kmInicial || isNaN(Number(kmInicial))) return toast.error('KM Inicial inválido');
+        if (!kmInicial || isNaN(Number(kmInicial))) return showToast.error('KM Inicial inválido');
         setLoading(true);
         try {
             await deliveryService.iniciarTurno({
@@ -322,10 +322,10 @@ const AberturaTurno: React.FC<{ onTurnoIniciado: () => void, motoristaId: number
                 checklist,
                 motorista_id: motoristaId ? Number(motoristaId) : undefined
             });
-            toast.success('Turno iniciado com sucesso!');
+            showToast.success('Turno iniciado com sucesso!');
             onTurnoIniciado();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Erro ao iniciar turno');
+            showToast.error(err.response?.data?.error || 'Erro ao iniciar turno');
         } finally {
             setLoading(false);
         }
@@ -500,15 +500,15 @@ const PainelMobile: React.FC<{ user: any }> = ({ user }) => {
     const handleFinalizarTurno = async () => {
         const kmFinal = window.prompt("Para finalizar o turno, digite o KM FINAL do painel do veículo:");
         if (!kmFinal) return;
-        if (isNaN(Number(kmFinal))) return toast.error("KM inválido. Digite apenas números.");
+        if (isNaN(Number(kmFinal))) return showToast.error("KM inválido. Digite apenas números.");
         
         setFinalizando(true);
         try {
             await deliveryService.finalizarTurno({ km_final: Number(kmFinal) });
-            toast.success("Turno encerrado e custos calculados!");
+            showToast.success("Turno encerrado e custos calculados!");
             setTurno(null);
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Erro ao finalizar turno');
+            showToast.error(err.response?.data?.error || 'Erro ao finalizar turno');
         } finally {
             setFinalizando(false);
         }

@@ -168,12 +168,14 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
         familia_produto: s?.familia_produto || undefined,
         atributos: s?.atributos || undefined,
         quantidade: 0,
+        // Estoque chega com a nota do pedido: exceção consciente do guardião (Lista de Revisão).
+        entrar_sem_estoque: true,
       } as any);
 
       // create trata 409 (já existe) devolvendo o produto existente
       const prod = (criado.produto || (criado as any).produto_existente) as Produto | undefined;
       if (!prod || !prod.id) {
-        showToast.error(criado.message || 'Não foi possível cadastrar o produto.');
+        showToast.error((criado as any).errors?.[0] || criado.message || 'Não foi possível cadastrar o produto.');
         return;
       }
       handleAddItem(prod);

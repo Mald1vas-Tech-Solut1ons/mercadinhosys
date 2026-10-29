@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { confirmar } from '../../../components/ui/Confirmacao';
 import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2, Loader2 } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import FotoUpload from '../../../components/ui/FotoUpload';
@@ -445,9 +446,23 @@ const ProductFormModal = ({
             return;
         }
 
+        // Guardião: produto físico novo com estoque zero só entra por exceção consciente
+        // (vai para a Lista de Revisão do dono). Sem isso o servidor recusa o cadastro.
+        let entrarSemEstoque = false;
+        if (!editMode && !ehServico && !(Number(formData.quantidade) > 0)) {
+            entrarSemEstoque = await confirmar({
+                titulo: 'Cadastrar sem estoque?',
+                mensagem: 'Com estoque zero o PDV não vende este produto. Ele entra na Lista de Revisão para você dar entrada quando a mercadoria chegar.',
+                acao: 'Entrar sem estoque agora',
+                cancelar: 'Informar a quantidade',
+            });
+            if (!entrarSemEstoque) return;
+        }
+
         const payload: any = {
             ...formData,
             controlar_estoque: !ehServico,
+            ...(entrarSemEstoque ? { entrar_sem_estoque: true } : {}),
         };
         // Modo custo: insumos dos modos estimados fora do payload (servidor
         // grava informado; payload com origem_custo é ignorado de qualquer jeito).
@@ -488,7 +503,9 @@ const ProductFormModal = ({
                 }
 
                 if (!result.success) {
-                    showToast.error(result.message || 'Erro ao salvar');
+                    // Guardião devolve os motivos em `errors`: mostra o primeiro, que ensina o que corrigir.
+                    const motivos = (result as any).errors as string[] | undefined;
+                    showToast.error(motivos?.[0] || result.message || 'Erro ao salvar', { duration: 8000 });
                     return;
                 }
 

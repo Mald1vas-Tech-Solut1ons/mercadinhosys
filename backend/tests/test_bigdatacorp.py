@@ -339,3 +339,12 @@ def test_familia_escolhida_pelo_operador_manda(client, session, loja, mix_loja):
     session.commit()
     r = client.get("/api/produtos/catalogo/lookup/7890000000062?familia=eletro", headers=loja["headers"])
     assert r.get_json()["data"]["sugestoes"]["familia_produto"] == "eletro"
+
+
+def test_nome_de_cada_servico_cabe_nas_colunas():
+    """O SQLite não aplica tamanho de coluna; em produção (Postgres) o INSERT falhava com 32 > 30."""
+    from app.models import ConfigApiExterna
+    for dataset in bdc.SERVICOS:
+        provedor = bdc._provedor(dataset)
+        assert len(provedor) <= ConsumoApiExterna.__table__.c.provedor.type.length, provedor
+        assert len(provedor) <= ConfigApiExterna.__table__.c.provedor.type.length, provedor

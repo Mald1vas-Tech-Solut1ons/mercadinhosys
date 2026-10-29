@@ -1583,7 +1583,7 @@ class ConsumoApiExterna(db.Model):
     """
     __tablename__ = "consumo_api_externa"
     id = db.Column(db.Integer, primary_key=True)
-    provedor = db.Column(db.String(30), nullable=False)
+    provedor = db.Column(db.String(60), nullable=False)  # 'bigdatacorp:<dataset>'
     mes = db.Column(db.String(7), nullable=False)  # 'AAAA-MM'
     consultas = db.Column(db.Integer, nullable=False, default=0)
     encontrados = db.Column(db.Integer, nullable=False, default=0)

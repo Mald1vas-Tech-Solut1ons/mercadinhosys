@@ -199,6 +199,7 @@ def test_atributo_cor_nas_familias_nao_alimentares(client, session):
         assert "cor" not in chaves, familia
 
     r = client.post("/api/produtos/", headers=ctx["headers"], json={
+        "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Assadeira Redonda 28cm", "categoria": "Bazar", "preco_custo": 20, "preco_venda": 39.9,
         "familia_produto": "bazar", "atributos": {"cor": "Vermelho"},
     })
@@ -221,6 +222,7 @@ def test_comprovante_mostra_hora_da_loja_e_nao_utc():
 def test_produto_eletro_com_st_sai_csosn_500_cfop_5405(client, session):
     ctx = _ctx(session, "mercearia")
     r = client.post("/api/produtos/", headers=ctx["headers"], json={
+        "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Liquidificador 600W 2L", "categoria": "Eletro", "preco_custo": 80, "preco_venda": 149.9,
         "familia_produto": "eletro", "ncm": "85094050", "icms_st": True, "cest": "2104400",
         "atributos": {"voltagem_eletro": "Bivolt", "garantia_meses": 12, "modelo": "L-99"},

@@ -68,6 +68,7 @@ def test_fluxo_real_cadastra_busca_por_agua_e_pedido_sobe_o_item(client, ctx):
 
     # 1) Cadastra o produto via API (como o usuário fez)
     rc = client.post("/api/produtos/", json={
+        "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Água Sanitária Supreme", "categoria": "Limpeza",
         "preco_custo": 4.20, "preco_venda": 7.90, "quantidade": 0,
         "codigo_barras": "7899999000015",
@@ -77,7 +78,7 @@ def test_fluxo_real_cadastra_busca_por_agua_e_pedido_sobe_o_item(client, ctx):
     # 2) BUSCA por 'agua' (sem acento) — tem que achar
     rb = client.get("/api/produtos/?busca=agua&por_pagina=20", headers=headers)
     assert rb.status_code == 200, rb.get_data(as_text=True)
-    achados = [p for p in rb.get_json().get("produtos", []) if p["nome"] == "Água Sanitária Supreme"]
+    achados = [p for p in rb.get_json().get("produtos", []) if p["nome"] == "ÁGUA SANITÁRIA SUPREME"]
     assert achados, f"busca 'agua' não achou o produto: {[p['nome'] for p in rb.get_json().get('produtos', [])]}"
     produto_id = achados[0]["id"]
 
@@ -93,7 +94,7 @@ def test_fluxo_real_cadastra_busca_por_agua_e_pedido_sobe_o_item(client, ctx):
     rl = client.get("/api/pedidos-compra/", headers=headers)
     alvo = next(p for p in rl.get_json()["pedidos"] if p["id"] == pedido_id)
     assert alvo["total_itens"] == 1, f"PEDIDO SUBIU 0 ITENS (bug do PC000006). total_itens={alvo['total_itens']}"
-    assert alvo["itens"][0]["produto_nome"] == "Água Sanitária Supreme"
+    assert alvo["itens"][0]["produto_nome"] == "ÁGUA SANITÁRIA SUPREME"
 
 
 def test_pedido_com_item_aparece_na_lista_e_detalhe(client, ctx):

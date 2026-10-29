@@ -96,6 +96,10 @@ export const productsService = {
             if (error?.response?.status === 409) {
                 return error.response.data;
             }
+            // 400 do guardião do cadastro: devolve os motivos (`errors`) para a tela ensinar o que corrigir.
+            if (error?.response?.status === 400 && error.response.data && typeof error.response.data === 'object') {
+                return { success: false, ...error.response.data };
+            }
             throw error;
         }
     },

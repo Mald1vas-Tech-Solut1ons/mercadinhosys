@@ -405,7 +405,7 @@ def create_app(config_name=None):
     CORS(app, resources={r"/api/*": {
         "origins": cors_origins,
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Access-Control-Allow-Origin", "X-Establishment-ID", "X-Establishment-Id", "X-Impersonate-Tenant-Id", "X-Tenant-ID"],
+        "allow_headers": ["Content-Type", "Authorization", "X-Requested-With", "Access-Control-Allow-Origin", "X-Establishment-ID", "X-Establishment-Id", "X-Impersonate-Tenant-Id", "X-Tenant-ID", "X-PIN-Autorizacao"],
         "expose_headers": ["Content-Range", "X-Content-Range"],
         "supports_credentials": True,
         "max_age": 600
@@ -556,6 +556,7 @@ def create_app(config_name=None):
                     ("configuracoes", "estoque_minimo_padrao",      "INTEGER DEFAULT 10"),
                     ("configuracoes", "tempo_sessao_minutos",       "INTEGER DEFAULT 30"),
                     ("configuracoes", "tentativas_senha_bloqueio",  "INTEGER DEFAULT 3"),
+                    ("configuracoes", "politica_acoes",             "TEXT"),
                     ("configuracoes", "alertas_email",              "BOOLEAN DEFAULT FALSE"),
                     ("configuracoes", "alertas_whatsapp",           "BOOLEAN DEFAULT FALSE"),
                     ("configuracoes", "horas_extras_percentual",    "NUMERIC(5,2) DEFAULT 50.00"),

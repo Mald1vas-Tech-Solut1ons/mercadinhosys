@@ -519,6 +519,8 @@ class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     margem_alvo_venda_pct = db.Column(db.Numeric(5, 2), nullable=False, server_default="50.00")
     tempo_sessao_minutos = db.Column(db.Integer, default=30)
     tentativas_senha_bloqueio = db.Column(db.Integer, default=3)
+    # Permissões por ação (JSON) — ver app/services/politica_acoes.py
+    politica_acoes = db.Column(db.Text)
     alertas_email = db.Column(db.Boolean, default=False)
     alertas_whatsapp = db.Column(db.Boolean, default=False)
     horas_extras_percentual = db.Column(db.Numeric(5, 2), default=50.00)
@@ -2339,6 +2341,9 @@ class ConfiguracaoHorario(db.Model, MultiTenantMixin):
     exigir_foto = db.Column(db.Boolean, default=True)
     exigir_localizacao = db.Column(db.Boolean, default=True)
     raio_permitido_metros = db.Column(db.Integer, default=100)
+    # Onde fica a loja: com estas coordenadas o ponto só é aceito dentro do raio.
+    latitude_loja = db.Column(db.Float, nullable=True)
+    longitude_loja = db.Column(db.Float, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     estabelecimento = db.relationship("Estabelecimento", backref=db.backref("configuracao_horario", uselist=False, cascade="all, delete-orphan"))
@@ -2354,6 +2359,7 @@ class ConfiguracaoHorario(db.Model, MultiTenantMixin):
                 'tolerancia_retorno_almoco': self.tolerancia_retorno_almoco, 'tolerancia_saida': self.tolerancia_saida,
                 'exigir_foto': self.exigir_foto, 'exigir_localizacao': self.exigir_localizacao,
                 'raio_permitido_metros': self.raio_permitido_metros,
+                'latitude_loja': self.latitude_loja, 'longitude_loja': self.longitude_loja,
                 'jornada_diaria_minutos': self.jornada_diaria_minutos or 480,
                 'jornada_diaria_horas': round((self.jornada_diaria_minutos or 480) / 60, 2)}
 

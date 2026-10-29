@@ -4,11 +4,11 @@ from sqlalchemy import func
 from app import db
 from app.models import Produto, CategoriaProduto
 from app.utils.abc_cache import get_classificacoes_abc
+from app.utils.timezone import hoje_local, to_local
 
 def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto de estoque para o consultor IA."""
-    agora = datetime.now()
-    hoje = agora.date()
+    hoje = hoje_local()
     ha_60_dias = hoje - timedelta(days=60)
     
     contexto = {}
@@ -79,7 +79,7 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
         custo_parado_total += valor
         parados_detalhe.append({
             "nome": p.nome,
-            "dias_parado": (hoje - p.ultima_venda.date()).days if p.ultima_venda else ">60",
+            "dias_parado": (hoje - to_local(p.ultima_venda).date()).days if p.ultima_venda else ">60",
             "valor_custo_parado": round(valor, 2)
         })
         

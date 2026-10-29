@@ -1207,28 +1207,30 @@ def cancelar_venda(venda_id):
         pin_cancelamento = (data.get("pin_cancelamento") or "").strip()
         senha_admin = data.get("senha_admin")
 
+        # PIN e senha passam pelo mesmo contador de erros por usuário (trava contra
+        # tentativa e erro): ver app/services/politica_acoes.py.
+        from app.decorators.rbac import nivel_do_role
+        from app.services.politica_acoes import validar_pin, resposta_erro_pin, registrar_erro_credencial, pin_bloqueado
+        solicitante_id = get_jwt().get("sub")
         autorizador = None
         if pin_cancelamento:
-            # Localiza o admin/gerente do tenant cujo PIN confere (comparação por hash)
-            candidatos = Funcionario.query.filter(
-                Funcionario.estabelecimento_id == estabelecimento_id,
-                Funcionario.pin_cancelamento.isnot(None),
-                Funcionario.ativo == True,
-            ).all()
-            from app.decorators.rbac import nivel_do_role
-            autorizador = next((f for f in candidatos if nivel_do_role(f.role) <= 2 and f.check_pin(pin_cancelamento)), None)
-            if not autorizador:
+            autorizador, erro = validar_pin(estabelecimento_id, solicitante_id, pin_cancelamento)
+            if erro:
+                return resposta_erro_pin(erro, "PIN inválido ou sem permissão para cancelar")
+            if nivel_do_role(autorizador.role) > 2:
                 return jsonify({"error": "PIN inválido ou sem permissão para cancelar"}), 403
         elif senha_admin:
+            if pin_bloqueado(estabelecimento_id, solicitante_id):
+                return resposta_erro_pin("bloqueado", "")
             admin_usuario = data.get("admin_usuario")
             if admin_usuario:
                 autorizador = Funcionario.query.filter_by(username=admin_usuario, estabelecimento_id=estabelecimento_id).first()
             else:
-                claims = get_jwt()
-                autorizador = Funcionario.query.filter_by(id=claims.get("sub"), estabelecimento_id=estabelecimento_id).first()
+                autorizador = Funcionario.query.filter_by(id=solicitante_id, estabelecimento_id=estabelecimento_id).first()
             if not autorizador or not check_password_hash(autorizador.senha or "", senha_admin):
+                if registrar_erro_credencial(estabelecimento_id, solicitante_id):
+                    return resposta_erro_pin("bloqueado", "")
                 return jsonify({"error": "Senha do administrador incorreta"}), 403
-            from app.decorators.rbac import nivel_do_role
             if nivel_do_role(autorizador.role) > 2:
                 return jsonify({"error": "Usuário sem permissão para cancelar vendas"}), 403
         else:

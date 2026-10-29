@@ -107,7 +107,7 @@ Não usar `docker compose down -v`: apaga volumes persistentes. Não rerodar o s
 
 Timer diário às 03:00 UTC (00:00 São Paulo), com atraso aleatório de até 5 minutos. `backup-database.sh` gera `pg_dump --format=custom` em `/home/ubuntu/mercadinhosys/database-backups` e mantém aproximadamente sete dias.
 
-A restauração do primeiro dump foi testada em banco temporário por `verify-backup.sh`, conferindo 2.834 vendas. Backups automáticos estão na mesma VM; manter cópia externa para perda de disco/instância. Fotos, segredos e certificados precisam de cópias próprias: `pg_dump` cobre somente o banco.
+A restauração do primeiro dump foi testada em banco temporário por `verify-backup.sh`, conferindo 2.834 vendas. Backups automáticos ficam na VM e, quando configurado, são copiados para fora dela: crie `/home/ubuntu/mercadinhosys/backup-remoto.env` com `BACKUP_REMOTE=<remoto>:<bucket>/mercadinhosys` (e opcional `BACKUP_REMOTE_DIAS=30`), instale o `rclone` e rode `rclone config` com esse remoto (OCI Object Storage, Backblaze B2, S3 ou Drive). O script confere o tamanho da cópia e escreve `BACKUP_EXTERNO_OK`; sem configuração escreve `AVISO_BACKUP_EXTERNO` no log. Fotos, segredos e certificados precisam de cópias próprias: `pg_dump` cobre somente o banco.
 
 ## Validação e limitações
 

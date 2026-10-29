@@ -62,6 +62,7 @@ def to_decimal(value, precision=2):
     except (Exception):
         return Decimal(quantize_str)
 from sqlalchemy import text, func, or_, case, and_, Date, Integer
+from app.services.politica_acoes import acao_protegida, verificar_acao
 produtos_bp = Blueprint("produtos", __name__)
 
 # Termos de campos com custo/rentabilidade; vendedor e entregador não os recebem.
@@ -822,6 +823,7 @@ FOTO_LADO_MAX = 800
 
 @produtos_bp.route("/imagem", methods=["POST"])
 @funcionario_required
+@acao_protegida("produtos.criar")
 def upload_imagem_produto():
     """Recebe a foto (campo ``imagem``), reduz para no máximo 800 px e devolve a URL pública.
 
@@ -965,7 +967,7 @@ def produto_por_codigo_barras(codigo):
 
 @produtos_bp.route("/codigo-barras/gerar", methods=["POST"])
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.editar")
 def codigo_barras_gerar():
     """Atribui código interno aos produtos da loja que ainda não têm código de barras.
 
@@ -1062,6 +1064,7 @@ def catalogo_listar():
 @produtos_bp.route("/catalogo/importar", methods=["POST"])
 @funcionario_required
 @permission_required("produtos")
+@acao_protegida("produtos.criar")
 def catalogo_importar():
     """
     Importa em massa produtos do catálogo mestre para o estoque da loja.
@@ -1155,7 +1158,7 @@ def catalogo_importar():
 @produtos_bp.route("/bulk-update-prices", methods=["POST"], strict_slashes=False)
 @produtos_bp.route("/bulk-update-prices/", methods=["POST"])
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.editar")
 def bulk_update_prices():
     """Atualiza preços de múltiplos produtos em massa"""
     try:
@@ -1981,6 +1984,7 @@ def obter_produto(id):
 @jwt_required()
 @permission_required('produtos')
 @quota_required('produto')
+@acao_protegida("produtos.criar")
 def criar_produto():
     """Cria um novo produto"""
     claims = {}
@@ -2366,7 +2370,7 @@ def criar_produto():
 
 @produtos_bp.route("/<int:id>", methods=["PUT"], strict_slashes=False)
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.editar")
 def atualizar_produto(id):
     """Atualiza um produto existente"""
     try:
@@ -2566,6 +2570,9 @@ def atualizar_produto(id):
         modo_precificacao = (data.get("modo_precificacao") or "").strip().lower()
         motivo_modo_put = None
         if modo_precificacao in ("mercado", "venda"):
+            # Custo que veio de nota/entrada (ou digitado) é o custo médio real: precificar
+            # pela venda/mercado muda só o preço, nunca troca o custo real por estimativa.
+            custo_real = (getattr(produto, "origem_custo", None) or "informado") == "informado" and (produto.preco_custo or 0) > 0
             from app.services.precificacao_reversa import (
                 venda_pelo_mercado, custo_pela_venda, markup_de,
             )
@@ -2596,7 +2603,8 @@ def atualizar_produto(id):
                     else margem_padrao
                 )
                 produto.preco_venda = venda_pelo_mercado(ref, desconto)
-                produto.preco_custo = custo_pela_venda(produto.preco_venda, margem_venda)
+                if not custo_real:
+                    produto.preco_custo = custo_pela_venda(produto.preco_venda, margem_venda)
                 produto.preco_referencia_mercado = ref
                 produto.fonte_referencia_mercado = (
                     (data.get("fonte_referencia_mercado") or "outro").strip().lower()
@@ -2621,12 +2629,14 @@ def atualizar_produto(id):
                     if data.get("margem_alvo_venda_pct") not in (None, "")
                     else margem_padrao
                 )
-                produto.preco_custo = custo_pela_venda(produto.preco_venda, margem_venda)
+                if not custo_real:
+                    produto.preco_custo = custo_pela_venda(produto.preco_venda, margem_venda)
                 motivo_modo_put = (
                     f"precificação pela venda (venda R$ {produto.preco_venda:f}, margem {margem_venda}%)"
                 )
 
-            produto.origem_custo = "estimado"
+            if not custo_real:
+                produto.origem_custo = "estimado"
             produto.margem_lucro = markup_de(produto.preco_custo, produto.preco_venda)
 
         # Registrar histórico de preços se houve alteração
@@ -2750,7 +2760,7 @@ def atualizar_produto(id):
 
 @produtos_bp.route("/<int:id>", methods=["DELETE"], strict_slashes=False)
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.excluir")
 def deletar_produto(id):
     """Desativa um produto (soft delete)"""
     try:
@@ -2817,7 +2827,7 @@ def deletar_produto(id):
 
 @produtos_bp.route("/<int:id>/toggle-ativo", methods=["PATCH"])
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.excluir")
 def toggle_ativo_produto(id):
     try:
         user = get_current_user()
@@ -2854,7 +2864,7 @@ def toggle_ativo_produto(id):
 
 @produtos_bp.route("/<int:id>/estoque", methods=["POST"])
 @funcionario_required
-@resource_required("estoque")
+@acao_protegida("estoque.ajustar")
 def ajustar_estoque(id):
     """Ajusta o estoque de um produto com movimentação registrada"""
     try:
@@ -3101,7 +3111,7 @@ def ajustar_estoque(id):
 
 @produtos_bp.route("/<int:id>/lotes/<int:lote_id>", methods=["PATCH"])
 @funcionario_required
-@resource_required("estoque")
+@acao_protegida("estoque.ajustar")
 def atualizar_lote_produto(id, lote_id):
     """Atualiza os metadados de um lote sem criar nova entrada de estoque."""
     try:
@@ -3190,7 +3200,7 @@ def atualizar_lote_produto(id, lote_id):
 
 @produtos_bp.route("/<int:id>/preco", methods=["POST"])
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.editar")
 def atualizar_preco(id):
     """Atualiza preços do produto com histórico de auditoria"""
     try:
@@ -3291,7 +3301,7 @@ def atualizar_preco(id):
 
 @produtos_bp.route("/<int:id>/descarte", methods=["POST"])
 @funcionario_required
-@gerente_required
+@acao_protegida("produtos.excluir")
 def descartar_produto(id):
     """
     Realiza o descarte de mercadoria (vencida/estragada).
@@ -4822,6 +4832,7 @@ def exportar_csv():
 
 @produtos_bp.route("/estoque", methods=["POST", "OPTIONS"])
 @funcionario_required
+@acao_protegida("produtos.criar")
 def criar_produto_estoque():
     """Cria um novo produto - Compatível com JWT"""
     if request.method == "OPTIONS":
@@ -4998,6 +5009,7 @@ def obter_produto_estoque(id):
 
 @produtos_bp.route("/estoque/<int:id>", methods=["PUT", "OPTIONS"])
 @funcionario_required
+@acao_protegida("produtos.editar")
 def atualizar_produto_estoque(id):
     """Atualiza um produto existente - Compatível com JWT"""
     if request.method == "OPTIONS":
@@ -5082,6 +5094,7 @@ def atualizar_produto_estoque(id):
 
 @produtos_bp.route("/estoque/<int:id>", methods=["DELETE", "OPTIONS"])
 @funcionario_required
+@acao_protegida("produtos.excluir")
 def deletar_produto_estoque(id):
     """Desativa um produto (soft delete) - Compatível com JWT"""
     if request.method == "OPTIONS":
@@ -5230,6 +5243,7 @@ def obter_grade(id):
 @jwt_required()
 @permission_required('produtos')
 @quota_required('produto')
+@acao_protegida("produtos.criar")
 def criar_grade(id):
     """Cria as variações (número × cor) do produto, que passa a ser o modelo da grade.
 
@@ -5876,6 +5890,7 @@ def _imp_ler_linha(v: dict) -> dict:
 
 @produtos_bp.route("/importar", methods=["POST"])
 @funcionario_required
+@acao_protegida("produtos.criar")
 def importar_produtos_csv():
     """Importa produtos em massa via CSV (modal "Importar Planilha").
 

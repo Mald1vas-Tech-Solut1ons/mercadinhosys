@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     Store, Settings, CreditCard, Printer,
-    Shield, Bell, Upload, MapPin,
+    Shield, Upload, MapPin,
     Save, CheckCircle, Building2, Clock,
     ShoppingCart, Package, X, XCircle, Edit2, RefreshCw,
     Database, HardDrive, Keyboard, DollarSign, User
@@ -16,6 +16,7 @@ import { buscarCep, formatCep, formatCnpj, formatPhone } from '../../utils/cepUt
 import { apiClient } from '../../api/apiClient';
 import SubscriptionSettings from './SubscriptionSettings';
 import SegmentSettings from './SegmentSettings';
+import PermissoesSettings from './PermissoesSettings';
 import SyncManager from '../../components/sync/SyncManager';
 import { SyncDataButton } from './SyncDataButton';
 import { useTheme } from '../../theme/useTheme';
@@ -437,12 +438,13 @@ const SettingsPage: React.FC = () => {
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                setConfig({
-                    ...config,
-                    latitude_estabelecimento: position.coords.latitude,
-                    longitude_estabelecimento: position.coords.longitude
+                // Fica na configuração do ponto: é ela que valida o raio no servidor.
+                setPontoConfig({
+                    ...pontoConfig,
+                    latitude_loja: position.coords.latitude,
+                    longitude_loja: position.coords.longitude
                 });
-                showToast.success('Localização obtida!');
+                showToast.success('Localização obtida! Salve para valer no ponto.');
                 setLoadingGeolocation(false);
             },
             () => {
@@ -1088,16 +1090,16 @@ const SettingsPage: React.FC = () => {
                                             label="Latitude"
                                             type="number"
                                             step="0.000001"
-                                            value={config.latitude_estabelecimento || ''}
-                                            onChange={(e) => setConfig({ ...config, latitude_estabelecimento: parseFloat(e.target.value) })}
+                                            value={pontoConfig.latitude_loja ?? ''}
+                                            onChange={(e) => setPontoConfig({ ...pontoConfig, latitude_loja: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                             placeholder="-23.550"
                                         />
                                         <InputField
                                             label="Longitude"
                                             type="number"
                                             step="0.000001"
-                                            value={config.longitude_estabelecimento || ''}
-                                            onChange={(e) => setConfig({ ...config, longitude_estabelecimento: parseFloat(e.target.value) })}
+                                            value={pontoConfig.longitude_loja ?? ''}
+                                            onChange={(e) => setPontoConfig({ ...pontoConfig, longitude_loja: e.target.value === '' ? null : parseFloat(e.target.value) })}
                                             placeholder="-46.633"
                                         />
                                         <InputField
@@ -1247,6 +1249,8 @@ const SettingsPage: React.FC = () => {
                                 </div>
                             )}
 
+                            {isTenantAdmin && <PermissoesSettings />}
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="flex flex-col space-y-1">
                                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tempo de Sessão (Logout por Inatividade)</label>
@@ -1272,22 +1276,6 @@ const SettingsPage: React.FC = () => {
                                     type="number"
                                     value={config.tentativas_senha_bloqueio}
                                     onChange={(e) => setConfig({ ...config, tentativas_senha_bloqueio: parseInt(e.target.value) })}
-                                />
-                            </div>
-
-                            <SectionTitle title="Notificações" icon={Bell} />
-                            <div className="space-y-4">
-                                <SwitchField
-                                    label="Alertas por E-mail"
-                                    description="Receber relatórios e alertas críticos por e-mail"
-                                    checked={config.alertas_email}
-                                    onChange={(val: boolean) => setConfig({ ...config, alertas_email: val })}
-                                />
-                                <SwitchField
-                                    label="Alertas via WhatsApp"
-                                    description="Integração para envio de alertas via WhatsApp"
-                                    checked={config.alertas_whatsapp}
-                                    onChange={(val: boolean) => setConfig({ ...config, alertas_whatsapp: val })}
                                 />
                             </div>
 

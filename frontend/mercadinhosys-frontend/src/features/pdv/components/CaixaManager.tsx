@@ -11,7 +11,6 @@ import { formatCurrency } from '../../../utils/formatters';
 import { mensagemErro } from '../../../utils/mensagemErro';
 import { printHtml } from '../../../utils/printHtml';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
-import PinDialog from '../../../components/modals/PinDialog';
 
 interface CaixaManagerProps {
     caixaAtual: CaixaPDV | null;
@@ -54,7 +53,6 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
     const [loadingAuditoria, setLoadingAuditoria] = useState(false);
     const [resumoCaixa, setResumoCaixa] = useState<any>(null);
     const [loadingResumo, setLoadingResumo] = useState(false);
-    const [pinSangriaOpen, setPinSangriaOpen] = useState(false);
 
     useEffect(() => {
         if (activeTab === 'auditoria' && caixaAtual) carregarAuditoria();
@@ -116,7 +114,9 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
             .map(([f, d]: any) => `<tr><td>${esc(formas[f] || f)}</td><td>${esc(Number(d?.quantidade) || 0)}</td><td style="text-align:right">${fmt(d?.total)}</td></tr>`)
             .join('');
 
-        const diferenca = valorContado - (paraNumero(resumo?.saldo_esperado_gaveta) || 0);
+        const diferenca = Number.isFinite(paraNumero(resumo?.quebra_gaveta))
+            ? paraNumero(resumo?.quebra_gaveta)
+            : valorContado - (paraNumero(resumo?.saldo_esperado_gaveta) || 0);
         const difCor = diferenca >= 0 ? '#16a34a' : '#dc2626';
 
         const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
@@ -186,22 +186,13 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
         const val = parseFloat(valorMovimentacao.replace(',', '.'));
         if (isNaN(val) || val <= 0) return showToast.error('Informe um valor válido.');
         if (!descricaoMovimentacao.trim()) return showToast.error('A descrição é obrigatória.');
-        // Regra de Acesso: sangria exige PIN de Admin/Gerente (conferência do
-        // valor exato junto com o caixa). O submit real acontece em confirmarMovimentacao.
-        if (tipoMovimentacao === 'sangria') {
-            setPinSangriaOpen(true);
-            return;
-        }
-        await confirmarMovimentacao();
-    };
-
-    const confirmarMovimentacao = async (pin?: string) => {
-        const val = parseFloat(valorMovimentacao.replace(',', '.'));
+        // Se a sangria exige PIN de Admin/Gerente é regra da loja (Configurações →
+        // Permissões); quando exige, o apiClient pede o PIN e refaz o envio.
         try {
             setLoading(true);
-            await pdvService.registrarMovimentacao({ tipo: tipoMovimentacao, valor: val, descricao: descricaoMovimentacao, pin });
+            await pdvService.registrarMovimentacao({ tipo: tipoMovimentacao, valor: val, descricao: descricaoMovimentacao });
             const delta = tipoMovimentacao === 'suprimento' ? val : -val;
-            if (caixaAtual) setCaixaAtual({ ...caixaAtual, saldo_atual: parseFloat(caixaAtual.saldo_atual as any) + delta });
+            if (caixaAtual && caixaAtual.saldo_atual != null) setCaixaAtual({ ...caixaAtual, saldo_atual: parseFloat(caixaAtual.saldo_atual as any) + delta });
             showToast.success(`${tipoMovimentacao === 'sangria' ? 'Sangria' : 'Suprimento'} registrado!`);
             setValorMovimentacao(''); setDescricaoMovimentacao('');
             onClose();
@@ -316,9 +307,11 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                         </div>
                         <div>
                             <p className="text-white font-black text-base leading-none">Gerenciar Caixa</p>
-                            <p className="text-slate-400 text-xs mt-0.5 font-mono">
-                                Saldo: <span className="text-green-400 font-bold">{formatCurrency(caixaAtual.saldo_atual)}</span>
-                            </p>
+                            {caixaAtual.saldo_atual != null && (
+                                <p className="text-slate-400 text-xs mt-0.5 font-mono">
+                                    Saldo: <span className="text-green-400 font-bold">{formatCurrency(caixaAtual.saldo_atual)}</span>
+                                </p>
+                            )}
                         </div>
                     </div>
                     <button onClick={onClose} disabled={loading}
@@ -434,7 +427,15 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400">ATIVO</span>
                                     </div>
 
+                                    {resumoCaixa.fechamento_cego && (
+                                        <p className="px-4 py-3 text-xs text-slate-300 border-b border-white/5">
+                                            Fechamento cego: conte o dinheiro da gaveta e informe abaixo. O valor esperado e a
+                                            diferença saem no relatório depois de fechar.
+                                        </p>
+                                    )}
+
                                     {/* Grid de Totais Rápidos */}
+                                    {!resumoCaixa.fechamento_cego && (
                                     <div className="grid grid-cols-2 gap-px bg-white/5 border-b border-white/5">
                                         <div className="p-3">
                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Vendas Totais</p>
@@ -453,11 +454,12 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                             <p className="text-sm font-black text-slate-300">{formatCurrency(resumoCaixa.saldo_inicial)}</p>
                                         </div>
                                     </div>
+                                    )}
 
                                     {/* Detalhamento por forma */}
                                     <div className="divide-y divide-white/5">
                                         {Object.entries(resumoCaixa.por_forma_pagamento || {}).map(([forma, dados]: any) => {
-                                            if (dados.total === 0 && forma !== 'dinheiro' && forma !== 'fiado') return null;
+                                            if (!dados.quantidade && !dados.total && forma !== 'dinheiro' && forma !== 'fiado') return null;
                                             const info = FORMA_LABELS[forma] || { label: forma, emoji: '📦', color: 'text-slate-400' };
                                             const isFiado = forma === 'fiado';
                                             return (
@@ -471,15 +473,18 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                                             <p className="text-[10px] text-slate-400">{dados.quantidade} op.</p>
                                                         </div>
                                                     </div>
-                                                    <span className={`font-black text-sm tabular-nums ${isFiado ? 'text-orange-400' : 'text-white'}`}>
-                                                        {formatCurrency(dados.total)}
-                                                    </span>
+                                                    {dados.total != null && (
+                                                        <span className={`font-black text-sm tabular-nums ${isFiado ? 'text-orange-400' : 'text-white'}`}>
+                                                            {formatCurrency(dados.total)}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             );
                                         })}
                                     </div>
 
                                     {/* Final Esperado na Gaveta */}
+                                    {!resumoCaixa.fechamento_cego && (
                                     <div className="flex justify-between items-center px-4 py-4"
                                         style={{ background: 'rgba(245,158,11,0.15)', borderTop: '2px dashed rgba(245,158,11,0.3)' }}>
                                         <div className="flex items-center gap-2">
@@ -495,6 +500,7 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                                             {formatCurrency(resumoCaixa.saldo_esperado_gaveta)}
                                         </span>
                                     </div>
+                                    )}
                                 </div>
                             )}
 
@@ -570,11 +576,13 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                     {/* ═══ ABA: EXTRATO / AUDITORIA ═══ */}
                     {activeTab === 'auditoria' && (
                         <div className="space-y-3">
-                            <div className="flex justify-between items-center px-4 py-3 rounded-2xl"
-                                style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                                <span className="text-sm font-bold text-amber-400">Saldo Caixa (Dinheiro)</span>
-                                <span className="text-xl font-black text-amber-400 tabular-nums">{formatCurrency(caixaAtual.saldo_atual)}</span>
-                            </div>
+                            {caixaAtual.saldo_atual != null && (
+                                <div className="flex justify-between items-center px-4 py-3 rounded-2xl"
+                                    style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                                    <span className="text-sm font-bold text-amber-400">Saldo Caixa (Dinheiro)</span>
+                                    <span className="text-xl font-black text-amber-400 tabular-nums">{formatCurrency(caixaAtual.saldo_atual)}</span>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 {loadingAuditoria ? (
@@ -620,14 +628,6 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
                 </div>{/* /scroll area */}
             </div>
 
-            {/* PIN obrigatório para sangria (Regra de Acesso) */}
-            <PinDialog
-                open={pinSangriaOpen}
-                title="Autorizar Sangria"
-                description="A sangria exige o PIN de segurança de um Admin ou Gerente. Confira o valor exato junto com o caixa antes de autorizar."
-                onSuccess={(pin) => { setPinSangriaOpen(false); confirmarMovimentacao(pin); }}
-                onClose={() => setPinSangriaOpen(false)}
-            />
         </div>,
         document.body
     );

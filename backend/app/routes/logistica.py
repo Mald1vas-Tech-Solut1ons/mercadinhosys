@@ -84,7 +84,13 @@ def configuracao_logistica():
         }})
 
     # PUT
-    data = request.json
+    from app.services.politica_acoes import verificar_acao
+    recusa = verificar_acao("logistica.configurar")
+    if recusa is not None:
+        return recusa
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"success": False, "error": "Dados inválidos"}), 400
     if not config:
         config = ConfiguracaoLogistica(estabelecimento_id=est_id)
         db.session.add(config)

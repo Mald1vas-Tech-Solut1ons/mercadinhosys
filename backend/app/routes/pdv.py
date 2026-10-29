@@ -27,7 +27,7 @@ import string
 from sqlalchemy import func
 from app.utils.smart_cache import get_cached_config, set_cached_config
 from app.utils.query_helpers import get_funcionario_safe, get_produto_safe, get_venda_safe, get_venda_itens_safe
-from app.utils.timezone import iso_utc, fmt_local
+from app.utils.timezone import iso_utc, fmt_local, now_utc, to_local, hoje_local, local_date_to_utc_naive
 from app.decorators.plan_guards import normalize_plan, plano_efetivo
 
 pdv_bp = Blueprint("pdv", __name__)
@@ -196,9 +196,34 @@ def decimal_to_float(value):
     return value
 
 
+def _data_da_venda(data, offline_uuid):
+    """Instante da venda em UTC naive (padrão do banco).
+
+    Venda feita offline sobe depois: vale a hora em que o caixa vendeu (`offline_criadoEm`),
+    desde que plausível (até 7 dias atrás e não no futuro), senão o fechamento do dia erra.
+    """
+    agora = now_utc()
+    bruto = data.get("offline_criadoEm") if offline_uuid else None
+    if bruto:
+        try:
+            quando = datetime.fromisoformat(str(bruto).replace("Z", "+00:00"))
+            if quando.tzinfo is not None:
+                quando = quando.astimezone(timezone.utc).replace(tzinfo=None)
+            if agora - timedelta(days=7) <= quando <= agora + timedelta(minutes=5):
+                return min(quando, agora)
+        except ValueError:
+            pass
+    return agora
+
+
+def _janela_hoje_utc():
+    hoje = hoje_local()
+    return local_date_to_utc_naive(hoje), local_date_to_utc_naive(hoje, fim_do_dia=True)
+
+
 def gerar_codigo_venda():
     """Gera código único para venda no formato V-YYYYMMDD-XXXX"""
-    data_atual = datetime.now().strftime("%Y%m%d")
+    data_atual = hoje_local().strftime("%Y%m%d")
     random_part = "".join(random.choices(string.digits, k=4))
     codigo = f"V-{data_atual}-{random_part}"
     
@@ -956,8 +981,7 @@ def finalizar_venda():
                 }), 403
 
             codigo_venda = gerar_codigo_venda()
-            manaus_tz = pytz.timezone('America/Manaus')
-            data_venda = datetime.now(manaus_tz)
+            data_venda = _data_da_venda(data, offline_uuid)
 
             total_recebido = sum(to_decimal(p.get("valor", 0)) for p in pagamentos_data)
             troco_calculado = max(Decimal('0'), total_recebido - total)
@@ -1136,7 +1160,7 @@ def finalizar_venda():
 
                 from datetime import timedelta
                 from app.models import ContaReceber
-                data_vencimento = (data_venda + timedelta(days=30)).date()
+                data_vencimento = to_local(data_venda).date() + timedelta(days=30)
                 conta = ContaReceber(
                     estabelecimento_id=funcionario_data.get("estabelecimento_id"),
                     cliente_id=cliente_id,
@@ -1144,10 +1168,10 @@ def finalizar_venda():
                     numero_documento=codigo_venda,
                     valor_original=valor_fiado,
                     valor_atual=valor_fiado,
-                    data_emissao=data_venda.date(),
+                    data_emissao=to_local(data_venda).date(),
                     data_vencimento=data_vencimento,
                     status="aberto",
-                    observacoes=f"Fiado PDV - {cliente.nome}. Venda fiado em {data_venda.strftime('%d/%m/%Y')}"
+                    observacoes=f"Fiado PDV - {cliente.nome}. Venda fiado em {fmt_local(data_venda, '%d/%m/%Y')}"
                 )
                 db.session.add(conta)
 
@@ -1261,10 +1285,9 @@ def vendas_hoje():
                 for k, v in data.items(): setattr(self, k, v)
         funcionario = _Proxy(funcionario_data)
         
-        hoje = datetime.now().date()
-        inicio_dia = datetime.combine(hoje, datetime.min.time())
-        fim_dia = datetime.combine(hoje, datetime.max.time())
-        
+        hoje = hoje_local()
+        inicio_dia, fim_dia = _janela_hoje_utc()
+
         # Vendas do dia (carrega pagamentos junto p/ evitar N+1)
         vendas = Venda.query.options(db.selectinload(Venda.pagamentos)).filter(
             Venda.estabelecimento_id == funcionario.estabelecimento_id,
@@ -1320,7 +1343,7 @@ def vendas_hoje():
                     "id": v.id,
                     "codigo": v.codigo,
                     "total": float(v.total or 0),
-                    "hora": _ref(v).strftime("%H:%M") if _ref(v) else "--:--",
+                    "hora": fmt_local(_ref(v), "%H:%M") if _ref(v) else "--:--",
                     "forma_pagamento": _forma_principal(v),
                 }
                 for v in sorted(vendas, key=lambda x: _ref(x) or datetime.min, reverse=True)[:10]
@@ -1368,14 +1391,12 @@ def estatisticas_rapidas():
                 "success": True, # Retornamos vazio mas com sucesso para não quebrar o dashboard
                 "estatisticas": {
                     "total_vendas": 0, "faturamento": 0.0, "ticket_medio": 0.0,
-                    "funcionario": "Usuário", "hora_atual": datetime.now().strftime("%H:%M")
+                    "funcionario": "Usuário", "hora_atual": fmt_local(now_utc(), "%H:%M")
                 }
             }), 200
 
-        hoje = datetime.now().date()
-        inicio_dia = datetime.combine(hoje, datetime.min.time())
-        fim_dia = datetime.combine(hoje, datetime.max.time())
-        
+        inicio_dia, fim_dia = _janela_hoje_utc()
+
         # Query agregada (Performance de Elite)
         stats = db.session.query(
             func.count(Venda.id).label("total_vendas"),
@@ -1395,7 +1416,7 @@ def estatisticas_rapidas():
                 "faturamento": round(float(stats.faturamento or 0), 2),
                 "ticket_medio": round(float(stats.ticket_medio or 0), 2),
                 "funcionario": (funcionario_data.get("nome") if funcionario_data else "Usuário"),
-                "hora_atual": datetime.now().strftime("%H:%M"),
+                "hora_atual": fmt_local(now_utc(), "%H:%M"),
             }
         }), 200
         

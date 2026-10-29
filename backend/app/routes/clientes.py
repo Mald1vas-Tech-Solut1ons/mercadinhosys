@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity, get_jwt, jwt_required
 from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id
 from datetime import datetime, timedelta, date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 import re
@@ -20,6 +20,7 @@ from app.utils.timezone import iso_utc, now_utc, hoje_local
 from app.utils.ia_copiloto import gerar_texto, ia_disponivel
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
+from app.services.politica_acoes import acao_protegida, verificar_acao
 
 clientes_bp = Blueprint("clientes", __name__, url_prefix="/api/clientes")
 
@@ -609,6 +610,7 @@ def obter_cliente(id):
 @jwt_required()
 @permission_required('clientes')
 @quota_required('cliente')
+@acao_protegida("clientes.criar")
 def criar_cliente():
     """Cria um novo cliente"""
     try:
@@ -750,6 +752,7 @@ def criar_cliente():
 
 @clientes_bp.route("/<int:id>", methods=["PUT"])
 @funcionario_required
+@acao_protegida("clientes.editar")
 def atualizar_cliente(id):
     """Atualiza um cliente existente"""
     try:
@@ -779,6 +782,22 @@ def atualizar_cliente(id):
                 ),
                 400,
             )
+
+        # Campos com permissão própria só exigem a ação quando o valor muda de fato
+        # (o formulário reenvia o cadastro inteiro).
+        if "limite_credito" in data:
+            try:
+                novo_limite = Decimal(str(data["limite_credito"] or 0))
+            except (ValueError, TypeError, InvalidOperation):
+                novo_limite = Decimal("0")
+            if novo_limite != Decimal(str(cliente.limite_credito or 0)):
+                recusa = verificar_acao("clientes.limite_credito")
+                if recusa is not None:
+                    return recusa
+        if "ativo" in data and bool(data["ativo"]) != bool(cliente.ativo) and not data["ativo"]:
+            recusa = verificar_acao("clientes.excluir")
+            if recusa is not None:
+                return recusa
 
         # Formatar dados
         if data.get("tipo_pessoa"):
@@ -869,6 +888,7 @@ def atualizar_cliente(id):
 
 @clientes_bp.route("/<int:id>/status", methods=["PATCH"])
 @funcionario_required
+@acao_protegida("clientes.excluir")
 def atualizar_status_cliente(id):
     """Ativa/desativa um cliente"""
     try:
@@ -943,6 +963,7 @@ def atualizar_status_cliente(id):
 
 @clientes_bp.route("/<int:id>", methods=["DELETE"])
 @funcionario_required
+@acao_protegida("clientes.excluir")
 def excluir_cliente(id):
     """Exclui um cliente (apenas se não houver vínculos)"""
     try:
@@ -987,7 +1008,13 @@ def excluir_cliente(id):
                 400,
             )
 
-        # Excluir cliente
+        # Sem vendas nem títulos: nada de histórico se perde. Fica o rastro de quem excluiu.
+        from app.models import Auditoria
+        Auditoria.registrar(
+            estabelecimento_id=cliente.estabelecimento_id, tipo_evento="cliente_excluido",
+            descricao=f"Cliente {cliente.nome} (id {cliente.id}) excluído",
+            usuario_id=int(username) if str(username).isdigit() else None,
+            detalhes={"cliente_id": cliente.id, "cpf": cliente.cpf, "cnpj": cliente.cnpj})
         db.session.delete(cliente)
         db.session.commit()
 
@@ -1339,6 +1366,7 @@ def obter_credito_cliente(id):
 
 @clientes_bp.route("/<int:id>/pagar_fiado", methods=["POST"])
 @funcionario_required
+@acao_protegida("clientes.receber_fiado")
 def pagar_fiado(id):
     """Registra pagamento (parcial ou total) de dívida de fiado do cliente.
     Gera automaticamente um Suprimento no caixa aberto.
@@ -2404,6 +2432,7 @@ def _data_import(valor, campo):
 @clientes_bp.route("/importar", methods=["POST"])
 @funcionario_required
 @permission_required('clientes')
+@acao_protegida("clientes.criar")
 def importar_clientes_csv():
     """Importa clientes (PF e PJ) em massa via CSV, com saldo inicial por título.
 

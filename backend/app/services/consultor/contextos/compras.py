@@ -6,7 +6,6 @@ from app.services.consultor.contextos._datas import hoje_local, ini, fim
 
 def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto de Compras para o consultor IA."""
-    agora = datetime.now()
     hoje = hoje_local()
     mes_atual_inicio = hoje.replace(day=1)
     

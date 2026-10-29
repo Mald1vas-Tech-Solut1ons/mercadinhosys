@@ -1,3 +1,4 @@
+import re
 """
 MercadinhoSys - Rotas de Delivery Profissional
 Integração total com os modelos: Motorista, Veiculo, Entrega, TaxaEntrega
@@ -20,6 +21,7 @@ import logging
 import os
 import uuid
 from sqlalchemy import or_, and_, func
+from app.services.politica_acoes import acao_protegida, verificar_acao
 
 delivery_bp = Blueprint("delivery", __name__)
 logger = logging.getLogger(__name__)
@@ -101,6 +103,7 @@ def _parse_data(valor):
 
 @delivery_bp.route("/motoristas", methods=["POST"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def criar_motorista():
     """Cadastra um novo motorista"""
     try:
@@ -130,6 +133,7 @@ def criar_motorista():
 
 @delivery_bp.route("/motoristas/<int:id>", methods=["PUT"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def atualizar_motorista(id):
     """Atualiza os dados de conformidade do motorista (CNH, categoria, validade etc.)."""
     try:
@@ -161,6 +165,7 @@ def atualizar_motorista(id):
 
 @delivery_bp.route("/motoristas/<int:id>/documento", methods=["POST"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def upload_documento_motorista(id):
     """Upload da CNH digitalizada do motorista."""
     try:
@@ -197,15 +202,20 @@ def listar_veiculos():
 
 @delivery_bp.route("/veiculos", methods=["POST"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def criar_veiculo():
     """Cadastra um novo veículo da frota."""
     try:
         data = request.get_json() or {}
+        placa = re.sub(r"[^A-Z0-9]", "", str(data.get("placa") or "").upper())
+        # Placa antiga (ABC1234) ou Mercosul (ABC1D23).
+        if not re.fullmatch(r"[A-Z]{3}[0-9][A-Z0-9][0-9]{2}", placa):
+            return jsonify({"success": False, "error": "Placa inválida. Use o formato ABC1234 ou ABC1D23."}), 400
 
         veiculo = Veiculo(
             estabelecimento_id=request.allowed_estabelecimento_id,
             motorista_id=data.get("motorista_id"),
-            placa=(data.get("placa") or "").upper(),
+            placa=placa,
             renavam=data.get("renavam"),
             tipo=data.get("tipo", "carro"),
             marca=data.get("marca"),
@@ -237,6 +247,7 @@ def criar_veiculo():
 
 @delivery_bp.route("/veiculos/<int:id>", methods=["PUT"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def atualizar_veiculo(id):
     """Atualiza os dados de conformidade do veículo (renavam, licenciamento, seguro etc.)."""
     try:
@@ -244,12 +255,15 @@ def atualizar_veiculo(id):
             id=id, estabelecimento_id=request.allowed_estabelecimento_id
         ).first_or_404()
         data = request.get_json() or {}
+        if data.get("placa") is not None:
+            data["placa"] = re.sub(r"[^A-Z0-9]", "", str(data["placa"]).upper())
+            if not re.fullmatch(r"[A-Z]{3}[0-9][A-Z0-9][0-9]{2}", data["placa"]):
+                return jsonify({"success": False, "error": "Placa inválida. Use o formato ABC1234 ou ABC1D23."}), 400
 
         campos_texto = ["placa", "renavam", "tipo", "marca", "modelo", "cor", "proprietario"]
         for campo in campos_texto:
             if campo in data and data[campo] is not None:
-                valor = data[campo].upper() if campo == "placa" else data[campo]
-                setattr(veiculo, campo, valor)
+                setattr(veiculo, campo, data[campo])
         if "ano" in data:
             veiculo.ano = data["ano"]
         if "motorista_id" in data:
@@ -277,6 +291,7 @@ def atualizar_veiculo(id):
 
 @delivery_bp.route("/veiculos/<int:id>/documento", methods=["POST"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def upload_documento_veiculo(id):
     """Upload do CRLV (licenciamento) digitalizado do veículo."""
     try:
@@ -448,6 +463,7 @@ def listar_taxas():
 
 @delivery_bp.route("/taxas", methods=["POST"])
 @tenant_or_super_admin_required
+@acao_protegida("logistica.configurar")
 def criar_taxa():
     """Cria nova configuração de taxa de entrega"""
     try:

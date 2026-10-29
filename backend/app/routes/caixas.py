@@ -10,6 +10,24 @@ from app.utils.timezone import iso_utc
 
 caixas_bp = Blueprint("caixas", __name__)
 
+def _fechamento_cego(dados):
+    """Sem a permissão "ver valor esperado", o operador conta a gaveta às cegas:
+    some tudo que deixa calcular quanto deveria haver (saldo, esperado e totais em R$).
+    Quantidades de operações continuam visíveis."""
+    from app.services.politica_acoes import pode
+    if pode("caixa.ver_esperado"):
+        return dados
+    dados = dict(dados)
+    for chave in ("saldo_atual", "saldo_esperado_gaveta", "total_vendas", "total_sangrias", "total_suprimentos"):
+        dados.pop(chave, None)
+    if isinstance(dados.get("por_forma_pagamento"), dict):
+        dados["por_forma_pagamento"] = {
+            forma: {"quantidade": v.get("quantidade", 0)} for forma, v in dados["por_forma_pagamento"].items()
+        }
+    dados["fechamento_cego"] = True
+    return dados
+
+
 @caixas_bp.route("/atual", methods=["GET"])
 @jwt_required()
 @permission_required('gestao_caixa')
@@ -26,7 +44,7 @@ def obter_caixa_atual():
         if not caixa:
             return jsonify({"success": True, "data": None}), 200
 
-        return jsonify({"success": True, "data": caixa.to_dict()}), 200
+        return jsonify({"success": True, "data": _fechamento_cego(caixa.to_dict())}), 200
     except Exception as e:
         current_app.logger.error(f"Erro ao obter caixa atual: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
@@ -209,11 +227,17 @@ def fechar_caixa():
                 "saldo_final_informado": valor_informado,
                 "diferenca_balanço": round(valor_informado - saldo_calculado, 2)
             },
+            # Depois da contagem enviada, o relatório mostra tudo (inclusive no fechamento cego).
+            # Os nomes batem com /atual/resumo: o relatório impresso lê os mesmos campos.
             "resumo_fechamento": {
                 "saldo_inicial": float(caixa.saldo_inicial),
                 "entradas": round(entradas_dinheiro, 2),
                 "saidas": round(saidas, 2),
                 "saldo_final": round(saldo_calculado, 2),
+                "saldo_esperado_gaveta": round(saldo_calculado, 2),
+                "total_vendas": round(total_vendas, 2),
+                "total_suprimentos": round(total_suprimentos, 2),
+                "total_sangrias": round(total_sangrias, 2),
                 "quebra_gaveta": round(diferenca_gaveta, 2),
                 "por_forma_pagamento": dict(totais_por_forma)
             }
@@ -256,20 +280,18 @@ def registrar_movimentacao():
         if not caixa:
             return jsonify({"success": False, "error": "Nenhum caixa aberto encontrado"}), 404
 
-        # Regra de Acesso: SANGRIA exige o PIN de segurança da loja (conferência
-        # do valor exato junto com o caixa). Suprimento não exige.
+        # Quem pode fazer sangria e se exige PIN de Admin/Gerente é configurável
+        # por loja (Configurações → Permissões; padrão: Caixa com PIN).
         if tipo == "sangria":
-            from app.routes.configuracao import autorizar_por_pin
-            autorizador = autorizar_por_pin(caixa.estabelecimento_id, data.get("pin"))
-            if not autorizador:
-                return jsonify({
-                    "success": False,
-                    "error": "Sangria exige o PIN de segurança de um Admin ou Gerente.",
-                    "code": "PIN_REQUIRED",
-                }), 403
-            # Rastreabilidade: registra quem autorizou a sangria
-            autoria = f"Sangria autorizada por {autorizador.nome} (PIN)"
-            observacoes = f"{observacoes} | {autoria}" if observacoes else autoria
+            from flask import g
+            from app.services.politica_acoes import verificar_acao
+            recusa = verificar_acao("caixa.sangria")
+            if recusa is not None:
+                return recusa
+            autorizador = getattr(g, "autorizador_pin", None)
+            if autorizador:
+                autoria = f"Sangria autorizada por {autorizador.nome} (PIN)"
+                observacoes = f"{observacoes} | {autoria}" if observacoes else autoria
 
         mov = MovimentacaoCaixa(
             caixa_id=caixa.id,
@@ -297,7 +319,7 @@ def registrar_movimentacao():
             "success": True, 
             "message": "Movimentação registrada com sucesso", 
             "data": mov.to_dict(),
-            "saldo_atual": float(caixa.saldo_atual)
+            **_fechamento_cego({"saldo_atual": float(caixa.saldo_atual)})
         }), 201
 
     except Exception as e:
@@ -417,7 +439,7 @@ def obter_resumo_caixa_atual():
 
         return jsonify({
             "success": True,
-            "data": {
+            "data": _fechamento_cego({
                 "caixa_id": caixa.id,
                 "saldo_inicial": float(caixa.saldo_inicial or 0),
                 "saldo_atual": float(caixa.saldo_atual or 0),
@@ -428,7 +450,7 @@ def obter_resumo_caixa_atual():
                 "por_forma_pagamento": dict(totais_por_forma),
                 # Marca UTC (como o to_dict): sem offset o navegador lia como hora local, 3h adiantada
                 "data_abertura": iso_utc(caixa.data_abertura.replace(tzinfo=timezone.utc)) if caixa.data_abertura else None,
-            }
+            })
         }), 200
     except Exception as e:
         current_app.logger.error(f"Erro ao obter resumo do caixa: {e}", exc_info=True)

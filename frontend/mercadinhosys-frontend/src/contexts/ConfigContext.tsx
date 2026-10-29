@@ -51,6 +51,17 @@ export const ConfigProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // Tempo de sessão é regra da loja: vale em todo aparelho que logar, não só no
+    // navegador onde o admin salvou. O hook de inatividade lê esta chave.
+    useEffect(() => {
+        const minutos = config?.tempo_sessao_minutos;
+        if (!minutos) return;
+        try {
+            localStorage.setItem('mercadinhosys_inactivity_timeout_min', String(minutos));
+        } catch { /* armazenamento bloqueado: fica o padrão do hook */ }
+        window.dispatchEvent(new Event('inactivity-settings-changed'));
+    }, [config?.tempo_sessao_minutos]);
+
     const updateConfig = async (newConfig: Partial<Configuracao>) => {
         const previousConfig = config;
         // ✅ ATUALIZAÇÃO OTIMISTA PARA CORES E CONFIGS

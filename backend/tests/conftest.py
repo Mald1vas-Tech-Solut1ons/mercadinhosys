@@ -62,6 +62,9 @@ def session(app):
         # Complete clean state
         from app import cache
         cache.clear()
+        # Contadores do rate limit (ex.: 5 logins/min por IP) não podem vazar entre testes.
+        from app.middleware.rate_limit import limiter
+        limiter.reset()
         
         db.drop_all()
         db.create_all()

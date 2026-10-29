@@ -417,6 +417,11 @@ def logs_auditoria():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _familias_produto():
+    from app.services.view_schema_service import FAMILIAS_PRODUTO
+    return FAMILIAS_PRODUTO
+
+
 @super_admin_dashboard_bp.route("/catalogo-mestre", methods=["GET"])
 @super_admin_required
 def catalogo_mestre():
@@ -439,6 +444,11 @@ def catalogo_mestre():
             q = q.filter(CatalogoMestre.categoria == categoria)
         if fonte:
             q = q.filter(CatalogoMestre.fonte == fonte)
+        familia = request.args.get("familia")
+        if familia == "sem":
+            q = q.filter(CatalogoMestre.familia_produto.is_(None))
+        elif familia:
+            q = q.filter(CatalogoMestre.familia_produto == familia)
         if busca:
             termo = f"%{busca}%"
             q = q.filter(or_(CatalogoMestre.nome.ilike(termo), CatalogoMestre.ean.ilike(termo)))
@@ -451,6 +461,7 @@ def catalogo_mestre():
             "success": True,
             "data": [c.to_dict() for c in itens],
             "total": total, "pagina": pagina, "por_pagina": por_pagina,
+            "familias": [{"chave": k, "nome": v["nome"]} for k, v in _familias_produto().items()],
         })
     except Exception as e:
         logger.error(f"Erro em catalogo_mestre: {e}")

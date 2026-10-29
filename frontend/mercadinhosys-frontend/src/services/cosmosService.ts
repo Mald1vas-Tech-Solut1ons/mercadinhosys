@@ -64,11 +64,14 @@ export const cosmosService = {
      * Lookup inteligente por EAN: tenta o catálogo local (sem franquia) e, no miss,
      * BigDataCorp e bases abertas (gravando no catálogo). Não lança em falha de negócio — retorna
      * o objeto com success/code/message para a UI exibir a causa real.
+     * `familia`: a que o operador já escolheu no cadastro; o backend preenche os campos dela.
      */
-    async lookup(ean: string, force: boolean = false): Promise<CatalogoLookupResult> {
+    async lookup(ean: string, force: boolean = false, familia?: string): Promise<CatalogoLookupResult> {
         try {
-            const url = force ? `/produtos/catalogo/lookup/${ean}?force=true` : `/produtos/catalogo/lookup/${ean}`;
-            const { data } = await apiClient.get<CatalogoLookupResult>(url);
+            const params: Record<string, string> = {};
+            if (force) params.force = 'true';
+            if (familia) params.familia = familia;
+            const { data } = await apiClient.get<CatalogoLookupResult>(`/produtos/catalogo/lookup/${ean}`, { params });
             return data;
         } catch (error: any) {
             const resp = error?.response?.data;

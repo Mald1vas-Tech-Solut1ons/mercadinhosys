@@ -248,3 +248,94 @@ def test_liberar_acima_da_franquia_exige_confirmacao(client, session, loja):
         loja["admin"].is_super_admin = False
         session.query(ConfigApiExterna).delete(synchronize_session=False)
         session.commit()
+
+
+# ───────────── família no catálogo: a loja ensina, a próxima herda ─────────────
+
+def _produto_fake(familia):
+    from types import SimpleNamespace
+    return SimpleNamespace(codigo_barras="7894900027013", nome="Refrigerante", marca="Marca", fabricante="Fab",
+                           ncm="22021000", categoria=SimpleNamespace(nome="Bebida"), unidade_medida="UN",
+                           imagem_url="", familia_produto=familia)
+
+
+@pytest.fixture
+def mix_loja(monkeypatch):
+    monkeypatch.setattr("app.services.view_schema_service.mix_permitido_para_estabelecimento",
+                        lambda *a, **k: ["alimento", "bebida", "eletro"])
+
+    def _sem_ia(*a, **k):
+        raise AssertionError("IA não deveria ser chamada")
+    monkeypatch.setattr("app.routes.produtos._familia_por_ia", _sem_ia)
+
+
+def test_loja_ensina_familia_ao_catalogo(session, loja):
+    from types import SimpleNamespace
+    from app.services.catalogo_mestre_service import registrar_produto_se_novo
+    CatalogoMestre.query.filter_by(ean="7894900027013").delete()
+    session.commit()
+    registrar_produto_se_novo(_produto_fake("bebida"), SimpleNamespace(id=loja["estab"].id), "modal")
+    session.commit()
+    assert CatalogoMestre.query.filter_by(ean="7894900027013").first().familia_produto == "bebida"
+
+
+def test_familia_do_catalogo_nao_e_sobrescrita(session, loja):
+    from types import SimpleNamespace
+    from app.services.catalogo_mestre_service import registrar_produto_se_novo
+    CatalogoMestre.query.filter_by(ean="7894900027013").delete()
+    session.add(CatalogoMestre(ean="7894900027013", nome="X", status="encontrado", fonte="tenant", familia_produto="bebida"))
+    session.commit()
+    estab = SimpleNamespace(id=loja["estab"].id)
+    registrar_produto_se_novo(_produto_fake("alimento"), estab, "modal")
+    session.commit()
+    assert CatalogoMestre.query.filter_by(ean="7894900027013").first().familia_produto == "bebida"
+    CatalogoMestre.query.filter_by(ean="7894900027013").first().familia_produto = None
+    session.commit()
+    registrar_produto_se_novo(_produto_fake("alimento"), estab, "modal")
+    session.commit()
+    assert CatalogoMestre.query.filter_by(ean="7894900027013").first().familia_produto == "alimento"
+    CatalogoMestre.query.filter_by(ean="7894900027013").delete()
+    session.commit()
+
+
+def test_lookup_herda_familia_do_catalogo_sem_ia(client, session, loja, mix_loja):
+    session.add(CatalogoMestre(ean="7890000000031", nome="Cabo X", categoria="Cabo", status="encontrado",
+                               fonte="tenant", familia_produto="eletro"))
+    session.commit()
+    r = client.get("/api/produtos/catalogo/lookup/7890000000031", headers=loja["headers"])
+    assert r.status_code == 200 and r.get_json()["source"] == "catalogo"
+    assert r.get_json()["data"]["sugestoes"]["familia_produto"] == "eletro"
+
+
+def test_lookup_grava_familia_pelo_ncm(client, session, loja, mix_loja):
+    session.add(CatalogoMestre(ean="7890000000048", nome="Suco de Uva 1L", categoria="Suco", ncm="22029900",
+                               status="encontrado", fonte="tenant"))
+    session.commit()
+    r = client.get("/api/produtos/catalogo/lookup/7890000000048", headers=loja["headers"])
+    assert r.get_json()["data"]["sugestoes"]["familia_produto"] == "bebida"
+    session.expire_all()
+    assert CatalogoMestre.query.filter_by(ean="7890000000048").first().familia_produto == "bebida"
+
+
+def test_importar_do_catalogo_leva_familia_e_nao_inventa_ncm(client, session, loja, mix_loja):
+    session.add(CatalogoMestre(ean="7890000000055", nome="Biscoito Y", categoria="Biscoito", status="encontrado",
+                               fonte="tenant", familia_produto="alimento", ncm=None))
+    session.commit()
+    r = client.post("/api/produtos/catalogo/importar", json={"eans": ["7890000000055"]}, headers=loja["headers"])
+    assert r.status_code in (200, 201), r.get_json()
+    p = Produto.query.filter_by(estabelecimento_id=loja["estab"].id, codigo_barras="7890000000055").first()
+    try:
+        assert p is not None and p.familia_produto == "alimento"
+        assert p.ncm in (None, "")
+    finally:
+        if p is not None:
+            session.delete(p)
+            session.commit()
+
+
+def test_familia_escolhida_pelo_operador_manda(client, session, loja, mix_loja):
+    session.add(CatalogoMestre(ean="7890000000062", nome="Copo Termico", categoria="Copo", status="encontrado",
+                               fonte="tenant", familia_produto="bebida"))
+    session.commit()
+    r = client.get("/api/produtos/catalogo/lookup/7890000000062?familia=eletro", headers=loja["headers"])
+    assert r.get_json()["data"]["sugestoes"]["familia_produto"] == "eletro"

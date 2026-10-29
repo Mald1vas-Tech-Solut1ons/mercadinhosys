@@ -1547,6 +1547,9 @@ class CatalogoMestre(db.Model):
     # Resposta bruta da BigDataCorp (todas as fontes): fica guardada mesmo quando outra base
     # preenche o item, para o catálogo próprio crescer sem reconsultar (cada consulta custa).
     payload_bigdatacorp = db.Column(db.Text, nullable=True)
+    # Família do produto (chave de FAMILIAS_PRODUTO): a que a loja confirmou no cadastro ou a
+    # identificada pelo NCM/tipo. A próxima loja herda em vez de recalcular.
+    familia_produto = db.Column(db.String(40), nullable=True, index=True)
     __table_args__ = (db.Index("ix_catalogo_status", "status"), db.Index("ix_catalogo_categoria", "categoria"))
 
     def to_dict(self):
@@ -1559,6 +1562,7 @@ class CatalogoMestre(db.Model):
             "consultado_em": iso_utc(self.consultado_em) if self.consultado_em else None,
             "descoberto_por_estabelecimento_id": self.descoberto_por_estabelecimento_id,
             "descoberto_via": self.descoberto_via,
+            "familia_produto": self.familia_produto,
         }
 
 

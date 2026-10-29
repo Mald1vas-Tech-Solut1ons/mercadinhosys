@@ -661,7 +661,7 @@ def _familia_por_ia(item, mix: list):
     return chave if chave in opcoes else None
 
 
-def _sugestoes_cadastro(item) -> dict:
+def _sugestoes_cadastro(item, familia_escolhida=None) -> dict:
     """Família, categoria, atributos e descrição para o cadastro DESTA loja (mix e categorias dela).
 
     Calculado a cada consulta a partir do item global (e da ficha bruta da BigDataCorp), então o
@@ -679,8 +679,20 @@ def _sugestoes_cadastro(item) -> dict:
         estab = db.session.get(Estabelecimento, int(estab_id))
         resultado = _json.loads(item.payload_bigdatacorp) if item.payload_bigdatacorp else {}
         mix = mix_permitido_para_estabelecimento(estab)
-        # Camadas: NCM -> palavras do tipo/nome -> IA (restrita ao mix); loja de uma família só já está certa.
-        familia = (bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome], mix)
+        # Família que o catálogo já conhece (confirmada por outra loja ou pelo NCM) é gravada uma vez;
+        # o NCM/palavras valem para todas as lojas e ficam no catálogo para a próxima herdar.
+        if not item.familia_produto:
+            from app.services.view_schema_service import FAMILIAS_PRODUTO
+            global_ = bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome],
+                                                [f for f in FAMILIAS_PRODUTO if f != "servico"])
+            if global_:
+                item.familia_produto = global_
+                db.session.commit()
+        # Família é a 1ª decisão: a que o operador escolheu manda; sem escolha, as camadas
+        # catálogo -> NCM/palavras -> loja de uma família só -> IA (sempre restrita ao mix).
+        familia = ((familia_escolhida if familia_escolhida in mix else None)
+                   or (item.familia_produto if item.familia_produto in mix else None)
+                   or bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome], mix)
                    or (mix[0] if len([m for m in mix if m != "servico"]) == 1 else None)
                    or _familia_por_ia(item, mix))
         categorias = [c.nome for c in CategoriaProduto.query.filter_by(estabelecimento_id=estab.id).all() if c.nome]
@@ -711,7 +723,7 @@ def _sugestoes_cadastro(item) -> dict:
 
 def _resposta_catalogo(item, source):
     dados = item.to_dict()
-    dados["sugestoes"] = _sugestoes_cadastro(item)
+    dados["sugestoes"] = _sugestoes_cadastro(item, (request.args.get("familia") or "").strip().lower() or None)
     return jsonify({"success": True, "source": source, "data": dados}), 200
 
 
@@ -1113,6 +1125,25 @@ def catalogo_importar():
         db.session.flush()
 
     cat_cache = {}
+    # Família de cada item: a do catálogo se a loja usa; senão a identificada pelo NCM/nome no mix
+    # da loja; senão a padrão do segmento. Controle de validade segue a família (parafuso não vence).
+    from app.services import bigdatacorp_service as _bdc
+    from app.services.view_schema_service import mix_permitido_para_estabelecimento, resolver_view_schema
+    _estab = db.session.get(Estabelecimento, int(estabelecimento_id))
+    _mix = mix_permitido_para_estabelecimento(_estab)
+    _validade_por_familia = {}
+
+    def familia_do_item(item):
+        if item.familia_produto in _mix:
+            return item.familia_produto
+        return _bdc.familia_por_evidencia(item.ncm, [item.categoria, item.nome], _mix) or _mix[0]
+
+    def usa_validade(familia):
+        if familia not in _validade_por_familia:
+            schema = resolver_view_schema(_estab, familia_produto=familia)
+            _validade_por_familia[familia] = bool((schema.get("flags") or {}).get("usa_validade", True))
+        return _validade_por_familia[familia]
+
     def resolver_categoria(nome):
         if not nome:
             return cat_padrao
@@ -1146,9 +1177,11 @@ def catalogo_importar():
             preco_custo = Decimal("0.01")
             preco_venda = Decimal("0.01")
 
+        familia_item = familia_do_item(item)
         novo = Produto(
             estabelecimento_id=estabelecimento_id,
             categoria_id=resolver_categoria(item.categoria).id,
+            familia_produto=familia_item,
             fornecedor_id=fornecedor_id,
             nome=item.nome or f"Produto {ean_limpo}",
             descricao=f"Importado do catálogo mestre ({item.marca or 'sem marca'}).",
@@ -1162,8 +1195,8 @@ def catalogo_importar():
             margem_lucro=margem,
             quantidade=0,
             quantidade_minima=Decimal("10"),
-            ncm=item.ncm or "00000000",
-            controlar_validade=True,
+            ncm=item.ncm or None,  # sem NCM real fica vazio para conferir: "00000000" ia para a nota
+            controlar_validade=usa_validade(familia_item),
             ativo=True,
             imagem_url=item.imagem_url or "",
         )

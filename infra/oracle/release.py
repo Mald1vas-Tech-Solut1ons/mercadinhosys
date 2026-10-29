@@ -278,7 +278,10 @@ def deploy():
         save('deploy-result.json', result)
         (LIVE / '.release.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
         print(json.dumps(result), flush=True)
-    except Exception:
+    except Exception as falha:
+        # A causa vai para o log antes do rollback: sem ela, cada falha vira tentativa às cegas.
+        # Só o tipo e a mensagem (sem traceback de dados); o smoke não registra conteúdo pessoal.
+        print(json.dumps({'deploy_falhou': type(falha).__name__, 'motivo': str(falha)[:500]}), flush=True)
         compose(old, 'up', '-d', '--no-deps', '--no-build', 'backend')
         smoke('http://127.0.0.1:5000/api', strict=False)
         raise RuntimeError('Smoke falhou; imagem anterior restaurada; migration aditiva mantida') from None

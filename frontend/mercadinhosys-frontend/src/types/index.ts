@@ -532,8 +532,6 @@ export interface Configuracao {
     alertas_email: boolean;
     alertas_whatsapp: boolean;
     // Propriedades de localização do estabelecimento
-    latitude_estabelecimento?: number;
-    longitude_estabelecimento?: number;
     raio_validacao_metros?: number;
     // Propriedades de horários de ponto
     hora_entrada_ponto?: string;

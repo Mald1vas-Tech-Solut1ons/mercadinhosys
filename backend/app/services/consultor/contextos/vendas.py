@@ -9,7 +9,6 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto de vendas para o consultor IA.
     Se is_manager=False, oculta dados financeiros agregados.
     """
-    agora = datetime.now()
     hoje = hoje_local()
     ontem = hoje - timedelta(days=1)
     semana_inicio = hoje - timedelta(days=6)

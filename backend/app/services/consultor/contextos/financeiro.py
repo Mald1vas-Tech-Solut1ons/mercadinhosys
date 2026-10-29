@@ -16,7 +16,6 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     """Monta o contexto financeiro para o consultor IA.
     Retorna apenas dados puros e determinísticos.
     """
-    agora = datetime.now()
     hoje = hoje_local()
     mes_atual_inicio = hoje.replace(day=1)
     

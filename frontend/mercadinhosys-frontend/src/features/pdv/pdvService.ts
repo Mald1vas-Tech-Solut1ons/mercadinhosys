@@ -163,7 +163,7 @@ export interface CaixaPDV {
     id: number;
     numero_caixa: string;
     saldo_inicial: number;
-    saldo_atual: number;
+    saldo_atual?: number; // ausente no fechamento cego (sem permissão "ver valor esperado")
     data_abertura: string;
     data_fechamento?: string;
     status: string;

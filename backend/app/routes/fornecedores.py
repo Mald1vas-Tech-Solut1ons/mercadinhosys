@@ -21,6 +21,7 @@ from app.models import (
 )
 from app.utils import validar_cnpj, validar_email, formatar_telefone
 from app.utils.timezone import iso_utc
+from app.services.politica_acoes import acao_protegida, verificar_acao
 
 fornecedores_bp = Blueprint("fornecedores", __name__)
 
@@ -390,13 +391,14 @@ def obter_fornecedor(id):
 @jwt_required()
 @permission_required('fornecedores')
 @quota_required('fornecedor')
+@acao_protegida("fornecedores.gerenciar")
 def criar_fornecedor():
     """Cria um novo fornecedor"""
     try:
         # Get estabelecimento_id from JWT
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
-        username = jwt_data.get("sub")
+        username = get_jwt().get("sub")
         
         data = request.get_json()
 
@@ -472,13 +474,14 @@ def criar_fornecedor():
 
 @fornecedores_bp.route("/<int:id>", methods=["PUT"])
 @funcionario_required
+@acao_protegida("fornecedores.gerenciar")
 def atualizar_fornecedor(id):
     """Atualiza um fornecedor existente"""
     try:
         # Get estabelecimento_id from JWT
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
-        username = jwt_data.get("sub")
+        username = get_jwt().get("sub")
         
         fornecedor = Fornecedor.query.filter_by(
             id=id, estabelecimento_id=estabelecimento_id
@@ -569,13 +572,14 @@ def atualizar_fornecedor(id):
 
 @fornecedores_bp.route("/<int:id>/status", methods=["PATCH"])
 @funcionario_required
+@acao_protegida("fornecedores.excluir")
 def atualizar_status_fornecedor(id):
     """Ativa/desativa um fornecedor"""
     try:
         # Get estabelecimento_id from JWT
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
-        username = jwt_data.get("sub")
+        username = get_jwt().get("sub")
         
         fornecedor = Fornecedor.query.filter_by(
             id=id, estabelecimento_id=estabelecimento_id
@@ -645,13 +649,14 @@ def atualizar_status_fornecedor(id):
 
 @fornecedores_bp.route("/<int:id>", methods=["DELETE"])
 @funcionario_required
+@acao_protegida("fornecedores.excluir")
 def excluir_fornecedor(id):
     """Exclui um fornecedor (apenas se não houver vínculos)"""
     try:
         # Get estabelecimento_id from JWT
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
-        username = jwt_data.get("sub")
+        username = get_jwt().get("sub")
         
         fornecedor = Fornecedor.query.filter_by(
             id=id, estabelecimento_id=estabelecimento_id
@@ -1142,6 +1147,7 @@ def exportar_fornecedores():
 
 @fornecedores_bp.route("/importar", methods=["POST"])
 @funcionario_required
+@acao_protegida("fornecedores.gerenciar")
 def importar_fornecedores():
     """Importa fornecedores a partir de arquivo CSV"""
     try:

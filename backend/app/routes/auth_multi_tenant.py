@@ -54,6 +54,48 @@ def _auditar_login(estabelecimento_id, usuario_id, username, contexto):
         current_app.logger.warning('[AUDIT] Falha ao registrar login: %s', error)
 
 
+LOGIN_BLOQUEIO_SEGUNDOS = 15 * 60
+
+
+def _limite_tentativas(estabelecimento_id):
+    """Configurações → Segurança da loja (mínimo 3: um erro de digitação não tranca o dono)."""
+    from app.models import Configuracao
+    try:
+        config = Configuracao.query.filter_by(estabelecimento_id=estabelecimento_id).first() if estabelecimento_id else None
+        return max(3, int(getattr(config, "tentativas_senha_bloqueio", None) or 5))
+    except Exception:
+        return 5
+
+
+def _chave_login(username):
+    return f"login_erros:{username.lower()}"
+
+
+def _login_bloqueado(username):
+    from app import cache
+    registro = cache.get(_chave_login(username)) or {}
+    return registro.get("erros", 0) >= registro.get("limite", 5)
+
+
+def _registrar_falha_login(username, estabelecimento_id=None):
+    from app import cache
+    chave = _chave_login(username)
+    registro = cache.get(chave) or {"erros": 0}
+    registro["erros"] += 1
+    registro["limite"] = _limite_tentativas(estabelecimento_id)
+    cache.set(chave, registro, timeout=LOGIN_BLOQUEIO_SEGUNDOS)
+    if registro["erros"] == registro["limite"] and estabelecimento_id:
+        from app.models import Auditoria
+        Auditoria.registrar(estabelecimento_id=estabelecimento_id, tipo_evento="login_bloqueado",
+                            descricao=f"Login de {username} bloqueado por {LOGIN_BLOQUEIO_SEGUNDOS // 60} min após senhas erradas")
+        db.session.commit()
+
+
+def _resposta_login_bloqueado():
+    return jsonify({'success': False, 'code': 'LOGIN_BLOQUEADO',
+                    'error': f'Muitas senhas erradas. Por segurança, este acesso fica bloqueado por {LOGIN_BLOQUEIO_SEGUNDOS // 60} minutos.'}), 429
+
+
 @auth_bp.route('/login', methods=['POST'])
 @limiter.limit("5 per minute", key_func=get_remote_address, error_message="Muitas tentativas de login. Aguarde um minuto.")
 def login():
@@ -75,6 +117,9 @@ def login():
                 'code': 'CREDENTIALS_REQUIRED'
             }), 400
         
+        if _login_bloqueado(username):
+            return _resposta_login_bloqueado()
+
         # 1. TENTATIVA: BANCO PRINCIPAL (POSTGRES / CLOUD)
         all_matches = []
         try:
@@ -131,6 +176,8 @@ def login():
                 access_token = create_access_token(identity=identity, additional_claims=additional_claims, expires_delta=timedelta(hours=24))
                 refresh_token = create_refresh_token(identity=identity, additional_claims=additional_claims)
 
+                from app import cache
+                cache.delete(_chave_login(username))
                 _auditar_login(funcionario_local.estabelecimento_id, funcionario_local.id, username, "local")
 
                 return jsonify({
@@ -154,6 +201,7 @@ def login():
                     'message': 'Login realizado com sucesso (Contexto Local)'
                 }), 200
             
+            _registrar_falha_login(username, funcionario_local.estabelecimento_id if funcionario_local else None)
             return jsonify({'success': False, 'error': 'Usuário ou senha inválidos'}), 401
         
         # 3. PROCESSAR RESULTADO CLOUD
@@ -163,7 +211,10 @@ def login():
          plano_estab, plano_status_estab) = user_data
         
         if not check_password_hash(senha_val, senha):
+            _registrar_falha_login(username, estabelecimento_id)
             return jsonify({'success': False, 'error': 'Usuário ou senha inválidos'}), 401
+        from app import cache
+        cache.delete(_chave_login(username))
         
         is_super = bool(is_super_db)
         

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_CONFIG } from './apiConfig';
+import { pedirPin } from '../components/ui/PedidoPin';
 
 // Variáveis para controle de Concorrência no Refresh Token
 let isRefreshing = false;
@@ -116,6 +117,22 @@ apiClient.interceptors.response.use(
             originalRequest.__retryCount = (originalRequest.__retryCount || 0) + 1;
             await new Promise((resolve) => setTimeout(resolve, 800));
             return apiClient(originalRequest);
+        }
+
+        // Ação que a loja configurou para exigir PIN de Admin/Gerente: pede o PIN e
+        // refaz a mesma requisição. PIN errado pede de novo; o servidor trava após 5 erros (429).
+        const corpoErro = error.response?.data;
+        if (error.response?.status === 403 && corpoErro?.code === 'PIN_REQUIRED' && corpoErro?.pin_por_header && originalRequest) {
+            const jaTentou = !!originalRequest.headers?.['X-PIN-Autorizacao'];
+            const pin = await pedirPin({
+                acao: corpoErro.acao_rotulo,
+                erro: jaTentou ? 'PIN incorreto. Tente de novo.' : undefined,
+            });
+            if (pin) {
+                originalRequest.headers = { ...(originalRequest.headers || {}), 'X-PIN-Autorizacao': pin };
+                return apiClient(originalRequest);
+            }
+            return Promise.reject(error);
         }
 
         // Se for 401 e não for uma retentativa

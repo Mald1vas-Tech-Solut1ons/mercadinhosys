@@ -11,6 +11,7 @@ import { SuperAdminProvider } from './contexts/SuperAdminContext';
 import { Toaster } from 'react-hot-toast';
 import { estiloBaseToast } from './utils/toast';
 import { ConfirmacaoHost } from './components/ui/Confirmacao';
+import { PedidoPinHost } from './components/ui/PedidoPin';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useGlobalOverlayScrollLock } from './hooks/useBodyScrollLock';
 
@@ -32,6 +33,7 @@ const App: React.FC = () => {
                 <AppRoutes />
                 <UpdatePrompt />
                 <ConfirmacaoHost />
+                <PedidoPinHost />
                 {/* Aviso único: mesmo visual de utils/toast para quem chama toast() direto.
                     Embaixo à direita, acima da barra de navegação do celular. */}
                 <Toaster

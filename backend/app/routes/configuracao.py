@@ -379,12 +379,15 @@ def autorizar_por_pin(estabelecimento_id, pin):
     pin = (str(pin or "")).strip()
     if not pin:
         return None
+    from app.decorators.rbac import nivel_do_role
     candidatos = Funcionario.query.filter(
         Funcionario.estabelecimento_id == estabelecimento_id,
         Funcionario.pin_cancelamento.isnot(None),
-        Funcionario.nivel_acesso <= 2,
+        Funcionario.ativo.is_(True),
+        Funcionario.deleted_at.is_(None),
     ).all()
-    return next((f for f in candidatos if f.check_pin(pin)), None)
+    # Cargo pelo role, como o controle de acesso (nivel_acesso pode estar defasado em cadastros antigos).
+    return next((f for f in candidatos if nivel_do_role(f.role) <= 2 and f.check_pin(pin)), None)
 
 
 @configuracao_bp.route("/verificar-pin", methods=["POST"])
@@ -396,9 +399,10 @@ def verificar_pin_seguranca():
         if not estabelecimento_id:
             return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
         pin = (request.get_json() or {}).get("pin", "")
-        autorizador = autorizar_por_pin(estabelecimento_id, pin)
-        if not autorizador:
-            return jsonify({"success": False, "error": "PIN inválido"}), 403
+        from app.services.politica_acoes import validar_pin, resposta_erro_pin
+        autorizador, erro = validar_pin(estabelecimento_id, get_jwt_identity(), pin)
+        if erro:
+            return resposta_erro_pin(erro, "PIN inválido")
         return jsonify({"success": True, "autorizador": autorizador.nome}), 200
     except Exception as e:
         current_app.logger.error(f"❌ Erro em verificar_pin_seguranca: {str(e)}")
@@ -447,6 +451,44 @@ def pin_seguranca():
 
 
 # ==================== PREFERÊNCIAS DO USUÁRIO ====================
+
+@configuracao_bp.route("/permissoes", methods=["GET", "PUT"])
+@jwt_required()
+def permissoes_da_loja():
+    """Permissões por ação (quem pode e quando exige PIN). GET: catálogo + valores atuais
+    e o que o usuário logado pode fazer. PUT: só o admin da loja altera."""
+    from app.decorators.rbac import nivel_do_role
+    from app.services.politica_acoes import catalogo, salvar_politica, pode, ACOES, politica_da_loja
+    try:
+        estabelecimento_id = get_authorized_establishment_id()
+        if not estabelecimento_id or str(estabelecimento_id).lower() == "all":
+            return jsonify({"success": False, "error": "Selecione uma loja"}), 400
+        claims = get_jwt()
+        if request.method == "GET":
+            dados = catalogo(estabelecimento_id)
+            dados["minhas"] = {chave: pode(chave) for chave in ACOES}
+            return jsonify({"success": True, **dados}), 200
+
+        if claims.get("is_super_admin") or nivel_do_role(claims.get("role")) != 1:
+            return jsonify({"success": False, "error": "Apenas o administrador da loja altera as permissões"}), 403
+        antes = politica_da_loja(estabelecimento_id)
+        depois = salvar_politica(estabelecimento_id, (request.get_json() or {}).get("acoes"))
+        mudou = {k: {"antes": antes[k], "depois": depois[k]} for k in depois if antes[k] != depois[k]}
+        if mudou:
+            from app.models import Auditoria
+            Auditoria.registrar(estabelecimento_id=estabelecimento_id, tipo_evento="permissoes_alteradas",
+                                descricao=f"Permissões alteradas: {', '.join(ACOES[k][0] for k in mudou)}",
+                                usuario_id=int(get_jwt_identity()), detalhes=mudou)
+        db.session.commit()
+        return jsonify({"success": True, **catalogo(estabelecimento_id)}), 200
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Erro em permissoes_da_loja: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Falha ao salvar permissões"}), 500
+
 
 @configuracao_bp.route("/preferencias", methods=["GET", "PUT"])
 @jwt_required()

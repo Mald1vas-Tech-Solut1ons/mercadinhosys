@@ -65,8 +65,6 @@ export interface Configuracao {
     alertas_whatsapp: boolean;
 
     // Localização do estabelecimento
-    latitude_estabelecimento?: number;
-    longitude_estabelecimento?: number;
     raio_validacao_metros?: number;
 
     // Horários de ponto
@@ -100,6 +98,9 @@ export interface PontoConfig {
     exigir_foto?: boolean;
     exigir_localizacao?: boolean;
     raio_permitido_metros?: number;
+    /** Local da loja: com ele preenchido, o ponto só é aceito dentro do raio. */
+    latitude_loja?: number | null;
+    longitude_loja?: number | null;
 }
 
 export interface SubscriptionStatus {

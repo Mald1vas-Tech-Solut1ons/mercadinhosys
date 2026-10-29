@@ -273,10 +273,20 @@ def registrar_ponto():
                     'message': 'Localização é obrigatória para este estabelecimento'
                 }), 400
             
-            # Validar raio permitido
-            # Usar coordenadas do estabelecimento (se disponíveis)
-            # Por enquanto, apenas registrar a localização
-            # TODO: Adicionar coordenadas ao estabelecimento para validar raio
+            # Com o local da loja cadastrado (Configurações → Ponto), fora do raio não registra.
+            if config.latitude_loja is not None and config.longitude_loja is not None:
+                try:
+                    distancia = calcular_distancia_haversine(
+                        float(data['latitude']), float(data['longitude']),
+                        config.latitude_loja, config.longitude_loja)
+                except (TypeError, ValueError):
+                    return jsonify({'success': False, 'message': 'Localização inválida'}), 400
+                raio = config.raio_permitido_metros or 100
+                if distancia is None or distancia > raio:
+                    return jsonify({
+                        'success': False, 'code': 'FORA_DO_RAIO',
+                        'message': f'Você está a {int(distancia or 0)} m da loja. O ponto só pode ser batido a até {raio} m.'
+                    }), 400
         
         # Hora atual (relógio local do dispositivo — resolvido acima)
         hora_atual = agora_local.time()
@@ -772,6 +782,16 @@ def atualizar_configuracao():
             config.exigir_localizacao = data['exigir_localizacao']
         if 'raio_permitido_metros' in data:
             config.raio_permitido_metros = data['raio_permitido_metros']
+        for campo, limite in (('latitude_loja', 90), ('longitude_loja', 180)):
+            if campo in data:
+                valor = data[campo]
+                if valor in (None, ''):
+                    setattr(config, campo, None)
+                else:
+                    valor = float(valor)
+                    if not -limite <= valor <= limite:
+                        return jsonify({'success': False, 'message': 'Coordenada da loja inválida'}), 400
+                    setattr(config, campo, valor)
         
         config.updated_at = datetime.now(timezone.utc)
         db.session.commit()

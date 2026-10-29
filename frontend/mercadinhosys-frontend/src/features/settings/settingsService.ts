@@ -19,8 +19,11 @@ export interface Estabelecimento {
     // Configuração fiscal (NFC-e/NF-e)
     fiscal_ambiente?: string;
     fiscal_gateway?: string;
+    /** Só de escrita: a API nunca devolve o token nem o CSC, apenas se existem. */
     fiscal_token?: string;
     fiscal_csc?: string;
+    fiscal_token_configurado?: boolean;
+    fiscal_csc_configurado?: boolean;
     fiscal_csc_id?: string;
     serie_nfce?: number;
 }

@@ -10,6 +10,11 @@ from app.utils.timezone import iso_utc
 
 caixas_bp = Blueprint("caixas", __name__)
 
+def _eh_dinheiro(forma):
+    """Só dinheiro físico entra na gaveta (suprimento/sangria em Pix ou cartão não)."""
+    return str(forma or "dinheiro").strip().lower() == "dinheiro"
+
+
 def _fechamento_cego(dados):
     """Sem a permissão "ver valor esperado", o operador conta a gaveta às cegas:
     some tudo que deixa calcular quanto deveria haver (saldo, esperado e totais em R$).
@@ -162,6 +167,8 @@ def fechar_caixa():
         totais_por_forma = defaultdict(lambda: {"quantidade": 0, "total": 0.0})
         total_sangrias = 0.0
         total_suprimentos = 0.0
+        sangrias_dinheiro = 0.0
+        suprimentos_dinheiro = 0.0
         total_vendas = 0.0
 
         for m in movimentacoes:
@@ -176,14 +183,18 @@ def fechar_caixa():
                 total_vendas += valor_mov
             elif tipo_mov == "sangria":
                 total_sangrias += valor_mov
+                if _eh_dinheiro(m.forma_pagamento):
+                    sangrias_dinheiro += valor_mov
             elif tipo_mov == "suprimento":
                 total_suprimentos += valor_mov
+                if _eh_dinheiro(m.forma_pagamento):
+                    suprimentos_dinheiro += valor_mov
 
         # ─── Cálculo Final do Dinheiro (Gaveta Física) ───
         # Apenas as vendas em dinheiro entram no cálculo físico da gaveta
         vendas_dinheiro = totais_por_forma["dinheiro"]["total"]
-        entradas_dinheiro = vendas_dinheiro + total_suprimentos
-        saidas = total_sangrias
+        entradas_dinheiro = vendas_dinheiro + suprimentos_dinheiro
+        saidas = sangrias_dinheiro
         saldo_calculado = float(caixa.saldo_inicial) + entradas_dinheiro - saidas
 
         # Diferença entre o informado (físico) e o saldo_calculado da GAVETA (dinheiro real)
@@ -304,10 +315,13 @@ def registrar_movimentacao():
         )
         
         # Atualizar saldo atual do caixa
-        if tipo == "sangria" and Decimal(str(valor)) > Decimal(str(caixa.saldo_atual or 0)):
+        if tipo == "sangria" and _eh_dinheiro(forma_pagamento) and Decimal(str(valor)) > Decimal(str(caixa.saldo_atual or 0)):
             db.session.rollback()
             return jsonify({"success": False, "error": "Sangria maior que o dinheiro em caixa."}), 400
-        if tipo == "sangria":
+        # Saldo da gaveta só muda com dinheiro físico.
+        if not _eh_dinheiro(forma_pagamento):
+            pass
+        elif tipo == "sangria":
             caixa.saldo_atual = float(caixa.saldo_atual) - valor
         else:
             caixa.saldo_atual = float(caixa.saldo_atual) + valor
@@ -409,6 +423,8 @@ def obter_resumo_caixa_atual():
 
         total_sangrias = 0.0
         total_suprimentos = 0.0
+        sangrias_dinheiro = 0.0
+        suprimentos_dinheiro = 0.0
         total_vendas = 0.0
 
         for m in movimentacoes:
@@ -424,8 +440,12 @@ def obter_resumo_caixa_atual():
                 total_vendas += valor
             elif tipo == "sangria":
                 total_sangrias += valor
+                if _eh_dinheiro(m.forma_pagamento):
+                    sangrias_dinheiro += valor
             elif tipo == "suprimento":
                 total_suprimentos += valor
+                if _eh_dinheiro(m.forma_pagamento):
+                    suprimentos_dinheiro += valor
             # 'abertura' e 'fechamento' não entram no cálculo de vendas/sangrias/suprimentos fixos
 
         # Saldo esperado na gaveta (Dinheiro Inicial + Vendas Dinheiro + Suprimentos - Sangrias)
@@ -433,8 +453,8 @@ def obter_resumo_caixa_atual():
         saldo_esperado_gaveta = (
             float(caixa.saldo_inicial or 0) 
             + vendas_dinheiro 
-            + total_suprimentos 
-            - total_sangrias
+            + suprimentos_dinheiro
+            - sangrias_dinheiro
         )
 
         return jsonify({

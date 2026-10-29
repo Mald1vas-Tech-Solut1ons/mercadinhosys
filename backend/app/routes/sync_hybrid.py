@@ -146,7 +146,7 @@ def sync_upload():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @sync_hybrid_bp.route('/download', methods=['POST'])
-@jwt_required()
+@super_admin_required
 def sync_download():
     """Recebe dados da nuvem e importa para o banco local."""
     try:

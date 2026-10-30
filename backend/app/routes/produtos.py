@@ -652,7 +652,8 @@ def _familia_por_ia(item, mix: list):
         return None
     lista = "\n".join(f"- {k}: {nome}" for k, nome in opcoes.items())
     resposta = gerar_texto(
-        "Você classifica produtos de varejo brasileiro. Responda SOMENTE com a chave da família, sem mais nada.",
+        "Você classifica produtos de varejo brasileiro. Responda SOMENTE com a chave da família, sem mais nada. "
+        "Se nenhuma família servir com clareza, responda exatamente: nenhuma.",
         f"Produto: {item.nome or ''}\nMarca: {item.marca or ''}\nTipo/categoria: {item.categoria or ''}\n"
         f"NCM: {item.ncm or 'não informado'}\nEAN: {item.ean}\n\nFamílias possíveis:\n{lista}\n\nChave da família:",
         max_tokens=20,

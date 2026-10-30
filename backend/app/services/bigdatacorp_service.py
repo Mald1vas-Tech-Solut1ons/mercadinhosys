@@ -285,7 +285,12 @@ def mapear(resultado: dict) -> dict:
             vistos.add(_chave(parte))
     ncm = "".join(c for c in _primeiro(atributos, "NCM", "CODIGO NCM") if c.isdigit())[:8]
     preco, lojas_com_preco = _preco_referencia(resultado)
-    nome = " ".join(partes) if (tipo or marca) else _titulo_loja(atributos)
+    # O título que a loja publica é o nome mais fiel; "tipo + marca" só quando não há título
+    # (um "tipo" solto de uma loja virava nome errado: mamadeira MAM saiu "Antivazamento MAM").
+    titulo = _titulo_loja(atributos)
+    nome = titulo or (" ".join(partes) if (tipo or marca) else "")
+    if titulo and tipo and _chave(tipo) not in _chave(titulo):
+        tipo = titulo.split()[0]  # tipo que não aparece no título é de outro produto/variação
     return {
         "nome": nome[:200],
         "marca": marca[:100] or None,
@@ -345,7 +350,8 @@ PALAVRAS_FAMILIA = {
                     "VITAMINA", "OMEGA 3", "COLAGENO", "PRE TREINO", "TERMOGENICO"),
     "perfumaria_higiene": ("SHAMPOO", "CONDICIONADOR", "SABONETE", "CREME DENTAL", "DESODORANTE", "ABSORVENTE",
                            "FRALDA", "PERFUME", "HIDRATANTE", "PROTETOR SOLAR", "ESCOVA DENTAL", "FIO DENTAL",
-                           "ESMALTE", "COLONIA"),
+                           "ESMALTE", "COLONIA", "MAMADEIRA", "CHUPETA", "MORDEDOR", "LENCO UMEDECIDO",
+                           "BICO DE MAMADEIRA", "POMADA PARA ASSADURA", "COTONETE", "HASTE FLEXIVEL"),
     "embalagem_descartavel": ("DESCARTAVEL", "GUARDANAPO", "SACO PLASTICO", "SACOLA", "FILME PVC",
                               "PAPEL ALUMINIO", "MARMITEX", "CANUDO"),
     "calcados": ("TENIS", "SAPATO", "SANDALIA", "CHINELO", "BOTA", "SAPATILHA", "MOCASSIM", "TAMANCO", "PANTUFA"),

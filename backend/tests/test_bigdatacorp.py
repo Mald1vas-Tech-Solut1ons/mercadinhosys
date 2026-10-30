@@ -442,3 +442,29 @@ def test_busca_por_nome_sem_cota_explica(client, session, loja, monkeypatch):
     monkeypatch.setattr(bdc.requests, "post", lambda *a, **k: (_ for _ in ()).throw(AssertionError("sem cota")))
     r = client.get("/api/produtos/catalogo/busca?q=produto inexistente xyz", headers=loja["headers"])
     assert r.status_code == 404 and r.get_json()["code"] == "sem_cota"
+
+
+RESULTADO_MAMADEIRA = {
+    "PrimaryId": "9001616244100", "IdType": "EAN",
+    "ExtraInfoData": {"ExtraInfoPerSource": {
+        "RiHappy": {"UncategorizedExtraInfo": {"NOME PRINCIPAL DO ITEM": "Antivazamento", "MARCA": "Mam",
+                                               "FORNECEDOR": "Bebe Saude MAM"}},
+        "DrogaRaia": {"UncategorizedExtraInfo": {
+            "GRUPO": "PERFUMARIA",
+            "META_TITLE": "Mamadeira MAM Easy Active 4 meses+ Rosa 330ml - 1 unidade | Droga Raia",
+            "DESCRICAODETALHADA": "MAM MAMADEIRA FASHION BOTTLE 330ML ROSA"}},
+    }},
+}
+
+
+def test_titulo_da_loja_vence_tipo_solto_de_outra_loja():
+    mapeado = bdc.mapear(RESULTADO_MAMADEIRA)
+    assert mapeado["nome"] == "Mamadeira MAM Easy Active 4 meses+ Rosa 330ml - 1 unidade"
+    assert mapeado["categoria"] == "Mamadeira"
+    assert mapeado["marca"] == "Mam"
+
+
+def test_mamadeira_vai_para_higiene_e_nunca_construcao():
+    mix = ["alimento", "perfumaria_higiene", "construcao_hidraulica", "bazar"]
+    familia = bdc.familia_por_evidencia(None, ["Mamadeira", "Mamadeira MAM Easy Active 4 meses+ Rosa 330ml"], mix)
+    assert familia == "perfumaria_higiene"

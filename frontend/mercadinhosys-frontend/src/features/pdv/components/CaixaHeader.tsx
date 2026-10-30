@@ -5,7 +5,8 @@ import {
     Lock,
     Unlock,
     Wallet,
-    AlertTriangle
+    AlertTriangle,
+    Printer
 } from 'lucide-react';
 import { formatDateTime } from '../../../utils/formatters';
 
@@ -17,6 +18,8 @@ interface CaixaHeaderProps {
     saldoAtualCaixa?: number;
     dataAberturaCaixa?: string;
     onOpenCaixaManager?: () => void;
+    /** Abre a lista das últimas vendas para reimprimir o cupom. */
+    onReimprimir?: () => void;
 }
 
 // Turno de caixa acima disso costuma ser caixa esquecido aberto de um dia para o outro.
@@ -29,6 +32,7 @@ const CaixaHeader: React.FC<CaixaHeaderProps> = ({
     caixaAberto = false,
     dataAberturaCaixa,
     onOpenCaixaManager,
+    onReimprimir,
 }) => {
     const [horaAtual, setHoraAtual] = useState(new Date());
 
@@ -104,6 +108,18 @@ const CaixaHeader: React.FC<CaixaHeaderProps> = ({
                         <Clock className="w-4 h-4" />
                         <span className="text-xl font-bold font-mono tabular-nums">{formatarHora(horaAtual)}</span>
                     </div>
+
+                    {onReimprimir && (
+                        <button
+                            type="button"
+                            onClick={onReimprimir}
+                            title="Reimprimir cupom de uma venda recente"
+                            className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 font-black uppercase tracking-wider text-xs whitespace-nowrap bg-white/20 hover:bg-white/30 transition-colors"
+                        >
+                            <Printer className="w-4 h-4" />
+                            Reimprimir
+                        </button>
+                    )}
 
                     {onOpenCaixaManager && (
                         <button

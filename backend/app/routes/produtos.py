@@ -733,17 +733,24 @@ def _buscar_bigdatacorp(ean: str):
     Toda resposta encontrada fica guardada em payload_bigdatacorp (catálogo próprio cresce e o
     EAN não é reconsultado); só vira o item do catálogo se trouxer nome e não houver fonte melhor.
     """
-    import json as _json
     from app.services import bigdatacorp_service as bdc
     motivo, resultado, datasets = bdc.consultar_ean(ean)
     if motivo != "encontrado":
         return None
+    item = _gravar_resultado_bigdatacorp(ean, resultado, datasets)
+    db.session.commit()
+    return item if item.status == "encontrado" else None
+
+
+def _gravar_resultado_bigdatacorp(ean: str, resultado: dict, datasets):
+    """Grava a resposta da BigDataCorp no catálogo global (sem commit); devolve o item."""
+    from app.services import bigdatacorp_service as bdc
     campos = bdc.mapear(resultado)
     item = CatalogoMestre.query.filter_by(ean=ean).first()
     if not item:
         item = CatalogoMestre(ean=ean, status="nao_encontrado")
         db.session.add(item)
-    item.payload_bigdatacorp = _json.dumps(resultado, ensure_ascii=False)[:60000]
+    item.payload_bigdatacorp = bdc.payload_compacto(resultado)
     item.consultado_em = now_utc()
     if campos["nome"] and _pode_sobrescrever(item, _RANK_FONTE["bigdatacorp"]):
         item.nome = campos["nome"]
@@ -762,8 +769,7 @@ def _buscar_bigdatacorp(ean: str):
                            ("images_data", campos["imagem_url"])):
         if dataset in datasets and achou:
             bdc.registrar_encontrado(dataset)
-    db.session.commit()
-    return item if item.status == "encontrado" else None
+    return item
 
 
 def _responder_fontes_externas(ean: str):
@@ -846,6 +852,62 @@ def catalogo_lookup(ean):
 
     # 2) Fontes externas: BigDataCorp (dentro da franquia) e bases abertas; tudo grava no catálogo
     return _responder_fontes_externas(ean_limpo)
+
+
+BUSCA_NOME_LIMITE_BDC = 5
+
+
+@produtos_bp.route("/catalogo/busca", methods=["GET"])
+@funcionario_required
+@permission_required("produtos")
+@limiter.limit("10 per minute")
+def catalogo_busca_nome():
+    """Busca por nome para o cadastro (produto sem código de barras ou EAN que ninguém conhece).
+
+    1) Catálogo Mestre (não gasta franquia); 2) com menos de 3 achados, BigDataCorp por
+    ``searchterms`` (até 5 produtos, 1 consulta por produto devolvido) e grava tudo no catálogo.
+    O lojista escolhe um item e o formulário segue pelo lookup do EAN, que já sai do catálogo.
+    """
+    termo = " ".join(str(request.args.get("q") or "").split())[:80]
+    if len(termo) < 3:
+        return jsonify({"success": False, "code": "termo_curto",
+                        "message": "Digite pelo menos 3 letras do nome do produto."}), 400
+
+    def linha(item):
+        return {"ean": item.ean, "nome": item.nome, "marca": item.marca, "imagem_url": item.imagem_url,
+                "fonte": item.fonte}
+
+    palavras = [p for p in re.sub(r"[%_]", " ", termo).split() if len(p) >= 2][:5] or [termo.replace("%", "")]
+    consulta = CatalogoMestre.query.filter(CatalogoMestre.status == "encontrado", CatalogoMestre.nome.isnot(None))
+    for palavra in palavras:
+        consulta = consulta.filter(ilike_unaccent(CatalogoMestre.nome, f"%{palavra}%"))
+    achados = {i.ean: linha(i) for i in consulta.order_by(CatalogoMestre.nome).limit(10).all()}
+    fonte_externa, motivo = False, None
+    if len(achados) < 3:
+        from app.services import bigdatacorp_service as bdc
+        try:
+            motivo, resultados = bdc.buscar_por_termo(termo, BUSCA_NOME_LIMITE_BDC)
+            for resultado in resultados:
+                ean = "".join(c for c in str(resultado.get("PrimaryId") or "") if c.isdigit())
+                if not 8 <= len(ean) <= 14:
+                    continue
+                item = _gravar_resultado_bigdatacorp(ean, resultado, ["extra_info_data"])
+                if item.status == "encontrado" and item.nome and ean not in achados:
+                    achados[ean] = linha(item)
+                    fonte_externa = True
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Busca por nome na BigDataCorp falhou ('{termo}'): {e}")
+            motivo = "erro"
+    if not achados:
+        mensagens = {"sem_cota": "A cota mensal de consultas acabou. Preencha os dados manualmente.",
+                     "erro": "Base de produtos fora do ar agora. Preencha os dados manualmente.",
+                     "nao_configurado": "Base de produtos não configurada. Preencha os dados manualmente."}
+        return jsonify({"success": False, "code": motivo or "nao_encontrado",
+                        "message": mensagens.get(motivo, "Nenhum produto com esse nome nas bases. Preencha manualmente.")}), 404
+    return jsonify({"success": True, "source": "bigdatacorp" if fonte_externa else "catalogo",
+                    "data": list(achados.values())[:10]}), 200
 
 
 # ============================================

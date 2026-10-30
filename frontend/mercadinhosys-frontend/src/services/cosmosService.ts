@@ -59,7 +59,38 @@ export interface CatalogoLookupResult {
     data?: CatalogoLookupData;
 }
 
+export interface CatalogoBuscaItem {
+    ean: string;
+    nome: string;
+    marca: string | null;
+    imagem_url: string | null;
+    fonte: string | null;
+}
+
+export interface CatalogoBuscaResult {
+    success: boolean;
+    source?: 'catalogo' | 'bigdatacorp';
+    code?: 'termo_curto' | 'nao_encontrado' | 'sem_cota' | 'erro' | 'nao_configurado' | 'conexao';
+    message?: string;
+    data?: CatalogoBuscaItem[];
+}
+
 export const cosmosService = {
+    /**
+     * Busca por nome: Catálogo Mestre e, com poucos achados, BigDataCorp (até 5 produtos).
+     * O operador escolhe um item e o cadastro segue pelo lookup do EAN, que já sai do catálogo.
+     */
+    async buscarPorNome(termo: string): Promise<CatalogoBuscaResult> {
+        try {
+            const { data } = await apiClient.get<CatalogoBuscaResult>('/produtos/catalogo/busca', { params: { q: termo } });
+            return data;
+        } catch (error: any) {
+            const resp = error?.response?.data;
+            if (resp && typeof resp === 'object' && 'message' in resp) return resp as CatalogoBuscaResult;
+            return { success: false, code: 'conexao', message: 'Falha de conexão ao buscar o produto.' };
+        }
+    },
+
     /**
      * Lookup inteligente por EAN: tenta o catálogo local (sem franquia) e, no miss,
      * BigDataCorp e bases abertas (gravando no catálogo). Não lança em falha de negócio — retorna

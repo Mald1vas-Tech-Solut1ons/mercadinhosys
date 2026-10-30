@@ -348,3 +348,97 @@ def test_nome_de_cada_servico_cabe_nas_colunas():
         provedor = bdc._provedor(dataset)
         assert len(provedor) <= ConsumoApiExterna.__table__.c.provedor.type.length, provedor
         assert len(provedor) <= ConfigApiExterna.__table__.c.provedor.type.length, provedor
+
+
+# ───────────── ficha sem MARCA/TIPO (Droga Raia), payload grande e busca por nome ─────────────
+
+RESULTADO_DROGARAIA = {
+    "PrimaryId": "7890000000031", "IdType": "EAN",
+    "ExtraInfoData": {"ExtraInfoPerSource": {"DrogaRaia": {"UncategorizedExtraInfo": {
+        "PESO (KG)": "0.0675", "QUANTIDADE": "60s",
+        "DESCRIPTION": "<h2>O que é o Lavitan?</h2><p>" + "Suplemento infantil. " * 4000 + "</p>",
+        "SHORT_DESCRIPTION": "<p>Fortalece a imunidade infantil.</p>",
+        "IMAGE": "https://product-data.raiadrogasil.io/images/1.webp",
+        "META_TITLE": "Lavitan Vitamina C Turma da Mônica Melancia 60 Comps | Droga Raia",
+        "META_DESCRIPTION": "Encontre Lavitan Vitamina C Melancia 60 Comps com o menor preço na Droga Raia",
+    }}}},
+}
+
+
+def test_mapear_usa_titulo_da_loja_quando_nao_ha_marca_nem_tipo():
+    mapeado = bdc.mapear(RESULTADO_DROGARAIA)
+    assert mapeado["nome"] == "Lavitan Vitamina C Turma da Mônica Melancia 60 Comps"
+    assert mapeado["imagem_url"] == "https://product-data.raiadrogasil.io/images/1.webp"
+    assert bdc.descricao_produto(RESULTADO_DROGARAIA) == "Fortalece a imunidade infantil."
+
+
+def test_titulo_tira_sufixo_de_preco_e_cai_para_meta_description():
+    so_meta = {"ExtraInfoData": {"ExtraInfoPerSource": {"X": {"UncategorizedExtraInfo": {
+        "META_DESCRIPTION": "Encontre Carbo Gel Lavitan Tangerina 30g com o menor preço na Droga Raia"}}}}}
+    assert bdc.mapear(so_meta)["nome"] == "Carbo Gel Lavitan Tangerina 30g"
+    com_sufixo = {"ExtraInfoData": {"ExtraInfoPerSource": {"X": {"UncategorizedExtraInfo": {
+        "META_TITLE": "Suplemento Energético Carbo Gel Lavitan Tangerina: menor preço"}}}}}
+    assert bdc.mapear(com_sufixo)["nome"] == "Suplemento Energético Carbo Gel Lavitan Tangerina"
+
+
+def test_payload_grande_continua_json_valido():
+    import json
+    texto = bdc.payload_compacto(RESULTADO_DROGARAIA)
+    assert len(texto) <= bdc.LIMITE_PAYLOAD
+    assert json.loads(texto)["PrimaryId"] == "7890000000031"
+
+
+def test_lookup_ean_com_ficha_so_de_titulo_preenche(client, session, loja, monkeypatch):
+    def fake(*args, **kwargs):
+        return _Resp({"Status": {}, "Result": [RESULTADO_DROGARAIA]})
+    monkeypatch.setattr(bdc.requests, "post", fake)
+    r = client.get("/api/produtos/catalogo/lookup/7890000000031", headers=loja["headers"])
+    assert r.status_code == 200, r.get_json()
+    assert r.get_json()["data"]["nome"] == "Lavitan Vitamina C Turma da Mônica Melancia 60 Comps"
+
+
+def test_reservar_varias_respeita_franquia_e_devolve_sobra(session):
+    assert bdc.reservar_consultas("extra_info_data", 5) == 2  # limite do ambiente no teste = 2
+    assert bdc.reservar_consultas("extra_info_data", 1) == 0
+    bdc.devolver_consultas("extra_info_data", 1)
+    item = next(c for c in bdc.consumo_do_mes() if c["provedor"] == "bigdatacorp:extra_info_data")
+    assert item["consultas"] == 1
+
+
+def test_busca_por_nome_grava_no_catalogo_e_cobra_so_o_devolvido(client, session, loja, monkeypatch):
+    chamadas = []
+
+    def fake(*args, **kwargs):
+        chamadas.append(kwargs["json"])
+        return _Resp({"Status": {"extra_info_data": [{"Code": 0}]}, "Result": [RESULTADO_DROGARAIA]})
+    monkeypatch.setattr(bdc.requests, "post", fake)
+
+    r = client.get("/api/produtos/catalogo/busca?q=lavitan melancia", headers=loja["headers"])
+    assert r.status_code == 200, r.get_json()
+    corpo = r.get_json()
+    assert corpo["source"] == "bigdatacorp"
+    assert corpo["data"][0]["ean"] == "7890000000031"
+    assert corpo["data"][0]["nome"].startswith("Lavitan Vitamina C")
+    assert chamadas[0]["q"] == "searchterms{lavitan melancia}, matchtype{flexible}"
+    assert chamadas[0]["Datasets"] == "extra_info_data" and chamadas[0]["Limit"] == 2
+    ficha = next(c for c in bdc.consumo_do_mes() if c["provedor"] == "bigdatacorp:extra_info_data")
+    assert ficha["consultas"] == 1  # reservou 2, veio 1: a sobra volta à franquia
+
+    # Segunda busca acha no catálogo; o EAN escolhido sai do catálogo sem nova consulta.
+    r2 = client.get("/api/produtos/catalogo/lookup/7890000000031", headers=loja["headers"])
+    assert r2.get_json()["source"] == "catalogo"
+    assert len(chamadas) == 1
+
+
+def test_busca_por_nome_exige_3_letras(client, loja):
+    r = client.get("/api/produtos/catalogo/busca?q=la", headers=loja["headers"])
+    assert r.status_code == 400 and r.get_json()["code"] == "termo_curto"
+
+
+def test_busca_por_nome_sem_cota_explica(client, session, loja, monkeypatch):
+    session.add(ConsumoApiExterna(provedor="bigdatacorp:extra_info_data", mes=hoje_local().strftime("%Y-%m"),
+                                  consultas=2, encontrados=0))
+    session.commit()
+    monkeypatch.setattr(bdc.requests, "post", lambda *a, **k: (_ for _ in ()).throw(AssertionError("sem cota")))
+    r = client.get("/api/produtos/catalogo/busca?q=produto inexistente xyz", headers=loja["headers"])
+    assert r.status_code == 404 and r.get_json()["code"] == "sem_cota"

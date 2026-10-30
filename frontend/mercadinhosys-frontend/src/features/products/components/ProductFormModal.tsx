@@ -74,6 +74,15 @@ const CampoAjuda = ({ texto }: { texto: string }) => (
     </span>
 );
 
+/** GTIN (EAN-8/UPC-A/EAN-13/GTIN-14) completo e com dígito verificador válido. */
+export const gtinValido = (codigo: string): boolean => {
+    const d = (codigo || '').replace(/\D/g, '');
+    if (![8, 12, 13, 14].includes(d.length) || /^0+$/.test(d)) return false;
+    const corpo = d.slice(0, -1).split('').reverse();
+    const soma = corpo.reduce((acc, ch, i) => acc + Number(ch) * (i % 2 === 0 ? 3 : 1), 0);
+    return (10 - (soma % 10)) % 10 === Number(d[d.length - 1]);
+};
+
 // Espelha services/fiscal/tributacao.py (Lei 10.147/2000): as listas vêm do schema.
 const ncmMonofasico = (ncm: string, regras?: RegrasFiscais): boolean => {
     const digitos = (ncm || '').replace(/\D/g, '');
@@ -249,7 +258,9 @@ const ProductFormModal = ({
     const familiaEscolhida = useRef(false);
     useEffect(() => { if (show) familiaEscolhida.current = !!produto; }, [show, produto]);
 
+    const ultimoEanAuto = useRef<string>('');  // último EAN consultado (não repete a consulta)
     const handleScanCodigo = async (codigo: string, force: boolean = false) => {
+        ultimoEanAuto.current = codigo.replace(/\D/g, '');
         setShowScanner(false);
         setFormData(prev => ({ ...prev, codigo_barras: codigo }));
         setIsSearchingCosmos(true);
@@ -344,6 +355,21 @@ const ProductFormModal = ({
         }
         handleScanCodigo(ean);
     };
+
+    // Código completo e válido no campo (leitor USB ou digitado) consulta sozinho, sem Enter nem lupa.
+    useEffect(() => {
+        if (!show || ehServico) return;
+        const ean = formData.codigo_barras.replace(/\D/g, '');
+        if (!gtinValido(ean) || ean === ultimoEanAuto.current || isSearchingCosmos) return;
+        if (editMode && ean === (produto?.codigo_barras || '').replace(/\D/g, '')) return;
+        const t = setTimeout(() => {
+            ultimoEanAuto.current = ean;
+            handleScanCodigo(ean);
+        }, 600);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.codigo_barras, show]);
+    useEffect(() => { if (!show) ultimoEanAuto.current = ''; }, [show]);
 
     const gerarCodigoInterno = async () => {
         try {

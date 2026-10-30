@@ -27,6 +27,8 @@ export interface ConfiguracoesPDV {
     exibe_preco_tela: boolean;
     mostrar_foto_produto_pdv: boolean;
     exige_observacao_desconto: boolean;
+    /** Cabeçalho da loja no cupom — guardado no aparelho para imprimir venda offline. */
+    cupom_cabecalho?: ComprovanteVendaResponse['estabelecimento'];
     /** Prontidão fiscal (backend: gateway real configurado). Ausente em backends antigos. */
     nfce?: {
         pronta: boolean;
@@ -157,6 +159,15 @@ export interface ComprovanteVendaResponse {
         serie?: string;
         protocolo?: string;
     };
+}
+
+export interface VendaHojeResumo {
+    id: number;
+    codigo: string;
+    total: number;
+    hora: string;
+    forma_pagamento: string;
+    offline_uuid?: string | null;
 }
 
 export interface CaixaPDV {
@@ -428,6 +439,12 @@ export const pdvService = {
     obterComprovante: async (vendaId: number): Promise<ComprovanteVendaResponse> => {
         const response = await apiClient.get<ComprovanteVendaResponse>(`/pdv/comprovante/${vendaId}`);
         return response.data;
+    },
+
+    /** Vendas finalizadas hoje na loja (mais recentes primeiro) — lista de reimpressão do PDV. */
+    vendasHoje: async (limite = 50): Promise<VendaHojeResumo[]> => {
+        const response = await apiClient.get<any>('/pdv/vendas-hoje', { params: { limite } });
+        return response.data?.ultimas_vendas || [];
     },
 
     // ==================== CAIXAS ====================

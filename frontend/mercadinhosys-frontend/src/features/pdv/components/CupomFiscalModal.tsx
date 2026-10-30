@@ -12,6 +12,10 @@ interface CupomFiscalModalProps {
     onFechar: () => void;
     /** Configuração "Impressão automática": manda para a impressora assim que o cupom carrega. */
     imprimirAoCarregar?: boolean;
+    /** Cópia guardada no aparelho (cupomLocal): venda offline, ou reserva se o servidor não responder. */
+    dadosLocais?: ComprovanteVendaResponse | null;
+    /** Reimpressão: o cupom sai marcado como 2ª via. */
+    segundaVia?: boolean;
 }
 
 const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
@@ -25,21 +29,39 @@ const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
 const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false }) => {
+const formaPagamentoLabel = (forma?: string) =>
+    forma
+        ? forma.split('/').map(f => FORMA_PAGAMENTO_LABEL[f.trim().toLowerCase().replace(/\s/g, '_')] || f.trim().toUpperCase()).join(' / ')
+        : '—';
+
+const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false, dadosLocais = null, segundaVia = false }) => {
     const [dados, setDados] = useState<ComprovanteVendaResponse | null>(null);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
+    // Cupom montado no aparelho (venda offline ou servidor fora do ar)
+    const [copiaLocal, setCopiaLocal] = useState(false);
     const cupomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!aberto || !vendaId) return;
+        if (!aberto) return;
         setDados(null);
         setErro(null);
+        setCopiaLocal(false);
+        if (!vendaId) {
+            if (dadosLocais) { setDados(dadosLocais); setCopiaLocal(true); }
+            else setErro('Comprovante indisponível para esta venda.');
+            return;
+        }
         setCarregando(true);
         pdvService.obterComprovante(vendaId)
             .then(setDados)
-            .catch(() => setErro('Não foi possível carregar o comprovante.'))
+            .catch(() => {
+                if (dadosLocais) { setDados(dadosLocais); setCopiaLocal(true); }
+                else setErro('Não foi possível carregar o comprovante.');
+            })
             .finally(() => setCarregando(false));
+        // dadosLocais é snapshot fixo da venda; vendaId/aberto definem quando recarregar
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [aberto, vendaId]);
 
     useBodyScrollLock(aberto);
@@ -49,14 +71,15 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
     const papel = config?.tipo_impressora === 'termica_58mm' ? '58mm'
         : config?.tipo_impressora === 'a4' ? '190mm' : '80mm';
 
-    const impressoRef = useRef<number | null>(null);
+    const impressoRef = useRef<string | null>(null);
     useEffect(() => {
-        if (!imprimirAoCarregar || !dados || !vendaId || impressoRef.current === vendaId) return;
-        impressoRef.current = vendaId;
+        const chave = dados?.venda?.codigo ?? null;
+        if (!imprimirAoCarregar || !dados || !chave || impressoRef.current === chave) return;
+        impressoRef.current = chave;
         const t = setTimeout(() => handleImprimir(), 0);  // depois do cupom renderizar
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [imprimirAoCarregar, dados, vendaId]);
+    }, [imprimirAoCarregar, dados]);
 
     const handleImprimir = () => {
         if (!cupomRef.current) return;
@@ -99,9 +122,8 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
         ? venda.data
         : new Date().toLocaleString('pt-BR');
 
-    const formaLabel = comp?.forma_pagamento
-        ? (FORMA_PAGAMENTO_LABEL[comp.forma_pagamento.toLowerCase().replace(/\s/g, '_')] || comp.forma_pagamento.toUpperCase())
-        : '—';
+    const formaLabel = formaPagamentoLabel(comp?.forma_pagamento);
+    const pendenteSync = copiaLocal && !venda?.id;
 
     return (
         <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
@@ -115,7 +137,9 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
                         </div>
                         <div>
                             <p className="text-sm font-black text-slate-900 uppercase tracking-tight">Comprovante</p>
-                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-semibold">{venda?.codigo || '—'}</p>
+                            <p className="text-[10px] text-gray-500 dark:text-slate-400 font-semibold">
+                                {venda?.codigo || '—'}{copiaLocal && ' · cópia salva neste aparelho'}
+                            </p>
                         </div>
                     </div>
                     <button onClick={onFechar}
@@ -157,10 +181,14 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
                             {/* ── Identificação do cupom ── */}
                             <div className="text-center border-b border-dashed border-black pb-2 mb-2">
                                 <p className="font-black text-sm">{dados.nfce ? "CUPOM FISCAL ELETRÔNICO" : "CUPOM NÃO FISCAL"}</p>
+                                {segundaVia && <p className="font-black text-[11px]">*** 2ª VIA ***</p>}
                                 <p className="text-[10px]">Nº {venda?.codigo}</p>
                                 <p className="text-[10px]">{dataHora}</p>
                                 <p className="text-[10px]">Cliente: {comp.cliente || 'Consumidor Final'}</p>
                                 <p className="text-[10px]">Operador: {comp.funcionario}</p>
+                                {pendenteSync && (
+                                    <p className="text-[9px] font-bold mt-1">VENDA OFFLINE — AGUARDANDO SINCRONIZAÇÃO</p>
+                                )}
                             </div>
 
                             {/* ── Itens ── */}

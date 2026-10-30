@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { apiClient } from '../api/apiClient';
 import { db, VendaOffline } from '../lib/db';
+import { vincularCupomSincronizado, removerCupomLocal } from '../features/pdv/cupomLocal';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Hook principal
@@ -80,6 +81,8 @@ export function useOfflineQueue() {
 
           if (response.data?.venda || response.data?.success) {
             await db.vendas.delete(item.id);
+            // Cópia do cupom passa a apontar para a venda oficial (reimpressão com o código real)
+            await vincularCupomSincronizado(item.id, response.data?.venda).catch(() => {});
             synced++;
             console.log(`✅ Venda offline sincronizada: ${item.id}`);
           } else {
@@ -144,6 +147,7 @@ export function useOfflineQueue() {
   // Tira da fila uma venda recusada pelo servidor (depois que o operador conferiu o motivo).
   const descartar = useCallback(async (id: string) => {
     await db.vendas.delete(id);
+    await removerCupomLocal(id).catch(() => {});
     await refreshCount();
   }, [refreshCount]);
 

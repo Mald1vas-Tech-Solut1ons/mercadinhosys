@@ -18,7 +18,7 @@ interface CaixaHeaderProps {
     saldoAtualCaixa?: number;
     dataAberturaCaixa?: string;
     onOpenCaixaManager?: () => void;
-    /** Abre a lista das últimas vendas para reimprimir o cupom. */
+    /** Abre a lista de vendas recentes para imprimir a 2ª via do cupom. */
     onReimprimir?: () => void;
 }
 
@@ -113,7 +113,7 @@ const CaixaHeader: React.FC<CaixaHeaderProps> = ({
                         <button
                             type="button"
                             onClick={onReimprimir}
-                            title="Reimprimir cupom de uma venda recente"
+                            title="Reimprimir cupom (F8)"
                             className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 font-black uppercase tracking-wider text-xs whitespace-nowrap bg-white/20 hover:bg-white/30 transition-colors"
                         >
                             <Printer className="w-4 h-4" />

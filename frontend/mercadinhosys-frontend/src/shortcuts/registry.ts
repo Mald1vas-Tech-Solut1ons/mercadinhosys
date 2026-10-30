@@ -54,6 +54,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
             { keys: ['F1'], label: 'Focar a busca de produto' },
             { keys: ['F2'], label: 'Selecionar cliente' },
             { keys: ['F4'], label: 'Abrir formas de pagamento' },
+            { keys: ['F8'], label: 'Reimprimir cupom (2ª via)' },
             { keys: ['F9'], label: 'Finalizar venda' },
             { keys: ['F10'], label: 'Finalizar venda' },
             { keys: ['Esc'], label: 'Limpar carrinho / fechar pagamento' },

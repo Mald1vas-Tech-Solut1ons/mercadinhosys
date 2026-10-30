@@ -8,12 +8,13 @@ import {
 import {
     Search, Download, RefreshCw, TrendingUp, TrendingDown, ShoppingBag, Receipt,
     DollarSign, Eye, X, Calendar, CreditCard, ChevronLeft, ChevronRight,
-    Ban, Clock, Crown, Users, Sparkles, AlertTriangle, Percent, Lightbulb,
+    Ban, Clock, Crown, Users, Sparkles, AlertTriangle, Percent, Lightbulb, Printer,
 } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
 import { showToast } from "../../utils/toast";
 import { fiscalService } from "../fiscal/fiscalService";
 import SFAPedidosTab from "./SFAPedidosTab";
+import CupomFiscalModal from "../pdv/components/CupomFiscalModal";
 import { InsightCard as ConsultorInsightCard } from "../../components/consultor/InsightCard";
 import { dataLocalISO } from '../../utils/dataLocal';
 
@@ -112,6 +113,8 @@ export default function SalesPage() {
     const [loadingA, setLoadingA] = useState(true);
     const [paginacao, setPaginacao] = useState<{ pagina: number; total_paginas: number; total: number } | null>(null);
     const [detalhe, setDetalhe] = useState<Venda | null>(null);
+    // Reimpressão do cupom de qualquer venda (online, offline já sincronizada, de outro dia).
+    const [cupomVendaId, setCupomVendaId] = useState<number | null>(null);
     const [cancelar, setCancelar] = useState<Venda | null>(null);
     const [motivo, setMotivo] = useState("");
     const [cancelando, setCancelando] = useState(false);
@@ -558,6 +561,7 @@ export default function SalesPage() {
                                             <td className="px-4 py-3 text-center"><span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold ${statusChip(v.status)}`}>{statusLabel(v.status)}</span></td>
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    <button onClick={() => setCupomVendaId(v.id)} title="Reimprimir cupom" aria-label="Reimprimir cupom" className="p-3 md:p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"><Printer className="w-4 h-4" /></button>
                                                     <button onClick={() => abrirDetalhe(v)} title="Ver detalhes" className="p-3 md:p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-lg text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20"><Eye className="w-4 h-4" /></button>
                                                     {v.status !== "cancelada" && (
                                                         <button onClick={() => { setCancelar(v); setMotivo(""); }} title="Cancelar e estornar" className="p-3 md:p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-lg text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"><Ban className="w-4 h-4" /></button>
@@ -605,8 +609,13 @@ export default function SalesPage() {
                             </div>
                             <div className="flex items-center justify-between rounded-xl bg-primary-50 dark:bg-primary-900/20 px-4 py-3"><span className="flex items-center gap-2 font-bold text-primary-700 dark:text-primary-300"><CreditCard className="w-4 h-4" /> Total</span><span className="text-xl font-black text-primary-700 dark:text-primary-300">{brl(detalhe.total)}</span></div>
                         </div>
+                        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800">
+                            <button onClick={() => setCupomVendaId(detalhe.id)} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 dark:bg-slate-700 text-white font-bold text-sm hover:bg-slate-900 dark:hover:bg-slate-600">
+                                <Printer className="w-4 h-4" /> Imprimir cupom
+                            </button>
+                        </div>
                         {detalhe.status === "finalizada" && (
-                            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800">
+                            <div className="px-6 pb-4">
                                 <button onClick={() => emitirNFCe(detalhe.id)} disabled={emitindoNFCe} className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-60">
                                     {emitindoNFCe ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />} Emitir NFC-e
                                 </button>
@@ -615,6 +624,8 @@ export default function SalesPage() {
                     </div>
                 </div>
             )}
+
+            <CupomFiscalModal aberto={cupomVendaId !== null} vendaId={cupomVendaId} onFechar={() => setCupomVendaId(null)} />
 
             {/* Modal cancelar/estornar */}
             {cancelar && (

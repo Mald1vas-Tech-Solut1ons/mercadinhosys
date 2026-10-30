@@ -5,6 +5,7 @@ import { pdvService, ComprovanteVendaResponse } from '../pdvService';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import { printHtml } from '../../../utils/printHtml';
 import { useConfig } from '../../../contexts/ConfigContext';
+import { guardarLojaCupom } from '../cupomLocal';
 
 interface CupomFiscalModalProps {
     aberto: boolean;
@@ -12,6 +13,8 @@ interface CupomFiscalModalProps {
     onFechar: () => void;
     /** Configuração "Impressão automática": manda para a impressora assim que o cupom carrega. */
     imprimirAoCarregar?: boolean;
+    /** Cupom montado no aparelho (venda offline ainda não sincronizada): não consulta o servidor. */
+    dadosLocais?: ComprovanteVendaResponse | null;
 }
 
 const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
@@ -25,22 +28,29 @@ const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
 const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false }) => {
+const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false, dadosLocais = null }) => {
     const [dados, setDados] = useState<ComprovanteVendaResponse | null>(null);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
     const cupomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!aberto || !vendaId) return;
+        if (!aberto) return;
+        if (dadosLocais) {
+            setDados(dadosLocais);
+            setErro(null);
+            setCarregando(false);
+            return;
+        }
+        if (!vendaId) return;
         setDados(null);
         setErro(null);
         setCarregando(true);
         pdvService.obterComprovante(vendaId)
-            .then(setDados)
+            .then(d => { setDados(d); guardarLojaCupom(d?.estabelecimento); })
             .catch(() => setErro('Não foi possível carregar o comprovante.'))
             .finally(() => setCarregando(false));
-    }, [aberto, vendaId]);
+    }, [aberto, vendaId, dadosLocais]);
 
     useBodyScrollLock(aberto);
 
@@ -49,10 +59,11 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
     const papel = config?.tipo_impressora === 'termica_58mm' ? '58mm'
         : config?.tipo_impressora === 'a4' ? '190mm' : '80mm';
 
-    const impressoRef = useRef<number | null>(null);
+    const impressoRef = useRef<number | string | null>(null);
     useEffect(() => {
-        if (!imprimirAoCarregar || !dados || !vendaId || impressoRef.current === vendaId) return;
-        impressoRef.current = vendaId;
+        const chave = vendaId || dados?.venda?.codigo || null;
+        if (!imprimirAoCarregar || !dados || !chave || impressoRef.current === chave) return;
+        impressoRef.current = chave;
         const t = setTimeout(() => handleImprimir(), 0);  // depois do cupom renderizar
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps

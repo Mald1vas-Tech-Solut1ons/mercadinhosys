@@ -36,6 +36,9 @@ import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import { dataLocalISO } from '../../utils/dataLocal';
 import { confirmar } from '../../components/ui/Confirmacao';
 import { useConfig } from '../../contexts/ConfigContext';
+import { montarComprovanteLocal, registrarCupomRecente, codigoOffline } from './cupomLocal';
+import type { ComprovanteVendaResponse } from './pdvService';
+import ReimprimirCupomModal from './components/ReimprimirCupomModal';
 
 export interface VendaConcluida {
     id: number;
@@ -124,6 +127,11 @@ const PDVPage: React.FC = () => {
     // Configurações → "Impressão automática": a venda concluída vai direto para a impressora.
     const { config: configLoja } = useConfig();
     const [imprimirCupomAuto, setImprimirCupomAuto] = useState(false);
+    // Cupom da venda offline montado no aparelho (ainda não existe no servidor).
+    const [cupomLocal, setCupomLocal] = useState<ComprovanteVendaResponse | null>(null);
+    // Reimpressão: lista das últimas vendas deste aparelho e o cupom escolhido.
+    const [reimprimirAberto, setReimprimirAberto] = useState(false);
+    const [reimpressao, setReimpressao] = useState<{ vendaId: number | null; dados: ComprovanteVendaResponse | null } | null>(null);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
     const [produtoPendentePeso, setProdutoPendentePeso] = useState<any>(null);
     // NFC-e: marcada por padrão SÓ quando o backend diz que a emissão fiscal
@@ -241,6 +249,17 @@ const PDVPage: React.FC = () => {
             emailCliente: cliente?.email || '',
             nfceSolicitada: emitirNfce,
         };
+        // Itens congelados para o cupom (offline) e para a reimpressão.
+        const itensCupom = carrinho.map(item => ({
+            nome: item.produto.nome,
+            codigo: (item.produto as any).codigo_barras || undefined,
+            quantidade: item.quantidade,
+            precoUnitario: item.precoUnitario,
+            total: item.total,
+        }));
+        const pagamentosCupom = pagamentos.map(p => ({ forma: p.forma, valor: p.valor }));
+        const subtotalCupom = subtotal;
+        const clienteCupom = cliente?.nome || null;
         try {
             const extraData = {
                 data_vencimento_fiado: isFiado && dataVencimentoFiado ? dataVencimentoFiado : undefined,
@@ -259,13 +278,28 @@ const PDVPage: React.FC = () => {
 
             if (venda) {
                 setVendaFinalizada({ ...venda, ...resumo });
+                if (venda.offline) {
+                    const comprovante = montarComprovanteLocal({
+                        offlineUuid: venda.codigo, itens: itensCupom, subtotal: subtotalCupom,
+                        desconto: Math.max(0, subtotalCupom - resumo.total), total: resumo.total,
+                        pagamentos: pagamentosCupom, valorRecebido: resumo.valorRecebido, troco: resumo.troco,
+                        cliente: clienteCupom, funcionario: configuracoes?.funcionario?.nome,
+                    });
+                    setCupomLocal(comprovante);
+                    registrarCupomRecente({ chave: venda.codigo, codigo: codigoOffline(venda.codigo),
+                        data: new Date().toISOString(), total: resumo.total, vendaId: null, offline: true, comprovante });
+                } else {
+                    setCupomLocal(null);
+                    registrarCupomRecente({ chave: String(venda.id), codigo: venda.codigo,
+                        data: new Date().toISOString(), total: resumo.total, vendaId: venda.id, offline: false });
+                }
                 setFormaPagamentoAberta(false);
                 // Limpa carrinho/pagamentos JÁ: um novo F9/F10 não tem o que reenviar.
                 limparCarrinho();
                 checkoutUuidRef.current = null;
                 setDataVencimentoFiado('');
                 setEmitirNfce(nfcePronta);
-                if (configLoja?.impressao_automatica && !venda.offline) {
+                if (configLoja?.impressao_automatica) {
                     setImprimirCupomAuto(true);
                     setCupomModalAberto(true);
                 } else {
@@ -433,6 +467,7 @@ const PDVPage: React.FC = () => {
                     saldoAtualCaixa={caixaAberto?.saldo_atual}
                     dataAberturaCaixa={caixaAberto?.data_abertura}
                     onOpenCaixaManager={() => setManagerCaixaAberto(true)}
+                    onReimprimir={() => setReimprimirAberto(true)}
                 />
             </div>
 
@@ -1011,10 +1046,6 @@ const PDVPage: React.FC = () => {
                 }}
                 onImprimir={async () => {
                     if (!vendaFinalizada) return;
-                    if (vendaFinalizada.offline) {
-                        showToast.error("Não é possível imprimir comprovante de venda offline. Aguarde a sincronização.");
-                        return;
-                    }
                     setMostrarModalNotaFiscal(false);
                     setCupomModalAberto(true);
                 }}
@@ -1042,10 +1073,6 @@ const PDVPage: React.FC = () => {
                 enviando={enviandoEmail}
                 onVisualizar={async () => {
                     if (!vendaFinalizada) return;
-                    if (vendaFinalizada.offline) {
-                        showToast.error("Não é possível visualizar cupom de venda offline. Aguarde a sincronização.");
-                        return;
-                    }
                     setMostrarModalNotaFiscal(false);
                     setCupomModalAberto(true);
                 }}
@@ -1054,13 +1081,31 @@ const PDVPage: React.FC = () => {
             {/* CUPOM FISCAL PROFISSIONAL */}
             <CupomFiscalModal
                 aberto={cupomModalAberto}
-                vendaId={vendaFinalizada?.id ?? null}
+                vendaId={vendaFinalizada?.offline ? null : (vendaFinalizada?.id ?? null)}
+                dadosLocais={vendaFinalizada?.offline ? cupomLocal : null}
                 imprimirAoCarregar={imprimirCupomAuto}
                 onFechar={() => {
                     setCupomModalAberto(false);
                     setImprimirCupomAuto(false);
                     setVendaFinalizada(null);
+                    setCupomLocal(null);
                 }}
+            />
+
+            {/* REIMPRESSÃO: últimas vendas deste aparelho (online e offline) */}
+            <ReimprimirCupomModal
+                aberto={reimprimirAberto}
+                onFechar={() => setReimprimirAberto(false)}
+                onEscolher={(cupom) => {
+                    setReimprimirAberto(false);
+                    setReimpressao({ vendaId: cupom.vendaId, dados: cupom.vendaId ? null : (cupom.comprovante || null) });
+                }}
+            />
+            <CupomFiscalModal
+                aberto={!!reimpressao}
+                vendaId={reimpressao?.vendaId ?? null}
+                dadosLocais={reimpressao?.dados ?? null}
+                onFechar={() => setReimpressao(null)}
             />
 
             {/* MOBILE BAR — escondida enquanto o Gerenciador de Caixa está aberto, para que

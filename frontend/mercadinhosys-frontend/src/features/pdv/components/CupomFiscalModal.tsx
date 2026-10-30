@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Printer, X, Eye } from 'lucide-react';
+import { Printer, X, Eye, Mail, Send, MessageCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { pdvService, ComprovanteVendaResponse } from '../pdvService';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 import { printHtml } from '../../../utils/printHtml';
 import { useConfig } from '../../../contexts/ConfigContext';
+import { showToast } from '../../../utils/toast';
+import { mensagemErro } from '../../../utils/mensagemErro';
+import { gerarCupomPdf, nomeArquivoCupom, enviarCupomWhatsApp } from '../cupomPdf';
 
 interface CupomFiscalModalProps {
     aberto: boolean;
@@ -16,6 +19,10 @@ interface CupomFiscalModalProps {
     dadosLocais?: ComprovanteVendaResponse | null;
     /** Reimpressão: o cupom sai marcado como 2ª via. */
     segundaVia?: boolean;
+    /** E-mail já conhecido do cliente: preenche o envio do comprovante. */
+    emailInicial?: string;
+    /** Telefone já conhecido do cliente: preenche o envio pelo WhatsApp. */
+    telefoneInicial?: string;
 }
 
 const FORMA_PAGAMENTO_LABEL: Record<string, string> = {
@@ -34,19 +41,33 @@ const formaPagamentoLabel = (forma?: string) =>
         ? forma.split('/').map(f => FORMA_PAGAMENTO_LABEL[f.trim().toLowerCase().replace(/\s/g, '_')] || f.trim().toUpperCase()).join(' / ')
         : '—';
 
-const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false, dadosLocais = null, segundaVia = false }) => {
+const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, onFechar, imprimirAoCarregar = false, dadosLocais = null, segundaVia = false, emailInicial = '', telefoneInicial = '' }) => {
     const [dados, setDados] = useState<ComprovanteVendaResponse | null>(null);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState<string | null>(null);
     // Cupom montado no aparelho (venda offline ou servidor fora do ar)
     const [copiaLocal, setCopiaLocal] = useState(false);
     const cupomRef = useRef<HTMLDivElement>(null);
+    // Envio do comprovante por e-mail (precisa da venda no servidor)
+    const [emailAberto, setEmailAberto] = useState(false);
+    const [email, setEmail] = useState('');
+    const [enviandoEmail, setEnviandoEmail] = useState(false);
+    const [whatsAberto, setWhatsAberto] = useState(false);
+    const [telefone, setTelefone] = useState('');
+    // PDF gerado ao abrir o painel: o compartilhar do celular exige o arquivo pronto no clique
+    const [arquivoPdf, setArquivoPdf] = useState<File | null>(null);
+    const [gerandoPdf, setGerandoPdf] = useState(false);
 
     useEffect(() => {
         if (!aberto) return;
         setDados(null);
         setErro(null);
         setCopiaLocal(false);
+        setEmailAberto(false);
+        setEmail(emailInicial);
+        setWhatsAberto(false);
+        setTelefone(telefoneInicial);
+        setArquivoPdf(null);
         if (!vendaId) {
             if (dadosLocais) { setDados(dadosLocais); setCopiaLocal(true); }
             else setErro('Comprovante indisponível para esta venda.');
@@ -110,6 +131,57 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
 </head>
 <body>${conteudo}</body>
 </html>`);
+    };
+
+    const handleEnviarEmail = async () => {
+        const vendaServidorId = dados?.venda?.id;
+        const destino = email.trim();
+        if (!vendaServidorId) return;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destino)) {
+            showToast.error('Digite um e-mail válido');
+            return;
+        }
+        setEnviandoEmail(true);
+        try {
+            await showToast.promise(pdvService.enviarCupomFiscal(vendaServidorId, destino), {
+                loading: 'Enviando comprovante...',
+                success: `Comprovante enviado para ${destino}`,
+                error: (err: any) => mensagemErro(err, 'Não foi possível enviar o e-mail'),
+            });
+            setEmailAberto(false);
+        } catch {
+            // erro já mostrado pelo toast
+        } finally {
+            setEnviandoEmail(false);
+        }
+    };
+
+    const abrirWhatsApp = async () => {
+        const abrir = !whatsAberto;
+        setWhatsAberto(abrir);
+        setEmailAberto(false);
+        if (!abrir || !dados || arquivoPdf) return;
+        setGerandoPdf(true);
+        try {
+            const blob = await gerarCupomPdf(dados, segundaVia);
+            setArquivoPdf(new File([blob], nomeArquivoCupom(dados), { type: 'application/pdf' }));
+        } catch {
+            showToast.error('Não foi possível gerar o PDF do cupom');
+        } finally {
+            setGerandoPdf(false);
+        }
+    };
+
+    const handleEnviarWhatsApp = async () => {
+        if (!arquivoPdf) return;
+        const digitos = telefone.replace(/\D/g, '');
+        if (digitos && digitos.length < 10) {
+            showToast.error('Telefone incompleto: use DDD + número');
+            return;
+        }
+        const r = await enviarCupomWhatsApp(arquivoPdf, digitos);
+        if (r === 'baixado') showToast.success('PDF do cupom baixado: anexe na conversa do WhatsApp que abriu');
+        if (r !== 'cancelado') setWhatsAberto(false);
     };
 
     if (!aberto) return null;
@@ -289,22 +361,106 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
                     )}
                 </div>
 
+                {/* Envio por e-mail: só existe para venda que já está no servidor */}
+                {dados && emailAberto && (
+                    <div className="px-4 pt-3 border-t border-slate-100 shrink-0">
+                        {pendenteSync ? (
+                            <p className="text-xs font-semibold text-amber-700">
+                                Venda offline: o envio por e-mail fica disponível quando ela sincronizar. Imprima agora ou reenvie pela tela de Vendas depois.
+                            </p>
+                        ) : (
+                            <form
+                                className="flex gap-2"
+                                onSubmit={(e) => { e.preventDefault(); handleEnviarEmail(); }}
+                            >
+                                <input
+                                    type="email"
+                                    autoFocus
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="email@cliente.com"
+                                    aria-label="E-mail do cliente"
+                                    className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={enviandoEmail}
+                                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center gap-1.5 disabled:opacity-60"
+                                >
+                                    <Send className="w-4 h-4" />
+                                    {enviandoEmail ? 'Enviando...' : 'Enviar'}
+                                </button>
+                            </form>
+                        )}
+                    </div>
+                )}
+
+                {/* Envio pelo WhatsApp: o PDF do cupom (funciona até com venda offline) */}
+                {dados && whatsAberto && (
+                    <div className="px-4 pt-3 border-t border-slate-100 shrink-0">
+                        <form
+                            className="flex gap-2"
+                            onSubmit={(e) => { e.preventDefault(); handleEnviarWhatsApp(); }}
+                        >
+                            <input
+                                type="tel"
+                                inputMode="tel"
+                                autoFocus
+                                value={telefone}
+                                onChange={(e) => setTelefone(e.target.value)}
+                                placeholder="(11) 99999-9999"
+                                aria-label="WhatsApp do cliente"
+                                className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                            <button
+                                type="submit"
+                                disabled={!arquivoPdf}
+                                className="px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm flex items-center gap-1.5 disabled:opacity-60"
+                            >
+                                <Send className="w-4 h-4" />
+                                {gerandoPdf ? 'Gerando PDF...' : 'Enviar PDF'}
+                            </button>
+                        </form>
+                        <p className="mt-1 text-[10px] text-slate-500">
+                            Vai o cupom em PDF. No celular, escolha o WhatsApp e o contato; no computador o PDF é baixado e a conversa abre para anexar.
+                        </p>
+                    </div>
+                )}
+
                 {/* Footer com botões — sempre visível (mesmo em erro/carregando) para que o
                     usuário nunca fique preso na tela do comprovante em conexões instáveis. */}
                 <div
-                    className="px-4 py-3 border-t border-slate-100 flex gap-2 shrink-0"
+                    className="px-4 py-3 border-t border-slate-100 grid grid-cols-2 gap-2 shrink-0"
                     style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
                 >
                     <button
                         onClick={onFechar}
-                        className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors"
+                        className="py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm transition-colors"
                     >
                         Fechar
                     </button>
                     {dados && (
                         <button
+                            onClick={() => { setEmailAberto(v => !v); setWhatsAberto(false); }}
+                            className={`py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${emailAberto ? 'bg-blue-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                        >
+                            <Mail className="w-4 h-4" />
+                            E-mail
+                        </button>
+                    )}
+                    {dados && (
+                        <button
+                            onClick={abrirWhatsApp}
+                            className={`py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${whatsAberto ? 'bg-green-600 text-white' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'}`}
+                        >
+                            <MessageCircle className="w-4 h-4" />
+                            WhatsApp
+                        </button>
+                    )}
+                    {dados && (
+                        <button
                             onClick={handleImprimir}
-                            className="flex-1 py-3 rounded-xl bg-gray-50 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg"
+                            className="py-3 rounded-xl bg-gray-50 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-900 dark:text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg"
                         >
                             <Printer className="w-4 h-4" />
                             Imprimir

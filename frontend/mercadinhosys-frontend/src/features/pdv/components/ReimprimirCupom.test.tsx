@@ -8,11 +8,16 @@ vi.mock('../../../utils/printHtml', () => ({ printHtml: (html: string) => printH
 vi.mock('../../../contexts/ConfigContext', () => ({ useConfig: () => ({ config: { tipo_impressora: 'termica_80mm' } }) }))
 const obterComprovante = vi.fn()
 const vendasHoje = vi.fn()
+const enviarCupomFiscal = vi.fn()
 vi.mock('../pdvService', () => ({
   pdvService: {
     obterComprovante: (id: number) => obterComprovante(id),
     vendasHoje: (n: number) => vendasHoje(n),
+    enviarCupomFiscal: (id: number, email: string) => enviarCupomFiscal(id, email),
   },
+}))
+vi.mock('../../../utils/toast', () => ({
+  showToast: { promise: (p: Promise<unknown>) => p, error: vi.fn(), success: vi.fn() },
 }))
 
 import CupomFiscalModal from './CupomFiscalModal'
@@ -32,7 +37,7 @@ describe('reimpressão de cupom', () => {
     localStorage.clear()
     localStorage.setItem('current_estabelecimento_id', '10')
     salvarCabecalhoCupom({ nome_fantasia: 'Mercado da Vera' })
-    printHtml.mockReset(); obterComprovante.mockReset(); vendasHoje.mockReset()
+    printHtml.mockReset(); obterComprovante.mockReset(); vendasHoje.mockReset(); enviarCupomFiscal.mockReset()
   })
 
   it('venda offline: cupom sai do aparelho, sem servidor, e imprime', () => {
@@ -80,5 +85,25 @@ describe('reimpressão de cupom', () => {
     expect(screen.getAllByText('V-5')).toHaveLength(1)
     fireEvent.click(screen.getByText('V-6'))
     expect(onSelecionar).toHaveBeenLastCalledWith({ vendaId: 6, dadosLocais: null })
+  })
+
+  it('envia o comprovante da venda por e-mail', async () => {
+    enviarCupomFiscal.mockResolvedValue({ success: true })
+    const dados = montarComprovanteLocal({ ...dadosVenda('u-9'), offline: false, vendaId: 42, codigo: 'V-42' })
+    obterComprovante.mockResolvedValue(dados)
+    render(<CupomFiscalModal aberto vendaId={42} emailInicial="vera@loja.com" segundaVia onFechar={() => {}} />)
+    await waitFor(() => expect(screen.getByText('E-mail')).toBeTruthy())
+    fireEvent.click(screen.getByText('E-mail'))
+    expect((screen.getByLabelText('E-mail do cliente') as HTMLInputElement).value).toBe('vera@loja.com')
+    fireEvent.click(screen.getByText('Enviar'))
+    await waitFor(() => expect(enviarCupomFiscal).toHaveBeenCalledWith(42, 'vera@loja.com'))
+  })
+
+  it('venda offline ainda não sincronizada explica que o e-mail sai depois', () => {
+    const dados = montarComprovanteLocal(dadosVenda('cafebabe-0000-4000-8000-000000000000'))
+    render(<CupomFiscalModal aberto vendaId={null} dadosLocais={dados} onFechar={() => {}} />)
+    fireEvent.click(screen.getByText('E-mail'))
+    expect(screen.getByText(/disponível quando ela sincronizar/)).toBeTruthy()
+    expect(enviarCupomFiscal).not.toHaveBeenCalled()
   })
 })

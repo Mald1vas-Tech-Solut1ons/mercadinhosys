@@ -78,6 +78,22 @@ def _resolver_nome_operador(venda_data: dict) -> str:
             return str(nome).strip()
     return "Operador"
 
+
+def _cabecalho_cupom(estab: dict | None) -> dict:
+    """Cabeçalho da loja no cupom. Mesmo formato no comprovante do servidor e no
+    /configuracoes, que o PDV guarda para montar o cupom de venda offline."""
+    estab = estab or {}
+    return {
+        "nome_fantasia": estab.get("nome_fantasia", "MercadinhoSys"),
+        "razao_social": estab.get("razao_social", ""),
+        "cnpj": estab.get("cnpj", ""),
+        "inscricao_estadual": estab.get("inscricao_estadual", "ISENTO"),
+        "telefone": estab.get("telefone", ""),
+        "email": estab.get("email", ""),
+        "endereco": f"{estab.get('logradouro', '')}, {estab.get('numero', '')} - {estab.get('cidade', '')}/{estab.get('estado', '')}",
+    }
+
+
 def calcular_rfm_cliente(cliente_id: int, estabelecimento_id: int) -> dict:
     """
     Calcula o segmento RFM de um cliente específico.
@@ -448,6 +464,14 @@ def obter_configuracoes_pdv():
         except Exception as nfce_err:
             current_app.logger.warning(f"Não foi possível avaliar prontidão da NFC-e: {nfce_err}")
         configuracoes["nfce"] = nfce_info
+
+        # Cabeçalho do cupom: o PDV guarda no aparelho para imprimir venda offline.
+        try:
+            from app.utils.query_helpers import get_estabelecimento_safe
+            configuracoes["cupom_cabecalho"] = _cabecalho_cupom(
+                get_estabelecimento_safe(funcionario_data.get("estabelecimento_id")))
+        except Exception as cab_err:
+            current_app.logger.warning(f"Cabeçalho do cupom indisponível: {cab_err}")
 
         # OTIMIZAÇÃO: Incluir dados RFM se cliente_id for fornecido
         cliente_id = request.args.get("cliente_id", type=int)
@@ -1301,6 +1325,8 @@ def vendas_hoje():
         
         hoje = hoje_local()
         inicio_dia, fim_dia = _janela_hoje_utc()
+        # Reimpressão de cupom no PDV lista mais que o painel (padrão 10).
+        limite = max(1, min(request.args.get("limite", 10, type=int), 100))
 
         # Vendas do dia (carrega pagamentos junto p/ evitar N+1)
         vendas = Venda.query.options(db.selectinload(Venda.pagamentos)).filter(
@@ -1359,8 +1385,9 @@ def vendas_hoje():
                     "total": float(v.total or 0),
                     "hora": fmt_local(_ref(v), "%H:%M") if _ref(v) else "--:--",
                     "forma_pagamento": _forma_principal(v),
+                    "offline_uuid": v.offline_uuid,
                 }
-                for v in sorted(vendas, key=lambda x: _ref(x) or datetime.min, reverse=True)[:10]
+                for v in sorted(vendas, key=lambda x: _ref(x) or datetime.min, reverse=True)[:limite]
             ]
         }), 200
         
@@ -1679,15 +1706,7 @@ def obter_comprovante_venda(venda_id):
                 "codigo": venda_data.get("codigo", "V-0000"),
                 "data": data_str
             },
-            "estabelecimento": {
-                "nome_fantasia": estabelecimento_data.get("nome_fantasia", "MercadinhoSys"),
-                "razao_social": estabelecimento_data.get("razao_social", ""),
-                "cnpj": estabelecimento_data.get("cnpj", ""),
-                "inscricao_estadual": estabelecimento_data.get("inscricao_estadual", "ISENTO"),
-                "telefone": estabelecimento_data.get("telefone", ""),
-                "email": estabelecimento_data.get("email", ""),
-                "endereco": f"{estabelecimento_data.get('logradouro', '')}, {estabelecimento_data.get('numero', '')} - {estabelecimento_data.get('cidade', '')}/{estabelecimento_data.get('estado', '')}",
-            },
+            "estabelecimento": _cabecalho_cupom(estabelecimento_data),
             "comprovante": comprovante,
             "nfce": nfce_data,
         }), 200

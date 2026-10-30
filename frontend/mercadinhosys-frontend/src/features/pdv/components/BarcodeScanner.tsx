@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, X, Scan, Keyboard, AlertCircle, CheckCircle2, Smartphone } from 'lucide-react';
+import { Camera, X, Scan, Keyboard, AlertCircle, CheckCircle2, Smartphone, Search } from 'lucide-react';
 import Quagga from '@ericblade/quagga2';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 
 interface BarcodeScannerProps {
     onScan: (codigo: string) => void;
     onClose: () => void;
+    /** Cadastro de produto: texto com letras no modo manual busca pelo nome (base de produtos). */
+    onBuscarNome?: (termo: string) => void;
 }
 
-const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
+const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose, onBuscarNome }) => {
     const [modoEntrada, setModoEntrada] = useState<'camera' | 'manual'>('camera');
     const [codigoManual, setCodigoManual] = useState('');
     const [erro, setErro] = useState<string | null>(null);
@@ -262,9 +264,17 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
         }
     };
 
+    // Com letras (e a tela aceita nome), o botão busca pelo nome em vez de tratar como código.
+    const ehNome = !!onBuscarNome && /[a-zA-ZÀ-ÿ]/.test(codigoManual) && codigoManual.trim().length >= 3;
+
     // Enviar código manual
     const handleEnviarManual = (e: React.FormEvent) => {
         e.preventDefault();
+        if (ehNome) {
+            onBuscarNome?.(codigoManual.trim());
+            setCodigoManual('');
+            return;
+        }
         if (codigoManual.trim()) {
             onScan(codigoManual.trim());
             setCodigoManual('');
@@ -330,19 +340,19 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
                         <form onSubmit={handleEnviarManual} className="space-y-6">
                             <div className="space-y-2">
                                 <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                    Código de Barras (EAN/UPC/Code-128)
+                                    {onBuscarNome ? 'Código de barras ou nome do produto' : 'Código de Barras (EAN/UPC/Code-128)'}
                                 </label>
                                 <input
                                     type="text"
                                     value={codigoManual}
                                     onChange={(e) => setCodigoManual(e.target.value)}
-                                    placeholder="Ex: 7891234567890"
-                                    className="w-full pl-4 pr-4 py-4 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 text-2xl font-mono bg-white dark:bg-gray-900 text-gray-800 dark:text-white transition-all outline-none"
+                                    placeholder={onBuscarNome ? 'Ex: 7891234567890 ou leite moça' : 'Ex: 7891234567890'}
+                                    className={`w-full pl-4 pr-4 py-4 border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 ${onBuscarNome ? 'text-lg' : 'text-2xl font-mono'} bg-white dark:bg-gray-900 text-gray-800 dark:text-white transition-all outline-none`}
                                     autoFocus
                                 />
                                 <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
                                     <AlertCircle className="w-4 h-4" />
-                                    <span className="text-xs">Leitores USB funcionam automaticamente aqui</span>
+                                    <span className="text-xs">{onBuscarNome ? 'Digite o código ou o nome. Leitores USB funcionam aqui.' : 'Leitores USB funcionam automaticamente aqui'}</span>
                                 </div>
                             </div>
                             <button
@@ -353,8 +363,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
                                     : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
                                     }`}
                             >
-                                <Scan className="w-5 h-5" />
-                                <span>Adicionar Produto</span>
+                                {ehNome ? <Search className="w-5 h-5" /> : <Scan className="w-5 h-5" />}
+                                <span>{ehNome ? 'Buscar por nome' : (onBuscarNome ? 'Buscar pelo código' : 'Adicionar Produto')}</span>
                             </button>
                         </form>
                     ) : (

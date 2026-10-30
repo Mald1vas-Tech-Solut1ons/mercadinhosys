@@ -320,8 +320,9 @@ const ProductFormModal = ({
     };
 
     // Busca por nome (produto sem EAN ou que a base não conhece pelo código): lista para o operador escolher.
-    const buscarPorNome = async () => {
-        const termo = formData.nome.trim();
+    const refResultadosNome = useRef<HTMLDivElement | null>(null);
+    const buscarPorNome = async (termoInformado?: string) => {
+        const termo = (termoInformado ?? formData.nome).trim();
         if (termo.length < 3) {
             showToast.error('Digite pelo menos 3 letras do nome para buscar.');
             return;
@@ -332,6 +333,7 @@ const ProductFormModal = ({
             const res = await cosmosService.buscarPorNome(termo);
             if (res.success && res.data?.length) {
                 setResultadosNome(res.data);
+                setTimeout(() => refResultadosNome.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
             } else {
                 showToast.error(res.message || 'Nenhum produto encontrado com esse nome.');
             }
@@ -718,7 +720,7 @@ const ProductFormModal = ({
                                         className={inputClass}
                                         placeholder={ehServico ? exemplos.nome_servico : exemplos.nome} />
                                     {!ehServico && (
-                                        <button type="button" onClick={buscarPorNome} disabled={buscandoNome}
+                                        <button type="button" onClick={() => buscarPorNome()} disabled={buscandoNome}
                                             aria-label="Buscar produto pelo nome"
                                             title="Buscar pelo nome na base de produtos"
                                             className="shrink-0 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 shadow-sm flex items-center gap-1.5 text-xs font-bold disabled:opacity-60 disabled:cursor-wait">
@@ -728,7 +730,7 @@ const ProductFormModal = ({
                                     )}
                                 </div>
                                 {resultadosNome.length > 0 && (
-                                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm divide-y divide-gray-100 dark:divide-gray-700 max-h-72 overflow-y-auto overscroll-contain">
+                                    <div ref={refResultadosNome} className="mt-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm divide-y divide-gray-100 dark:divide-gray-700 max-h-72 overflow-y-auto overscroll-contain">
                                         <div className="flex items-center justify-between px-3 py-2">
                                             <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Toque no produto certo</span>
                                             <button type="button" onClick={() => setResultadosNome([])}
@@ -1194,7 +1196,12 @@ const ProductFormModal = ({
             </form>
 
             {showScanner && (
-                <BarcodeScanner onScan={handleScanCodigo} onClose={() => setShowScanner(false)} />
+                <BarcodeScanner onScan={handleScanCodigo} onClose={() => setShowScanner(false)}
+                    onBuscarNome={ehServico ? undefined : (termo) => {
+                        setShowScanner(false);
+                        setFormData(prev => ({ ...prev, nome: termo }));
+                        buscarPorNome(termo);
+                    }} />
             )}
         </ResponsiveModal>
     );

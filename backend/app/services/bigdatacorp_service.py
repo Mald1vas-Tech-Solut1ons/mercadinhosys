@@ -15,6 +15,7 @@ Credenciais só do ambiente: API_BIG_DATA_CORP (AccessToken, JWT do BDC Center) 
 API_BIG_DATA_CORP_TOKEN_ID (o "Token Id" da mesma linha no BDC Center, não é o jti do JWT).
 """
 import os
+import re
 import unicodedata
 from datetime import datetime
 
@@ -126,8 +127,13 @@ def historico(meses: int = 6) -> list:
 
 def reservar_consulta(dataset: str) -> bool:
     """Reserva 1 consulta do serviço no mês, com trava de linha; False quando a franquia acabou."""
-    if not servico_ativo(dataset):  # pausado no painel do super admin
-        return False
+    return reservar_consultas(dataset, 1) == 1
+
+
+def reservar_consultas(dataset: str, quantidade: int) -> int:
+    """Reserva até ``quantidade`` consultas do mês; devolve quantas couberam na franquia (0 = acabou)."""
+    if quantidade <= 0 or not servico_ativo(dataset):  # pausado no painel do super admin
+        return 0
     provedor, mes, limite = _provedor(dataset), _mes_atual(), limite_mensal(dataset)
     for _ in range(2):
         linha = (ConsumoApiExterna.query.filter_by(provedor=provedor, mes=mes)
@@ -140,13 +146,22 @@ def reservar_consulta(dataset: str) -> bool:
             except IntegrityError:  # outra loja criou a linha do mês ao mesmo tempo
                 db.session.rollback()
                 continue
-        if linha.consultas >= limite:
-            db.session.commit()
-            return False
-        linha.consultas += 1
+        reservadas = min(quantidade, max(0, limite - linha.consultas))
+        linha.consultas += reservadas
         db.session.commit()  # solta a trava antes da chamada externa
-        return True
-    return False
+        return reservadas
+    return 0
+
+
+def devolver_consultas(dataset: str, quantidade: int):
+    """Busca por termo reserva o máximo; o que a BigDataCorp não devolveu (e não cobrou) volta à franquia."""
+    if quantidade <= 0:
+        return
+    linha = (ConsumoApiExterna.query.filter_by(provedor=_provedor(dataset), mes=_mes_atual())
+             .with_for_update().first())
+    if linha:
+        linha.consultas = max(0, linha.consultas - quantidade)
+    db.session.commit()
 
 
 def registrar_encontrado(dataset: str):
@@ -168,6 +183,34 @@ def _primeiro(atributos: list, *chaves):
             if valor:
                 return valor
     return ""
+
+
+def _texto(valor) -> str:
+    """Valor da ficha sem HTML e sem espaço sobrando (lojas como a Droga Raia mandam HTML)."""
+    import html
+    sem_tags = re.sub(r"<[^>]+>", " ", html.unescape(str(valor or "")))
+    return " ".join(sem_tags.split())
+
+
+_SUFIXO_LOJA = re.compile(r"\s*(?:\||:|–|-)\s*(?:menor pre[cç]o|droga ?raia|drogasil|drogaria s[aã]o paulo|"
+                          r"magazine ?luiza|p[aã]o de a[cç][uú]car|leroy ?merlin|kabum|amazon|americanas|"
+                          r"submarino|carrefour|casas bahia)\b.*$", re.IGNORECASE)
+
+
+def _titulo_loja(atributos: list) -> str:
+    """Nome do produto como a loja de origem publica (título da página): fichas sem MARCA/TIPO.
+
+    Ex.: META_TITLE "Lavitan Vitamina C Turma da Mônica Melancia 60 Comps | Droga Raia"
+    -> "Lavitan Vitamina C Turma da Mônica Melancia 60 Comps".
+    """
+    for chaves in (("TITULO", "TITLE", "NOME", "NOME DO PRODUTO", "NOME COMERCIAL"), ("META_TITLE",)):
+        bruto = _texto(_primeiro(atributos, *chaves))
+        titulo = _SUFIXO_LOJA.sub("", bruto).strip(" |:-–")
+        if len(titulo) >= 3:
+            return titulo
+    meta = _texto(_primeiro(atributos, "META_DESCRIPTION"))
+    achado = re.match(r"^Encontre (.+?) com o menor pre", meta, re.IGNORECASE)
+    return achado.group(1).strip() if achado else ""
 
 
 def _data_bdc(texto):
@@ -207,7 +250,11 @@ def _imagem_mais_recente(resultado: dict):
                 url = str((img or {}).get("ImageUrl") or "")
                 if url.startswith("https://") and data and (melhor_data is None or data > melhor_data):
                     melhor_data, melhor_url = data, url
-    return melhor_url
+    if melhor_url:
+        return melhor_url
+    _, atributos = _fichas(resultado)
+    imagem = _primeiro(atributos, "IMAGE", "IMAGEM", "SMALL_IMAGE")
+    return imagem if imagem.startswith("https://") else None
 
 
 def mapear(resultado: dict) -> dict:
@@ -238,8 +285,9 @@ def mapear(resultado: dict) -> dict:
             vistos.add(_chave(parte))
     ncm = "".join(c for c in _primeiro(atributos, "NCM", "CODIGO NCM") if c.isdigit())[:8]
     preco, lojas_com_preco = _preco_referencia(resultado)
+    nome = " ".join(partes) if (tipo or marca) else _titulo_loja(atributos)
     return {
-        "nome": " ".join(partes)[:200] if (tipo or marca) else "",
+        "nome": nome[:200],
         "marca": marca[:100] or None,
         "fabricante": (fabricante or marca)[:150] or None,
         "categoria": tipo[:60] or None,
@@ -440,8 +488,78 @@ def atributos_candidatos(resultado: dict) -> dict:
 def descricao_produto(resultado: dict) -> str:
     """Descrição da loja de origem ou, sem ela, os ingredientes (alimento/bebida)."""
     _, atributos = _fichas(resultado)
-    descricao = _primeiro(atributos, "DESCRICAO", "DESCRICAO DO PRODUTO", "CARACTERISTICAS")
+    descricao = _texto(_primeiro(atributos, "DESCRICAO", "DESCRICAO DO PRODUTO", "CARACTERISTICAS",
+                                 "SHORT_DESCRIPTION", "DESCRIPTION"))
     if descricao:
         return descricao[:1000]
     ingredientes = _primeiro(atributos, "INGREDIENTES")
     return f"Ingredientes: {ingredientes}"[:1000] if ingredientes else ""
+
+
+LIMITE_PAYLOAD = 60000
+
+
+def payload_compacto(resultado: dict) -> str:
+    """JSON da resposta que cabe na coluna sem ser cortado no meio (o corte gerava JSON inválido).
+
+    Textos longos (descrição em HTML) são encurtados; se ainda não couber, fica só a ficha técnica.
+    """
+    import json
+
+    def encurtar(valor, limite):
+        if isinstance(valor, dict):
+            return {k: encurtar(v, limite) for k, v in valor.items()}
+        if isinstance(valor, list):
+            return [encurtar(v, limite) for v in valor[:20]]
+        if isinstance(valor, str) and len(valor) > limite:
+            return valor[:limite]
+        return valor
+
+    texto = json.dumps(resultado, ensure_ascii=False)
+    for limite in (4000, 1500, 500):
+        if len(texto) <= LIMITE_PAYLOAD:
+            return texto
+        texto = json.dumps(encurtar(resultado, limite), ensure_ascii=False)
+    if len(texto) > LIMITE_PAYLOAD:
+        texto = json.dumps({k: encurtar(resultado.get(k), 300) for k in ("PrimaryId", "ExtraInfoData")},
+                           ensure_ascii=False)
+    return texto if len(texto) <= LIMITE_PAYLOAD else json.dumps({"PrimaryId": resultado.get("PrimaryId")})
+
+
+def buscar_por_termo(termo: str, limite: int = 5):
+    """Busca por nome (chave ``searchterms`` da API de Produtos): ``(motivo, resultados)``.
+
+    Só a Ficha Técnica, que traz nome, marca e foto. A API cobra 1 consulta por produto
+    devolvido: reserva ``limite`` e devolve à franquia o que não veio.
+    """
+    if not configurado():
+        return "nao_configurado", []
+    dataset = "extra_info_data"
+    reservadas = reservar_consultas(dataset, limite)
+    if not reservadas:
+        return "sem_cota", []
+    termo_limpo = " ".join(re.sub(r"[{}]", " ", str(termo)).split())[:80]
+    headers = {
+        "AccessToken": os.environ["API_BIG_DATA_CORP"].strip(),
+        "TokenId": os.environ["API_BIG_DATA_CORP_TOKEN_ID"].strip(),
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    try:
+        resp = requests.post(URL_PRODUTOS, json={"Datasets": dataset,
+                                                 "q": f"searchterms{{{termo_limpo}}}, matchtype{{flexible}}",
+                                                 "Limit": reservadas}, headers=headers, timeout=15)
+        dados = resp.json()
+    except (requests.exceptions.RequestException, ValueError) as e:
+        current_app.logger.warning(f"BigDataCorp sem resposta na busca '{termo_limpo}': {e}")
+        devolver_consultas(dataset, reservadas)
+        return "erro", []
+    status = dados.get("Status") or {}
+    erros_login = [s for s in (status.get("login") or []) if s.get("Code") not in (0, None)]
+    if erros_login:
+        current_app.logger.error(f"BigDataCorp recusou o acesso: {erros_login[0].get('Message')}")
+        devolver_consultas(dataset, reservadas)
+        return "erro", []
+    resultados = [r for r in (dados.get("Result") or []) if isinstance(r, dict)]
+    devolver_consultas(dataset, reservadas - len(resultados))
+    return ("encontrado" if resultados else "nao_encontrado"), resultados

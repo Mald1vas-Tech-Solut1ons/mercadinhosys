@@ -54,7 +54,7 @@ def _auditar_login(estabelecimento_id, usuario_id, username, contexto):
         current_app.logger.warning('[AUDIT] Falha ao registrar login: %s', error)
 
 
-LOGIN_BLOQUEIO_SEGUNDOS = 15 * 60
+LOGIN_BLOQUEIO_SEGUNDOS = 7 * 60
 
 
 def _limite_tentativas(estabelecimento_id):

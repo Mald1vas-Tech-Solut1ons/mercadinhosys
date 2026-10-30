@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { confirmar } from '../../../components/ui/Confirmacao';
-import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2, Loader2 } from 'lucide-react';
+import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2, Loader2, Search } from 'lucide-react';
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import FotoUpload from '../../../components/ui/FotoUpload';
 import SchemaField from '../../../components/schema/SchemaField';
@@ -12,7 +12,7 @@ import {
     calcularModoMercado, calcularModoVenda,
     validarDescontoMercadoPct, validarMargemAlvoVendaPct,
 } from '../utils/precificacaoReversa';
-import { cosmosService } from '../../../services/cosmosService';
+import { cosmosService, CatalogoBuscaItem } from '../../../services/cosmosService';
 import { useViewSchema, schemaHelpers } from '../../../services/viewSchemaService';
 import BarcodeScanner from '../../pdv/components/BarcodeScanner';
 
@@ -133,6 +133,8 @@ const ProductFormModal = ({
     const [isSearchingCosmos, setIsSearchingCosmos] = useState(false);
     const [showForceSync, setShowForceSync] = useState(false);
     const [gerandoDescricao, setGerandoDescricao] = useState(false);
+    const [buscandoNome, setBuscandoNome] = useState(false);
+    const [resultadosNome, setResultadosNome] = useState<CatalogoBuscaItem[]>([]);
     // true quando o preço de venda foi digitado pelo usuário (ou veio do produto
     // em edição): mexer no custo passa a recalcular a MARGEM, não o preço.
     const precoVendaManual = useRef(false);
@@ -304,6 +306,43 @@ const ProductFormModal = ({
         } finally {
             setIsSearchingCosmos(false);
         }
+    };
+
+    // Busca por nome (produto sem EAN ou que a base não conhece pelo código): lista para o operador escolher.
+    const buscarPorNome = async () => {
+        const termo = formData.nome.trim();
+        if (termo.length < 3) {
+            showToast.error('Digite pelo menos 3 letras do nome para buscar.');
+            return;
+        }
+        setBuscandoNome(true);
+        setResultadosNome([]);
+        try {
+            const res = await cosmosService.buscarPorNome(termo);
+            if (res.success && res.data?.length) {
+                setResultadosNome(res.data);
+            } else {
+                showToast.error(res.message || 'Nenhum produto encontrado com esse nome.');
+            }
+        } finally {
+            setBuscandoNome(false);
+        }
+    };
+
+    const escolherResultadoNome = (item: CatalogoBuscaItem) => {
+        setResultadosNome([]);
+        setFormData(prev => ({ ...prev, nome: item.nome }));
+        handleScanCodigo(item.ean);
+    };
+
+    // EAN digitado à mão (sem câmera) também consulta a base.
+    const buscarEanDigitado = () => {
+        const ean = formData.codigo_barras.replace(/\D/g, '');
+        if (ean.length < 8) {
+            showToast.error('Digite o código de barras completo (8 a 14 números).');
+            return;
+        }
+        handleScanCodigo(ean);
     };
 
     const gerarCodigoInterno = async () => {
@@ -641,11 +680,52 @@ const ProductFormModal = ({
                             )}
                             <div className="sm:col-span-2">
                                 <label className={labelClass}>{ehServico ? 'Nome do Serviço *' : 'Nome do Produto *'}</label>
-                                <input type="text" value={formData.nome} required
-                                    ref={refNome}
-                                    onChange={e => field('nome', e.target.value)}
-                                    className={inputClass}
-                                    placeholder={ehServico ? exemplos.nome_servico : exemplos.nome} />
+                                <div className="flex gap-2">
+                                    <input type="text" value={formData.nome} required
+                                        ref={refNome}
+                                        onChange={e => field('nome', e.target.value)}
+                                        onKeyDown={e => {
+                                            // No cadastro novo, Enter/"Ir" do teclado do celular busca em vez de salvar pela metade.
+                                            if (e.key === 'Enter' && !ehServico && !editMode) { e.preventDefault(); buscarPorNome(); }
+                                        }}
+                                        enterKeyHint={!ehServico && !editMode ? 'search' : undefined}
+                                        className={inputClass}
+                                        placeholder={ehServico ? exemplos.nome_servico : exemplos.nome} />
+                                    {!ehServico && (
+                                        <button type="button" onClick={buscarPorNome} disabled={buscandoNome}
+                                            aria-label="Buscar produto pelo nome"
+                                            title="Buscar pelo nome na base de produtos"
+                                            className="shrink-0 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 shadow-sm flex items-center gap-1.5 text-xs font-bold disabled:opacity-60 disabled:cursor-wait">
+                                            {buscandoNome ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                            <span className="hidden sm:inline">Buscar</span>
+                                        </button>
+                                    )}
+                                </div>
+                                {resultadosNome.length > 0 && (
+                                    <div className="mt-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm divide-y divide-gray-100 dark:divide-gray-700 max-h-72 overflow-y-auto overscroll-contain">
+                                        <div className="flex items-center justify-between px-3 py-2">
+                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400">Toque no produto certo</span>
+                                            <button type="button" onClick={() => setResultadosNome([])}
+                                                className="text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1">
+                                                Fechar
+                                            </button>
+                                        </div>
+                                        {resultadosNome.map(item => (
+                                            <button type="button" key={item.ean} onClick={() => escolherResultadoNome(item)}
+                                                className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 active:bg-blue-100 dark:active:bg-blue-900/40">
+                                                {item.imagem_url
+                                                    ? <img src={item.imagem_url} alt="" loading="lazy" className="w-10 h-10 rounded-lg object-contain bg-white shrink-0" />
+                                                    : <span className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center shrink-0"><Package className="w-5 h-5 text-gray-400" /></span>}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block text-sm font-semibold text-gray-900 dark:text-white leading-snug">{item.nome}</span>
+                                                    <span className="block text-xs text-gray-500 dark:text-gray-400 font-mono">
+                                                        {item.marca ? `${item.marca} · ` : ''}{item.ean}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                                 {!ehServico && /^[0-9]{7,14}$/.test(formData.nome.trim()) && (
                                     <p className="mt-1 text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
                                         ⚠ Isso parece um código de barras, não um nome. Escaneie o EAN ou busque que o sistema preenche os dados para você.
@@ -667,7 +747,16 @@ const ProductFormModal = ({
                                                 field('codigo_barras', e.target.value);
                                                 setShowForceSync(false);
                                             }}
+                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); buscarEanDigitado(); } }}
+                                            inputMode="numeric" enterKeyHint="search"
                                             className={`${inputClass} font-mono`} placeholder="EAN-13 / EAN-8" />
+                                        {formData.codigo_barras.replace(/\D/g, '').length >= 8 && (
+                                            <button type="button" onClick={buscarEanDigitado} disabled={isSearchingCosmos}
+                                                aria-label="Buscar dados pelo código de barras"
+                                                className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700 disabled:opacity-60">
+                                                {isSearchingCosmos ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                                            </button>
+                                        )}
                                         <button type="button" onClick={() => setShowScanner(true)}
                                             className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700">
                                             <Camera className="w-5 h-5" />

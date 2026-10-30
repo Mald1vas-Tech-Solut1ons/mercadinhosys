@@ -50,6 +50,7 @@ export interface VendaConcluida {
     troco: number;
     valorRecebido: number;
     emailCliente: string;
+    telefoneCliente?: string;
     nfceSolicitada: boolean;
     /** Cópia do cupom guardada no aparelho — única fonte do cupom enquanto a venda é offline. */
     cupomLocal?: ComprovanteVendaResponse | null;
@@ -249,6 +250,7 @@ const PDVPage: React.FC = () => {
             troco,
             valorRecebido: totalPago,
             emailCliente: cliente?.email || '',
+            telefoneCliente: (cliente as any)?.celular || (cliente as any)?.telefone || '',
             nfceSolicitada: emitirNfce,
         };
         const uuidVenda = checkoutUuidRef.current!;  // definido logo acima
@@ -1099,6 +1101,8 @@ const PDVPage: React.FC = () => {
                 aberto={cupomModalAberto}
                 vendaId={vendaFinalizada && !vendaFinalizada.offline ? vendaFinalizada.id : null}
                 dadosLocais={vendaFinalizada?.cupomLocal}
+                emailInicial={vendaFinalizada?.emailCliente}
+                telefoneInicial={vendaFinalizada?.telefoneCliente}
                 imprimirAoCarregar={imprimirCupomAuto}
                 onFechar={() => {
                     setCupomModalAberto(false);

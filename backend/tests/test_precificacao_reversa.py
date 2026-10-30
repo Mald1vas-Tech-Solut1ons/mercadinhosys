@@ -71,6 +71,9 @@ def _payload_mercado(**overrides):
         "modo_precificacao": "mercado",
         "preco_referencia_mercado": "100.00",
         "fonte_referencia_mercado": "shopee",
+        # Precificação reversa testa o cálculo, não o estoque: exceção
+        # consciente do guardião (entra na Lista de Revisão).
+        "entrar_sem_estoque": True,
     }
     base.update(overrides)
     return base
@@ -174,7 +177,7 @@ def test_post_modo_venda(client, ctx):
         "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Vaso Decorativo", "categoria": "Bazar",
         "modo_precificacao": "venda", "preco_venda": "50.00",
-        "margem_alvo_venda_pct": "40",
+        "margem_alvo_venda_pct": "40", "entrar_sem_estoque": True,
     }, headers=_headers(ctx["estab"].id, ctx["admin"].id))
     assert r.status_code == 201, r.get_data(as_text=True)
     produto = r.get_json()["produto"]

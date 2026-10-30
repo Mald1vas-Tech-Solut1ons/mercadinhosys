@@ -9,7 +9,7 @@ from app.models import (
     db, StatusPedidoLogistica, AuditoriaQuilometragem,
     TurnoEntregador, ConfiguracaoLogistica, ChecklistVeiculo, Funcionario, Veiculo
 )
-from app.utils.timezone import iso_utc, now_utc
+from app.utils.timezone import hoje_local, iso_utc, now_utc
 
 logger = logging.getLogger(__name__)
 logistica_bp = Blueprint('logistica', __name__)
@@ -94,6 +94,7 @@ def configuracao_logistica():
     if not config:
         config = ConfiguracaoLogistica(estabelecimento_id=est_id)
         db.session.add(config)
+        db.session.flush()  # aplica os defaults (preço do combustível etc.): sem isso float(None) quebrava o 1º turno
     
     if 'preco_gasolina' in data: config.preco_gasolina = data['preco_gasolina']
     if 'preco_alcool' in data: config.preco_alcool = data['preco_alcool']
@@ -305,6 +306,7 @@ def finalizar_turno():
     if not config:
         config = ConfiguracaoLogistica(estabelecimento_id=est_id)
         db.session.add(config)
+        db.session.flush()  # aplica os defaults (preço do combustível etc.): sem isso float(None) quebrava o 1º turno
         
     # Calcular custo de combustível
     preco_combustivel = float(config.preco_gasolina)
@@ -625,7 +627,7 @@ def registrar_abastecimento():
             categoria="Logística/Frota",
             tipo="variavel",
             valor=valor_total,
-            data_despesa=date.today(),
+            data_despesa=hoje_local(),
             forma_pagamento=(data.get('forma_pagamento') or 'dinheiro'),
             recorrente=False,
             observacoes=f"Gerado automaticamente pelo abastecimento do veículo {veiculo.placa} (KM {float(km_atual):.0f})."
@@ -700,7 +702,7 @@ def registrar_manutencao():
             valor=valor_total,
             categoria="Logística/Frota",
             tipo="variavel",
-            data_despesa=date.today(),
+            data_despesa=hoje_local(),
             forma_pagamento=(data.get('forma_pagamento') or 'dinheiro'),
             recorrente=False,
             observacoes=descricao or f"Manutenção do veículo {veiculo.placa}"

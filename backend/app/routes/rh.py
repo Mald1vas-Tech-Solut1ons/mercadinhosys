@@ -196,6 +196,16 @@ def criar_justificativa():
                 "message": "Campos obrigatórios: funcionario_id, tipo, data, motivo",
             }), 400
 
+        # Valida id e data ANTES de qualquer gravação: os dois entram no nome do anexo, e um valor
+        # como "../../x" gravava o arquivo fora da pasta de justificativas (path traversal).
+        try:
+            funcionario_id = int(funcionario_id)
+            data_justificada = datetime.strptime(str(data_str), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "funcionario_id ou data inválidos (data no formato AAAA-MM-DD)"}), 400
+        if not Funcionario.query.filter_by(id=funcionario_id).first():  # TenantQuery: só da própria loja
+            return jsonify({"success": False, "message": "Funcionário não encontrado"}), 404
+
         # Self-service: quem não é Admin/Gerente/RH só justifica o PRÓPRIO ponto
         usuario = _usuario_atual()
         if not _pode_ver_tudo_rh(usuario) and int(funcionario_id) != (usuario.id if usuario else -1):
@@ -229,7 +239,7 @@ def criar_justificativa():
                 }), 400
 
             nome_seguro = secure_filename(documento.filename) or f"documento.{extensao}"
-            filename = f"just_{funcionario_id}_{data_str}_{uuid.uuid4().hex[:8]}_{nome_seguro}"
+            filename = f"just_{funcionario_id}_{data_justificada.isoformat()}_{uuid.uuid4().hex[:8]}_{nome_seguro}"
 
             # Atestados permanecem no volume privado, servidos com autorização.
             if not documento_url:
@@ -243,9 +253,9 @@ def criar_justificativa():
 
         justificativa = JustificativaPonto(
             estabelecimento_id=estabelecimento_id,
-            funcionario_id=int(funcionario_id),
+            funcionario_id=funcionario_id,
             tipo=tipo,
-            data=datetime.strptime(data_str, "%Y-%m-%d").date(),
+            data=data_justificada,
             motivo=motivo,
             documento_url=documento_url,
             status="pendente",
@@ -626,7 +636,9 @@ def registrar_rescisao():
         forma_pag = resultado.get("forma_pagamento", "PIX")
 
         # 0. Limpeza prévia: se o colaborador já tinha rescisões anteriores no banco (testes anteriores), remover para manter apenas a última ativa
-        rescisoes_antigas = Rescisao.query.filter_by(funcionario_id=funcionario.id).all()
+        # Só substitui um registro da MESMA demissão (mesma data: refazer o cálculo). Rescisão de outra
+        # data é outro vínculo (funcionário readmitido) e fica no histórico com a sua despesa.
+        rescisoes_antigas = Rescisao.query.filter_by(funcionario_id=funcionario.id, data_demissao=data_dem_obj).all()
         for ant in rescisoes_antigas:
             if getattr(ant, "despesa_id", None):
                 desp_ant = Despesa.query.get(ant.despesa_id)
@@ -764,32 +776,26 @@ def _garantir_despesas_rescisoes_legadas():
         
         alterou = False
 
-        # 1. Deduplicação por funcionário: se o funcionário possui mais de uma rescisão gravada por testes anteriores,
-        # manter apenas a mais recente (ID mais alto) e expurgar as rescisões/despesas obsoletas.
-        por_func = defaultdict(list)
+        # Duplicata = mesmo funcionário e MESMA data de demissão (clique duplo): fica a mais recente.
+        # Rescisão de outra data é outro vínculo (readmitido e demitido de novo) e fica no histórico.
+        # A despesa da duplicata passa pela regra única: vencida (paga) fica anotada, futura sai.
+        por_evento = defaultdict(list)
         for r in todas_rescisoes:
-            por_func[r.funcionario_id].append(r)
-
+            por_evento[(r.funcionario_id, r.data_demissao)].append(r)
         rescisoes_ativas = []
-        for fid, lista in por_func.items():
-            if len(lista) > 1:
-                ultima = lista[-1]
-                obsoletas = lista[:-1]
-                for obs in obsoletas:
-                    if getattr(obs, "despesa_id", None):
-                        d_obs = Despesa.query.get(obs.despesa_id)
-                        if d_obs:
-                            db.session.delete(d_obs)
-                    db.session.delete(obs)
+        for lista in por_evento.values():
+            for obs in lista[:-1]:
+                if getattr(obs, "despesa_id", None):
+                    d_obs = Despesa.query.get(obs.despesa_id)
+                    if d_obs:
+                        _desfazer_despesa_rescisao(d_obs, "Rescisão duplicada")
+                db.session.delete(obs)
                 alterou = True
-                rescisoes_ativas.append(ultima)
-            else:
-                rescisoes_ativas.append(lista[0])
-
+            rescisoes_ativas.append(lista[-1])
         if alterou:
             db.session.flush()
 
-        # 2. Processar a rescisão mais recente de cada colaborador
+        # 2. Garantir a despesa de cada rescisão
         for r in rescisoes_ativas:
             nome_func = r.funcionario.nome if r.funcionario else f"Funcionário #{r.funcionario_id}"
             json_data = r.verbas_rescisorias_json or {}

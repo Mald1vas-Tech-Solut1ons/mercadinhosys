@@ -49,12 +49,107 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
         return false;
     };
 
-    // Code-128 (etiquetas de roupa/eletrônicos): alfanumérico de 4 a 30 caracteres.
-    const isValidCode128 = (code: string): boolean => /^[A-Za-z0-9-]{4,30}$/.test(code);
+    // Code-128 (etiquetas de roupa/eletrônicos): alfanumérico de 6 a 30 caracteres. Só números
+    // precisa ser um EAN com dígito verificador certo: EAN-13 mal lido costuma sair como Code-128 quebrado.
+    const isValidCode128 = (code: string): boolean => {
+        if (/^\d+$/.test(code)) return isValidEAN(code);
+        return /^[A-Za-z0-9-]{6,30}$/.test(code);
+    };
 
     const isCodigoValido = (code: string, format?: string): boolean => {
         if (format === 'code_128') return isValidCode128(code);
         return isValidEAN(code);
+    };
+
+    // Erro médio das barras decodificadas pelo Quagga: acima disso a leitura é chute.
+    const ERRO_MAXIMO_QUAGGA = 0.1;
+    const erroMedio = (data: any): number => {
+        const erros = (data?.codeResult?.decodedCodes || [])
+            .map((c: any) => c?.error)
+            .filter((e: any) => typeof e === 'number');
+        return erros.length ? erros.reduce((a: number, b: number) => a + b, 0) / erros.length : 1;
+    };
+
+    // Leitor nativo do celular (BarcodeDetector: Chrome/Android) é bem mais preciso que o Quagga.
+    const nativoRef = useRef<{ stream: MediaStream; ativo: boolean } | null>(null);
+
+    // Só aceita depois de N leituras idênticas e válidas seguidas (nativo 2, Quagga 3).
+    const registrarLeitura = (code: string, format: string | undefined, leiturasExigidas: number) => {
+        const now = Date.now();
+        if (!code || !isCodigoValido(code, format)) return;
+
+        // Debounce de 2s para o mesmo código (para não floodar quando já aceitou)
+        if (code === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
+            return;
+        }
+
+        // Reseta a contagem se passar muito tempo (1 segundo)
+        if (now - candidateTimeRef.current > 1000) {
+            candidateRef.current = '';
+            scanCountRef.current = 0;
+        }
+
+        if (code !== candidateRef.current) {
+            candidateRef.current = code;
+            scanCountRef.current = 1;
+            candidateTimeRef.current = now;
+        } else {
+            scanCountRef.current += 1;
+            candidateTimeRef.current = now;
+        }
+
+        if (scanCountRef.current >= leiturasExigidas) {
+            lastScanRef.current = code;
+            lastScanTimeRef.current = now;
+            setScanSuccess(true);
+
+            setTimeout(() => setScanSuccess(false), 500);
+            onScan(code);
+
+            candidateRef.current = '';
+            scanCountRef.current = 0;
+        }
+    };
+
+    const iniciarNativo = async (): Promise<boolean> => {
+        const Detector = (window as any).BarcodeDetector;
+        if (!Detector || !scannerRef.current || !navigator.mediaDevices?.getUserMedia) return false;
+        try {
+            const suportados: string[] = (await Detector.getSupportedFormats?.()) || [];
+            if (!suportados.includes('ean_13')) return false;
+            const formatos = ['ean_13', 'ean_8', 'upc_a', 'code_128'].filter(f => suportados.includes(f));
+            const detector = new Detector({ formats: formatos });
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            });
+            const video = document.createElement('video');
+            video.setAttribute('playsinline', '');
+            video.muted = true;
+            video.srcObject = stream;
+            video.className = 'w-full h-full object-cover';
+            scannerRef.current.innerHTML = '';
+            scannerRef.current.appendChild(video);
+            await video.play();
+            nativoRef.current = { stream, ativo: true };
+            const loop = async () => {
+                if (!nativoRef.current?.ativo) return;
+                try {
+                    const codigos = await detector.detect(video);
+                    for (const c of codigos) {
+                        registrarLeitura(String(c.rawValue || ''), c.format === 'code_128' ? 'code_128' : undefined, 2);
+                    }
+                } catch {
+                    // quadro sem imagem ainda: tenta no próximo
+                }
+                setTimeout(loop, 120);
+            };
+            loop();
+            return true;
+        } catch {
+            nativoRef.current?.stream.getTracks().forEach(t => t.stop());
+            nativoRef.current = null;
+            return false;
+        }
     };
 
     // Este componente só é montado enquanto o scanner estiver aberto (sem prop isOpen),
@@ -63,6 +158,14 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
 
     // Cleanup Quagga
     const pararCamera = useCallback(async () => {
+        if (nativoRef.current) {
+            nativoRef.current.ativo = false;
+            nativoRef.current.stream.getTracks().forEach(t => t.stop());
+            nativoRef.current = null;
+            setCameraAtiva(false);
+            setIsScanning(false);
+            return;
+        }
         try {
             Quagga.offDetected();
             await Quagga.stop();
@@ -85,6 +188,12 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
 
         setErro(null);
         setIsScanning(true);
+
+        if (await iniciarNativo()) {
+            setCameraAtiva(true);
+            setIsScanning(false);
+            return;
+        }
 
         try {
             await Quagga.init({
@@ -120,43 +229,8 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScan, onClose }) => {
 
             // Registrar callback de detecção
             Quagga.onDetected((data) => {
-                const now = Date.now();
-                const code = data.codeResult?.code;
-
-                if (!code || !isCodigoValido(code, data.codeResult?.format)) return;
-
-                // Debounce de 2s para o mesmo código (para não floodar quando já aceitou)
-                if (code === lastScanRef.current && now - lastScanTimeRef.current < 2000) {
-                    return;
-                }
-
-                // Reseta a contagem se passar muito tempo (1 segundo)
-                if (now - candidateTimeRef.current > 1000) {
-                    candidateRef.current = '';
-                    scanCountRef.current = 0;
-                }
-
-                if (code !== candidateRef.current) {
-                    candidateRef.current = code;
-                    scanCountRef.current = 1;
-                    candidateTimeRef.current = now;
-                } else {
-                    scanCountRef.current += 1;
-                    candidateTimeRef.current = now;
-                }
-
-                // Somente notifica após 3 leituras consecutivas idênticas e válidas
-                if (scanCountRef.current >= 3) {
-                    lastScanRef.current = code;
-                    lastScanTimeRef.current = now;
-                    setScanSuccess(true);
-                    
-                    setTimeout(() => setScanSuccess(false), 500);
-                    onScan(code);
-                    
-                    candidateRef.current = '';
-                    scanCountRef.current = 0;
-                }
+                if (erroMedio(data) > ERRO_MAXIMO_QUAGGA) return;
+                registrarLeitura(data.codeResult?.code || '', data.codeResult?.format, 3);
             });
 
         } catch (error: any) {

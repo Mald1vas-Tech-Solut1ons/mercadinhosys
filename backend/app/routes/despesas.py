@@ -465,7 +465,7 @@ def obter_estatisticas_despesas():
 
         # Pressão de Caixa Imediata: Boletos Vencidos
         q_vencidas = db.session.query(func.sum(func.coalesce(ContaPagar.valor_atual, ContaPagar.valor_original))).filter(
-            ContaPagar.status == 'aberto',
+            ContaPagar.status.in_(['aberto', 'parcial']),
             ContaPagar.data_vencimento < hoje
         )
         if estabelecimento_id != 'all':
@@ -740,7 +740,7 @@ def detalhamento_unificado():
         hoje_local = datetime.now().date()
         if inicio <= hoje_local <= fim:
             q_vencidos = db.session.query(ContaPagar).filter(
-                ContaPagar.status == 'aberto',
+                ContaPagar.status.in_(['aberto', 'parcial']),
                 ContaPagar.data_vencimento < hoje_local
             )
             if estabelecimento_id != 'all':
@@ -968,7 +968,7 @@ def boletos_a_vencer():
         query = db.session.query(ContaPagar).options(
             joinedload(ContaPagar.fornecedor),
             joinedload(ContaPagar.pedido_compra)
-        ).filter(ContaPagar.status == 'aberto')
+        ).filter(ContaPagar.status.in_(['aberto', 'parcial']))
         if estabelecimento_id != 'all':
              query = query.filter(ContaPagar.estabelecimento_id == estabelecimento_id)
         
@@ -1543,14 +1543,14 @@ def boletos_por_status():
 
         # Vencidos
         vencidos_q = base_query().filter(
-            ContaPagar.status == 'aberto',
+            ContaPagar.status.in_(['aberto', 'parcial']),
             ContaPagar.data_vencimento < hoje,
         ).order_by(ContaPagar.data_vencimento.asc())
         vencidos = [serialize_boleto(b) for b in vencidos_q.all()]
 
         # A vencer
         a_vencer_q = base_query().filter(
-            ContaPagar.status == 'aberto',
+            ContaPagar.status.in_(['aberto', 'parcial']),
             ContaPagar.data_vencimento >= hoje,
             ContaPagar.data_vencimento <= limite_vencer,
         ).order_by(ContaPagar.data_vencimento.asc())

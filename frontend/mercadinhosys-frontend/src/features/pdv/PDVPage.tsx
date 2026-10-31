@@ -12,7 +12,9 @@ import {
     CloudUpload,
     Truck,
     MapPin,
-    Lock
+    Lock,
+    AlertTriangle,
+    Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProdutoSearch from './components/ProdutoSearch';
@@ -25,7 +27,7 @@ import ReimprimirCupomModal, { type CupomParaReimprimir } from './components/Rei
 import { salvarCupomLocal, salvarCabecalhoCupom, codigoOffline } from './cupomLocal';
 import PesoInputModal from './components/PesoInputModal';
 import { usePDV } from '../../hooks/usePDV';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import { pdvService, genUuid, type ComprovanteVendaResponse } from './pdvService';
 import { mensagemErro } from '../../utils/mensagemErro';
 import { apiClient } from '../../api/apiClient';
@@ -55,6 +57,26 @@ export interface VendaConcluida {
     /** Cópia do cupom guardada no aparelho — única fonte do cupom enquanto a venda é offline. */
     cupomLocal?: ComprovanteVendaResponse | null;
 }
+
+// FASE 1.1: Componente bloqueante quando o caixa está fechado — só mostra botão "Abrir Caixa"
+const CaixaBloqueado: React.FC<{ onAbrirCaixa: () => void }> = ({ onAbrirCaixa }) => (
+    <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-6 border-t border-slate-200 dark:border-slate-800">
+        <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-6">
+            <Lock className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+        </div>
+        <h2 className="text-2xl font-black uppercase tracking-tight mb-2">Caixa Fechado</h2>
+        <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-md text-center">
+            Abra o caixa antes de montar o carrinho ou receber pagamentos.
+        </p>
+        <button
+            onClick={onAbrirCaixa}
+            className="px-8 py-4 bg-red-600 text-white font-black rounded-2xl uppercase text-sm tracking-widest shadow-lg hover:bg-red-700 transition-all active:scale-95"
+        >
+            <Wallet className="w-5 h-5 inline mr-2" />
+            Abrir Caixa
+        </button>
+    </div>
+);
 
 const PDVPage: React.FC = () => {
 
@@ -137,6 +159,19 @@ const PDVPage: React.FC = () => {
     useEffect(() => { salvarCabecalhoCupom(configuracoes?.cupom_cabecalho); }, [configuracoes?.cupom_cabecalho]);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
     const [produtoPendentePeso, setProdutoPendentePeso] = useState<any>(null);
+
+    // FASE 1.1: Bloqueio total sem caixa aberto — o PDV mostra só o botão "Abrir Caixa"
+    const bloqueioCaixa = !caixaAberto && !loading;
+
+    // FASE 1.2: Caixa esquecido >14h vira modal bloqueante no primeiro render
+    const [caixaEsquecidoModal, setCaixaEsquecidoModal] = useState(false);
+    const [caixaEsquecidoResolvido, setCaixaEsquecidoResolvido] = useState(false);
+
+    useEffect(() => {
+        if (caixaEsquecidoResolvido || !caixaAberto?.data_abertura) return;
+        const horas = (Date.now() - new Date(caixaAberto.data_abertura).getTime()) / 3_600_000;
+        if (horas > 14) setCaixaEsquecidoModal(true);
+    }, [caixaAberto, caixaEsquecidoResolvido]);
     // NFC-e: marcada por padrão SÓ quando o backend diz que a emissão fiscal
     // está pronta (gateway real configurado — ver /pdv/configuracoes → nfce).
     // Sem isso, começa desmarcada (antes vinha sempre marcada e a venda
@@ -194,6 +229,11 @@ const PDVPage: React.FC = () => {
                 if (code.length >= 8 && /^\d+$/.test(code)) {
                     e.preventDefault();
                     if (finalizandoRef.current) return; // venda sendo concluída: não mexe no carrinho
+                    if (!caixaEstaAberto) {
+                        showToast.error('Caixa fechado. Abra o caixa antes de bipar produtos.');
+                        setManagerCaixaAberto(true);
+                        return;
+                    }
                     try {
                         const p = await pdvService.buscarPorCodigoBarras(code);
                         if (p) { if (adicionarProduto(p as any)) showToast.success(`Lido: ${p.nome}`); }
@@ -393,10 +433,15 @@ const PDVPage: React.FC = () => {
         }
     };
 
+    const fecharModalPesoSemToast = () => {
+        setMostrarModalPeso(false);
+        setProdutoPendentePeso(null);
+    };
+
     const handleConfirmarPeso = (peso: number) => {
         if (produtoPendentePeso) {
             adicionarProduto(produtoPendentePeso, peso);
-            setProdutoPendentePeso(null);
+            fecharModalPesoSemToast();
         }
     };
 
@@ -471,7 +516,14 @@ const PDVPage: React.FC = () => {
 
             <PesoInputModal
                 isOpen={mostrarModalPeso}
-                onClose={() => { setMostrarModalPeso(false); setProdutoPendentePeso(null); }}
+                onClose={() => {
+                    if (produtoPendentePeso) {
+                        showToast.error(`${produtoPendentePeso.nome} NÃO adicionado — bipe novamente para vender`, {
+                            duration: 6000
+                        });
+                    }
+                    fecharModalPesoSemToast();
+                }}
                 onConfirm={handleConfirmarPeso}
                 produto={produtoPendentePeso}
             />
@@ -489,7 +541,11 @@ const PDVPage: React.FC = () => {
                 />
             </div>
 
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden border-t border-slate-200 dark:border-slate-800">
+            {bloqueioCaixa ? (
+                <CaixaBloqueado onAbrirCaixa={() => setManagerCaixaAberto(true)} />
+            ) : (
+                <>
+                    <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden border-t border-slate-200 dark:border-slate-800">
                 {/* 🛒 LISTAGEM DE ITENS (FOCO TOTAL) */}
                 <div className="lg:col-span-9 flex flex-col bg-white dark:bg-slate-900 overflow-hidden">
                     {/* 📑 TABS DE SESSÃO */}
@@ -530,7 +586,10 @@ const PDVPage: React.FC = () => {
 
                     <div className="p-3 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
                         <div className="bg-white dark:bg-slate-900 p-4 border-b border-slate-200 dark:border-slate-800">
-                            <ProdutoSearch onProdutoSelecionado={handleProdutoSelecionado} />
+                            <ProdutoSearch
+                                onProdutoSelecionado={handleProdutoSelecionado}
+                                disabled={!caixaEstaAberto}
+                            />
                         </div>
                     </div>
 
@@ -618,7 +677,9 @@ const PDVPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-
+            </>
+            )}
+            
             {/* 💳 CHECKOUT DRAWER (DESIGN PRÊMIUM E ACESSÍVEL) */}
             <AnimatePresence>
                 {formaPagamentoAberta && (
@@ -1128,7 +1189,7 @@ const PDVPage: React.FC = () => {
 
             {/* MOBILE BAR — escondida enquanto o Gerenciador de Caixa está aberto, para que
                 a Gestão de Caixa prevaleça sobre o PDV (botões de Sangria/Fechamento livres). */}
-            {!managerCaixaAberto && (
+            {!managerCaixaAberto && !bloqueioCaixa && (
                 <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 flex items-center justify-between z-50">
                     <div className="flex flex-col pl-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Total Geral</span>
@@ -1146,6 +1207,56 @@ const PDVPage: React.FC = () => {
                     </button>
                 </div>
             )}
+
+            {/* FASE 1.2: Modal bloqueante de caixa esquecido >14h */}
+            <AnimatePresence>
+                {caixaEsquecidoModal && caixaAberto?.data_abertura && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/90 backdrop-blur-md p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl p-8 max-w-md w-full text-center"
+                        >
+                            <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <AlertTriangle className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">
+                                Caixa esquecido aberto
+                            </h3>
+                            <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+                                O caixa de {formatDateTime(caixaAberto.data_abertura)} está aberto há {Math.floor((Date.now() - new Date(caixaAberto.data_abertura).getTime()) / 3_600_000)}h.
+                                <br />Feche o turno anterior para a conferência do dia bater.
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => {
+                                        setCaixaEsquecidoModal(false);
+                                        setManagerCaixaAberto(true);
+                                    }}
+                                    className="w-full py-4 bg-red-600 text-white font-black rounded-2xl uppercase text-sm tracking-widest hover:bg-red-700 transition-all"
+                                >
+                                    Fechar turno anterior agora
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setCaixaEsquecidoModal(false);
+                                        setCaixaEsquecidoResolvido(true);
+                                    }}
+                                    className="w-full py-4 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black rounded-2xl uppercase text-sm tracking-widest hover:bg-slate-300 dark:hover:bg-slate-700 transition-all"
+                                >
+                                    Continuar neste turno
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

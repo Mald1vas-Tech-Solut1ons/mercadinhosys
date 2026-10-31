@@ -50,6 +50,7 @@ from app.services.view_schema_service import (
     sanitizar_atributos,
     sugestao_fiscal_para_familia,
 )
+from app.services.taxonomia_service import garantir_categoria_loja, resolver as resolver_subcategoria
 
 def to_decimal(value, precision=2):
     """Converte qualquer valor numérico para Decimal de forma segura com precisão variável"""
@@ -278,8 +279,9 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
     if modo not in ("custo", "mercado", "venda"):
         erros.append("Modo de precificação inválido: use custo, mercado ou venda")
 
-    # Campos obrigatórios
-    campos_obrigatorios = ["nome", "categoria"]
+    # Campos obrigatórios. A classificação deixou de ser texto livre: quem exige e valida a
+    # SUBCATEGORIA oficial (família) é a rota, com 400 `categoria_invalida` (PLANO §3.3).
+    campos_obrigatorios = ["nome"]
     if modo == "custo":
         campos_obrigatorios.append("preco_venda")
     for campo in campos_obrigatorios:
@@ -2127,6 +2129,30 @@ def obter_produto(id):
         )
 
 
+def _erro_categoria_invalida(nome_familia):
+    """400 do contrato da taxonomia (PLANO §3.3): fora da lista não entra, nem por "parecido"."""
+    return jsonify({
+        "success": False,
+        "code": "categoria_invalida",
+        "message": f"Escolha uma subcategoria da lista de {nome_familia or 'produto'}",
+    }), 400
+
+
+def _taxonomia_da_entrada(data, familia_produto, nome_familia):
+    """Resolve (categoria_oficial, subcategoria_oficial) do payload.
+
+    O campo `subcategoria` manda; `categoria` só é aceito como fallback quando vem sozinho (telas e
+    planilhas antigas). Devolve `(chaves, None)` ou `(None, resposta 400)`.
+    """
+    informado = data.get("subcategoria") or data.get("categoria")
+    if informado is None or not str(informado).strip():
+        return None, _erro_categoria_invalida(nome_familia)
+    chaves = resolver_subcategoria(familia_produto, str(informado))
+    if chaves is None:
+        return None, _erro_categoria_invalida(nome_familia)
+    return chaves, None
+
+
 @produtos_bp.route("/", methods=["POST"], strict_slashes=False)
 @produtos_bp.route("", methods=["POST"], strict_slashes=False)
 @jwt_required()
@@ -2202,23 +2228,16 @@ def criar_produto():
         # não informou o campo explicitamente (nunca sobrescreve valor digitado).
         fiscal_sugerido = sugestao_fiscal_para_familia(familia_produto, tipo_item=tipo_item)
 
-        categoria_id = None
-        if data.get("categoria"):
-            categoria_nome = CategoriaProduto.normalizar_nome_categoria(data["categoria"])
-            categoria_obj = CategoriaProduto.query.filter_by(
-                nome=categoria_nome,
-                estabelecimento_id=estabelecimento_id,
-            ).first()
-            if categoria_obj:
-                categoria_id = categoria_obj.id
-            else:
-                nova_categoria = CategoriaProduto(
-                    nome=categoria_nome,
-                    estabelecimento_id=estabelecimento_id,
-                )
-                db.session.add(nova_categoria)
-                db.session.flush()
-                categoria_id = nova_categoria.id
+        # Taxonomia oficial (PLANO §3.3 #1): a subcategoria é obrigatória e tem de existir na
+        # família (aceita chave ou nome, resolvido por chave canônica). `categoria` só serve de
+        # fallback quando vem sozinho. Fora da lista → 400 categoria_invalida.
+        nome_familia = schema.get("familia_produto", {}).get("nome")
+        chaves_taxonomia, erro_taxonomia = _taxonomia_da_entrada(data, familia_produto, nome_familia)
+        if erro_taxonomia:
+            return erro_taxonomia
+        categoria_oficial, subcategoria_oficial = chaves_taxonomia
+        # categoria_id continua sincronizado com a linha da categoria oficial na loja.
+        categoria_id = garantir_categoria_loja(estabelecimento_id, categoria_oficial).id
 
         def safe_int(val, default=0):
             try:
@@ -2457,6 +2476,8 @@ def criar_produto():
             ),
             familia_produto=familia_produto,
             perfil_fiscal=perfil_fiscal,
+            categoria_oficial=categoria_oficial,
+            subcategoria_oficial=subcategoria_oficial,
         )
         produto.atributos = atributos_limpos
         if tipo_item == "servico" or not usa_validade:
@@ -2668,6 +2689,7 @@ def atualizar_produto(id):
             db.session.rollback()
             return jsonify({"success": False, "message": "Erros de validação",
                             "errors": erros_edicao, "code": "GUARDIAO_REPROVADO"}), 400
+        familia_anterior = produto.familia_produto
         if "familia_produto" in data or "tipo_item" in data:
             produto.familia_produto = familia_produto
         if "perfil_fiscal" in data or "familia_produto" in data or "tipo_item" in data:
@@ -2681,6 +2703,33 @@ def atualizar_produto(id):
                 schema, data.get("atributos"), tipo_item=tipo_item
             )
 
+        # Taxonomia oficial (PLANO §3.3 #2): a subcategoria informada tem de existir na família; se
+        # a família mudou e não veio classificação nova, 400 pedindo a lista da família nova.
+        # Só conta como troca quando a família veio no payload: produto legado sem família
+        # continua editável (preço, nome) e recebe a classificação numa edição posterior.
+        trocou_familia = bool(data.get("familia_produto") or data.get("tipo_item")) \
+            and familia_produto != familia_anterior
+        nome_familia = schema.get("familia_produto", {}).get("nome")
+        informado_taxonomia = data.get("subcategoria") or data.get("categoria")
+        chaves_taxonomia = None
+        if informado_taxonomia is not None and str(informado_taxonomia).strip():
+            chaves_taxonomia, erro_taxonomia = _taxonomia_da_entrada(data, familia_produto, nome_familia)
+            if erro_taxonomia:
+                return erro_taxonomia
+        elif trocou_familia:
+            # A classificação antiga só vale se a subcategoria existir na família nova.
+            chaves_taxonomia = (
+                resolver_subcategoria(familia_produto, produto.subcategoria_oficial)
+                if produto.subcategoria_oficial else None
+            )
+            if chaves_taxonomia is None:
+                return _erro_categoria_invalida(nome_familia)
+        if chaves_taxonomia:
+            categoria_oficial, subcategoria_oficial = chaves_taxonomia
+            produto.categoria_oficial = categoria_oficial
+            produto.subcategoria_oficial = subcategoria_oficial
+            produto.categoria_id = garantir_categoria_loja(estabelecimento_id, categoria_oficial).id
+
         # Atualizar campos
         campos_atualizaveis = [
             "fornecedor_id",
@@ -2689,7 +2738,6 @@ def atualizar_produto(id):
             "nome",
             "descricao",
             "marca",
-            "categoria",
             "subcategoria",
             "unidade_medida",
             "quantidade_minima",
@@ -2736,27 +2784,6 @@ def atualizar_produto(id):
                             setattr(produto, campo, int(data[campo]))
                     elif campo == "controlar_validade":
                         setattr(produto, campo, False if tipo_item == "servico" else bool(data[campo]))
-                    elif campo == "categoria":
-                        # Tratar categoria separadamente - encontrar ou criar categoria
-                        if data[campo] and data[campo].strip():
-                            categoria_nome = CategoriaProduto.normalizar_nome_categoria(data[campo])
-                            categoria_obj = CategoriaProduto.query.filter_by(
-                                nome=categoria_nome, 
-                                estabelecimento_id=estabelecimento_id
-                            ).first()
-                            if categoria_obj:
-                                produto.categoria_id = categoria_obj.id
-                            else:
-                                # Se categoria não existe, criar uma nova
-                                nova_categoria = CategoriaProduto(
-                                    nome=categoria_nome,
-                                    estabelecimento_id=estabelecimento_id
-                                )
-                                db.session.add(nova_categoria)
-                                db.session.flush()
-                                produto.categoria_id = nova_categoria.id
-                        else:
-                            produto.categoria_id = None
                     elif campo in ["codigo_barras", "codigo_interno"]:
                         setattr(produto, campo, clean_nullable_str(data[campo]))
                     elif campo == "ncm":

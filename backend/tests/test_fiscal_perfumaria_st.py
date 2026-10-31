@@ -205,7 +205,7 @@ def ctx(session):
 def _novo(client, ctx, **campos):
     # O foco destes testes é o fiscal; o estoque entra pela exceção consciente
     # do guardião (entrar_sem_estoque) — o mesmo caminho do lojista real.
-    corpo = {"nome": "Perfume Floral 100ml", "categoria": "Perfumaria", "preco_custo": 40,
+    corpo = {"nome": "Perfume Floral 100ml", "subcategoria": "Perfumes Femininos", "preco_custo": 40,
              "preco_venda": 89.9, "familia_produto": "perfumaria_higiene", "ncm": "33030010",
              "entrar_sem_estoque": True}
     corpo.update(campos)

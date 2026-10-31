@@ -27,7 +27,7 @@ def ctx(session):
 
 def _post(client, ctx, **campos):
     from datetime import date, timedelta
-    base = {"nome": "PRODUTO GUARDIAO", "categoria": "Guardiao",
+    base = {"nome": "PRODUTO GUARDIAO", "subcategoria": "Outros Alimentos",
             "preco_custo": 2.0, "preco_venda": 5.0, "quantidade": 10,
             # Alimento com estoque exige validade (regra da família).
             "data_validade": (date.today() + timedelta(days=180)).isoformat()}

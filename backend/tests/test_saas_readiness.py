@@ -47,7 +47,7 @@ def test_quota_required_respeita_alias_legado_de_plano_pago(client, session):
 
     response = client.post('/api/produtos/', json={
         "nome": "Produto Liberado Alias Pago",
-        "categoria": "Geral",
+        "subcategoria": "Outros Alimentos",
         "preco_custo": 4.50,
         "preco_venda": 8.90,
         "quantidade": 100, "data_validade": "2099-12-31",

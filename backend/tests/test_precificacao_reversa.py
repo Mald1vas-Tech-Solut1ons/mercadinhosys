@@ -67,7 +67,7 @@ def _payload_mercado(**overrides):
     base = {
         "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Blusa Surpresa",
-        "categoria": "Bazar",
+        "subcategoria": "Outros Alimentos",
         "modo_precificacao": "mercado",
         "preco_referencia_mercado": "100.00",
         "fonte_referencia_mercado": "shopee",
@@ -175,7 +175,7 @@ def test_post_modo_mercado_sem_referencia_retorna_400(client, ctx):
 def test_post_modo_venda(client, ctx):
     r = client.post("/api/produtos/", json={
         "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
-        "nome": "Vaso Decorativo", "categoria": "Bazar",
+        "nome": "Vaso Decorativo", "subcategoria": "Outros Alimentos",
         "modo_precificacao": "venda", "preco_venda": "50.00",
         "margem_alvo_venda_pct": "40", "entrar_sem_estoque": True,
     }, headers=_headers(ctx["estab"].id, ctx["admin"].id))
@@ -189,7 +189,7 @@ def test_post_modo_venda(client, ctx):
 def test_post_sem_modo_regressao_comportamento_antigo(client, ctx):
     r = client.post("/api/produtos/", json={
         "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
-        "nome": "Produto Comum", "categoria": "Bazar",
+        "nome": "Produto Comum", "subcategoria": "Outros Alimentos",
         "preco_custo": 10.0, "preco_venda": 15.0, "quantidade": 5, "data_validade": "2099-12-31",
     }, headers=_headers(ctx["estab"].id, ctx["admin"].id))
     assert r.status_code == 201, r.get_data(as_text=True)

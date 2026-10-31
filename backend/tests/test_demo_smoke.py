@@ -55,7 +55,7 @@ def test_demo_cadastrar_cliente(client, ctx):
 def test_demo_cadastrar_produto(client, ctx):
     r = client.post("/api/produtos/", json={
         "nome": "Refrigerante Cola 2L",
-        "categoria": "Geral",
+        "subcategoria": "Outros Alimentos",
         "preco_custo": 4.50,
         "preco_venda": 8.90,
         "quantidade": 100, "data_validade": "2099-12-31",

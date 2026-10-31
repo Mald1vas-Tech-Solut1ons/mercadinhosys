@@ -69,7 +69,7 @@ def test_fluxo_real_cadastra_busca_por_agua_e_pedido_sobe_o_item(client, ctx):
     # 1) Cadastra o produto via API (como o usuário fez)
     rc = client.post("/api/produtos/", json={
         "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
-        "nome": "Água Sanitária Supreme", "categoria": "Limpeza",
+        "nome": "Água Sanitária Supreme", "subcategoria": "Outros Alimentos",
         "preco_custo": 4.20, "preco_venda": 7.90, "quantidade": 0, "entrar_sem_estoque": True,
         "codigo_barras": "7899999000015",
     }, headers=headers)

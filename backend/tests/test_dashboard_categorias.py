@@ -11,7 +11,11 @@ import pytest
 from flask_jwt_extended import create_access_token
 
 from app.models import CategoriaProduto, Estabelecimento, Funcionario, Produto, Venda, VendaItem
-from app.services.dashboard_categorias import analise_por_categoria
+from app.services.dashboard_categorias import (
+    _rotulo_humano,
+    _rotulo_subcategoria,
+    analise_por_categoria,
+)
 
 
 @pytest.fixture
@@ -145,3 +149,46 @@ def test_curva_abc_marca_a_categoria_que_puxa_o_faturamento(session, ctx):
 
     assert dados["categorias"][0]["categoria"] == "Bebidas"
     assert dados["categorias"][0]["classe_abc"] == "A"
+
+
+def test_slug_nao_vaza_para_a_tela(session, ctx):
+    """A base real grava `bazar.cozinha`; o dono não pode ler slug no painel."""
+    assert _rotulo_humano("bazar.cozinha") == "Bazar Cozinha"
+    assert _rotulo_humano("bazar.organizacao_armazenamento") == "Bazar Organizacao Armazenamento"
+    assert _rotulo_humano("perfumaria_higiene.cabelo") == "Perfumaria Higiene Cabelo"
+    assert _rotulo_subcategoria("bazar.mesa.copo") == "Copo"
+    assert _rotulo_subcategoria("bazar.cozinha.utensilio_cozinha") == "Utensilio Cozinha"
+    assert _rotulo_humano("") == "Sem categoria"
+
+
+def test_rotulo_do_cadastro_tem_prioridade_sobre_o_slug(session, ctx):
+    refrigerante, _, _ = ctx["produtos"]
+
+    dados = analise_por_categoria(ctx["estab"].id, dias=1)  # sem venda ainda
+    assert dados["categorias"] == []
+
+    _venda(session, ctx, [(refrigerante, 1, 10)])
+    dados = analise_por_categoria(ctx["estab"].id, dias=1)
+
+    # categoria vem do cadastro (Bebidas), não do slug oficial
+    assert dados["categorias"][0]["categoria"] == "Bebidas"
+
+
+def test_estoque_por_categoria_no_mesmo_payload(session, ctx):
+    """Loja em implantação: sem venda, o painel ainda precisa mostrar o estoque."""
+    refrigerante, cerveja, detergente = ctx["produtos"]
+    refrigerante.quantidade = Decimal("10")   # 10 * 5 = 50 a custo
+    cerveja.quantidade = Decimal("20")        # 20 * 2 = 40 a custo
+    detergente.quantidade = Decimal("5")      # 5 * 3 = 15 a custo
+    session.commit()
+
+    dados = analise_por_categoria(ctx["estab"].id, dias=30)
+    estoque = dados["estoque"]
+
+    assert dados["categorias"] == []          # nenhuma venda
+    assert estoque["resumo"]["valor_custo"] == 105.0
+    assert estoque["resumo"]["itens"] == 3
+    bebidas = next(c for c in estoque["categorias"] if c["categoria"] == "Bebidas")
+    assert bebidas["valor_custo"] == 90.0
+    assert bebidas["participacao_custo"] == 85.7
+    assert bebidas["margem_potencial_pct"] == 50.0

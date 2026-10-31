@@ -3,7 +3,7 @@ import {
     Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer,
     Tooltip, XAxis, YAxis,
 } from 'recharts';
-import { ArrowDownRight, ArrowUpRight, ChevronRight, Layers, Loader2, TrendingUp } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, Layers, Loader2, TrendingUp } from 'lucide-react';
 import { apiClient } from '../../../../api/apiClient';
 import { formatCurrency } from '../../../../utils/formatters';
 
@@ -43,6 +43,17 @@ interface Categoria {
     subcategorias: Subcategoria[];
 }
 
+interface EstoqueCategoria {
+    categoria: string;
+    familia: string;
+    itens: number;
+    unidades: number;
+    valor_custo: number;
+    valor_venda: number;
+    margem_potencial_pct: number;
+    participacao_custo: number;
+}
+
 interface Resposta {
     periodo: { dias: number; inicio: string; fim: string };
     resumo: {
@@ -54,10 +65,65 @@ interface Resposta {
         variacao_pct: number | null;
     };
     categorias: Categoria[];
+    estoque: {
+        resumo: { categorias: number; itens: number; valor_custo: number; valor_venda: number };
+        categorias: EstoqueCategoria[];
+    };
 }
 
 const CORES = ['#2563eb', '#059669', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#65a30d', '#dc2626'];
 const CORES_ABC: Record<string, string> = { A: '#059669', B: '#d97706', C: '#94a3b8' };
+// Abaixo disso a loja ainda está em implantação: o retrato do estoque diz mais que o de vendas.
+const LIMIAR_IMPLANTACAO = 500;
+
+const Cartao: React.FC<{ rotulo: string; valor: string; nota?: React.ReactNode; cor?: string }> = ({ rotulo, valor, nota, cor }) => (
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">{rotulo}</p>
+        <p className={`mt-1 text-2xl font-black tabular-nums ${cor || 'text-slate-900 dark:text-white'}`}>{valor}</p>
+        {nota && <div className="mt-1 text-[11px] text-gray-400">{nota}</div>}
+    </div>
+);
+
+const EstoqueTabela: React.FC<{ estoque: Resposta['estoque'] }> = ({ estoque }) => (
+    <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800">
+            <Boxes className="h-4 w-4 text-blue-600" />
+            <h3 className="text-sm font-black text-gray-900 dark:text-white">Capital em estoque por categoria</h3>
+            <span className="ml-auto text-[11px] text-gray-500">
+                {estoque.resumo.itens} itens · {formatCurrency(estoque.resumo.valor_custo)} a custo
+            </span>
+        </div>
+        <table className="w-full text-sm">
+            <thead className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                <tr>
+                    <th className="px-3 py-2 text-left">Categoria</th>
+                    <th className="px-3 py-2 text-right">Itens</th>
+                    <th className="px-3 py-2 text-right">Un.</th>
+                    <th className="px-3 py-2 text-right">Custo</th>
+                    <th className="px-3 py-2 text-right">Venda</th>
+                    <th className="px-3 py-2 text-right">Margem</th>
+                    <th className="px-3 py-2 text-right">% capital</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                {estoque.categorias.map(item => (
+                    <tr key={item.categoria} className="bg-white dark:bg-gray-900">
+                        <td className="px-3 py-2">
+                            <span className="block truncate font-bold text-gray-900 dark:text-white">{item.categoria}</span>
+                            <span className="block text-[11px] text-gray-400">{item.familia}</span>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{item.itens}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{item.unidades}</td>
+                        <td className="px-3 py-2 text-right font-bold tabular-nums text-gray-900 dark:text-white">{formatCurrency(item.valor_custo)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatCurrency(item.valor_venda)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-emerald-600">{item.margem_potencial_pct}%</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-500">{item.participacao_custo}%</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+);
 
 const Variacao: React.FC<{ valor: number | null }> = ({ valor }) => {
     if (valor === null || Number.isNaN(valor)) {
@@ -97,6 +163,7 @@ const CategoriasTab: React.FC<{ dias: number }> = ({ dias }) => {
 
     const top10 = useMemo(() => (dados?.categorias || []).slice(0, 10), [dados]);
     const categorias = dados?.categorias || [];
+    const estoque = dados?.estoque;
 
     if (carregando) {
         return (
@@ -110,14 +177,43 @@ const CategoriasTab: React.FC<{ dias: number }> = ({ dias }) => {
         return <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">{erro}</div>;
     }
 
-    if (!dados || (categorias.length === 0 && dados.resumo.receita === 0)) {
+    if (!dados || (categorias.length === 0 && (estoque?.categorias.length || 0) === 0)) {
         return (
             <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center dark:border-gray-700">
                 <Layers className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-                <p className="text-sm font-bold text-gray-600 dark:text-gray-300">Sem vendas no período.</p>
+                <p className="text-sm font-bold text-gray-600 dark:text-gray-300">Nada cadastrado nem vendido ainda.</p>
                 <p className="mt-1 text-xs text-gray-500">
-                    Assim que houver venda, o painel mostra o que vende e o que dá lucro por seção da loja.
+                    Cadastre produtos com categoria e subcategoria: este painel passa a mostrar o capital em estoque
+                    e, com as primeiras vendas, o que vende e o que dá lucro por seção da loja.
                 </p>
+            </div>
+        );
+    }
+
+    // Loja em implantação (poucas vendas): o estoque é o retrato que decide compra.
+    const emImplantacao = estoque
+        && estoque.categorias.length > 0
+        && dados.resumo.receita < LIMIAR_IMPLANTACAO;
+
+    if (emImplantacao) {
+        return (
+            <div className="space-y-4">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
+                    <p className="text-sm font-black text-blue-900 dark:text-blue-200">Loja em implantação — retrato do estoque</p>
+                    <p className="mt-1 text-xs text-blue-800 dark:text-blue-300">
+                        {categorias.length === 0
+                            ? 'Ainda não há venda finalizada no período.'
+                            : `Só ${categorias.length} categoria(s) com venda e ${formatCurrency(dados.resumo.receita)} no período.`}
+                        {' '}Enquanto o estoque está sendo cadastrado, o que decide compra é o capital parado por seção:
+                        {' '}{estoque!.resumo.itens} itens em {estoque!.resumo.categorias} categorias, {formatCurrency(estoque!.resumo.valor_custo)} a custo.
+                    </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <Cartao rotulo="Capital em estoque (custo)" valor={formatCurrency(estoque!.resumo.valor_custo)} nota="quantidade × preço de custo" />
+                    <Cartao rotulo="Potencial de venda" valor={formatCurrency(estoque!.resumo.valor_venda)} cor="text-emerald-600" nota="quantidade × preço de venda" />
+                    <Cartao rotulo="Itens cadastrados" valor={String(estoque!.resumo.itens)} nota={`${estoque!.resumo.categorias} categorias`} />
+                </div>
+                <EstoqueTabela estoque={estoque!} />
             </div>
         );
     }
@@ -260,6 +356,8 @@ const CategoriasTab: React.FC<{ dias: number }> = ({ dias }) => {
                     </tbody>
                 </table>
             </div>
+
+            {estoque && estoque.categorias.length > 0 && <EstoqueTabela estoque={estoque} />}
         </div>
     );
 };

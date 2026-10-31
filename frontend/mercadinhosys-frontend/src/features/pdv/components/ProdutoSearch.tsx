@@ -6,6 +6,7 @@ import { mensagemErro } from '../../../utils/mensagemErro';
 import { buscarOffline } from '../offlineCatalog';
 import { useConfig } from '../../../contexts/ConfigContext';
 import BarcodeScanner from './BarcodeScanner';
+import { parseDataValidade } from '../../../utils/validade';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
 
 interface ProdutoSearchProps {
@@ -122,27 +123,16 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
         }
     };
 
-    /** Calcula badge de validade */
+    /** FASE 1.6: badge de validade — parser único (parseDataValidade) */
     const getValidadeBadge = (dvStr: string | null | undefined): React.ReactNode => {
         if (!dvStr) return null;
-        let y: number, m: number, d: number;
-        let dateLabel = "";
+        const dv = parseDataValidade(dvStr);
+        if (!dv) return null; // data ilegível não gera badge (regra do guardião: null = sem data)
 
-        if (String(dvStr).includes('T')) {
-            const dt = new Date(dvStr);
-            y = dt.getFullYear(); m = dt.getMonth() + 1; d = dt.getDate();
-            dateLabel = dt.toLocaleDateString('pt-BR');
-        } else if (String(dvStr).includes('-')) {
-            [y, m, d] = String(dvStr).split('-').map(Number);
-            dateLabel = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
-        } else {
-            [d, m, y] = String(dvStr).split('/').map(Number);
-            dateLabel = `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
-        }
-
-        const dv = new Date(y, m - 1, d);
         const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
         const limite = new Date(hoje); limite.setDate(hoje.getDate() + diasAlertaValidade);
+
+        const dateLabel = dv.toLocaleDateString('pt-BR');
 
         if (dv < hoje) {
             return (
@@ -154,7 +144,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
                 </div>
             );
         } else if (dv <= limite) {
-            const dias = Math.round((dv.getTime() - hoje.getTime()) / 86400000);
+            const dias = Math.round((dv.getTime() - hoje.getTime()) / 86_400_000);
             return (
                 <div className="flex items-center gap-1">
                     <span className="text-[10px] font-black px-1.5 py-0.5 rounded uppercase bg-amber-500 text-white">

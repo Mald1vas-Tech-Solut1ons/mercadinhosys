@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, MessageCircle, PackageX, Wallet } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CheckCircle2, MessageCircle, PackageX, Wallet } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
 import { formatCurrency } from '../../../utils/formatters';
 
@@ -52,6 +52,7 @@ const PainelDoDia: React.FC<{ data: any }> = ({ data }) => {
     const navigate = useNavigate();
     const [alertas, setAlertas] = useState<AlertaOperacional[]>([]);
     const [caixa, setCaixa] = useState<CaixaAtual | null>(null);
+    const [carregado, setCarregado] = useState(false);
 
     useEffect(() => {
         let vivo = true;
@@ -68,6 +69,7 @@ const PainelDoDia: React.FC<{ data: any }> = ({ data }) => {
             } catch {
                 if (vivo) setCaixa(null);
             }
+            if (vivo) setCarregado(true);
         })();
         return () => { vivo = false; };
     }, []);
@@ -127,22 +129,33 @@ const PainelDoDia: React.FC<{ data: any }> = ({ data }) => {
         });
     }
 
-    if (cartoes.length === 0) return null;
+    if (cartoes.length === 0) {
+        // Só afirma que está tudo bem quando os dados já chegaram (nunca durante o carregamento).
+        if (!carregado || !data) return null;
+        return (
+            <section aria-label="Resumo de pendências do dia" className="mb-4">
+                <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    <CheckCircle2 className="h-5 w-5 shrink-0" />
+                    Tudo em dia: sem ruptura, sem fiado vencendo, caixa do dia ok
+                </div>
+            </section>
+        );
+    }
 
     return (
-        <section aria-label="O que fazer hoje" className="mb-4 grid gap-3 md:grid-cols-3">
+        <section aria-label="Pendências do dia" className="mb-4 grid gap-3 md:grid-cols-3">
             {cartoes.map(cartao => {
                 const Icone = cartao.icone;
                 return (
                     <div key={cartao.chave} className={`rounded-2xl border p-4 ${cartao.classe}`}>
-                        <p className="flex items-center gap-2 text-xs font-black uppercase tracking-wide opacity-80">
+                        <p className="flex items-center gap-2 text-sm font-bold opacity-90">
                             <Icone className="h-4 w-4 shrink-0" />
                             {cartao.pergunta}
                         </p>
                         <p className="mt-2 text-sm font-bold leading-snug">{cartao.resposta}</p>
                         <button
                             onClick={cartao.onClick}
-                            className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-black uppercase tracking-wide text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                            className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
                         >
                             {cartao.acao}
                             <ArrowRight className="h-3.5 w-3.5" />

@@ -12,6 +12,8 @@ export default function FinancialTab({ data }: FinancialTabProps) {
   const despesas = data?.financials?.expenses || data?.total_despesas || 0;
   const lucroLiquido = data?.financials?.net_profit || data?.lucro_liquido || 0;
   const margemLiquida = data?.financials?.net_margin || 0;
+  const margemBruta = data?.financials?.gross_margin || 0;
+  const despesasIncompletas = data?.period_days === 1;
   
   // Receivables Data
   const receivables = data?.receivables || {};
@@ -35,7 +37,7 @@ export default function FinancialTab({ data }: FinancialTabProps) {
         </div>
         <div className="bg-white dark:bg-slate-800/60 rounded-2xl p-6 border border-gray-200 dark:border-slate-700/60">
           <p className="text-gray-500 dark:text-slate-400 font-bold mb-2">Lucro Líquido</p>
-          <p className="text-2xl font-black text-emerald-400">{formatCurrency(lucroLiquido)}</p>
+          <p className={`text-2xl font-black ${lucroLiquido < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatCurrency(lucroLiquido)}</p>
         </div>
       </div>
 
@@ -44,6 +46,11 @@ export default function FinancialTab({ data }: FinancialTabProps) {
         <div className="p-6 border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/80">
            <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
              <Activity className="text-blue-400" /> DRE Gerencial Simplificado
+             {despesasIncompletas && (
+               <span className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-full font-bold whitespace-nowrap">
+                 despesas incompletas
+               </span>
+             )}
            </h2>
         </div>
         <div className="p-6">
@@ -64,7 +71,15 @@ export default function FinancialTab({ data }: FinancialTabProps) {
              {/* Lucro Bruto */}
              <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-slate-700/50">
                <span className="font-bold text-blue-300">(=) Lucro Bruto</span>
-               <span className="font-bold text-blue-400">{formatCurrency(lucroBruto)}</span>
+               <div className="text-right">
+                 <span className="font-bold text-blue-400">{formatCurrency(lucroBruto)}</span>
+                 <p className="text-xs mt-1">
+                   <span className={`font-semibold ${margemBruta >= 25 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                     Margem bruta: {margemBruta.toFixed(1)}%
+                   </span>
+                   <span className="text-gray-400 dark:text-slate-500"> · saudável entre 25–35%</span>
+                 </p>
+               </div>
              </div>
              
              {/* Despesas */}
@@ -75,10 +90,15 @@ export default function FinancialTab({ data }: FinancialTabProps) {
              
              {/* Lucro Líquido */}
              <div className="flex justify-between items-center pt-2">
-               <span className="font-black text-emerald-400 text-xl">(=) Lucro Líquido</span>
+               <span className={`font-black text-xl ${lucroLiquido < 0 ? 'text-red-400' : 'text-emerald-400'}`}>(=) Lucro Líquido</span>
                <div className="text-right">
-                 <span className="font-black text-emerald-400 text-xl">{formatCurrency(lucroLiquido)}</span>
-                 <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Margem Líquida: {margemLiquida.toFixed(1)}%</p>
+                 <span className={`font-black text-xl ${lucroLiquido < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatCurrency(lucroLiquido)}</span>
+                 <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+                   Margem Líquida:{' '}
+                   <span className={`font-bold ${margemLiquida >= 8 ? 'text-emerald-400' : margemLiquida > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                     {margemLiquida.toFixed(1)}%
+                   </span>
+                 </p>
                </div>
              </div>
              
@@ -120,7 +140,7 @@ export default function FinancialTab({ data }: FinancialTabProps) {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Tabela de Devedores */}
             <div>
-              <h3 className="text-sm font-bold text-red-400 uppercase tracking-wider mb-4 border-b border-red-500/20 pb-2">Top 5 Piores Devedores (Ação Necessária)</h3>
+              <h3 className="text-sm font-bold text-red-400 mb-4 border-b border-red-500/20 pb-2">Top 5 Piores Devedores (Ação Necessária)</h3>
               <div className="space-y-3">
                 {data?.fiado?.top_devedores?.length > 0 ? data.fiado.top_devedores.map((cliente: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center p-4 rounded-lg bg-red-950/20 hover:bg-red-950/40 transition-colors border border-red-900/30">
@@ -147,7 +167,7 @@ export default function FinancialTab({ data }: FinancialTabProps) {
 
             {/* Tabela de Bons Pagadores */}
             <div>
-              <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider mb-4 border-b border-emerald-500/20 pb-2">Top 5 Bons Pagadores (Perfil Saudável)</h3>
+              <h3 className="text-sm font-bold text-emerald-400 mb-4 border-b border-emerald-500/20 pb-2">Top 5 Bons Pagadores (Perfil Saudável)</h3>
               <div className="space-y-3">
                 {data?.fiado?.bons_pagadores?.length > 0 ? data.fiado.bons_pagadores.map((cliente: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center p-4 rounded-lg bg-emerald-950/20 hover:bg-emerald-950/40 transition-colors border border-emerald-900/30">
@@ -168,7 +188,7 @@ export default function FinancialTab({ data }: FinancialTabProps) {
 
           {/* Produtos mais vendidos no fiado */}
           <div className="mt-8">
-            <h3 className="text-sm font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider mb-4 border-b border-gray-200 dark:border-slate-700 pb-2">Top Produtos Vendidos no Fiado</h3>
+            <h3 className="text-sm font-bold text-gray-600 dark:text-slate-300 mb-4 border-b border-gray-200 dark:border-slate-700 pb-2">Top Produtos Vendidos no Fiado</h3>
             <div className="flex flex-wrap gap-3">
               {data?.fiado?.top_produtos?.length > 0 ? data.fiado.top_produtos.map((p: any, idx: number) => (
                 <div key={idx} className="bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/50 px-4 py-2 rounded-xl flex items-center gap-3">
@@ -226,7 +246,7 @@ export default function FinancialTab({ data }: FinancialTabProps) {
 
                   {data?.hourly_concentration?.top_hours?.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Top 3 Horários de Maior Receita (Cálculo Base)</h3>
+                      <h3 className="text-xs font-bold text-gray-500 dark:text-slate-400 mb-2">Top 3 Horários de Maior Receita (Cálculo Base)</h3>
                       <div className="space-y-2">
                         {data.hourly_concentration.top_hours.slice(0, 3).map((h: any, idx: number) => (
                           <div key={idx} className="flex justify-between items-center text-sm bg-white dark:bg-slate-800/40 px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700/30">
@@ -258,7 +278,7 @@ export default function FinancialTab({ data }: FinancialTabProps) {
               <Activity className="text-cyan-400" /> Correlações Financeiras
             </h2>
           </div>
-          <div className="p-6 h-48 overflow-y-auto hide-scrollbar space-y-4">
+          <div className="p-6 h-48 overflow-y-auto space-y-4">
             {(data?.correlations || data?.insights_cientificos?.correlações) && (data?.correlations || data?.insights_cientificos?.correlações).length > 0 ? (
               (data?.correlations || data?.insights_cientificos?.correlações).map((corr: any, i: number) => (
                 <div key={i} className="p-3 bg-gray-50 dark:bg-slate-900/50 rounded-lg border border-gray-200 dark:border-slate-700/50">

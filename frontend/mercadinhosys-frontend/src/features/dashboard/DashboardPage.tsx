@@ -111,7 +111,7 @@ export default function DashboardPageV2() {
                <button 
                  onClick={loadData}
                  disabled={!startDate || !endDate}
-                 className="px-3 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
+                 className="px-3 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-300 dark:border-blue-500/30 disabled:opacity-50"
                >
                  Aplicar
                </button>
@@ -133,15 +133,12 @@ export default function DashboardPageV2() {
              <option value="custom">Período Personalizado</option>
            </select>
            {daysFilter !== 'custom' && (
-             <button onClick={loadData} className="px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-500/30">
+             <button onClick={loadData} className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-300 dark:border-blue-500/30">
                Atualizar
              </button>
            )}
         </div>
       </div>
-
-      {/* Checklist executável do piloto: 4 cards que FAZEM, no lugar do tour de 13 passos. */}
-      <OnboardingPiloto />
 
       {/* As três perguntas das 7h, cada uma com o botão que resolve. */}
       <PainelDoDia data={data} />
@@ -151,7 +148,7 @@ export default function DashboardPageV2() {
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
           (snap + sangria até as bordas) para nunca cortar/embaralhar os rótulos. */}
       <div className="-mx-4 md:mx-0 mb-6">
-        <div className="flex md:border-b border-gray-200 dark:border-slate-800 gap-2 md:gap-6 overflow-x-auto hide-scrollbar snap-x px-4 md:px-0 pb-2">
+        <div className="flex md:border-b border-gray-200 dark:border-slate-800 gap-2 md:gap-6 overflow-x-auto snap-x px-4 md:px-0 pb-2">
           {tabs.map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -212,6 +209,11 @@ export default function DashboardPageV2() {
       {/* Alertas operacionais no rodapé, recolhidos: quem quiser ver os itens expande. */}
       <div className="mt-8">
         <AlertsPanel />
+      </div>
+
+      {/* Checklist executável do piloto — no rodapé, para não empurrar o painel do dia. */}
+      <div className="mt-8">
+        <OnboardingPiloto />
       </div>
 
     </div>

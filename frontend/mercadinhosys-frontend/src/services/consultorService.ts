@@ -3,6 +3,9 @@ import { apiClient as api } from '../api/apiClient';
 export interface InsightResponse {
   success: boolean;
   insights?: string; // Markdown text with the 3 points
+  /** De onde veio o número (tabela/período) — o backend já devolve, a UI ignorava. */
+  fontes?: string[];
+  provider?: string;
   aviso?: string;
   error?: string;
   duracao_ms?: number;

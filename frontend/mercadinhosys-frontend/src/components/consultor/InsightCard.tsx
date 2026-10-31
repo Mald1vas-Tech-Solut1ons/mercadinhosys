@@ -32,6 +32,16 @@ const iconMap = {
   geral: Sparkles
 };
 
+/**
+ * Cache do card (5 min no cliente).
+ *
+ * O card vive em 11 telas e busca insight ao montar. Sem cache, navegar entre
+ * telas consumia a cota diária de 20 insights do lojista sem ele ter pedido nada.
+ * O refresh manual (botão) ignora o cache de propósito.
+ */
+const TTL_CACHE_MS = 5 * 60 * 1000;
+const cacheInsights = new Map<string, { em: number; insights: string; fontes: string[] }>();
+
 export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo = 'Insights IA', className = '' }) => {
   const planoGratis = isPlanoGratis(authService.getCurrentUser());
   const [insights, setInsights] = useState<string | null>(null);
@@ -39,18 +49,34 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
   const [error, setError] = useState<string | null>(null);
   // Servidor sem chave de IA: o card não aparece (antes ocupava o topo do painel só para dizer isso).
   const [iaIndisponivel, setIaIndisponivel] = useState<boolean>(false);
+  const [fontes, setFontes] = useState<string[]>([]);
 
   if (planoGratis) {
     return null;
   }
 
   const fetchInsights = async (isManual = false) => {
+    // Cache primeiro: montar a tela não é pedido do lojista e não deve queimar cota.
+    if (!isManual) {
+      const guardado = cacheInsights.get(especialista);
+      if (guardado && Date.now() - guardado.em < TTL_CACHE_MS) {
+        setInsights(guardado.insights);
+        setFontes(guardado.fontes);
+        return;
+      }
+    }
     setLoading(true);
     setError(null);
     try {
       const response = await consultorService.obterInsights(especialista);
       if (response.success && response.insights) {
         setInsights(response.insights);
+        setFontes(response.fontes || []);
+        cacheInsights.set(especialista, {
+          em: Date.now(),
+          insights: response.insights,
+          fontes: response.fontes || [],
+        });
         if (response.aviso) {
            if (isManual) showToast.error(response.aviso);
         } else {
@@ -166,6 +192,17 @@ export const InsightCard: React.FC<InsightCardProps> = ({ especialista, titulo =
                   </motion.div>
                 ))}
               </AnimatePresence>
+
+              {fontes.length > 0 && (
+                <div className="mt-1 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 dark:border-gray-700 dark:bg-gray-700/30">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">De onde veio</p>
+                  <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    {fontes.slice(0, 4).map((fonte, i) => (
+                      <li key={`${fonte}-${i}`} className="text-[11px] text-gray-500 dark:text-gray-400">{fonte}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           ) : null}
         </div>

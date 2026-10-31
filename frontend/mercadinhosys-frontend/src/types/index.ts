@@ -162,6 +162,12 @@ export interface Produto {
     fabricante?: string;
     categoria: string;
     subcategoria?: string;
+    // Taxonomia oficial (Família → Categoria → Subcategoria): chaves e nomes de exibição.
+    categoria_oficial?: string | null;
+    subcategoria_oficial?: string | null;
+    categoria_oficial_nome?: string | null;
+    subcategoria_oficial_nome?: string | null;
+    categoria_oficial_exibicao?: string | null;
     tipo?: string; // 'unidade', 'granel', etc
     unidade_medida: string;
     quantidade: number;
@@ -292,6 +298,10 @@ export interface ProdutosResponse {
 export interface ProdutoFiltros {
     busca?: string;
     categoria?: string;
+    /** Chave da categoria oficial (nível 2), ex.: "bazar.cozinha". */
+    categoria_oficial?: string;
+    /** Chave da subcategoria oficial (ex.: "bazar.cozinha.panela") — filtro novo da lista. */
+    subcategoria_oficial?: string;
     fornecedor_id?: number;
     ativos?: boolean;
     preco_min?: number;

@@ -6,6 +6,8 @@ import {
   PackageX
 } from 'lucide-react';
 import { Fornecedor, Produto, ProdutoFiltros, ProdutoLote } from '../../types';
+import { TaxonomiaCategoria } from '../../types/viewSchema';
+import { viewSchemaService } from '../../services/viewSchemaService';
 import { productsService } from './productsService';
 import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
@@ -42,6 +44,8 @@ const ProductsPage: React.FC = () => {
   // todosProdutos removed in favor of server-side stats
   const [loading, setLoading] = useState(true);
   const [categorias, setCategorias] = useState<string[]>([]);
+  // Árvore oficial (schema.taxonomia) das famílias da loja — alimenta o filtro por subcategoria.
+  const [taxonomia, setTaxonomia] = useState<TaxonomiaCategoria[]>([]);
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [stockLotes, setStockLotes] = useState<ProdutoLote[]>([]);
   const [loadingStockLotes, setLoadingStockLotes] = useState(false);
@@ -186,6 +190,33 @@ const ProductsPage: React.FC = () => {
     }
   }, []);
 
+  /**
+   * Árvore oficial para o filtro por subcategoria (PLANO §4 item 5). Carrega uma vez por
+   * sessão: o schema da loja + o de cada família do mix (bounded: 3–8 famílias), e mescla
+   * as árvores deduplicando por chave de categoria. Falhou? O filtro simplesmente não aparece.
+   */
+  const loadTaxonomia = useCallback(async () => {
+    if (taxonomia.length) return;
+    try {
+      const base = await viewSchemaService.getSchema();
+      const familias = Array.from(new Set(
+        [base.familia_produto?.chave, ...(base.mix_permitido || [])].filter(Boolean) as string[],
+      ));
+      const arvores = await Promise.all(familias.map(familia =>
+        viewSchemaService.getSchemaForContext({ familiaProduto: familia })
+          .then(schema => schema.taxonomia || [])
+          .catch(() => [] as TaxonomiaCategoria[]),
+      ));
+      const porChave = new Map<string, TaxonomiaCategoria>();
+      arvores.flat().forEach(categoria => {
+        if (!porChave.has(categoria.chave)) porChave.set(categoria.chave, categoria);
+      });
+      setTaxonomia(Array.from(porChave.values()));
+    } catch (error: any) {
+      console.error('Erro ao carregar a taxonomia oficial:', error);
+    }
+  }, [taxonomia.length]);
+
   const loadFornecedores = useCallback(async () => {
     try {
       const response = await apiClient.get<{ fornecedores: Fornecedor[] }>('/fornecedores/', { params: { per_page: 100 } });
@@ -213,6 +244,11 @@ const ProductsPage: React.FC = () => {
     loadCategorias();
     loadFornecedores();
   }, [loadCategorias, loadFornecedores]);
+
+  // A árvore da taxonomia só é necessária quando o modal de filtros abre (carrega 1x).
+  useEffect(() => {
+    if (showFilters) loadTaxonomia();
+  }, [showFilters, loadTaxonomia]);
 
   // Carrega produtos quando página ou filtros mudam
   useEffect(() => {
@@ -681,6 +717,7 @@ const ProductsPage: React.FC = () => {
         onClose={() => setShowFilters(false)}
         filtros={filtros}
         categorias={categorias}
+        taxonomia={taxonomia}
         fornecedores={fornecedores}
         onApply={(novosFiltros) => {
           // Troca atômica: uma única fonte de verdade. O chip de filtro rápido

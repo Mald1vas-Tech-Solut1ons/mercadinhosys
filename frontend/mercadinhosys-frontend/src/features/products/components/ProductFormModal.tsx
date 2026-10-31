@@ -4,6 +4,7 @@ import { Camera, Sparkles, Package, Wrench, HelpCircle, Wand2, Loader2, Search }
 import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import FotoUpload from '../../../components/ui/FotoUpload';
 import SchemaField from '../../../components/schema/SchemaField';
+import CategoriaPicker from '../../../components/schema/CategoriaPicker';
 import { showToast } from '../../../utils/toast';
 import { Produto } from '../../../types';
 import { RegrasFiscais, TipoItem } from '../../../types/viewSchema';
@@ -20,7 +21,7 @@ interface ProductFormModalProps {
     show: boolean;
     editMode: boolean;
     produto: Produto | null;
-    categorias: string[];
+    categorias?: string[];
     onClose: () => void;
     onSuccess: () => void;
     /** Quando informado, o toast de cadastro oferece "Imprimir etiqueta" do produto criado. */
@@ -83,47 +84,8 @@ export const gtinValido = (codigo: string): boolean => {
     return (10 - (soma % 10)) % 10 === Number(d[d.length - 1]);
 };
 
-/**
- * Categorias prontas da família: toque para escolher. As que a loja já criou aparecem marcadas;
- * mostra as primeiras e o restante sob "ver todas" para não empurrar o formulário no celular.
- */
-const CategoriasProntas = ({ sugeridas, daLoja, atual, onEscolher }: {
-    sugeridas: string[]; daLoja: string[]; atual: string; onEscolher: (c: string) => void;
-}) => {
-    const [todas, setTodas] = useState(false);
-    const normalizar = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const daLojaNorm = new Set(daLoja.map(normalizar));
-    const atualNorm = normalizar(atual || '');
-    const visiveis = todas ? sugeridas : sugeridas.slice(0, 12);
-    return (
-        <div className="mt-2 min-w-0">
-            <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
-                {visiveis.map(c => {
-                    const escolhida = atualNorm !== '' && normalizar(c) === atualNorm;
-                    return (
-                        <button key={c} type="button" onClick={() => onEscolher(c)}
-                            className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${escolhida
-                                ? 'bg-blue-600 border-blue-600 text-white'
-                                : daLojaNorm.has(normalizar(c))
-                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
-                            {c}
-                        </button>
-                    );
-                })}
-                {sugeridas.length > 12 && (
-                    <button type="button" onClick={() => setTodas(v => !v)}
-                        className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
-                        {todas ? 'ver menos' : `ver todas (${sugeridas.length})`}
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
-
 // O servidor grava estes campos em MAIÚSCULAS (guardião do cadastro): o formulário mostra igual.
-const CAMPOS_MAIUSCULOS = new Set<string>(['nome', 'marca', 'fabricante', 'categoria']);
+const CAMPOS_MAIUSCULOS = new Set<string>(['nome', 'marca', 'fabricante']);
 const maiusculas = (t?: string | null) => (t || '').toUpperCase();
 
 // Espelha services/fiscal/tributacao.py (Lei 10.147/2000): as listas vêm do schema.
@@ -141,7 +103,9 @@ const emptyForm = {
     nome: '',
     codigo_barras: '',
     descricao: '',
-    categoria: '',
+    categoria: '',      // nome de exibição (descrição por IA / legado)
+    subcategoria: '',   // chave oficial da subcategoria (nível 3) — é o que o servidor grava
+    categoria_oficial: '', // chave oficial da categoria (nível 2), dona da subcategoria
     marca: '',
     fabricante: '',
     familia_produto: '',
@@ -178,7 +142,6 @@ const ProductFormModal = ({
     show,
     editMode,
     produto,
-    categorias,
     onClose,
     onSuccess,
     onPrintLabel,
@@ -233,6 +196,8 @@ const ProductFormModal = ({
                 codigo_barras: produto.codigo_barras || '',
                 descricao: produto.descricao || '',
                 categoria: produto.categoria || '',
+                subcategoria: (produto as any).subcategoria_oficial || '',
+                categoria_oficial: (produto as any).categoria_oficial || '',
                 marca: produto.marca || '',
                 fabricante: produto.fabricante || '',
                 familia_produto: produto.familia_produto || '',
@@ -343,6 +308,9 @@ const ProductFormModal = ({
                     nome: maiusculas(d.nome) || prev.nome,
                     // Não sobrescreve o que o usuário já escolheu; categoria casa com as da loja.
                     categoria: prev.categoria || maiusculas(s?.categoria || d.categoria),
+                    // A sugestão já traz a SUBCATEGORIA oficial resolvida (ou nada): o servidor
+                    // recusa texto livre, então só entra o que veio da lista.
+                    subcategoria: prev.subcategoria || (s as any)?.subcategoria || '',
                     marca: maiusculas(d.marca) || prev.marca,
                     fabricante: prev.fabricante || maiusculas(d.fabricante),
                     descricao: prev.descricao || s?.descricao || '',
@@ -541,7 +509,10 @@ const ProductFormModal = ({
 
         // Validações obrigatórias
         if (!formData.nome.trim()) { showToast.error(ehServico ? 'Nome do serviço é obrigatório' : 'Nome do produto é obrigatório'); return; }
-        if (!formData.categoria.trim()) { showToast.error('Categoria é obrigatória'); return; }
+        if (!formData.subcategoria.trim()) {
+            showToast.error('Escolha a subcategoria oficial da família antes de salvar');
+            return;
+        }
         // Modos mercado/venda: o custo é ESTIMADO no servidor — não exigir custo
         // digitado; exigir os insumos do modo em vez disso.
         const custoEstimado = !ehServico && formData.modo_precificacao !== 'custo';
@@ -611,9 +582,16 @@ const ProductFormModal = ({
 
         const payload: any = {
             ...formData,
+            // Só a CHAVE oficial vai para o servidor; o nome da categoria fica no formulário.
+            subcategoria: formData.subcategoria,
             controlar_estoque: !ehServico,
             ...(entrarSemEstoque ? { entrar_sem_estoque: true } : {}),
         };
+        // `categoria` era o texto livre antigo: o servidor não aceita mais (PLANO §3.3).
+        delete payload.categoria;
+        // A categoria oficial é DERIVADA da subcategoria no servidor: mandar as duas abriria
+        // a porta para um par incoerente (subcategoria de uma árvore, categoria de outra).
+        delete payload.categoria_oficial;
         if (!pedeValidade) {
             // Edição (validade vive nos lotes) ou família que não vence: nada de datas no payload.
             delete payload.data_validade;
@@ -787,7 +765,21 @@ const ProductFormModal = ({
                                     </label>
                                     <select
                                         value={formData.familia_produto}
-                                        onChange={e => { familiaEscolhida.current = true; field('familia_produto', e.target.value); }}
+                                        onChange={e => {
+                                            familiaEscolhida.current = true;
+                                            const familiaNova = e.target.value;
+                                            // Troca de família limpa a subcategoria que não pertence à nova
+                                            // (PLANO §4 item 2 / regra 7 do §1) e avisa por toast.
+                                            setFormData(prev => {
+                                                const pertence = !prev.subcategoria
+                                                    || prev.subcategoria.startsWith(`${familiaNova}.`);
+                                                if (!pertence) {
+                                                    showToast.error('A subcategoria escolhida é de outra família. Escolha uma da lista nova.');
+                                                    return { ...prev, familia_produto: familiaNova, subcategoria: '', categoria: '', categoria_oficial: '' };
+                                                }
+                                                return { ...prev, familia_produto: familiaNova };
+                                            });
+                                        }}
                                         className={inputClass}
                                         disabled={editMode && ehServico}
                                     >
@@ -899,23 +891,24 @@ const ProductFormModal = ({
                                     )}
                                 </div>
                             )}
-                            <div>
-                                <label className={labelClass}>Categoria *</label>
-                                <input type="text" list="cat-list" value={formData.categoria} required
-                                    onChange={e => field('categoria', e.target.value)}
-                                    className={inputClass}
-                                    placeholder={ehServico ? exemplos.categoria_servico : exemplos.categoria} />
-                                <datalist id="cat-list">
-                                    {Array.from(new Set([...categorias, ...(schema?.categorias_sugeridas || [])]))
-                                        .map(c => <option key={c} value={c} />)}
-                                </datalist>
-                                {!ehServico && (schema?.categorias_sugeridas?.length ?? 0) > 0 && (
-                                    <CategoriasProntas
-                                        sugeridas={schema?.categorias_sugeridas || []}
-                                        daLoja={categorias}
-                                        atual={formData.categoria}
-                                        onEscolher={c => field('categoria', c)} />
-                                )}
+                            <div className="min-w-0">
+                                <CategoriaPicker
+                                    taxonomia={schema?.taxonomia || []}
+                                    value={formData.subcategoria}
+                                    onChange={(escolha) => setFormData(prev => ({
+                                        ...prev,
+                                        // Os DOIS níveis da taxonomia: a subcategoria manda, a categoria
+                                        // é a dona dela na árvore (o servidor grava as duas chaves).
+                                        subcategoria: escolha.subcategoria.chave,
+                                        categoria_oficial: escolha.categoria.chave,
+                                        categoria: escolha.subcategoria.nome,
+                                    }))}
+                                    label={ehServico ? 'Subcategoria do serviço *' : 'Subcategoria *'}
+                                    erro={editMode && produto && !(produto as any).subcategoria_oficial
+                                        ? 'Produto antigo sem subcategoria oficial: escolha uma antes de salvar.'
+                                        : null}
+                                    ajuda={`Lista oficial de ${schema?.familia_produto?.nome || 'produto'}.`}
+                                />
                             </div>
                             {visivel('marca') && !ehServico && (
                                 <div>

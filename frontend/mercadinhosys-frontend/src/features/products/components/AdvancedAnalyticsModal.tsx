@@ -142,7 +142,7 @@ const AdvancedAnalyticsModal: React.FC<AdvancedAnalyticsModalProps> = ({ isOpen,
                                         <div className="w-full md:col-span-5 flex flex-col md:block">
                                             <p className="font-bold text-gray-900 dark:text-white truncate text-base md:text-sm">{p.nome}</p>
                                             <p className="text-xs text-gray-500 mt-0.5 md:mt-0 dark:text-gray-400">
-                                                {p.categoria} | Código: {p.codigo_barras || p.id}
+                                                {p.categoria_oficial_nome || p.categoria}{p.subcategoria_oficial_nome ? ` › ${p.subcategoria_oficial_nome}` : ''} | Código: {p.codigo_barras || p.id}
                                             </p>
                                         </div>
                                         

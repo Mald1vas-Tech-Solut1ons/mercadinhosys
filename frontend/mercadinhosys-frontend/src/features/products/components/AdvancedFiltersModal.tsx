@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { X, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { ProdutoFiltros, Fornecedor } from '../../../types';
+import { TaxonomiaCategoria } from '../../../types/viewSchema';
 
 interface AdvancedFiltersModalProps {
   show: boolean;
   onClose: () => void;
   filtros: ProdutoFiltros;
   categorias: string[];
+  /** Árvore oficial (schema.taxonomia) — alimenta o filtro por subcategoria. */
+  taxonomia?: TaxonomiaCategoria[];
   fornecedores: Fornecedor[];
   /** Recebe o rascunho completo — o pai troca os filtros de uma vez só. */
   onApply: (novosFiltros: ProdutoFiltros) => void;
@@ -17,6 +20,7 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
   onClose,
   filtros,
   categorias,
+  taxonomia = [],
   fornecedores,
   onApply
 }) => {
@@ -44,6 +48,8 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
       direcao: 'asc',
       // Reset all others
       categoria: undefined,
+      categoria_oficial: undefined,
+      subcategoria_oficial: undefined,
       fornecedor_id: undefined,
       estoque_status: undefined,
       tipo: undefined,
@@ -83,18 +89,44 @@ const AdvancedFiltersModal: React.FC<AdvancedFiltersModalProps> = ({
         <div className="p-6 overflow-y-auto flex-1 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Categoria */}
+            {/* Categoria oficial (nível 2 da taxonomia) */}
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Categoria</label>
               <select
-                value={draft.categoria || ''}
-                onChange={(e) => handleChange('categoria', e.target.value || undefined)}
+                value={draft.categoria_oficial || ''}
+                onChange={(e) => {
+                  // Trocar a categoria zera a subcategoria (que pertence à árvore dela).
+                  handleChange('categoria_oficial', e.target.value || undefined);
+                  handleChange('subcategoria_oficial', undefined);
+                }}
                 className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
               >
                 <option value="">Todas as Categorias</option>
-                {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {taxonomia.map(categoria => (
+                  <option key={categoria.chave} value={categoria.chave}>{categoria.nome}</option>
+                ))}
+                {taxonomia.length === 0 && categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </div>
+
+            {/* Subcategoria oficial (nível 3) — só as da categoria escolhida */}
+            {taxonomia.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider dark:text-gray-400">Subcategoria</label>
+                <select
+                  value={draft.subcategoria_oficial || ''}
+                  onChange={(e) => handleChange('subcategoria_oficial', e.target.value || undefined)}
+                  disabled={!draft.categoria_oficial}
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 transition-colors disabled:opacity-60"
+                >
+                  <option value="">{draft.categoria_oficial ? 'Todas as Subcategorias' : 'Escolha a categoria primeiro'}</option>
+                  {taxonomia
+                    .filter(categoria => categoria.chave === draft.categoria_oficial)
+                    .flatMap(categoria => categoria.subcategorias)
+                    .map(sub => <option key={sub.chave} value={sub.chave}>{sub.nome}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Fornecedor */}
             <div className="space-y-1.5">

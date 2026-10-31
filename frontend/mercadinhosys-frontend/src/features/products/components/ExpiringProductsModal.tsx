@@ -274,7 +274,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                                         <div className="sm:col-span-3 min-w-0">
                                             <p className="font-bold text-gray-900 dark:text-white truncate">{p.nome}</p>
                                             <p className="text-xs text-gray-500 truncate dark:text-gray-400">
-                                                {p.categoria}
+                                                {p.categoria_oficial_nome || p.categoria}{p.subcategoria_oficial_nome ? ` › ${p.subcategoria_oficial_nome}` : ''}
                                                 {lote ? ` | Lote: ${lote.numero_lote} (${lote.quantidade} un.)` : ` | Qtd: ${p.quantidade}`}
                                             </p>
                                         </div>

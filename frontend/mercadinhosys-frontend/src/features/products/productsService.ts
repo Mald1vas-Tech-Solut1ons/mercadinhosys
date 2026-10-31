@@ -46,6 +46,9 @@ export const productsService = {
         if (filtros) {
             if (filtros.busca) params.busca = filtros.busca;
             if (filtros.categoria) params.categoria = filtros.categoria;
+            // Taxonomia oficial (PLANO §3.4/§4 item 5): filtro por categoria e por subcategoria.
+            if (filtros.categoria_oficial) params.categoria_oficial = filtros.categoria_oficial;
+            if (filtros.subcategoria_oficial) params.subcategoria_oficial = filtros.subcategoria_oficial;
             if (filtros.fornecedor_id) params.fornecedor_id = filtros.fornecedor_id;
             if (filtros.ativos !== undefined) params.ativos = filtros.ativos;
             if (filtros.preco_min) params.preco_min = filtros.preco_min;
@@ -257,6 +260,8 @@ export const productsService = {
         if (filtros) {
             if (filtros.busca) params.busca = filtros.busca;
             if (filtros.categoria) params.categoria = filtros.categoria;
+            if (filtros.categoria_oficial) params.categoria_oficial = filtros.categoria_oficial;
+            if (filtros.subcategoria_oficial) params.subcategoria_oficial = filtros.subcategoria_oficial;
             if (filtros.fornecedor_id) params.fornecedor_id = filtros.fornecedor_id;
             if (filtros.ativos !== undefined) params.ativos = filtros.ativos;
             if (filtros.preco_min) params.preco_min = filtros.preco_min;

@@ -6,6 +6,8 @@ import { Fornecedor, Produto } from '../../../types';
 import { CreatePedidoData, purchaseOrderService } from '../purchaseOrderService';
 import { productsService } from '../productsService';
 import { cosmosService } from '../../../services/cosmosService';
+import { viewSchemaService } from '../../../services/viewSchemaService';
+import { subcategoriaOutros } from '../../../components/schema/taxonomia';
 import { apiClient } from '../../../api/apiClient';
 import { formatCurrency } from '../../../utils/formatters';
 import { showToast } from '../../../utils/toast';
@@ -152,10 +154,22 @@ const PurchaseOrderModal: React.FC<PurchaseOrderModalProps> = ({
       const c = res.data;
       const s = c.sugestoes;
       const precoRef = c.preco_referencia ?? 0;
+      // Cadastro rápido NUNCA inventa categoria (PLANO §4 item 4): usa a subcategoria oficial
+      // que veio na sugestão ou, sem ela, o "Outros …" da família sugerida. "Geral" morreu.
+      const familiaSugerida = s?.familia_produto || undefined;
+      let subcategoria = (s as any)?.subcategoria || '';
+      if (!subcategoria) {
+        const esquema = await viewSchemaService.getSchemaForContext({ familiaProduto: familiaSugerida });
+        subcategoria = subcategoriaOutros(esquema.taxonomia || [])?.chave || '';
+      }
+      if (!subcategoria) {
+        showToast.error('Não consegui classificar este produto na lista oficial. Cadastre em Produtos escolhendo a subcategoria.');
+        return;
+      }
       // Custo de verdade vem na entrada da nota; o preço de mercado vira referência e venda inicial.
       const criado = await productsService.create({
         nome: c.nome || `Produto ${ean}`,
-        categoria: s?.categoria || c.categoria || 'Geral',
+        subcategoria,
         codigo_barras: ean,
         preco_custo: 0.01,
         preco_venda: precoRef || 0.01,

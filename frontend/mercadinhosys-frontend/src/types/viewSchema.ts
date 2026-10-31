@@ -100,6 +100,20 @@ export interface RegrasFiscais {
     };
 }
 
+/** Árvore oficial da taxonomia (PLANO §4): Família → Categoria → Subcategoria. */
+export interface TaxonomiaSubcategoria {
+    /** Chave oficial, ex.: "bazar.cozinha.panela". É o que o cadastro envia em `subcategoria`. */
+    chave: string;
+    nome: string;
+}
+
+export interface TaxonomiaCategoria {
+    /** Chave oficial da categoria, ex.: "bazar.cozinha". */
+    chave: string;
+    nome: string;
+    subcategorias: TaxonomiaSubcategoria[];
+}
+
 export interface ViewSchema {
     segmento: SegmentoInfo;
     segmento_tenant?: SegmentoInfo;
@@ -128,6 +142,8 @@ export interface ViewSchema {
     flags: SegmentoFlags;
     /** Categorias prontas da família (para tocar no cadastro). */
     categorias_sugeridas?: string[];
+    /** Árvore oficial Família → Categoria → Subcategoria (fonte do CategoriaPicker). */
+    taxonomia?: TaxonomiaCategoria[];
     unidades: string[];
     tipos_item: TipoItem[];
     campos: CampoSchema[];

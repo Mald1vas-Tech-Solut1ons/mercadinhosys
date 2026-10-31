@@ -222,7 +222,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                         )}
                                     </div>
                                     <div className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 flex items-center gap-2">
-                                        <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400">{produto.categoria}</span>
+                                        {/* Taxonomia: Categoria (nível 2) › Subcategoria (nível 3) */}
+                                        <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 text-gray-500 dark:text-slate-400">
+                                            {produto.categoria_oficial_nome || produto.categoria || '—'}
+                                            {produto.subcategoria_oficial_nome && (
+                                                <span className="text-gray-400 dark:text-slate-500"> › {produto.subcategoria_oficial_nome}</span>
+                                            )}
+                                        </span>
                                         {produto.codigo_barras && <span>{produto.codigo_barras}</span>}
                                     </div>
                                     </div>
@@ -369,7 +375,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                   <div className="min-w-0 flex-1">
                                     <h4 className="font-bold text-gray-700 dark:text-slate-200 text-lg leading-tight">{produto.nome}</h4>
                                     <div className="text-xs text-gray-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-                                        <span className="px-1.5 py-0.5 rounded bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300">{produto.categoria}</span>
+                                        <span className="px-1.5 py-0.5 rounded bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300">
+                                            {produto.categoria_oficial_nome || produto.categoria || '—'}
+                                            {produto.subcategoria_oficial_nome && (
+                                                <span className="text-gray-400 dark:text-slate-500"> › {produto.subcategoria_oficial_nome}</span>
+                                            )}
+                                        </span>
                                         {produto.codigo_barras && <span className="font-mono text-gray-400 dark:text-slate-500">{produto.codigo_barras}</span>}
                                     </div>
                                   </div>

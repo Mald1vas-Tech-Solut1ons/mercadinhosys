@@ -3,6 +3,7 @@ import { Trash2, Minus, Plus, Tag, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Produto } from '../../../types';
 import { formatCurrency } from '../../../utils/formatters';
+import { parseDataValidade } from '../../../utils/validade';
 import { showToast } from '../../../utils/toast';
 import { useConfig } from '../../../contexts/ConfigContext';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
@@ -180,13 +181,8 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                             })()}
                             {/* Validade */}
                             {produto.data_validade && (() => {
-                                let y: number, m: number, d: number;
-                                if (produto.data_validade.includes('-')) {
-                                    [y, m, d] = produto.data_validade.split('-').map(Number);
-                                } else {
-                                    [d, m, y] = produto.data_validade.split('/').map(Number);
-                                }
-                                const dataVal = new Date(y, m - 1, d);
+                                const dataVal = parseDataValidade(produto.data_validade);
+                                if (!dataVal) return null;
                                 const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
                                 const limite = new Date(hoje); limite.setDate(hoje.getDate() + 30);
                                 if (dataVal < hoje) {

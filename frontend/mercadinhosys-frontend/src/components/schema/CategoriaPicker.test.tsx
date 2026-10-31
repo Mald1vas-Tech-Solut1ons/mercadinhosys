@@ -5,106 +5,104 @@ import { TaxonomiaCategoria } from '../../types/viewSchema';
 
 const TAXONOMIA: TaxonomiaCategoria[] = [
     {
-        chave: 'bazar.cozinha',
-        nome: 'Cozinha',
+        chave: 'alimento.basico',
+        nome: 'Básicos da Despensa',
         subcategorias: [
-            { chave: 'bazar.cozinha.panela', nome: 'Panelas' },
-            { chave: 'bazar.cozinha.frigideira', nome: 'Frigideiras' },
+            { chave: 'alimento.basico.arroz', nome: 'Arroz' },
+            { chave: 'alimento.basico.feijao', nome: 'Feijão' },
         ],
     },
     {
-        chave: 'cama_mesa_banho.mesa_cozinha',
-        nome: 'Mesa e Cozinha',
-        subcategorias: [{ chave: 'cama_mesa_banho.mesa_cozinha.pano_prato', nome: 'Panos de Prato' }],
-    },
-    {
-        chave: 'bazar.outro',
-        nome: 'Outros',
-        subcategorias: [{ chave: 'bazar.outro.outro_bazar', nome: 'Outros Bazar' }],
+        chave: 'alimento.cafe_manha',
+        nome: 'Café da Manhã',
+        subcategorias: [{ chave: 'alimento.cafe_manha.cafe', nome: 'Café' }],
     },
 ];
 
 const renderPicker = (onChange = vi.fn(), value = '') =>
     render(<CategoriaPicker taxonomia={TAXONOMIA} value={value} onChange={onChange} />);
 
-describe('CategoriaPicker (PLANO §4 item 1)', () => {
-    it('digitar "pan" lista "Panelas — Cozinha" (a categoria-mãe ao lado)', () => {
+describe('CategoriaPicker — Família → Categoria → Subcategoria', () => {
+    it('tem os DOIS campos visíveis e rotulados, na ordem Categoria → Subcategoria', () => {
         renderPicker();
-        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'pan' } });
-
-        expect(screen.getByText(/Panelas/)).toBeInTheDocument();
-        expect(screen.getByText(/— Cozinha/)).toBeInTheDocument();
-        expect(screen.getByText(/Panos de Prato/)).toBeInTheDocument();
-        expect(screen.queryByText(/Frigideiras/)).not.toBeInTheDocument();
+        expect(screen.getByText(/^Categoria \*/)).toBeInTheDocument();
+        expect(screen.getByText(/^Subcategoria \*/)).toBeInTheDocument();
+        expect(screen.getByText(/nível 2/)).toBeInTheDocument();
     });
 
-    it('a busca é pela chave canônica: sem acento, sem maiúscula, plural = singular', () => {
+    it('a subcategoria não pode ser escolhida antes da categoria', () => {
         renderPicker();
-        const busca = screen.getByLabelText('Buscar subcategoria');
-
-        fireEvent.change(busca, { target: { value: 'PANELA' } });
-        expect(screen.getByText(/Panelas/)).toBeInTheDocument();
-
-        fireEvent.change(busca, { target: { value: 'pano de prato' } });
-        expect(screen.getByText(/Panos de Prato/)).toBeInTheDocument();
+        expect(screen.getByLabelText('Buscar subcategoria')).toBeDisabled();
+        expect(screen.getByText('Escolha a categoria acima para ver as subcategorias.')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Arroz' })).not.toBeInTheDocument();
     });
 
-    it('sem resultado mostra a mensagem da lista oficial', () => {
-        renderPicker();
-        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'panela voadora' } });
+    it('escolher a categoria devolve a categoria e libera as subcategorias dela', () => {
+        const onChange = vi.fn();
+        renderPicker(onChange);
 
-        expect(screen.getByText('Não está na lista oficial. Use “Outros …” ou peça ao suporte')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Básicos da Despensa' }));
+
+        expect(onChange).toHaveBeenCalledWith({
+            categoria: { chave: 'alimento.basico', nome: 'Básicos da Despensa' },
+            subcategoria: { chave: '', nome: '' },
+        });
+        expect(screen.getByRole('button', { name: 'Arroz' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Feijão' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Café' })).not.toBeInTheDocument();
+        expect(screen.getByText(/nível 3 — dentro de Básicos da Despensa/)).toBeInTheDocument();
     });
 
-    it('mostra a árvore: categorias em pílulas e as subcategorias da categoria escolhida', () => {
-        renderPicker();
+    it('trocar de categoria troca a lista de subcategorias e limpa a escolha', () => {
+        const onChange = vi.fn();
+        renderPicker(onChange, 'alimento.basico.arroz');
 
-        expect(screen.getByRole('button', { name: 'Cozinha' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Mesa e Cozinha' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Panelas' })).toBeInTheDocument();
-        // "Panos de Prato" é de outra categoria: não aparece antes de trocar a pílula.
-        expect(screen.queryByRole('button', { name: 'Panos de Prato' })).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Café da Manhã' }));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Mesa e Cozinha' }));
-        expect(screen.getByRole('button', { name: 'Panos de Prato' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Panelas' })).not.toBeInTheDocument();
+        expect(onChange).toHaveBeenLastCalledWith({
+            categoria: { chave: 'alimento.cafe_manha', nome: 'Café da Manhã' },
+            subcategoria: { chave: '', nome: '' },
+        });
+        expect(screen.getByRole('button', { name: 'Café' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Arroz' })).not.toBeInTheDocument();
     });
 
     it('escolher a subcategoria devolve OS DOIS níveis', () => {
         const onChange = vi.fn();
-        renderPicker(onChange);
-        fireEvent.click(screen.getByRole('button', { name: 'Panelas' }));
+        renderPicker(onChange, 'alimento.basico.arroz');
+        fireEvent.click(screen.getByRole('button', { name: 'Feijão' }));
 
         expect(onChange).toHaveBeenCalledWith({
-            categoria: { chave: 'bazar.cozinha', nome: 'Cozinha' },
-            subcategoria: { chave: 'bazar.cozinha.panela', nome: 'Panelas' },
+            categoria: { chave: 'alimento.basico', nome: 'Básicos da Despensa' },
+            subcategoria: { chave: 'alimento.basico.feijao', nome: 'Feijão' },
         });
     });
 
-    it('escolher pelo resultado da busca também devolve o par', () => {
-        const onChange = vi.fn();
-        renderPicker(onChange);
-        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'pano' } });
-        fireEvent.click(screen.getByText(/Panos de Prato/));
+    it('a busca filtra as subcategorias pela chave canônica ("feij" → Feijão)', () => {
+        renderPicker(vi.fn(), 'alimento.basico.arroz');
+        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'feij' } });
 
-        expect(onChange).toHaveBeenCalledWith({
-            categoria: { chave: 'cama_mesa_banho.mesa_cozinha', nome: 'Mesa e Cozinha' },
-            subcategoria: { chave: 'cama_mesa_banho.mesa_cozinha.pano_prato', nome: 'Panos de Prato' },
-        });
+        expect(screen.getByRole('button', { name: 'Feijão' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Arroz' })).not.toBeInTheDocument();
     });
 
-    it('não existe opção de criar categoria', () => {
+    it('busca sem resultado mostra a mensagem da lista oficial', () => {
+        renderPicker(vi.fn(), 'alimento.basico.arroz');
+        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'arroz integral xxx' } });
+
+        expect(screen.getByText('Não está na lista oficial. Use “Outros …” ou peça ao suporte')).toBeInTheDocument();
+    });
+
+    it('não existe opção de criar categoria nem subcategoria', () => {
         renderPicker();
         expect(screen.queryByRole('button', { name: /criar/i })).not.toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: /nova categoria/i })).not.toBeInTheDocument();
-        expect(screen.queryByText(/adicionar categoria/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/adicionar/i)).not.toBeInTheDocument();
     });
 
-    it('mostra a categoria e a subcategoria já gravadas', () => {
-        renderPicker(vi.fn(), 'bazar.cozinha.frigideira');
-        // Badge da categoria + pílula da subcategoria marcada (ambas visíveis no campo).
-        expect(screen.getAllByText('Cozinha').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Frigideiras').length).toBeGreaterThan(0);
+    it('mostra a categoria e a subcategoria já gravadas no produto', () => {
+        renderPicker(vi.fn(), 'alimento.basico.feijao');
+        expect(screen.getByRole('button', { name: 'Básicos da Despensa' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'Feijão' })).toHaveAttribute('aria-pressed', 'true');
     });
 
     it('sem taxonomia avisa em vez de inventar opções', () => {

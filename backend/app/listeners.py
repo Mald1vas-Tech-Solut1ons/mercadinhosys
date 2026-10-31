@@ -34,6 +34,12 @@ TABELAS_MONITOR_MASTER = {
     "movimentacoes_caixa": "Intervenção de Caixa (Sangria/Suprimento)",
 }
 
+# Tabelas cujo INSERT a PRÓPRIA ROTA registra com evento de negócio (autor + descrição legível).
+# Para elas o listener não grava a segunda linha de auditoria — antes cada cadastro de produto
+# gerava `produtos_insert` (SISTEMA) + `produto_criado` (usuário): 178 eventos para 89 cadastros.
+# A fila de sincronia (AuditoriaSincronia) continua sendo alimentada normalmente.
+EVENTO_PROPRIO_NO_INSERT = {"produtos"}
+
 def object_to_dict(obj):
     """Converte objeto SQLAlchemy para dict de forma segura, tratando tipos não serilizáveis."""
     from decimal import Decimal
@@ -129,21 +135,22 @@ def registrar_evento_forense(mapper, connection, target, operacao):
         # O campo 'valor' da Auditoria pode ser preenchido se a tabela tiver 'valor' ou 'total'
         valor = getattr(target, 'total', getattr(target, 'valor', getattr(target, 'valor_original', None)))
 
-        Auditoria.registrar_direto(
-            connection=connection,
-            estabelecimento_id=estabelecimento_id,
-            tipo_evento=tipo_evento,
-            descricao=descricao,
-            usuario_id=usuario_id,
-            valor=valor,
-            detalhes={
-                "operacao": operacao,
-                "tabela": target.__tablename__,
-                "registro_id": registro_id,
-                "timestamp": iso_utc(datetime.now()),
-                "data": payload
-            }
-        )
+        if not (operacao == 'INSERT' and target.__tablename__ in EVENTO_PROPRIO_NO_INSERT):
+            Auditoria.registrar_direto(
+                connection=connection,
+                estabelecimento_id=estabelecimento_id,
+                tipo_evento=tipo_evento,
+                descricao=descricao,
+                usuario_id=usuario_id,
+                valor=valor,
+                detalhes={
+                    "operacao": operacao,
+                    "tabela": target.__tablename__,
+                    "registro_id": registro_id,
+                    "timestamp": iso_utc(datetime.now()),
+                    "data": payload
+                }
+            )
 
         # 4. Registrar na Auditoria Sincronia (SYNC ENGINE)
         # IMPLEMENTAÇÃO DE ELITE: Se a tabela for sincronizável, enfileira para a nuvem

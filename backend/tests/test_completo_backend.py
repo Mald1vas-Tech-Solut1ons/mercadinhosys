@@ -152,7 +152,7 @@ def test_importacao_registra_ean_novo_no_catalogo_mestre(client, session):
     assert item.nome == "Cafe Especial 250g"
     assert item.ncm == "09012100"
     # Catálogo guarda o nome OFICIAL qualificado da categoria (taxonomia, PLANO §3.3 #6)
-    assert item.categoria == nome_categoria_loja("alimento", "Café da Manhã")
+    assert item.categoria == nome_categoria_loja("alimento", "Café, Chá e Achocolatados")
     assert item.descoberto_por_estabelecimento_id == ctx["estab"].id
 
 

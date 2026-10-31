@@ -86,7 +86,6 @@ export const LIMITE_SANGRIA_PADRAO = 500;
 
 export { PDV_STORAGE_PREFIX, pdvStorageKey, limparSessaoOperador } from '../utils/pdvStorage';
 import { pdvStorageKey, limparSessaoOperador } from '../utils/pdvStorage';
-
 /**
  * FASE 1.7: limite efetivo de desconto. O backend (checkout_locking.validate_pricing) usa
  * min(funcionario.limite_desconto, config.desconto_maximo_percentual, config.desconto_maximo_funcionario).

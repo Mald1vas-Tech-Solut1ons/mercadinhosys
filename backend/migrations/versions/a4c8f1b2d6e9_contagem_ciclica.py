@@ -11,8 +11,6 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = 'a4c8f1b2d6e9'
-# A 9c4e1a7b6d20 (largura das chaves de categorias_produto) também saiu de
-# f3b5d7e9a1c3: encadear nela mantém UMA cabeça de migração (o CI falha com duas).
 down_revision = '9c4e1a7b6d20'
 branch_labels = None
 depends_on = None

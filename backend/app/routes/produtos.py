@@ -1081,6 +1081,27 @@ def gerar_descricao_ia():
     return jsonify({"success": True, "descricao": descricao})
 
 
+@produtos_bp.route("/classificar-ia", methods=["POST"])
+@funcionario_required
+@permission_required("produtos")
+@limiter.limit("30 per minute")
+def classificar_produto_ia():
+    """Auto-classifica um produto na Taxonomia Oficial pelo nome (Família, Categoria,
+    Subcategoria oficial, NCM de 8 dígitos, CFOP, CSOSN, atributos e descrição).
+    Destrava o cadastro quando o produto não tem EAN na base externa (ex.: Projetor).
+    """
+    from app.services.consultor.contextos.sistema import classificar_produto_por_nome
+
+    data = request.get_json(silent=True) or {}
+    nome = _campo_ia(data, "nome", 160)
+    if len(nome) < 2:
+        return jsonify({"success": False, "message": "Digite o nome do produto para auto-preencher."}), 400
+    marca = _campo_ia(data, "marca", 80)
+    tipo_item = "servico" if data.get("tipo_item") == "servico" else "produto"
+    sugestao = classificar_produto_por_nome(nome=nome, marca=marca, tipo_item=tipo_item)
+    return jsonify({"success": True, "sugestao": sugestao}), 200
+
+
 # ============================================
 # CÓDIGO DE BARRAS INTERNO (produto sem EAN do fabricante)
 # ============================================

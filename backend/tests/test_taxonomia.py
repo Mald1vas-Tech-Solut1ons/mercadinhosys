@@ -277,6 +277,17 @@ def test_chave_e_nome_de_categoria_cabem_nas_colunas_do_model():
     # Piso histórico: 20 foi o valor que quebrou em produção; 41 é a maior chave oficial hoje.
     assert largura_codigo >= 60
     assert largura_nome >= 50
+    maior_sub = max(
+        (
+            chave_subcategoria(familia, categoria, sub)
+            for familia, categorias in TAXONOMIA.items()
+            for categoria, subs in categorias.items()
+            for sub in subs
+        ),
+        key=len,
+    )
+    assert len(maior_sub) <= Produto.__table__.c.subcategoria.type.length
+    assert len(maior_sub) <= Produto.__table__.c.subcategoria_oficial.type.length
 
 
 def test_produto_serializa_os_campos_da_taxonomia(session):
@@ -310,3 +321,97 @@ def test_colunas_e_indice_existem_no_modelo():
     assert {"familia_produto", "categoria_oficial", "subcategoria_oficial"} <= set(VendaItem.__table__.columns.keys())
     indices = {indice.name for indice in Produto.__table__.indexes}
     assert "ix_produtos_estab_subcat" in indices
+
+
+def test_chaves_de_subcategoria_cabem_em_todas_as_colunas_de_produto_e_venda():
+    """Regressão 31/10: `produtos.subcategoria` era varchar(50), mas 104 chaves de subcategoria
+    da TAXONOMIA passam de 50 caracteres (ex.: `brinquedos.educativo_criativo.arte_pintura_massinha`,
+    51 chars, até 68 chars em `embalagem_descartavel.embalagen_delivery.marmitex_embalagen_delivery`).
+
+    O modal envia a chave da subcategoria em `data["subcategoria"]` e `criar_produto`/`atualizar_produto`
+    gravam esse valor tanto em `subcategoria_oficial` quanto na coluna legada `subcategoria` — estourando
+    `StringDataRightTruncation: value too long for type character varying(50)` no PostgreSQL.
+    """
+    maior_sub = max(
+        (chave_subcategoria(familia, categoria, sub)
+         for familia, categorias in TAXONOMIA.items()
+         for categoria, subs in categorias.items()
+         for sub in subs),
+        key=len,
+    )
+    maior_cat = max(
+        (chave_categoria(familia, categoria)
+         for familia, categorias in TAXONOMIA.items()
+         for categoria in categorias),
+        key=len,
+    )
+    maior_familia = max(TAXONOMIA.keys(), key=len)
+
+    for col in (
+        Produto.__table__.c.subcategoria,
+        Produto.__table__.c.subcategoria_oficial,
+        VendaItem.__table__.c.subcategoria_oficial,
+    ):
+        assert len(maior_sub) <= col.type.length, (col.name, maior_sub, len(maior_sub), col.type.length)
+        assert col.type.length >= 80, (col.name, col.type.length)
+
+    for col in (
+        Produto.__table__.c.categoria_oficial,
+        VendaItem.__table__.c.categoria_oficial,
+    ):
+        assert len(maior_cat) <= col.type.length, (col.name, maior_cat, len(maior_cat), col.type.length)
+        assert col.type.length >= 60, (col.name, col.type.length)
+
+    for col in (
+        Produto.__table__.c.familia_produto,
+        VendaItem.__table__.c.familia_produto,
+    ):
+        assert len(maior_familia) <= col.type.length, (col.name, maior_familia, len(maior_familia), col.type.length)
+        assert col.type.length >= 40, (col.name, col.type.length)
+
+
+def test_migracao_d5e7f9a1b3c5_alarga_subcategoria_e_e_idempotente():
+    import importlib.util
+    import sqlalchemy as sa
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    caminho = Path(__file__).resolve().parent.parent / "migrations" / "versions" / "d5e7f9a1b3c5_produtos_subcategoria_largura.py"
+    spec = importlib.util.spec_from_file_location("migracao_subcat_largura", caminho)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+
+    engine = sa.create_engine("sqlite:///:memory:")
+    try:
+        with engine.begin() as conn:
+            conn.execute(sa.text(
+                "CREATE TABLE produtos (id INTEGER PRIMARY KEY, estabelecimento_id INTEGER NOT NULL, "
+                "nome VARCHAR(100) NOT NULL, subcategoria VARCHAR(50))"
+            ))
+            conn.execute(sa.text(
+                "CREATE TABLE venda_itens (id INTEGER PRIMARY KEY, estabelecimento_id INTEGER NOT NULL)"
+            ))
+            conn.execute(sa.text(
+                "INSERT INTO produtos (estabelecimento_id, nome, subcategoria) "
+                "VALUES (10, 'LIVRO + ESPONJA', 'brinquedos.educativo_criativo')"
+            ))
+
+        for _ in range(2):
+            with engine.begin() as conn:
+                ctx = MigrationContext.configure(conn)
+                with Operations.context(ctx):
+                    modulo.upgrade()
+
+        insp = sa.inspect(engine)
+        cols_prod = {c["name"]: c for c in insp.get_columns("produtos")}
+        assert getattr(cols_prod["subcategoria"]["type"], "length", None) == 80
+        assert getattr(cols_prod["categoria_oficial"]["type"], "length", None) == 60
+        assert getattr(cols_prod["subcategoria_oficial"]["type"], "length", None) == 80
+        assert getattr(cols_prod["familia_produto"]["type"], "length", None) == 40
+
+        cols_vi = {c["name"]: c for c in insp.get_columns("venda_itens")}
+        assert getattr(cols_vi["categoria_oficial"]["type"], "length", None) == 60
+        assert getattr(cols_vi["subcategoria_oficial"]["type"], "length", None) == 80
+        assert getattr(cols_vi["familia_produto"]["type"], "length", None) == 40
+    finally:
+        engine.dispose()

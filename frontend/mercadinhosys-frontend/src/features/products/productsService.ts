@@ -36,6 +36,31 @@ export const productsService = {
         return response.data.descricao;
     },
 
+    /** Auto-preenchimento inteligente de Família, Categoria, Subcategoria, NCM, CFOP, CSOSN e Descrição pelo nome do produto. */
+    classificarIA: async (dados: {
+        nome: string;
+        marca?: string;
+        tipo_item?: string;
+    }) => {
+        const response = await apiClient.post<{
+            success: boolean;
+            sugestao: {
+                familia_produto: string;
+                familia_nome: string;
+                categoria_oficial: string;
+                categoria_nome: string;
+                subcategoria: string;
+                ncm: string;
+                cfop_padrao: string;
+                csosn: string;
+                unidade_medida: string;
+                atributos: Record<string, string>;
+                descricao: string;
+            };
+        }>('/produtos/classificar-ia', dados);
+        return response.data.sugestao;
+    },
+
     // ==================== CRUD COMPLETO ESTOQUE ====================
     getAllEstoque: async (pagina = 1, porPagina = 25, filtros?: ProdutoFiltros): Promise<ProdutosResponse> => {
         const params: any = {

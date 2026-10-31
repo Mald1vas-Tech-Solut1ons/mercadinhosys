@@ -97,7 +97,35 @@ const TermosPage: React.FC = () => {
                 ) : ''} em dias úteis, das 08h00 às 18h00, horário de Brasília.
             </p>
 
-            <SecaoTitulo numero={8}>Foro</SecaoTitulo>
+            <SecaoTitulo numero={8}>Do Uso de Inteligência Artificial e Proteção de Dados (LGPD)</SecaoTitulo>
+            <p>
+                O módulo <strong>Consultor da Loja (IA)</strong> opera como copiloto analítico do Licenciado em
+                estrita conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD):
+            </p>
+            <ul className="list-disc pl-5 space-y-2">
+                <li>
+                    <strong>Pseudonimização na Origem:</strong> Nomes reais de funcionários e clientes nunca são
+                    transmitidos aos provedores de modelos de linguagem (LLMs). Toda evidência operacional utiliza
+                    exclusivamente identificadores internos pseudonimizados (ex.: <code>Funcionário #ID</code> e <code>Cliente #ID</code>).
+                </li>
+                <li>
+                    <strong>Evidência Determinística Auditável:</strong> O modelo de IA não executa consultas SQL livres
+                    no banco de dados, recebendo apenas indicadores consolidados pelo próprio Software, com indicação
+                    transparente da fonte de cada número na interface.
+                </li>
+                <li>
+                    <strong>Ações Mediante Confirmação Humana:</strong> Toda ação sugerida pelo copiloto (como criação
+                    de lembretes financeiros ou rascunhos de pedido de compra) exige confirmação explícita do gestor
+                    autenticado e é registrada em log de auditoria.
+                </li>
+                <li>
+                    <strong>Direito de Desativação (Opt-out):</strong> O Licenciado pode desativar o Consultor da Loja
+                    a qualquer momento em <strong>Configurações &gt; Sistema</strong>, interrompendo imediatamente qualquer
+                    processamento por provedores de IA.
+                </li>
+            </ul>
+
+            <SecaoTitulo numero={9}>Foro</SecaoTitulo>
             <p>
                 Fica eleito o foro da Comarca de {legalInfo.cidadeUf} para dirimir quaisquer dúvidas ou litígios
                 decorrentes da interpretação destes Termos, com renúncia expressa a qualquer outro, por mais privilegiado que seja.

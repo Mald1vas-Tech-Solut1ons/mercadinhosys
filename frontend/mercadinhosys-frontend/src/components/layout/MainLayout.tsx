@@ -1,6 +1,6 @@
 import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
-import { RefreshCw } from 'lucide-react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { RefreshCw, Eye, Sparkles } from 'lucide-react';
 import Sidebar from './Sidebar';
 import HeaderProfessional from './HeaderProfessional';
 import FootPage from './FootPage';
@@ -11,7 +11,6 @@ import TrialNotice from '../../features/trial/TrialNotice';
 import usePullToRefresh from '../../hooks/usePullToRefresh';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Eye } from 'lucide-react';
 import TourExecutivo from '../../features/onboarding/TourExecutivo';
 
 const MirrorReadOnlyBanner: React.FC = () => {
@@ -38,13 +37,16 @@ const MirrorReadOnlyBanner: React.FC = () => {
 const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = React.useState(false);
     const mainRef = React.useRef<HTMLElement>(null);
+    const location = useLocation();
+    const navigate = useNavigate();
     // PWA standalone não tem "puxar p/ atualizar" nativo — implementamos aqui.
     const { distance, refreshing, threshold } = usePullToRefresh(
         mainRef,
         () => window.location.reload(),
     );
     const prontoParaSoltar = distance >= threshold;
-    const emPdv = useLocation().pathname.startsWith('/pdv');
+    const emPdv = location.pathname.startsWith('/pdv');
+    const emConsultor = location.pathname.startsWith('/consultor');
 
     return (
         <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
@@ -82,6 +84,17 @@ const MainLayout: React.FC = () => {
                     <FootPage />
                 </div>
             </div>
+            {!emPdv && !emConsultor && (
+                <button
+                    type="button"
+                    onClick={() => navigate('/consultor')}
+                    title="Abrir Consultor da Loja (Ajuda do Sistema, Cadastro Assistido e Relatórios)"
+                    className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold shadow-lg hover:shadow-xl transition-all"
+                >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="hidden sm:inline">Consultor da Loja</span>
+                </button>
+            )}
             <BottomNavigation />
         </div>
     );

@@ -62,12 +62,23 @@ const PrivacidadePage: React.FC = () => {
                 com parceiros técnicos necessários para a viabilidade do Software, sob rigorosos contratos de sigilo:
             </p>
             <ul className="list-disc pl-5 space-y-2">
-                <li><strong>Infraestrutura e Nuvem:</strong> Provedores de banco de dados e hospedagem (Ex: Aiven, Vercel, AWS).</li>
+                <li><strong>Infraestrutura e Nuvem:</strong> Provedores de banco de dados e hospedagem (Ex: Neon/PostgreSQL, Render, Vercel, AWS).</li>
                 <li><strong>Emissão Fiscal:</strong> Gateways homologados (FocusNFe/PlugNotas), apenas quando o Lojista opta por transmitir Notas Fiscais para a SEFAZ.</li>
                 <li><strong>Processamento de Pagamento:</strong> Empresas de faturamento recorrente para a cobrança da assinatura mensal do sistema.</li>
+                <li><strong>Provedores de Inteligência Artificial (Consultor da Loja):</strong> APIs de inferência (DeepSeek e Groq) recebem exclusivamente indicadores financeiros e operacionais agregados e <strong>pseudonimizados</strong> (sem nomes, CPFs, telefones ou e-mails de funcionários ou clientes).</li>
             </ul>
 
-            <SecaoTitulo numero={5}>Como Protegemos os Dados</SecaoTitulo>
+            <SecaoTitulo numero={5}>Inteligência Artificial (Consultor da Loja), Pseudonimização e Opt-Out</SecaoTitulo>
+            <p>
+                O módulo <strong>Consultor da Loja</strong> foi desenhado sob o princípio de <em>Privacy by Design</em> (Art. 46 da LGPD):
+            </p>
+            <ul className="list-disc pl-5 space-y-2">
+                <li><strong>Pseudonimização Obrigatória:</strong> Nomes de funcionários e clientes nunca saem do banco de dados da loja para provedores externos de IA; são convertidos internamente em identificadores anônimos (<code>Funcionário #ID</code> e <code>Cliente #ID</code>).</li>
+                <li><strong>RAG Determinístico sem Acesso Direto ao Banco:</strong> O modelo de linguagem nunca executa SQL nem acessa tabelas brutas, interpretando apenas resumos determinísticos auditáveis.</li>
+                <li><strong>Controle de Desativação (Opt-Out):</strong> O Lojista pode desligar o Consultor da Loja a qualquer instante em <strong>Configurações &gt; Sistema &gt; Consultor da Loja (IA) Ativo (LGPD)</strong>, bloqueando imediatamente qualquer envio de contexto para provedores de IA.</li>
+            </ul>
+
+            <SecaoTitulo numero={6}>Como Protegemos os Dados</SecaoTitulo>
             <p>
                 Utilizamos as melhores práticas de mercado, incluindo:
             </p>
@@ -77,7 +88,7 @@ const PrivacidadePage: React.FC = () => {
                 <li>Hashing seguro (BCrypt/Argon2) irreversível para o armazenamento de todas as senhas de usuários e PINs de estorno.</li>
             </ul>
 
-            <SecaoTitulo numero={6}>Seus Direitos como Titular</SecaoTitulo>
+            <SecaoTitulo numero={7}>Seus Direitos como Titular</SecaoTitulo>
             <p>
                 O Lojista (Contratante) tem o direito de solicitar a qualquer momento:
             </p>

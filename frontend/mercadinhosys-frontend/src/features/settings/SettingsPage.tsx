@@ -1270,6 +1270,15 @@ const SettingsPage: React.FC = () => {
                                 />
                             </div>
 
+                            <div className="pt-2">
+                                <SwitchField
+                                    label="Consultor da Loja (IA) Ativo (LGPD)"
+                                    description="Habilita análises, resumo diário e copiloto com dados pseudonimizados (Funcionário #ID / Cliente #ID). Desative a qualquer momento para interromper o envio de contexto aos provedores de IA."
+                                    checked={config.ai_consultor_ativo ?? true}
+                                    onChange={(val: boolean) => setConfig({ ...config, ai_consultor_ativo: val })}
+                                />
+                            </div>
+
                             <SectionTitle title="Banco & Replicação" icon={Database} />
                             <SyncPanel />
                         </div>

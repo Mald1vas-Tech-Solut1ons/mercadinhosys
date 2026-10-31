@@ -33,7 +33,7 @@ import { canAccessRoute, getMenuForUser } from '../../utils/permissions';
 
 const menuItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard' },
-    { to: '/consultor', icon: Sparkles, label: 'Consultor M-IA' },
+    { to: '/consultor', icon: Sparkles, label: 'Consultor da Loja' },
     { to: '/pdv', icon: ShoppingCart, label: 'PDV' },
     { to: '/pdv?manage=true', icon: DollarSign, label: 'Gerenciar Caixa' },
     { to: '/products', icon: Package, label: 'Produtos' },

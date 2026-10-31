@@ -66,6 +66,7 @@ export interface Configuracao {
     tentativas_senha_bloqueio: number;
     alertas_email: boolean;
     alertas_whatsapp: boolean;
+    ai_consultor_ativo?: boolean;
 
     // Localização do estabelecimento
     raio_validacao_metros?: number;

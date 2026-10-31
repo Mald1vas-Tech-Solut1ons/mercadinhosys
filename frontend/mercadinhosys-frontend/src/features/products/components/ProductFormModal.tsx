@@ -153,6 +153,7 @@ const ProductFormModal = ({
     const [isSearchingCosmos, setIsSearchingCosmos] = useState(false);
     const [showForceSync, setShowForceSync] = useState(false);
     const [gerandoDescricao, setGerandoDescricao] = useState(false);
+    const [classificandoIA, setClassificandoIA] = useState(false);
     const [buscandoNome, setBuscandoNome] = useState(false);
     const [resultadosNome, setResultadosNome] = useState<CatalogoBuscaItem[]>([]);
     // true quando o preço de venda foi digitado pelo usuário (ou veio do produto
@@ -367,7 +368,7 @@ const ProductFormModal = ({
                 setResultadosNome(res.data);
                 setTimeout(() => refResultadosNome.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
             } else {
-                showToast.error(res.message || 'Nenhum produto encontrado com esse nome.');
+                await classificarProdutoIA(termo);
             }
         } finally {
             setBuscandoNome(false);
@@ -438,6 +439,43 @@ const ProductFormModal = ({
             showToast.error(err?.response?.data?.message || 'Não foi possível gerar a descrição agora.');
         } finally {
             setGerandoDescricao(false);
+        }
+    };
+
+    const classificarProdutoIA = async (nomeOverride?: string) => {
+        const nomeAlvo = (nomeOverride ?? formData.nome).trim();
+        if (nomeAlvo.length < 2) {
+            showToast.error('Digite o nome do produto para auto-preencher com IA.');
+            return;
+        }
+        setClassificandoIA(true);
+        try {
+            const s = await productsService.classificarIA({
+                nome: nomeAlvo,
+                marca: formData.marca,
+                tipo_item: formData.tipo_item,
+            });
+            familiaEscolhida.current = true;
+            setFormData(prev => ({
+                ...prev,
+                familia_produto: s.familia_produto || prev.familia_produto,
+                categoria_oficial: s.categoria_oficial || prev.categoria_oficial,
+                categoria: maiusculas(s.categoria_nome) || prev.categoria,
+                subcategoria: s.subcategoria || prev.subcategoria,
+                ncm: prev.ncm || s.ncm || '',
+                cfop_padrao: prev.cfop_padrao || s.cfop_padrao || '5102',
+                csosn: prev.csosn || s.csosn || '102',
+                unidade_medida: prev.unidade_medida || s.unidade_medida || 'un',
+                descricao: prev.descricao || s.descricao || '',
+                atributos: { ...(s.atributos || {}), ...prev.atributos },
+            }));
+            showToast.success(
+                `✨ IA preencheu: ${s.familia_nome} › ${s.categoria_nome} (NCM ${s.ncm})`
+            );
+        } catch (err: any) {
+            showToast.error(err?.response?.data?.error || 'Não foi possível auto-classificar o produto agora.');
+        } finally {
+            setClassificandoIA(false);
         }
     };
 
@@ -663,6 +701,7 @@ const ProductFormModal = ({
         }
     };
 
+    // Esc fecha o formulario e devolve o foco (o dono esta bipando 200 itens).
     if (!show) return null;
 
     const inputClass = 'w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 dark:text-white';
@@ -805,6 +844,15 @@ const ProductFormModal = ({
                                             className="shrink-0 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 shadow-sm flex items-center gap-1.5 text-xs font-bold disabled:opacity-60 disabled:cursor-wait">
                                             {buscandoNome ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                                             <span className="hidden sm:inline">Buscar</span>
+                                        </button>
+                                    )}
+                                    {!ehServico && (
+                                        <button type="button" onClick={() => classificarProdutoIA()} disabled={classificandoIA || formData.nome.trim().length < 2}
+                                            aria-label="Auto-preencher Família, Subcategoria e NCM com IA"
+                                            title="Preenche automaticamente Família, Subcategoria, NCM, CFOP e Descrição pelo nome"
+                                            className="shrink-0 px-3 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 shadow-sm flex items-center gap-1.5 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                                            {classificandoIA ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                                            <span className="hidden sm:inline">Auto-preencher IA</span>
                                         </button>
                                     )}
                                 </div>

@@ -308,6 +308,15 @@ def get_configuracao_safe(estab_id):
                 "tipo_impressora": (row_imp[1] if row_imp and row_imp[1] else "termica_80mm"),
                 "aliquota_impostos_venda": float(row_imp[2]) if row_imp and row_imp[2] is not None else None,
             })
+            try:
+                row_ai = db.session.execute(text(
+                    "SELECT ai_consultor_ativo FROM configuracoes WHERE estabelecimento_id = :eid LIMIT 1"
+                ), {"eid": estab_id}).fetchone()
+            except Exception:
+                row_ai = None
+            pct_extra.update({
+                "ai_consultor_ativo": True if (not row_ai or row_ai[0] is None) else bool(row_ai[0]),
+            })
             if row:
                 # Se sucesso, monta o dict direto (Fast!)
                 import json
@@ -421,6 +430,7 @@ def get_configuracao_safe(estab_id):
         res["tipo_impressora"] = _fetch_col("tipo_impressora", "termica_80mm") or "termica_80mm"
         aliquota = _fetch_col("aliquota_impostos_venda")
         res["aliquota_impostos_venda"] = float(aliquota) if aliquota is not None else None
+        res["ai_consultor_ativo"] = bool(_fetch_col("ai_consultor_ativo", True))
 
         if isinstance(res["formas_pagamento"], str):
             import json

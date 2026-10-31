@@ -101,3 +101,39 @@ def test_edicao_com_subcategoria_inventada_recusa_com_400(client, session, ctx):
     r = client.put(f"/api/produtos/{criado.get_json()['produto']['id']}", headers=ctx["headers"],
                    json={"subcategoria": "panela voadora"})
     assert r.status_code == 400 and r.get_json()["code"] == "categoria_invalida"
+
+
+def test_cadastro_e_edicao_com_chave_de_subcategoria_acima_de_50_chars(client, session, ctx):
+    """Regressão 31/10: cadastrar 'LIVRO + ESPONJA' com `brinquedos.educativo_criativo.arte_pintura_massinha`
+    (51 chars) ou a maior chave da taxonomia (68 chars) não pode exceder a largura de `Produto.subcategoria`.
+    """
+    chave_51 = "brinquedos.educativo_criativo.arte_pintura_massinha"
+    assert len(chave_51) == 51
+    r = _criar(
+        client,
+        ctx,
+        nome="LIVRO + ESPONJA",
+        codigo_barras="2000000000800",
+        familia_produto="brinquedos",
+        subcategoria=chave_51,
+        preco_custo=5,
+        preco_venda=12,
+        quantidade=3,
+    )
+    assert r.status_code == 201, r.get_data(as_text=True)
+    prod = session.get(Produto, r.get_json()["produto"]["id"])
+    assert prod.subcategoria_oficial == chave_51
+    assert len(prod.subcategoria or "") <= Produto.__table__.c.subcategoria.type.length
+
+    chave_68 = "embalagem_descartavel.embalagen_delivery.marmitex_embalagen_delivery"
+    assert len(chave_68) == 68
+    r_put = client.put(
+        f"/api/produtos/{prod.id}",
+        headers=ctx["headers"],
+        json={"familia_produto": "embalagem_descartavel", "subcategoria": chave_68},
+    )
+    assert r_put.status_code == 200, r_put.get_data(as_text=True)
+    session.expire_all()
+    prod = session.get(Produto, prod.id)
+    assert prod.subcategoria_oficial == chave_68
+    assert len(prod.subcategoria or "") <= Produto.__table__.c.subcategoria.type.length

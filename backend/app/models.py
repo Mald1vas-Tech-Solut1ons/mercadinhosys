@@ -529,6 +529,8 @@ class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     horas_extras_percentual = db.Column(db.Numeric(5, 2), default=50.00)
     # Alíquota efetiva de impostos sobre vendas (ex.: DAS do Simples) para o DRE; vazio = não configurada.
     aliquota_impostos_venda = db.Column(db.Numeric(5, 2), nullable=True)
+    # LGPD / Opt-in do Consultor da Loja (IA): ativo por padrão, loja pode desligar a qualquer momento
+    ai_consultor_ativo = db.Column(db.Boolean, nullable=False, server_default=db.true(), default=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     __table_args__ = (db.UniqueConstraint("estabelecimento_id", name="uq_configuracao_estab"),)
@@ -1125,7 +1127,7 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     marca = db.Column(db.String(50))
     fabricante = db.Column(db.String(100))
     tipo = db.Column(db.String(50))
-    subcategoria = db.Column(db.String(50))
+    subcategoria = db.Column(db.String(80))
     unidade_medida = db.Column(db.String(20), default="UN")
     quantidade = db.Column(db.Numeric(10, 3), default=0.0)
     quantidade_minima = db.Column(db.Numeric(10, 3), default=10.0)
@@ -2974,6 +2976,9 @@ class ConsultorInteracao(db.Model, MultiTenantMixin):
     resposta = db.Column(db.Text)
     provider = db.Column(db.String(10), nullable=False)
     duracao_ms = db.Column(db.Integer)
+    prompt_tokens = db.Column(db.Integer, nullable=False, server_default="0", default=0)
+    completion_tokens = db.Column(db.Integer, nullable=False, server_default="0", default=0)
+    custo_estimado_usd = db.Column(db.Numeric(10, 6), nullable=False, server_default="0", default=0)
     created_at = db.Column(db.DateTime, default=utcnow)
 
     funcionario = db.relationship('Funcionario', backref=db.backref('interacoes_ia', lazy=True))
@@ -2986,5 +2991,9 @@ class ConsultorInteracao(db.Model, MultiTenantMixin):
             "resposta": self.resposta,
             "provider": self.provider,
             "duracao_ms": self.duracao_ms,
+            "funcionario_id": self.funcionario_id,
+            "prompt_tokens": int(self.prompt_tokens or 0),
+            "completion_tokens": int(self.completion_tokens or 0),
+            "custo_estimado_usd": float(self.custo_estimado_usd or 0.0),
             "created_at": iso_utc(self.created_at) if self.created_at else None,
         }

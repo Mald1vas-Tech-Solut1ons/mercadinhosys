@@ -637,7 +637,7 @@ def create_app(config_name=None):
                     ("produtos", "ativo",                           "BOOLEAN DEFAULT TRUE"),
                     ("produtos", "fabricante",                      "VARCHAR(100)"),
                     ("produtos", "tipo",                            "VARCHAR(50)"),
-                    ("produtos", "subcategoria",                    "VARCHAR(50)"),
+                    ("produtos", "subcategoria",                    "VARCHAR(80)"),
                     ("produtos", "ncm",                             "VARCHAR(8)"),
                     ("produtos", "origem",                          "INTEGER DEFAULT 0"),
                     # Clientes
@@ -676,6 +676,10 @@ def create_app(config_name=None):
                     ("rescisoes", "forma_pagamento",                "VARCHAR(50)"),
                     # Pedido de Compra - janela de entrega
                     ("pedidos_compra", "horario_entrega",           "VARCHAR(30)"),
+                    ("configuracoes", "ai_consultor_ativo",         "BOOLEAN DEFAULT TRUE"),
+                    ("consultor_interacoes", "prompt_tokens",       "INTEGER DEFAULT 0"),
+                    ("consultor_interacoes", "completion_tokens",   "INTEGER DEFAULT 0"),
+                    ("consultor_interacoes", "custo_estimado_usd",  "NUMERIC(10,6) DEFAULT 0"),
                 ]
 
                 from sqlalchemy import inspect as _insp
@@ -714,7 +718,25 @@ def create_app(config_name=None):
                         if tamanho is not None and tamanho < 60:
                             logger.info("🔧 Ampliando categorias_produto.codigo para VARCHAR(60)...")
                             db.session.execute(_sync_text(
-                                "ALTER TABLE categorias_produto ALTER COLUMN codigo TYPE VARCHAR(60)"))
+                                "ALTER TABLE categorias_produto ALTER COLUMN codigo TYPE VARCHAR(120)"))
+                            db.session.commit()
+                        for tab_w, col_w, alvo_w in (
+                            ("categorias_produto", "codigo", 120),
+                            ("categorias_produto", "nome", 120),
+                            ("produtos", "subcategoria", 80),
+                            ("produtos", "categoria_oficial", 60),
+                            ("produtos", "subcategoria_oficial", 80),
+                            ("produtos", "imagem_url", 500),
+                        ):
+                            if tab_w not in existing_tables:
+                                continue
+                            cols_w = {c["name"]: c for c in inspector.get_columns(tab_w)}
+                            tam_w = getattr((cols_w.get(col_w) or {}).get("type"), "length", None)
+                            if tam_w is not None and tam_w < alvo_w:
+                                logger.info(f"🔧 Ampliando {tab_w}.{col_w} de VARCHAR({tam_w}) para VARCHAR({alvo_w})...")
+                                db.session.execute(_sync_text(
+                                    f"ALTER TABLE {tab_w} ALTER COLUMN {col_w} TYPE VARCHAR({alvo_w})"))
+                                db.session.commit()
                             db.session.commit()
                 except Exception as largura_err:
                     db.session.rollback()

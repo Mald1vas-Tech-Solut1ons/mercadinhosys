@@ -540,6 +540,8 @@ _CONECTIVOS = frozenset({"e", "de", "da", "do", "das", "dos", "para", "com"})
 
 
 def _singular(palavra: str) -> str:
+    if len(palavra) > 4 and palavra.endswith("ores"):
+        return palavra[:-2]
     return palavra[:-1] if len(palavra) > 3 and palavra.endswith("s") else palavra
 
 
@@ -1045,7 +1047,7 @@ FAMILIAS_NOVAS = {
 # Em que segmento cada família nova entra no mix padrão.
 MIX_NOVAS_POR_SEGMENTO = {
     "mercearia": ["frios_congelados", "hortifruti_pesaveis", "higiene", "limpeza", "bebe", "pet", "papelaria",
-                  "tabacaria"],
+                  "tabacaria", "eletronicos", "brinquedos", "cama_mesa_banho", "decoracao", "ferramentas", "esporte"],
     "vestuario": ["acessorios", "cama_mesa_banho"],
     "construcao": ["tintas", "ferramentas", "jardinagem"],
     "autopecas": [],

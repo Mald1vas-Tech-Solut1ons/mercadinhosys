@@ -93,7 +93,8 @@ def atualizar_configuracoes():
             "tempo_sessao_minutos", "tentativas_senha_bloqueio", "alertas_email", "alertas_whatsapp",
             "motivos_estorno", "aliquota_impostos_venda",
             # Precificação pelo mercado (custo estimado) — mesma validação do serviço A2.
-            "desconto_mercado_padrao_pct", "margem_alvo_venda_pct"
+            "desconto_mercado_padrao_pct", "margem_alvo_venda_pct",
+            "ai_consultor_ativo"
         ]
 
         # 1. Verifica se já existe configuração para este estabelecimento

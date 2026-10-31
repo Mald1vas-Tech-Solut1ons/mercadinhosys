@@ -14,6 +14,7 @@ import {
     MapPin,
     Lock,
     AlertTriangle,
+    Search,
     Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -159,6 +160,9 @@ const PDVPage: React.FC = () => {
     const [reimpressao, setReimpressao] = useState<CupomParaReimprimir | null>(null);
     // FASE 1.7: desconto pendente de autorização (o PinDialog abre com esse contexto)
     const [descontoPendente, setDescontoPendente] = useState<{ produtoId: number; desconto: number; percentual: boolean } | null>(null);
+    // Consulta de preço sem vender: resposta grande na tela, some em 5s.
+    const [modoConsulta, setModoConsulta] = useState(false);
+    const [consultaPreco, setConsultaPreco] = useState<{ nome: string; preco: number; unidade: string } | null>(null);
     // Cabeçalho da loja fica no aparelho para o cupom de venda sem internet
     useEffect(() => { salvarCabecalhoCupom(configuracoes?.cupom_cabecalho); }, [configuracoes?.cupom_cabecalho]);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
@@ -451,6 +455,18 @@ const PDVPage: React.FC = () => {
     ]);
 
     const handleProdutoSelecionado = (p: any) => {
+        // Modo consulta: o cliente pergunta "e esse café, quanto é?" e o caixa
+        // bipa para responder, sem sujar o carrinho. Some sozinho em 5s.
+        if (modoConsulta) {
+            setConsultaPreco({
+                nome: p.nome,
+                preco: Number(p.preco_venda_efetivo ?? p.preco_venda ?? 0),
+                unidade: (p.unidade_medida || 'UN').toUpperCase(),
+            });
+            setModoConsulta(false);
+            window.setTimeout(() => setConsultaPreco(null), 5000);
+            return;
+        }
         const aGranel = ['KG', 'G', 'L', 'ML'].includes(p.unidade_medida?.toUpperCase()) || p.tipo === 'granel';
 
         if (aGranel) {
@@ -556,6 +572,31 @@ const PDVPage: React.FC = () => {
                 produto={produtoPendentePeso}
             />
 
+            {/* Consulta de preço: card grande, sem tocar no carrinho, some em 5s. */}
+            <AnimatePresence>
+                {consultaPreco && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 p-4"
+                        role="status"
+                        aria-live="polite"
+                        onClick={() => setConsultaPreco(null)}
+                    >
+                        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-2xl dark:bg-slate-900">
+                            <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Consulta de preço</p>
+                            <p className="mt-2 text-xl font-black text-slate-900 dark:text-white">{consultaPreco.nome}</p>
+                            <p className="mt-4 text-5xl font-black tabular-nums text-emerald-600">
+                                {formatCurrency(consultaPreco.preco)}
+                            </p>
+                            <p className="mt-1 text-sm font-bold text-slate-500">por {consultaPreco.unidade}</p>
+                            <p className="mt-6 text-xs text-slate-400">Não foi adicionado ao carrinho · toque para fechar</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <PinDialog
                 open={!!descontoPendente}
                 title="Autorizar desconto"
@@ -628,6 +669,17 @@ const PDVPage: React.FC = () => {
                                 onProdutoSelecionado={handleProdutoSelecionado}
                                 disabled={!caixaEstaAberto}
                             />
+                            <button
+                                type="button"
+                                onClick={() => setModoConsulta(v => !v)}
+                                aria-pressed={modoConsulta}
+                                className={`mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-wide transition-colors ${modoConsulta
+                                    ? 'border-blue-500 bg-blue-600 text-white'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
+                            >
+                                <Search className="h-4 w-4" />
+                                {modoConsulta ? 'Consultando — bipe o produto' : 'Só consultar preço'}
+                            </button>
                         </div>
                     </div>
 
@@ -766,6 +818,25 @@ const PDVPage: React.FC = () => {
                                         </div>
                                         <Check className={`w-5 h-5 ${cliente ? 'text-green-500' : 'text-slate-200'}`} />
                                     </button>
+                                    {/* O caderninho mostrava UMA coisa na hora da venda: quanto o
+                                        cliente já devia. Isso tem que estar na tela onde o fiado é
+                                        decidido — não três cliques adiante em Clientes. */}
+                                    {cliente && Number(cliente.saldo_devedor ?? 0) > 0 && (
+                                        <div className="mx-4 mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/40">
+                                            <p className="flex items-center gap-2 text-sm font-black text-amber-900 dark:text-amber-200">
+                                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                                {cliente.nome} já deve {formatCurrency(Number(cliente.saldo_devedor ?? 0))}
+                                            </p>
+                                            {Number(cliente.limite_credito ?? 0) > 0 && (
+                                                <p className="mt-1 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                                                    Limite de fiado: {formatCurrency(Number(cliente.limite_credito))}
+                                                    {Number(cliente.saldo_devedor ?? 0) >= Number(cliente.limite_credito ?? 0)
+                                                        ? ' — limite estourado. Autorize no PIN ou receba parte agora.'
+                                                        : ''}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                     <AnimatePresence>
                                         {activeSection === 'cliente' && (
                                             <motion.div

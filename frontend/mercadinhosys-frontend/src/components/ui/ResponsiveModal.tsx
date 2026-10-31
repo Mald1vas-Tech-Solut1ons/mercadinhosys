@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
+import { useModalA11y } from '../../hooks/useModalA11y';
 
 interface ResponsiveModalProps {
   isOpen: boolean;
@@ -29,6 +30,8 @@ const ResponsiveModal: React.FC<ResponsiveModalProps> = ({
   closeButton = true,
 }) => {
   useBodyScrollLock(isOpen);
+  // Esc fecha, foco preso e devolvido: vale para TODO modal montado neste componente.
+  const containerRef = useModalA11y(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -51,6 +54,11 @@ const ResponsiveModal: React.FC<ResponsiveModalProps> = ({
   return createPortal(
     <div className="fixed inset-0 h-dvh bg-black/60 backdrop-blur-sm flex items-center justify-center z-200 p-0 sm:p-4 overflow-hidden animate-in fade-in duration-200">
       <div
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
         className={`bg-white dark:bg-gray-800 shadow-2xl w-full ${sizeClasses[size]}
           h-dvh sm:h-auto sm:max-h-[95dvh] sm:rounded-xl overflow-hidden flex flex-col
           animate-in zoom-in-95 duration-200`}

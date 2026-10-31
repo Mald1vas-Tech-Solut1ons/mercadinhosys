@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useModalA11y } from '../../../hooks/useModalA11y';
 import { Printer, X, Eye, Mail, Send, MessageCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { pdvService, ComprovanteVendaResponse } from '../pdvService';
@@ -57,6 +58,9 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
     // PDF gerado ao abrir o painel: o compartilhar do celular exige o arquivo pronto no clique
     const [arquivoPdf, setArquivoPdf] = useState<File | null>(null);
     const [gerandoPdf, setGerandoPdf] = useState(false);
+
+    // Esc fecha e devolve o foco ao campo de bip: o operador nao larga o teclado.
+    const dialogRef = useModalA11y(aberto, onFechar);
 
     useEffect(() => {
         if (!aberto) return;
@@ -199,7 +203,7 @@ const CupomFiscalModal: React.FC<CupomFiscalModalProps> = ({ aberto, vendaId, on
 
     return (
         <div className="fixed inset-0 z-200 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))', paddingTop: 'calc(1rem + env(safe-area-inset-top))' }}>
-            <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90dvh]">
+            <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Comprovante da venda" tabIndex={-1} className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90dvh]">
 
                 {/* Header do modal */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">

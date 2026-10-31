@@ -121,10 +121,12 @@ export interface ResumoFinanceiro {
     };
     dre_consolidado: {
         receita_bruta: number;
-        impostos_sobre_vendas?: number;
+        impostos_sobre_vendas?: number | null;
         receita_liquida?: number;
         impostos_configurados?: boolean;
         aliquota_impostos_venda?: number | null;
+        regime_tributario?: string | null;
+        imposto_rotulo?: string | null;
         aviso?: string | null;
         custo_mercadoria: number;
         lucro_bruto: number;

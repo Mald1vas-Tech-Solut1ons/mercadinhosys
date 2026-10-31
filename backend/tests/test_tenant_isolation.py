@@ -307,3 +307,30 @@ def test_fora_de_request_nao_filtra_por_padrao(app, dois_tenants):
     assert len(Produto.query.all()) >= 2
     with allow_all_tenants():
         assert len(Produto.query.all()) >= 2
+
+
+def test_modelos_logistica_herdam_multi_tenant_mixin(dois_tenants):
+    """
+    Modelos do Módulo 8 (Logística/Entregador) devem herdar MultiTenantMixin
+    para que consultas .query apliquem o isolamento automático de tenant.
+    """
+    from app.models import (
+        StatusPedidoLogistica,
+        AuditoriaQuilometragem,
+        ConfiguracaoLogistica,
+        TurnoEntregador,
+        MultiTenantMixin,
+    )
+    for cls in (StatusPedidoLogistica, AuditoriaQuilometragem, ConfiguracaoLogistica, TurnoEntregador):
+        assert issubclass(cls, MultiTenantMixin), f"{cls.__name__} não herda MultiTenantMixin"
+
+
+def test_login_manager_nao_autentica_por_username_em_query_string():
+    """
+    Segurança: login_manager não deve ter request_loader legado que autentica
+    qualquer usuário apenas passando ?token=<username> ou Bearer <username>.
+    """
+    from app.models import login_manager
+    assert login_manager._request_callback is None, (
+        "VULNERABILIDADE: login_manager.request_loader legado ainda está ativo!"
+    )

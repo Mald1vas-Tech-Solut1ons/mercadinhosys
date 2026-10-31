@@ -186,3 +186,9 @@ backend/app/tests/
 output/
 .claude/worktrees/
 .continue/mcpServers/
+.hermes/
+scripts/auditoria/
+frontend/mercadinhosys-frontend/preview-form.html
+frontend/mercadinhosys-frontend/src/__preview/
+frontend/mercadinhosys-frontend/src/__schema_mock.json
+**/.hermes-tmp.*

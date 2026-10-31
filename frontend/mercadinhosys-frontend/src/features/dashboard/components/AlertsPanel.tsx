@@ -5,10 +5,14 @@ import { useNavigate } from 'react-router-dom';
 
 export interface AlertaItem {
     id: string | number;
-    tipo: 'ruptura' | 'vencimento' | 'vencido';
+    tipo: 'ruptura' | 'cobertura' | 'vencimento' | 'vencido';
+    produto_id?: number;
     produto_nome: string;
     quantidade?: number;
     estoque_minimo?: number;
+    cobertura_dias?: number;
+    vmd?: number;
+    mensagem?: string;
     data_validade?: string;
 }
 
@@ -54,6 +58,7 @@ const AlertsPanel: React.FC = () => {
     const resumo = [
         { n: qtd('vencido'), rotulo: 'vencido(s)', cor: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
         { n: qtd('ruptura'), rotulo: 'estoque crítico', cor: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
+        { n: qtd('cobertura'), rotulo: 'acabando (giro)', cor: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
         { n: qtd('vencimento'), rotulo: 'a vencer', cor: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
     ].filter(r => r.n > 0);
 
@@ -117,9 +122,11 @@ const AlertsPanel: React.FC = () => {
                                 <p className="text-xs text-slate-600 dark:text-slate-400 font-medium">
                                     {alerta.tipo === 'ruptura' 
                                         ? `Estoque atual: ${alerta.quantidade} (Mínimo: ${alerta.estoque_minimo})`
-                                        : alerta.tipo === 'vencido'
-                                            ? `Venceu em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
-                                            : `Vence em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
+                                        : alerta.tipo === 'cobertura'
+                                            ? (alerta.mensagem || `Estoque: ${alerta.quantidade} — acaba em ${alerta.cobertura_dias} dia(s)`)
+                                            : alerta.tipo === 'vencido'
+                                                ? `Venceu em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
+                                                : `Vence em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
                                     }
                                 </p>
                             </div>

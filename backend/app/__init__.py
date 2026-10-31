@@ -30,13 +30,6 @@ except ModuleNotFoundError:
     sentry_sdk = None
     FlaskIntegration = None
 
-# Função para horário de Manaus (GMT-4)
-def get_manaus_time():
-    """Retorna datetime atual no fuso de Manaus (GMT-4)"""
-    utc_now = datetime.now(timezone.utc)
-    manaus_tz = timezone(timedelta(hours=-4))
-    return utc_now.astimezone(manaus_tz)
-
 # Inicializa as extensões
 migrate = Migrate()
 jwt = JWTManager()
@@ -1033,7 +1026,7 @@ def create_app(config_name=None):
             "status": "healthy",
             "service": "mercadinhosys-api",
             "version": "2.0.0",
-            "timestamp": iso_utc(get_manaus_time()),
+            "timestamp": iso_utc(datetime.now(timezone.utc)),
         }
         database_ok = True
 
@@ -1072,7 +1065,7 @@ def create_app(config_name=None):
         readiness = {
             "status": "ready",
             "service": "mercadinhosys-api",
-            "timestamp": iso_utc(get_manaus_time()),
+            "timestamp": iso_utc(datetime.now(timezone.utc)),
             "checks": {},
         }
         status_code = 200
@@ -1172,7 +1165,7 @@ def create_app(config_name=None):
                     "error": "Erro interno no servidor",
                     "message": err_msg,
                     "code": "INTERNAL_SERVER_ERROR",
-                    "timestamp": iso_utc(get_manaus_time()),
+                    "timestamp": iso_utc(datetime.now(timezone.utc)),
                 }
             ),
             500,

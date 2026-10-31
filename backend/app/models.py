@@ -2856,22 +2856,6 @@ def load_user(user_id):
     try: return Funcionario.query.get(int(user_id))
     except: return None
 
-@login_manager.request_loader
-def load_user_from_request(request):
-    auth = request.headers.get("Authorization")
-    if auth:
-        try:
-            typ, tok = auth.split(None, 1)
-            if typ.lower() in ("bearer", "token"):
-                user = Funcionario.query.filter_by(username=tok).first()
-                if user and user.ativo: return user
-        except: pass
-    tok = request.args.get("token")
-    if tok:
-        user = Funcionario.query.filter_by(username=tok).first()
-        if user and user.ativo: return user
-    return None
-
 def get_model_by_table(table_name: str):
     mapping = {
         "estabelecimentos": Estabelecimento,
@@ -2908,10 +2892,10 @@ AuditoriaSincronia = SyncQueue
 # Módulo 8: App do Entregador e Logística
 # ==========================================
 
-class StatusPedidoLogistica(db.Model):
+class StatusPedidoLogistica(db.Model, MultiTenantMixin):
     __tablename__ = "status_pedido_logistica"
     id = db.Column(db.Integer, primary_key=True)
-    estabelecimento_id = db.Column(db.Integer, db.ForeignKey('estabelecimentos.id'), nullable=False, index=True)
+    estabelecimento_id = TenantID()
     venda_id = db.Column(db.Integer, db.ForeignKey('vendas.id'), nullable=True, index=True)
     funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False, index=True)
     status = db.Column(db.String(50), nullable=False) # SAIU_PARA_ENTREGA, CHEGOU_NO_LOCAL, CONCLUIDO
@@ -2919,19 +2903,19 @@ class StatusPedidoLogistica(db.Model):
     longitude = db.Column(db.Float, nullable=True)
     timestamp = db.Column(db.DateTime, default=utcnow)
 
-class AuditoriaQuilometragem(db.Model):
+class AuditoriaQuilometragem(db.Model, MultiTenantMixin):
     __tablename__ = "auditoria_quilometragem"
     id = db.Column(db.Integer, primary_key=True)
-    estabelecimento_id = db.Column(db.Integer, db.ForeignKey('estabelecimentos.id'), nullable=False, index=True)
+    estabelecimento_id = TenantID()
     funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False, index=True)
     turno_data = db.Column(db.Date, nullable=False, default=lambda: utcnow().date())
     pontos_gps = db.Column(db.JSON, nullable=True) # JSON array de coords offline
     distancia_total_km = db.Column(db.Float, default=0.0)
 
-class ConfiguracaoLogistica(db.Model):
+class ConfiguracaoLogistica(db.Model, MultiTenantMixin):
     __tablename__ = "configuracoes_logistica"
     id = db.Column(db.Integer, primary_key=True)
-    estabelecimento_id = db.Column(db.Integer, db.ForeignKey('estabelecimentos.id'), nullable=False, index=True)
+    estabelecimento_id = TenantID()
     preco_gasolina = db.Column(db.Numeric(10, 2), default=6.00)
     preco_alcool = db.Column(db.Numeric(10, 2), default=4.50)
     preco_diesel = db.Column(db.Numeric(10, 2), default=5.00)
@@ -2940,10 +2924,10 @@ class ConfiguracaoLogistica(db.Model):
     preco_por_km_moto = db.Column(db.Numeric(10, 2), default=1.00)
     preco_por_km_carro = db.Column(db.Numeric(10, 2), default=2.00)
 
-class TurnoEntregador(db.Model):
+class TurnoEntregador(db.Model, MultiTenantMixin):
     __tablename__ = "turnos_entregador"
     id = db.Column(db.Integer, primary_key=True)
-    estabelecimento_id = db.Column(db.Integer, db.ForeignKey('estabelecimentos.id'), nullable=False, index=True)
+    estabelecimento_id = TenantID()
     funcionario_id = db.Column(db.Integer, db.ForeignKey('funcionarios.id'), nullable=False, index=True)
     veiculo_id = db.Column(db.Integer, db.ForeignKey('veiculos.id'), nullable=True, index=True)
     data_turno = db.Column(db.Date, nullable=False, default=lambda: utcnow().date())

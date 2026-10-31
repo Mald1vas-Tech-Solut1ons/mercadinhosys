@@ -310,9 +310,12 @@ const ResumoFinanceiroPanel: React.FC<ResumoFinanceiroPanelProps> = ({ className
                   <div className="p-6 rounded-4xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-1">DRE antes dos impostos</p>
+                      <p className="text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest mb-1">
+                        {resumo.dre_consolidado.imposto_rotulo || 'DRE antes dos impostos'}
+                      </p>
                       <p className="text-sm text-amber-800 dark:text-amber-300 leading-snug">
-                        {resumo.dre_consolidado.aviso} Informe a alíquota em Configurações &rsaquo; Fiscal.
+                        {resumo.dre_consolidado.aviso}
+                        {!resumo.dre_consolidado.imposto_rotulo && ' Informe a alíquota em Configurações › Fiscal.'}
                       </p>
                     </div>
                   </div>

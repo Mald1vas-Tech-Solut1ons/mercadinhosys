@@ -94,11 +94,29 @@ def test_entrada_esperada_inclui_contas_a_receber_do_periodo(client, session, fi
     assert indicadores["entrada_esperada_7d"] >= 300.0  # inclui o título que vence em 3 dias
 
 
+def test_dre_simples_nacional_nao_calcula_imposto_por_venda(client, session, fin):
+    """Simples Nacional recolhe DAS mensal apurado pelo contador — nunca deduz imposto por venda."""
+    _venda_mista(client, fin)
+    config = session.query(Configuracao).filter_by(estabelecimento_id=fin["estab"].id).first()
+    config.aliquota_impostos_venda = Decimal("6.00")
+    session.commit()
+
+    dre = _resumo(client, fin)["dre_consolidado"]
+    assert dre["regime_tributario"] == "SIMPLES NACIONAL"
+    assert dre["impostos_sobre_vendas"] is None
+    assert dre["imposto_rotulo"] == "Simples Nacional — DAS mensal"
+    assert dre["receita_liquida"] == pytest.approx(dre["receita_bruta"])
+    assert "Simples Nacional recolhe DAS mensal" in (dre["aviso"] or "")
+
+
 def test_dre_deduz_impostos_configurados_e_avisa_quando_nao(client, session, fin):
+    fin["estab"].regime_tributario = "LUCRO PRESUMIDO"
+    session.commit()
     _venda_mista(client, fin)
     sem = _resumo(client, fin)["dre_consolidado"]
     assert sem["impostos_configurados"] is False
     assert sem["impostos_sobre_vendas"] == 0
+    assert sem["imposto_rotulo"] is None
     assert sem["receita_liquida"] == pytest.approx(sem["receita_bruta"])
 
     config = session.query(Configuracao).filter_by(estabelecimento_id=fin["estab"].id).first()

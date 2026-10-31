@@ -1090,7 +1090,9 @@ class CategoriaProduto(db.Model, MultiTenantMixin, SoftDeleteMixin, Serializable
     estabelecimento_id = TenantID()
     nome = db.Column(db.String(50), nullable=False)
     descricao = db.Column(db.Text)
-    codigo = db.Column(db.String(20))
+    # Guarda a chave oficial da categoria (ex.: "embalagem_descartavel.embalagem_delivery", 41 chars):
+    # 20 não cabia. A linha é encontrada por `codigo`, nunca por `nome`.
+    codigo = db.Column(db.String(60))
     ativo = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     deleted_at = db.Column(db.DateTime, nullable=True)
@@ -1175,6 +1177,11 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     controlar_estoque = db.Column(db.Boolean, default=True)   # False p/ serviços: venda não movimenta estoque
     familia_produto = db.Column(db.String(40))
     perfil_fiscal = db.Column(db.String(40))
+    # ---- Taxonomia oficial (PLANO §2): chaves Família › Categoria › Subcategoria ----
+    # Guardadas como CHAVE (ex.: "bazar.cozinha.panela"); `categoria_id` continua sincronizado
+    # com a linha equivalente em categorias_produto.
+    categoria_oficial = db.Column(db.String(60), nullable=True)
+    subcategoria_oficial = db.Column(db.String(80), nullable=True)
     atributos_json = db.Column(db.Text, default="{}")         # atributos dinâmicos por segmento (cor, tamanho, dimensões...)
     # ---- Grade (services/grade_service.py): cada número/cor é um Produto vendável ----
     produto_pai_id = db.Column(db.Integer, db.ForeignKey("produtos.id"), nullable=True, index=True)
@@ -1185,6 +1192,7 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     categoria = db.relationship("CategoriaProduto", backref=db.backref("produtos", lazy=True))
     fornecedor = db.relationship("Fornecedor", backref=db.backref("produtos", lazy=True))
     __table_args__ = (db.Index("ix_produto_nome", "nome"), db.Index("ix_produto_codigo", "codigo_interno"), db.Index("ix_produto_categoria", "categoria_id"),
+                      db.Index("ix_produtos_estab_subcat", "estabelecimento_id", "subcategoria_oficial"),
                       db.UniqueConstraint("estabelecimento_id", "codigo_interno", name="uq_produto_estab_codigo"),
                       db.UniqueConstraint("estabelecimento_id", "codigo_barras", name="uq_produto_estab_codbar"))
 
@@ -1454,6 +1462,11 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
             data["atributos_variante"] = None
         data["eh_grade_modelo"] = bool(self.eh_grade_modelo)
         data["controlar_estoque"] = self.controlar_estoque is not False
+        # Taxonomia oficial: chave + nome de exibição (front não precisa saber o mapeamento).
+        from app.services.taxonomia_service import descrever
+        data["categoria_oficial"] = self.categoria_oficial
+        data["subcategoria_oficial"] = self.subcategoria_oficial
+        data.update(descrever(self.familia_produto, self.categoria_oficial, self.subcategoria_oficial))
         # Marca derivada do NCM (Lei 10.147/2000) para segregar a receita no PGDAS.
         from app.services.fiscal.tributacao import eh_pis_cofins_monofasico
         data["icms_st"] = bool(self.icms_st)
@@ -1854,6 +1867,11 @@ class VendaItem(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     # True quando, no momento da venda, o produto tinha origem_custo != "informado"
     # (custo estimado). Marca o CMV como estimado no DRE.
     custo_estimado = db.Column(db.Boolean, nullable=False, server_default="0")
+    # ---- Retrato da classificação NO MOMENTO DA VENDA (PLANO §2) ----
+    # Sem isto, reclassificar o produto reescreveria o histórico. Preenchido no checkout (bloco 2.2).
+    familia_produto = db.Column(db.String(40), nullable=True)
+    categoria_oficial = db.Column(db.String(60), nullable=True)
+    subcategoria_oficial = db.Column(db.String(80), nullable=True)
     venda = db.relationship("Venda", back_populates="itens")
     produto = db.relationship("Produto", backref=db.backref("itens_venda", lazy=True))
     __table_args__ = (db.Index("ix_venda_item_venda", "venda_id"), db.Index("ix_venda_item_produto", "produto_id"),

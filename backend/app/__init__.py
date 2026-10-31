@@ -636,6 +636,9 @@ def create_app(config_name=None):
                     ("produtos", "imagem_url",                      "VARCHAR(255)"),
                     ("produtos", "familia_produto",                 "VARCHAR(40)"),
                     ("produtos", "perfil_fiscal",                   "VARCHAR(40)"),
+                    # Taxonomia oficial (PLANO §2): chaves Família › Categoria › Subcategoria
+                    ("produtos", "categoria_oficial",               "VARCHAR(60)"),
+                    ("produtos", "subcategoria_oficial",            "VARCHAR(80)"),
                     ("produtos", "icms_st",                         "BOOLEAN DEFAULT FALSE"),
                     ("produtos", "classificacao_abc",               "VARCHAR(1)"),
                     # Vendas
@@ -649,6 +652,10 @@ def create_app(config_name=None):
                     ("venda_itens", "custo_unitario",               "NUMERIC(10,2)"),
                     ("venda_itens", "margem_item",                  "NUMERIC(5,2)"),
                     ("venda_itens", "margem_lucro_real",            "NUMERIC(10,2)"),
+                    # Retrato da classificação no momento da venda (PLANO §2)
+                    ("venda_itens", "familia_produto",              "VARCHAR(40)"),
+                    ("venda_itens", "categoria_oficial",            "VARCHAR(60)"),
+                    ("venda_itens", "subcategoria_oficial",         "VARCHAR(80)"),
                     # Despesas
                     ("despesas", "data_emissao",                    "DATE"),
                     ("despesas", "data_vencimento",                 "DATE"),
@@ -683,7 +690,24 @@ def create_app(config_name=None):
                             logger.warning(f"⚠️ Erro ao adicionar {table}.{col}: {e}")
 
                 logger.info(f"✅ Schema sync concluido: {added} colunas novas adicionadas.")
-                
+
+                # categorias_produto.codigo passou a guardar a chave oficial da categoria
+                # (ex.: "embalagem_descartavel.embalagem_delivery", 41 chars). Banco antigo tem
+                # VARCHAR(20) e estouraria na gravação: amplia uma vez. No SQLite o tamanho não é
+                # aplicado, então não há o que fazer lá.
+                try:
+                    if "categorias_produto" in existing_tables and db.engine.dialect.name == "postgresql":
+                        colunas_cat = {c["name"]: c for c in inspector.get_columns("categorias_produto")}
+                        tamanho = getattr((colunas_cat.get("codigo") or {}).get("type"), "length", None)
+                        if tamanho is not None and tamanho < 60:
+                            logger.info("🔧 Ampliando categorias_produto.codigo para VARCHAR(60)...")
+                            db.session.execute(_sync_text(
+                                "ALTER TABLE categorias_produto ALTER COLUMN codigo TYPE VARCHAR(60)"))
+                            db.session.commit()
+                except Exception as largura_err:
+                    db.session.rollback()
+                    logger.warning(f"⚠️ Não foi possível ampliar categorias_produto.codigo: {largura_err}")
+
                 # Tabelas SFA ausentes em bancos antigos: criadas a partir dos MODELS (fonte única).
                 # O DDL escrito à mão que existia aqui divergia do model (valor_meta x
                 # meta_faturamento/meta_positivacao) e todo banco novo nascia com o SFA em 500.

@@ -12,7 +12,7 @@ import re
 
 import pytest
 
-from app.models import Estabelecimento
+from app.models import CategoriaProduto, Estabelecimento, Produto, VendaItem
 from app.services.catalogo_familias import (
     CATEGORIAS_OFICIAIS,
     TAXONOMIA,
@@ -21,7 +21,15 @@ from app.services.catalogo_familias import (
     slug,
 )
 from app.services.view_schema_service import invalidar_cache_view_schema, resolver_view_schema
-from app.services.taxonomia_service import arvore, chave_canonica, outros, resolver
+from app.services.taxonomia_service import (
+    LIMITE_NOME_CATEGORIA,
+    arvore,
+    chave_canonica,
+    garantir_categoria_loja,
+    nome_categoria_loja,
+    outros,
+    resolver,
+)
 
 _SNAPSHOT = Path(__file__).resolve().parent / "data" / "categorias_oficiais_antes_da_taxonomia.txt"
 
@@ -184,3 +192,90 @@ def test_arvore_tem_categoria_e_subcategoria_com_chave_e_nome():
     assert cozinha["chave"] == "bazar.cozinha"
     assert {"chave": "bazar.cozinha.panela", "nome": "Panelas"} in cozinha["subcategorias"]
     assert [c["nome"] for c in arvore("bazar")][-1] == "Outros"
+
+
+# ---------------------------------------------------------------------------------------------
+# §2 — espelho em categorias_produto: idempotência, nome qualificado e limite de 50 caracteres
+# ---------------------------------------------------------------------------------------------
+def test_garantir_categoria_loja_e_idempotente(session):
+    estab = session.query(Estabelecimento).first()
+    primeira = garantir_categoria_loja(estab.id, "bazar.cozinha")
+    segunda = garantir_categoria_loja(estab.id, "bazar.cozinha")
+    session.commit()
+
+    assert primeira.id == segunda.id
+    linhas = session.query(CategoriaProduto).filter_by(estabelecimento_id=estab.id,
+                                                       codigo="bazar.cozinha").all()
+    assert len(linhas) == 1
+    assert linhas[0].nome == nome_categoria_loja("bazar", "Cozinha")
+    assert linhas[0].nome.endswith("› Cozinha")
+
+
+def test_cozinha_de_bazar_e_de_limpeza_na_mesma_loja_nao_colidem(session):
+    estab = session.query(Estabelecimento).first()
+    bazar = garantir_categoria_loja(estab.id, chave_categoria("bazar", "Cozinha"))
+    limpeza = garantir_categoria_loja(estab.id, chave_categoria("limpeza", "Cozinha"))
+    session.commit()
+
+    assert bazar.id != limpeza.id
+    assert bazar.nome == nome_categoria_loja("bazar", "Cozinha")
+    assert limpeza.nome == nome_categoria_loja("limpeza", "Cozinha")
+    assert bazar.nome != limpeza.nome  # mesmo que a categoria se chame "Cozinha" nos dois
+    assert (bazar.codigo, limpeza.codigo) == ("bazar.cozinha", "limpeza.cozinha")
+
+
+def test_outros_de_tres_familias_na_mesma_loja_nao_colidem(session):
+    estab = session.query(Estabelecimento).first()
+    criadas = [garantir_categoria_loja(estab.id, outros(familia)[0])
+               for familia in ("pet", "bazar", "limpeza")]
+    session.commit()
+
+    assert len({c.id for c in criadas}) == 3
+    assert len({c.nome for c in criadas}) == 3
+    assert len({c.codigo for c in criadas}) == 3
+
+
+def test_nome_qualificado_de_toda_categoria_cabe_em_50_caracteres():
+    maior = ""
+    for familia, categorias in TAXONOMIA.items():
+        for categoria in categorias:
+            nome = nome_categoria_loja(familia, categoria)
+            assert len(nome) <= LIMITE_NOME_CATEGORIA, (familia, categoria, nome, len(nome))
+            assert "›" in nome, nome
+            if len(nome) > len(maior):
+                maior = nome
+    # O maior nome real (o do plano: "teste o maior Família › Categoria").
+    assert len(maior) <= LIMITE_NOME_CATEGORIA
+
+
+def test_produto_serializa_os_campos_da_taxonomia(session):
+    estab = session.query(Estabelecimento).first()
+    categoria = garantir_categoria_loja(estab.id, "bazar.cozinha")
+    produto = Produto(estabelecimento_id=estab.id, categoria_id=categoria.id,
+                      nome="PANELA ANTIADERENTE 24CM", preco_custo=20, preco_venda=39.9,
+                      familia_produto="bazar",
+                      categoria_oficial="bazar.cozinha", subcategoria_oficial="bazar.cozinha.panela")
+    session.add(produto)
+    session.commit()
+
+    data = produto.to_dict()
+    assert data["categoria_oficial"] == "bazar.cozinha"
+    assert data["subcategoria_oficial"] == "bazar.cozinha.panela"
+    assert data["categoria_oficial_nome"] == "Cozinha"
+    assert data["subcategoria_oficial_nome"] == "Panelas"
+    assert data["categoria_oficial_exibicao"] == nome_categoria_loja("bazar", "Cozinha")
+    assert data["categoria_oficial_exibicao"].endswith("› Cozinha")
+
+
+def test_produto_sem_classificacao_serializa_nulos():
+    produto = Produto(nome="SEM CLASSIFICACAO", preco_custo=1, preco_venda=2)
+    data = produto.to_dict()
+    assert data["categoria_oficial"] is None and data["subcategoria_oficial"] is None
+    assert data["categoria_oficial_nome"] is None and data["subcategoria_oficial_nome"] is None
+
+
+def test_colunas_e_indice_existem_no_modelo():
+    assert {"categoria_oficial", "subcategoria_oficial"} <= set(Produto.__table__.columns.keys())
+    assert {"familia_produto", "categoria_oficial", "subcategoria_oficial"} <= set(VendaItem.__table__.columns.keys())
+    indices = {indice.name for indice in Produto.__table__.indexes}
+    assert "ix_produtos_estab_subcat" in indices

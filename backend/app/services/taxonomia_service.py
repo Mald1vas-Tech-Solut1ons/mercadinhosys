@@ -13,6 +13,30 @@ oficial; parecido mas diferente → não adivinha (devolve None).
 """
 from app.services.catalogo_familias import TAXONOMIA, chave_categoria, chave_subcategoria, slug
 
+# Limite de `categorias_produto.nome` (String(50) no model, com UNIQUE por loja).
+LIMITE_NOME_CATEGORIA = 50
+
+# Nome exibido quando "<Família> › <Categoria>" passa de 50 caracteres (plano §2:
+# "use nome curto da família"). Só as famílias cujo maior nome estoura entram aqui.
+NOMES_CURTOS_FAMILIA = {
+    "alimento": "Mercearia",
+    "hortifruti_pesaveis": "Hortifrúti",
+    "bazar": "Bazar",
+    "eletro": "Eletro",
+    "eletronicos": "Eletrônicos",
+    "higiene": "Higiene",
+    "tintas": "Tintas",
+}
+
+_CATEGORIAS_POR_CHAVE: dict[str, tuple[str, str]] = {}
+_SUBCATEGORIAS_POR_CHAVE: dict[str, tuple[str, str, str]] = {}
+for _familia, _cats in TAXONOMIA.items():
+    for _categoria, _subs in _cats.items():
+        _CATEGORIAS_POR_CHAVE[chave_categoria(_familia, _categoria)] = (_familia, _categoria)
+        for _sub in _subs:
+            _SUBCATEGORIAS_POR_CHAVE[chave_subcategoria(_familia, _categoria, _sub)] = (
+                _familia, _categoria, _sub)
+
 
 def chave_canonica(texto) -> str:
     """Regra 4: chave canônica separada por espaço ("Cama, Mesa e Banho" -> "cama mesa banho")."""
@@ -84,3 +108,107 @@ def outros(familia: str) -> tuple[str, str]:
             return (chave_categoria(familia, nome_categoria),
                     chave_subcategoria(familia, nome_categoria, subcategorias[0]))
     raise KeyError(f"família sem categoria 'Outros': {familia!r}")
+
+
+# ---------------------------------------------------------------------------------------------
+# §2/§3.2 — espelho em `categorias_produto` e nomes de exibição
+# ---------------------------------------------------------------------------------------------
+def _nome_familia(familia: str) -> str:
+    """Nome de exibição da família ("Bazar"), o mesmo que o schema mostra no formulário."""
+    from app.services.view_schema_service import FAMILIAS_PRODUTO  # import tardio: models -> service
+
+    return (FAMILIAS_PRODUTO.get(familia) or {}).get("nome") or familia.replace("_", " ").capitalize()
+
+
+def nome_categoria_loja(familia: str, categoria: str) -> str:
+    """Nome QUALIFICADO gravado em `categorias_produto.nome`: "<Família> › <Categoria>".
+
+    Categoria sozinha repetiria entre famílias ("Cozinha" em Bazar e em Limpeza, "Outros" em todas) e
+    bateria no UNIQUE (estabelecimento_id, nome). Se passar de 50 caracteres, usa o nome curto da
+    família (plano §2).
+    """
+    nome = f"{_nome_familia(familia)} › {categoria}"
+    if len(nome) > LIMITE_NOME_CATEGORIA:
+        curto = NOMES_CURTOS_FAMILIA.get(familia)
+        if curto:
+            nome = f"{curto} › {categoria}"
+    if len(nome) > LIMITE_NOME_CATEGORIA:  # cinto de segurança: nunca estoura a coluna
+        nome = nome[:LIMITE_NOME_CATEGORIA].rstrip()
+    return nome
+
+
+def garantir_categoria_loja(estab_id: int, chave_categoria: str):
+    """Devolve a CategoriaProduto da loja com `codigo` = chave, criando se não existir.
+
+    Busca SEMPRE por `codigo` (nunca por nome): o nome é só rótulo. Idempotente — duas chamadas
+    devolvem a mesma linha. Linha antiga do mesmo código que esteja inativa é reativada (o plano
+    proíbe apagar cadastro), e o UNIQUE de nome é respeitado porque o nome vai qualificado.
+    """
+    from app import db
+    from app.models import CategoriaProduto
+
+    chave = (chave_categoria or "").strip()
+    familia, _, _resto = chave.partition(".")
+    if not familia or chave not in _CATEGORIAS_POR_CHAVE:
+        raise ValueError(f"chave de categoria fora da taxonomia: {chave_categoria!r}")
+    _, categoria = _CATEGORIAS_POR_CHAVE[chave]
+    nome = nome_categoria_loja(familia, categoria)
+
+    def _buscar(com_ativo: bool):
+        consulta = db.session.query(CategoriaProduto).filter(
+            CategoriaProduto.estabelecimento_id == estab_id,
+            CategoriaProduto.codigo == chave,
+        )
+        if com_ativo:
+            consulta = consulta.filter(CategoriaProduto.ativo.is_(True),
+                                        CategoriaProduto.deleted_at.is_(None))
+        return consulta.order_by(CategoriaProduto.id.asc()).first()
+
+    existente = _buscar(com_ativo=True)
+    if existente:
+        return existente
+
+    existente = _buscar(com_ativo=False)  # desativada/apagada não vira linha nova
+    if existente:
+        existente.ativo = True
+        existente.deleted_at = None
+        db.session.flush()
+        return existente
+
+    categoria_loja = CategoriaProduto(estabelecimento_id=estab_id, nome=nome, codigo=chave, ativo=True)
+    db.session.add(categoria_loja)
+    try:
+        db.session.flush()
+    except Exception:
+        # Corrida/legado: outra linha do mesmo código entrou antes — usa a que existe.
+        db.session.rollback()
+        existente = _buscar(com_ativo=False)
+        if existente is None:
+            raise
+        return existente
+    return categoria_loja
+
+
+def descrever(familia: str | None, categoria_oficial: str | None,
+              subcategoria_oficial: str | None) -> dict:
+    """Nomes de exibição das chaves gravadas no produto/item.
+
+    Devolve sempre as três chaves (None quando a chave não está na taxonomia), para o front não
+    precisar saber que a classificação é guardada em chave.
+    """
+    dados: dict[str, str | None] = {"categoria_oficial_nome": None, "subcategoria_oficial_nome": None,
+                                    "categoria_oficial_exibicao": None}
+
+    categoria = _CATEGORIAS_POR_CHAVE.get(categoria_oficial or "")
+    subcategoria = _SUBCATEGORIAS_POR_CHAVE.get(subcategoria_oficial or "")
+    if categoria:
+        familia_cat, nome_categoria = categoria
+        dados["categoria_oficial_nome"] = nome_categoria
+        dados["categoria_oficial_exibicao"] = nome_categoria_loja(familia_cat, nome_categoria)
+    if subcategoria:
+        _, nome_categoria, nome_subcategoria = subcategoria
+        dados["subcategoria_oficial_nome"] = nome_subcategoria
+        if dados["categoria_oficial_nome"] is None:
+            dados["categoria_oficial_nome"] = nome_categoria
+            dados["categoria_oficial_exibicao"] = nome_categoria_loja(subcategoria[0], nome_categoria)
+    return dados

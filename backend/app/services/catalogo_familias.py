@@ -23,19 +23,35 @@ import unicodedata
 # Exceções com categorização completa no Anexo A: `vestuario`, `autopecas` e `servico`.
 TAXONOMIA = {
     "alimento": {
+        # Estrutura alinhada ao mapa de categorias das grandes redes brasileiras
+        # (Pão de Açúcar: Básico da despensa / Molhos e condimentos / Enlatados e conservas /
+        # Café e matinais / Biscoitos / Snacks / Doces / Padaria industrializada) e ao
+        # Segmento Food da GS1 GPC — cada subcategoria pertence a UMA categoria.
         "Básicos da Despensa": ["Arroz", "Feijão", "Grãos e Cereais", "Massas", "Farinhas e Farofas",
                                 "Açúcar", "Adoçantes", "Sal", "Óleos e Azeites", "Granel", "Cestas Básicas"],
-        "Molhos, Temperos e Conservas": ["Vinagres", "Molhos e Atomatados", "Maionese", "Ketchup e Mostarda",
-                                         "Temperos e Especiarias", "Caldos e Sopas", "Enlatados e Conservas",
-                                         "Peixes em Conserva", "Pratos Prontos"],
-        "Café da Manhã": ["Café", "Chás", "Achocolatados", "Leite em Pó", "Leites", "Leites Vegetais",
-                          "Cereais Matinais", "Aveia e Granola", "Pães e Bolos Industrializados", "Torradas",
-                          "Doces em Calda e Geleias", "Mel"],
-        "Biscoitos e Snacks": ["Biscoitos Doces", "Biscoitos Salgados", "Snacks e Salgadinhos", "Pipoca"],
-        "Doces e Sobremesas": ["Chocolates e Bombons", "Balas e Doces", "Confeitaria e Sobremesas",
-                               "Sazonais de Páscoa e Natal"],
+        "Molhos, Temperos e Condimentos": ["Vinagres", "Molhos e Atomatados", "Maionese", "Ketchup e Mostarda",
+                                           "Temperos e Especiarias", "Caldos e Sopas", "Molhos Especiais",
+                                           "Shoyu e Orientais"],
+        "Enlatados e Conservas": ["Enlatados e Conservas", "Milho e Ervilha", "Azeitonas e Pickles",
+                                  "Peixes em Conserva", "Patês e Pastas", "Pratos Prontos"],
+        "Café, Chá e Achocolatados": ["Café", "Chás", "Achocolatados"],
+        "Leites e Derivados de Prateleira": ["Leites", "Leite em Pó", "Leites Vegetais", "Leite Condensado",
+                                             "Creme de Leite", "Fórmulas Infantis"],
+        "Café da Manhã e Matinais": ["Cereais Matinais", "Aveia e Granola", "Barras de Cereal",
+                                     "Doces em Calda e Geleias", "Mel"],
+        "Biscoitos e Bolachas": ["Biscoitos Doces", "Biscoitos Salgados", "Wafers e Recheados",
+                                 "Rosquinhas e Caseiros"],
+        "Snacks e Salgadinhos": ["Snacks e Salgadinhos", "Batatas Chips", "Amendoim e Castanhas", "Pipoca"],
+        "Doces, Chocolates e Sobremesas": ["Chocolates e Bombons", "Balas e Doces", "Confeitaria e Sobremesas",
+                                           "Sazonais de Páscoa e Natal", "Pasta de Amendoim",
+                                           "Coberturas e Caldas"],
+        "Padaria Industrializada": ["Pães e Bolos Industrializados", "Torradas",
+                                    "Pães de Hambúrguer e Bisnaguinhas"],
         "Saudáveis e Especiais": ["Saudáveis e Funcionais", "Diet e Light", "Sem Glúten e Sem Lactose",
-                                  "Étnicos e Importados", "Alimentos Infantis"],
+                                  "Étnicos e Importados", "Alimentos Infantis", "Orgânicos e Naturais",
+                                  "Veganos e Vegetarianos"],
+        # Rede de segurança INTERNA dos caminhos automáticos (XML/planilha). Não aparece no
+        # cadastro manual — lá o lojista escolhe categoria de verdade.
         "Outros": ["Outros Alimentos"],
     },
     "frios_congelados": {

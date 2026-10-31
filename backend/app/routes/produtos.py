@@ -378,6 +378,17 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
         except ValueError:
             erros.append("Formato de data inválido. Use YYYY-MM-DD")
 
+    if data.get("data_fabricacao"):
+        try:
+            fabricacao = datetime.strptime(data["data_fabricacao"], "%Y-%m-%d").date()
+            if fabricacao > date.today():
+                erros.append("Data de fabricação não pode ser futura")
+            validade_txt = data.get("data_validade")
+            if validade_txt and fabricacao >= datetime.strptime(validade_txt, "%Y-%m-%d").date():
+                erros.append("Data de fabricação deve ser anterior à validade")
+        except ValueError:
+            erros.append("Formato de data de fabricação inválido. Use YYYY-MM-DD")
+
     # Validação de NCM (8 dígitos)
     if data.get("ncm"):
         ncm = re.sub(r"\D", "", data["ncm"])
@@ -2164,6 +2175,17 @@ def criar_produto():
             schema, data.get("atributos"), tipo_item=tipo_item
         )
         usa_validade = bool(schema.get("flags", {}).get("usa_validade", True))
+        flags_familia = schema.get("flags", {})
+        entra_estoque = tipo_item == "produto" and Decimal(str(data.get("quantidade") or 0)) > 0
+        if entra_estoque and flags_familia.get("validade_obrigatoria") and not data.get("data_validade"):
+            nome_familia = schema.get("familia_produto", {}).get("nome", "esta família")
+            return jsonify({"success": False, "message": f"Informe a data de validade: em {nome_familia} ela é "
+                            "obrigatória quando o produto entra com estoque.",
+                            "errors": ["Data de validade obrigatória"]}), 400
+        if entra_estoque and flags_familia.get("exige_fabricacao") and not data.get("data_fabricacao"):
+            return jsonify({"success": False, "message": "Informe a data de fabricação: é obrigatória em "
+                            "Suplementos e Vitaminas quando o produto entra com estoque.",
+                            "errors": ["Data de fabricação obrigatória"]}), 400
         # Sugestão fiscal por família — só usada como fallback quando o usuário
         # não informou o campo explicitamente (nunca sobrescreve valor digitado).
         fiscal_sugerido = sugestao_fiscal_para_familia(familia_produto, tipo_item=tipo_item)
@@ -2410,6 +2432,7 @@ def criar_produto():
                 if data.get("data_validade")
                 else None
             ),
+            data_fabricacao=_parse_optional_date(data.get("data_fabricacao")),
             lote=(data.get("lote", "") or "").strip(),
             imagem_url=(data.get("imagem_url", "") or "").strip(),
             ativo=bool(data.get("ativo", True)),
@@ -2427,7 +2450,10 @@ def criar_produto():
         if tipo_item == "servico" or not usa_validade:
             produto.controlar_validade = False
             produto.data_validade = None
+            produto.data_fabricacao = None
             produto.lote = ""
+        elif produto.data_validade:
+            produto.controlar_validade = True  # validade informada: alerta e bloqueio de vencido valem
 
         db.session.add(produto)
         db.session.flush()
@@ -2450,6 +2476,25 @@ def criar_produto():
         )
         db.session.add(historico_inicial)
 
+        lote_inicial = None
+        if produto.quantidade > 0 and produto.data_validade and flags_familia.get("usa_lotes", True):
+            numero = (produto.lote or "").strip() or f"CAD-{produto.id}-{date.today().strftime('%Y%m%d')}"
+            try:
+                numero = _ensure_unique_lote_number(estabelecimento_id, numero)
+            except ValueError:
+                db.session.rollback()
+                return jsonify({"success": False, "message": f"Já existe outro lote com o número {numero} nesta loja.",
+                                "errors": ["Lote duplicado"]}), 400
+            lote_inicial = ProdutoLote(
+                estabelecimento_id=estabelecimento_id, produto_id=produto.id, numero_lote=numero,
+                quantidade=produto.quantidade, quantidade_inicial=produto.quantidade,
+                data_fabricacao=produto.data_fabricacao, data_validade=produto.data_validade,
+                preco_custo_unitario=preco_custo, preco_venda=produto.preco_venda, ativo=True,
+            )
+            db.session.add(lote_inicial)
+            db.session.flush()
+            produto.lote = numero
+
         if produto.quantidade > 0:
             produto.recalcular_preco_custo_ponderado(
                 quantidade_entrada=produto.quantidade,
@@ -2465,6 +2510,7 @@ def criar_produto():
                 produto_id=produto.id,
                 funcionario_id=int(get_jwt_identity()),
                 tipo="entrada",
+                lote_id=lote_inicial.id if lote_inicial else None,
                 quantidade=produto.quantidade,
                 quantidade_anterior=0,
                 quantidade_atual=produto.quantidade,
@@ -5936,7 +5982,7 @@ def _imp_familia_por_texto():
     """Chave ("perfumaria_higiene") e nome ("Perfumaria e Higiene"), sem maiúscula nem acento."""
     mapa = {}
     for chave, info in FAMILIAS_PRODUTO.items():
-        for texto in (chave, chave.replace("_", " "), info.get("nome") or ""):
+        for texto in (chave, chave.replace("_", " "), info.get("nome") or "", *(info.get("nomes_antigos") or [])):
             if texto:
                 mapa[_imp_chave_categoria(texto)] = chave
     return mapa

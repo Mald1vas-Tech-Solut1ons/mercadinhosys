@@ -105,7 +105,7 @@ def test_schema_mercearia_lista_perfumaria_e_expoe_regras(session):
     schema = resolver_view_schema(estab, familia_produto="perfumaria_higiene")
 
     assert schema["familia_produto"]["chave"] == "perfumaria_higiene"
-    assert schema["familia_produto"]["nome"] == "Perfumaria e Higiene"
+    assert schema["familia_produto"]["nome"] == "Perfumaria e Cosméticos"
     assert schema["familia_produto"]["perfil_fiscal_padrao"] == "perfumaria_higiene"
     assert "perfumaria_higiene" in [f["chave"] for f in schema["familias_disponiveis"]]
     assert schema["sugestao_fiscal"]["icms_st_a_confirmar"] is True

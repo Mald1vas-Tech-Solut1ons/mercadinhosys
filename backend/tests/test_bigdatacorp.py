@@ -464,7 +464,26 @@ def test_titulo_da_loja_vence_tipo_solto_de_outra_loja():
     assert mapeado["marca"] == "Mam"
 
 
-def test_mamadeira_vai_para_higiene_e_nunca_construcao():
-    mix = ["alimento", "perfumaria_higiene", "construcao_hidraulica", "bazar"]
-    familia = bdc.familia_por_evidencia(None, ["Mamadeira", "Mamadeira MAM Easy Active 4 meses+ Rosa 330ml"], mix)
-    assert familia == "perfumaria_higiene"
+def test_mamadeira_vai_para_bebe_e_nunca_construcao():
+    textos = ["Mamadeira", "Mamadeira MAM Easy Active 4 meses+ Rosa 330ml"]
+    mix = ["alimento", "bebe", "perfumaria_higiene", "construcao_hidraulica", "bazar"]
+    assert bdc.familia_por_evidencia(None, textos, mix) == "bebe"
+    # Sem a família no mix, não chuta construção.
+    assert bdc.familia_por_evidencia(None, textos, ["alimento", "construcao_hidraulica"]) is None
+
+
+@pytest.mark.parametrize("texto, esperada", [
+    ("Colcha Casal Matelassada", "cama_mesa_banho"),
+    ("Ração Cães Adultos Carne 10kg", "pet"),
+    ("Refrigerante Cola PET 2L", "bebida"),
+    ("Fio Dental Menta 50m", "higiene"),
+    ("Detergente Neutro 500ml", "limpeza"),
+    ("Semente de Tomate Cereja", "jardinagem"),
+    ("Caderno Universitário 10 Matérias", "papelaria"),
+    ("Copo Descartável 200ml", "embalagem_descartavel"),
+    ("Furadeira de Impacto 650W", "ferramentas"),
+    ("Tinta Acrílica Fosca 18L", "tintas"),
+])
+def test_familias_novas_pelas_palavras(texto, esperada):
+    from app.services.view_schema_service import MIX_PADRAO_POR_SEGMENTO
+    assert bdc.familia_por_evidencia(None, [texto], MIX_PADRAO_POR_SEGMENTO["generico"]) == esperada

@@ -67,6 +67,10 @@ export interface SegmentoFlags {
     usa_grade: boolean;
     usa_dimensoes: boolean;
     usa_embalagens: boolean;
+    /** Família exige validade (e gera lote) quando o cadastro entra com estoque. */
+    validade_obrigatoria?: boolean;
+    /** Família exige também a data de fabricação (suplementos). */
+    exige_fabricacao?: boolean;
 }
 
 export interface SugestaoFiscal {
@@ -122,6 +126,8 @@ export interface ViewSchema {
         segmento_base: string;
     }>;
     flags: SegmentoFlags;
+    /** Categorias prontas da família (para tocar no cadastro). */
+    categorias_sugeridas?: string[];
     unidades: string[];
     tipos_item: TipoItem[];
     campos: CampoSchema[];

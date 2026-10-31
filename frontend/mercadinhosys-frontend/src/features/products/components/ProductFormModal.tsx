@@ -83,6 +83,45 @@ export const gtinValido = (codigo: string): boolean => {
     return (10 - (soma % 10)) % 10 === Number(d[d.length - 1]);
 };
 
+/**
+ * Categorias prontas da família: toque para escolher. As que a loja já criou aparecem marcadas;
+ * mostra as primeiras e o restante sob "ver todas" para não empurrar o formulário no celular.
+ */
+const CategoriasProntas = ({ sugeridas, daLoja, atual, onEscolher }: {
+    sugeridas: string[]; daLoja: string[]; atual: string; onEscolher: (c: string) => void;
+}) => {
+    const [todas, setTodas] = useState(false);
+    const normalizar = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const daLojaNorm = new Set(daLoja.map(normalizar));
+    const atualNorm = normalizar(atual || '');
+    const visiveis = todas ? sugeridas : sugeridas.slice(0, 12);
+    return (
+        <div className="mt-2">
+            <div className="flex flex-wrap gap-1.5">
+                {visiveis.map(c => {
+                    const escolhida = atualNorm !== '' && normalizar(c) === atualNorm;
+                    return (
+                        <button key={c} type="button" onClick={() => onEscolher(c)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${escolhida
+                                ? 'bg-blue-600 border-blue-600 text-white'
+                                : daLojaNorm.has(normalizar(c))
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+                            {c}
+                        </button>
+                    );
+                })}
+                {sugeridas.length > 12 && (
+                    <button type="button" onClick={() => setTodas(v => !v)}
+                        className="px-2.5 py-1 rounded-full text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        {todas ? 'ver menos' : `ver todas (${sugeridas.length})`}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 // Espelha services/fiscal/tributacao.py (Lei 10.147/2000): as listas vêm do schema.
 const ncmMonofasico = (ncm: string, regras?: RegrasFiscais): boolean => {
     const digitos = (ncm || '').replace(/\D/g, '');
@@ -122,6 +161,10 @@ const emptyForm = {
     fonte_referencia_mercado: 'outro' as 'shopee' | 'mercado_livre' | 'outro',
     quantidade: 0,
     quantidade_minima: 10,
+    // Validade/fabricação/lote do estoque inicial (famílias que vencem): o servidor cria o lote.
+    data_validade: '',
+    data_fabricacao: '',
+    lote: '',
     ativo: true,
     imagem_url: '',
     atributos: {} as Record<string, any>,
@@ -210,6 +253,10 @@ const ProductFormModal = ({
                 ativo: produto.ativo ?? true,
                 imagem_url: produto.imagem_url || '',
                 atributos: produto.atributos || {},
+                // Na edição a validade é dos lotes (tela de lotes); o formulário não envia datas.
+                data_validade: '',
+                data_fabricacao: '',
+                lote: '',
             });
         } else {
             setFormData({ ...emptyForm });
@@ -230,6 +277,18 @@ const ProductFormModal = ({
             setFormData(prev => ({ ...prev, familia_produto: familiaSchema }));
         }
     }, [show, schema, ehServico, formData.familia_produto]);
+
+    // Cada família mostra só os campos dela: ao trocar de família (ou receber a sugestão da busca),
+    // atributos que não existem no formulário novo saem do cadastro.
+    useEffect(() => {
+        if (!show || !schema) return;
+        const validas = new Set(schema.campos.filter(c => c.origem === 'atributo').map(c => c.chave));
+        setFormData(prev => {
+            const chaves = Object.keys(prev.atributos || {});
+            if (chaves.every(k => validas.has(k))) return prev;
+            return { ...prev, atributos: Object.fromEntries(Object.entries(prev.atributos).filter(([k]) => validas.has(k))) };
+        });
+    }, [show, schema]);
 
     // Sugestão fiscal por família: preenche/atualiza CFOP e CSOSN enquanto o
     // valor em tela ainda for exatamente o que a própria sugestão colocou lá
@@ -513,6 +572,26 @@ const ProductFormModal = ({
             return;
         }
 
+        // Validade da família (só no cadastro novo com estoque; na edição a validade é dos lotes).
+        const flagsFamilia = schema?.flags;
+        const pedeValidade = !editMode && !ehServico && !!flagsFamilia?.usa_validade;
+        if (pedeValidade && Number(formData.quantidade) > 0) {
+            const nomeFamilia = schema?.familia_produto?.nome || 'esta família';
+            if (flagsFamilia?.validade_obrigatoria && !formData.data_validade) {
+                showToast.error(`Informe a data de validade: em ${nomeFamilia} ela é obrigatória quando entra estoque.`);
+                return;
+            }
+            if (flagsFamilia?.exige_fabricacao && !formData.data_fabricacao) {
+                showToast.error(`Informe a data de fabricação: em ${nomeFamilia} ela é obrigatória quando entra estoque.`);
+                return;
+            }
+        }
+        if (pedeValidade && formData.data_fabricacao && formData.data_validade
+            && formData.data_fabricacao >= formData.data_validade) {
+            showToast.error('A data de fabricação precisa ser anterior à validade.');
+            return;
+        }
+
         // Guardião: produto físico novo com estoque zero só entra por exceção consciente
         // (vai para a Lista de Revisão do dono). Sem isso o servidor recusa o cadastro.
         let entrarSemEstoque = false;
@@ -531,6 +610,16 @@ const ProductFormModal = ({
             controlar_estoque: !ehServico,
             ...(entrarSemEstoque ? { entrar_sem_estoque: true } : {}),
         };
+        if (!pedeValidade) {
+            // Edição (validade vive nos lotes) ou família que não vence: nada de datas no payload.
+            delete payload.data_validade;
+            delete payload.data_fabricacao;
+            delete payload.lote;
+        } else {
+            for (const chave of ['data_validade', 'data_fabricacao', 'lote']) {
+                if (!payload[chave]) delete payload[chave];
+            }
+        }
         // Modo custo: insumos dos modos estimados fora do payload (servidor
         // grava informado; payload com origem_custo é ignorado de qualquer jeito).
         if (ehServico || formData.modo_precificacao === 'custo') {
@@ -812,7 +901,17 @@ const ProductFormModal = ({
                                     onChange={e => field('categoria', e.target.value)}
                                     className={inputClass}
                                     placeholder={ehServico ? exemplos.categoria_servico : exemplos.categoria} />
-                                <datalist id="cat-list">{categorias.map(c => <option key={c} value={c} />)}</datalist>
+                                <datalist id="cat-list">
+                                    {Array.from(new Set([...categorias, ...(schema?.categorias_sugeridas || [])]))
+                                        .map(c => <option key={c} value={c} />)}
+                                </datalist>
+                                {!ehServico && (schema?.categorias_sugeridas?.length ?? 0) > 0 && (
+                                    <CategoriasProntas
+                                        sugeridas={schema?.categorias_sugeridas || []}
+                                        daLoja={categorias}
+                                        atual={formData.categoria}
+                                        onEscolher={c => field('categoria', c)} />
+                                )}
                             </div>
                             {visivel('marca') && !ehServico && (
                                 <div>
@@ -1150,6 +1249,37 @@ const ProductFormModal = ({
                                     </div>
                                 )}
                             </div>
+                            {!editMode && schema?.flags?.usa_validade && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                                    <div>
+                                        <label className={labelClass}>
+                                            Data de Validade{schema.flags.validade_obrigatoria && Number(formData.quantidade) > 0 ? ' *' : ''}
+                                        </label>
+                                        <input type="date" value={formData.data_validade}
+                                            min={new Date().toISOString().slice(0, 10)}
+                                            onChange={e => field('data_validade', e.target.value)}
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>
+                                            Data de Fabricação{schema.flags.exige_fabricacao && Number(formData.quantidade) > 0 ? ' *' : ''}
+                                        </label>
+                                        <input type="date" value={formData.data_fabricacao}
+                                            max={new Date().toISOString().slice(0, 10)}
+                                            onChange={e => field('data_fabricacao', e.target.value)}
+                                            className={inputClass} />
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>Lote</label>
+                                        <input type="text" value={formData.lote} maxLength={50}
+                                            onChange={e => field('lote', e.target.value.toUpperCase())}
+                                            className={inputClass} placeholder="Da embalagem (ou automático)" />
+                                    </div>
+                                    <p className="sm:col-span-3 -mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                        O estoque inicial vira o primeiro lote com estas datas: entra no alerta de vencimento e o PDV vende o que vence antes.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

@@ -46,7 +46,7 @@ def test_schema_calcados(session):
 def test_schema_suplementos(session):
     estab = _estab(session)
     schema = resolver_view_schema(estab, familia_produto="suplementos")
-    assert schema["familia_produto"]["nome"] == "Suplementos e Nutrição"
+    assert schema["familia_produto"]["nome"] == "Suplementos e Vitaminas"
     assert schema["flags"]["usa_validade"] is True and schema["flags"]["usa_lotes"] is True
     campos = {c["chave"] for c in schema["campos"]}
     assert {"forma_apresentacao", "nutriente_principal", "dose_porcao", "doses_por_embalagem",

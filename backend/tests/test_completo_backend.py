@@ -172,7 +172,7 @@ def test_schema_eletro_tem_voltagem_garantia_e_modelo(session):
     ctx = _ctx(session, "mercearia")
     schema = resolver_view_schema(ctx["estab"], familia_produto="eletro")
     assert schema["familia_produto"]["chave"] == "eletro"
-    assert schema["familia_produto"]["nome"] == "Eletro e Eletroportáteis"
+    assert schema["familia_produto"]["nome"] == "Eletroportáteis e Eletrodomésticos"
     assert schema["familia_produto"]["perfil_fiscal_padrao"] == "eletro"
     assert "eletro" in [f["chave"] for f in schema["familias_disponiveis"]]
     campos = {c["chave"]: c for c in schema["campos"]}
@@ -188,13 +188,13 @@ def test_schema_eletro_tem_voltagem_garantia_e_modelo(session):
 
 def test_atributo_cor_nas_familias_nao_alimentares(client, session):
     ctx = _ctx(session, "generico")
-    for familia in ("bazar", "eletro", "embalagem_descartavel", "perfumaria_higiene", "construcao_leve",
-                    "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem"):
+    for familia in ("bazar", "eletro", "embalagem_descartavel", "construcao_leve", "construcao_eletrica",
+                    "construcao_hidraulica", "construcao_ferragem", "cama_mesa_banho", "brinquedos", "bebe"):
         campos = {c["chave"]: c for c in resolver_view_schema(ctx["estab"], familia_produto=familia)["campos"]}
         assert "cor" in campos, familia
         assert campos["cor"]["tipo"] == "select" and campos["cor"]["permite_custom"] is True
-    # Comida não tem cor; vestuário segue com a grade "cores".
-    for familia in ("alimento", "bebida", "vestuario"):
+    # Comida, suplemento, limpeza e cosmético não têm cor (cosmético usa "tom"); vestuário segue com a grade "cores".
+    for familia in ("alimento", "bebida", "vestuario", "suplementos", "perfumaria_higiene", "limpeza", "pet"):
         chaves = {c["chave"] for c in resolver_view_schema(ctx["estab"], familia_produto=familia)["campos"]}
         assert "cor" not in chaves, familia
 

@@ -293,6 +293,32 @@ FAMILIAS_PRODUTO = {
     },
 }
 
+# ---- Catálogo por família (formulário próprio + categorias prontas): ver catalogo_familias.py ----
+from app.services.catalogo_familias import (  # noqa: E402
+    AJUSTES_FAMILIAS_EXISTENTES, CAMPOS_FAMILIAS, FAMILIAS_NOVAS, MIX_NOVAS_POR_SEGMENTO,
+)
+
+for _chave, _ajuste in AJUSTES_FAMILIAS_EXISTENTES.items():
+    _familia = FAMILIAS_PRODUTO[_chave]
+    if _ajuste.get("nome") and _ajuste["nome"] != _familia["nome"]:
+        # Nome antigo segue aceito (planilhas de importação feitas antes da troca).
+        _familia["nomes_antigos"] = [_familia["nome"]]
+    for _campo in ("nome", "descricao", "categorias", "unidades"):
+        if _campo in _ajuste:
+            _familia[_campo] = _ajuste[_campo]
+    _familia["flags_override"] = {**(_familia.get("flags_override") or {}), **(_ajuste.get("flags_override") or {})}
+    _familia["exemplos"] = {**(_familia.get("exemplos") or {}), **(_ajuste.get("exemplos") or {})}
+    for _lista in ("campos_habilitados", "campos_ocultos"):
+        _atual = list(_familia.get(_lista) or [])
+        _familia[_lista] = _atual + [c for c in (_ajuste.get(_lista) or []) if c not in _atual]
+
+_PERFIL_FISCAL_NOVAS, _FISCAL_COMO_NOVAS = {}, {}
+for _chave, _definicao in FAMILIAS_NOVAS.items():
+    _definicao = dict(_definicao)
+    _PERFIL_FISCAL_NOVAS[_chave] = _definicao.pop("perfil_fiscal")
+    _FISCAL_COMO_NOVAS[_chave] = _definicao.pop("fiscal_como")
+    FAMILIAS_PRODUTO[_chave] = _definicao
+
 MIX_PADRAO_POR_SEGMENTO = {
     "mercearia": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
                   "eletro", "suplementos"],
@@ -303,6 +329,10 @@ MIX_PADRAO_POR_SEGMENTO = {
                  "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem", "vestuario", "servico",
                  "eletro", "calcados", "suplementos"],
 }
+
+for _segmento, _novas in MIX_NOVAS_POR_SEGMENTO.items():
+    _mix = MIX_PADRAO_POR_SEGMENTO[_segmento]
+    _mix.extend(f for f in _novas if f not in _mix)
 
 PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
     "alimento": "mercearia_padrao",
@@ -320,6 +350,7 @@ PERFIL_FISCAL_PADRAO_POR_FAMILIA = {
     "suplementos": "suplementos",
     "servico": "servico",
     "autopecas": "autopecas_padrao",
+    **_PERFIL_FISCAL_NOVAS,
 }
 
 # ==============================================================================
@@ -510,6 +541,8 @@ CAMPOS_PADRAO = [
      "origem": "atributo", "segmentos": ["autopecas", "generico"],
      "aplica_tipo_item": ["servico"], "ordem": 420},
 ]
+
+CAMPOS_PADRAO.extend(CAMPOS_FAMILIAS)
 
 # ==============================================================================
 # CATÁLOGO GLOBAL DE MÉTRICAS / KPIs (seed do view_registry, escopo='metrica')
@@ -830,6 +863,10 @@ FISCAL_SUGERIDO_POR_FAMILIA = {
 }
 
 
+for _chave, _como in _FISCAL_COMO_NOVAS.items():
+    FISCAL_SUGERIDO_POR_FAMILIA.setdefault(_chave, dict(FISCAL_SUGERIDO_POR_FAMILIA[_como]))
+
+
 def sugestao_fiscal_para_familia(familia_produto: str = None, tipo_item: str = "produto") -> dict:
     """Sugestão assistida (não autoritativa) de CSOSN/CST/CFOP/alíquota por família."""
     if str(tipo_item or "produto").lower() == "servico":
@@ -922,6 +959,8 @@ def resolver_view_schema(
             metricas.append(metrica)
 
     flags = dict(info_segmento["flags"])
+    flags.setdefault("validade_obrigatoria", False)
+    flags.setdefault("exige_fabricacao", False)
     flags.update(info_familia.get("flags_override") or {})
     # Validade some do segmento? Então o campo/painel não sobrevive nem por override de flag.
     unidades = overrides.get("unidades") if isinstance(overrides.get("unidades"), list) else None
@@ -956,6 +995,8 @@ def resolver_view_schema(
         "familias_configuraveis": listar_familias_disponiveis(segmento_tenant),
         "familias_disponiveis": listar_familias_disponiveis(segmento_tenant, mix_permitido),
         "flags": flags,
+        # Categorias prontas da família (o cadastro mostra para tocar; as da loja continuam valendo).
+        "categorias_sugeridas": list(info_familia.get("categorias") or []),
         "unidades": unidades or info_familia.get("unidades") or info_segmento["unidades"],
         "tipos_item": (
             ["produto", "servico"]

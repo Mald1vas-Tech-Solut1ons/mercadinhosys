@@ -538,6 +538,10 @@ const ProductsPage: React.FC = () => {
       novosFiltros.filtro_rapido = 'classe_c';
       novosFiltros.ordenar_por = 'total_vendido';
       novosFiltros.direcao = 'asc';
+    } else if (filter === 'esgotados') {
+      novosFiltros.estoque_status = 'esgotado';
+      novosFiltros.ordenar_por = 'nome';
+      novosFiltros.direcao = 'asc';
     } else if (filter === 'repor_urgente') {
       novosFiltros.filtro_rapido = 'repor_urgente';
       novosFiltros.ordenar_por = 'quantidade';
@@ -576,7 +580,7 @@ const ProductsPage: React.FC = () => {
     if (f === 'baixo' || f === 'esgotado' || f === 'normal') handleCardClick(f);
     else if (f === 'validade' || f === 'vencimento_proximo') handleQuickFilterChange('vencimento_proximo');
     else if (f === 'vencido') handleQuickFilterChange('vencido');
-    else if (['repor_urgente', 'classe_a', 'classe_b', 'classe_c', 'margem_alta', 'margem_baixa', 'giro_rapido', 'giro_lento'].includes(f)) handleQuickFilterChange(f);
+    else if (['esgotados', 'repor_urgente', 'classe_a', 'classe_b', 'classe_c', 'margem_alta', 'margem_baixa', 'giro_rapido', 'giro_lento'].includes(f)) handleQuickFilterChange(f);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
@@ -622,6 +626,7 @@ const ProductsPage: React.FC = () => {
     margem_alta: stats.margem_alta ?? 0,
     margem_baixa: stats.margem_baixa ?? 0,
     repor_urgente: stats.produtos_esgotados + stats.produtos_baixo_estoque,
+    esgotados: stats.produtos_esgotados,
     sem_fornecedor: 0,
     vencimento_proximo: stats.validade?.vence_30 || 0,
     vencido: stats.validade?.vencidos || 0

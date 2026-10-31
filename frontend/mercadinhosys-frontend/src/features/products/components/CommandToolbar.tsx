@@ -1,17 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import {
   Download,
   Plus,
   ShoppingCart,
   Calculator,
   Upload,
-  MoreVertical,
   Search,
-  Filter,
+  SlidersHorizontal,
   RefreshCw,
   ChevronDown,
   Barcode,
-  QrCode
+  QrCode,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../auth/authService';
@@ -31,6 +31,23 @@ interface CommandToolbarProps {
   showFilters: boolean;
 }
 
+/** Ação secundária: mesmo tamanho e estilo para todas; a cor fica só no ícone. */
+const Acao = ({ icon, label, onClick, title, cor, className = '' }: {
+  icon: React.ReactNode; label: string; onClick: () => void; title?: string; cor: string; className?: string;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    title={title || label}
+    className={`shrink-0 inline-flex items-center gap-2 h-10 px-3.5 rounded-xl border border-gray-200 dark:border-slate-700
+      bg-white dark:bg-slate-800 text-sm font-semibold text-gray-700 dark:text-slate-200 whitespace-nowrap
+      hover:bg-gray-50 hover:border-gray-300 dark:hover:bg-slate-700 transition-colors ${className}`}
+  >
+    <span className={cor}>{icon}</span>
+    {label}
+  </button>
+);
+
 const CommandToolbar: React.FC<CommandToolbarProps> = ({
   onNew,
   onRefresh,
@@ -44,136 +61,88 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
   onToggleFilters,
   showFilters
 }) => {
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const podeDarEntrada = canAccessRoute('/entrada-nfe', authService.getCurrentUser());
 
-  // Close more menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMoreMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   return (
-    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50 dark:bg-slate-900/80 backdrop-blur-md border border-gray-200 dark:border-slate-800 p-4 rounded-2xl shadow-xl">
-      
-      {/* Left Area: Title & Search */}
-      <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto flex-1">
-        <div className="relative w-full md:w-80 group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-500 dark:text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-          </div>
+    <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm">
+      {/* Linha 1: busca + filtros + ação principal (nunca quebra o texto do botão). */}
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4">
+        <div className="relative flex-1 min-w-0 basis-full sm:basis-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500 pointer-events-none" />
           <input
-            type="text"
+            type="search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 dark:border-slate-700 rounded-xl leading-5 bg-white dark:bg-slate-800/50 text-gray-700 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all sm:text-sm"
-            placeholder="Pesquisar por nome, código..."
+            className="block w-full h-11 pl-10 pr-10 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800
+              text-sm text-gray-800 dark:text-slate-100 placeholder:text-gray-400 dark:placeholder:text-slate-500
+              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white dark:focus:bg-slate-800 transition-all"
+            placeholder="Buscar por nome, código de barras ou marca"
           />
+          {search && (
+            <button type="button" onClick={() => onSearchChange('')} aria-label="Limpar busca"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-slate-700">
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        
+
         <button
+          type="button"
           onClick={onToggleFilters}
-          className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-sm font-medium transition-colors ${
-            showFilters 
-              ? 'bg-blue-600/20 border-blue-500/50 text-blue-400' 
-              : 'bg-white dark:bg-slate-800/50 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white'
+          aria-pressed={showFilters}
+          className={`shrink-0 inline-flex items-center gap-2 h-11 px-3.5 rounded-xl border text-sm font-semibold whitespace-nowrap transition-colors ${
+            showFilters
+              ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+              : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700'
           }`}
         >
-          <Filter className="w-4 h-4" />
+          <SlidersHorizontal className="w-4 h-4" />
           Filtros
           <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
         </button>
 
-        <button 
+        <button
+          type="button"
           onClick={onRefresh}
-          className="p-2.5 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white transition-colors"
-          title="Atualizar Dados"
+          aria-label="Atualizar lista"
+          title="Atualizar lista"
+          className="shrink-0 inline-flex items-center justify-center h-11 w-11 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
         </button>
+
+        <button
+          type="button"
+          onClick={onNew}
+          className="ml-auto shrink-0 inline-flex items-center gap-2 h-11 px-4 sm:px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold whitespace-nowrap shadow-sm transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          <span className="sm:hidden">Novo</span>
+          <span className="hidden sm:inline">Novo Produto</span>
+        </button>
       </div>
 
-      {/* Right Area: Primary Actions */}
-      <div className="flex items-center gap-2 w-full md:w-auto">
-        <button
-          onClick={onPurchaseOrders}
-          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 rounded-xl transition-all text-sm font-medium"
-        >
-          <ShoppingCart className="w-4 h-4" />
-          <span className="hidden sm:inline">Compras</span>
-        </button>
-
-        <button
-          onClick={onMarkup}
-          className="flex items-center gap-2 px-4 py-2.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-xl transition-all text-sm font-medium"
-        >
-          <Calculator className="w-4 h-4" />
-          <span className="hidden sm:inline">Markup</span>
-        </button>
-
-        {podeDarEntrada && (
-          <button
-            onClick={() => navigate('/entrada-nfe?ler=1')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 rounded-xl transition-all text-sm font-medium"
-            title="Dar entrada no estoque pela nota fiscal (QR Code do cupom ou XML)"
-          >
-            <QrCode className="w-4 h-4" />
-            <span className="hidden sm:inline">Nota fiscal (QR Code)</span>
-          </button>
-        )}
-
-        <button
-          onClick={onLabels}
-          className="tour-produtos-etiquetas flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-500 rounded-xl transition-all text-sm font-medium"
-          title="Imprimir etiquetas com código de barras"
-        >
-          <Barcode className="w-4 h-4" />
-          <span className="hidden sm:inline">Etiquetas</span>
-        </button>
-
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowMoreMenu(!showMoreMenu)}
-            className="p-2.5 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white transition-colors"
-            title="Mais Ações"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-          
-          {showMoreMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
-              <button
-                onClick={() => { setShowMoreMenu(false); onImport(); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white transition-colors"
-              >
-                <Upload className="w-4 h-4" /> Importar Planilha
-              </button>
-              <button
-                onClick={() => { setShowMoreMenu(false); onExport(); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-900 dark:text-white transition-colors"
-              >
-                <Download className="w-4 h-4" /> Exportar CSV
-              </button>
-            </div>
+      {/* Linha 2: ações secundárias. No celular rola na horizontal em vez de estourar a tela. */}
+      <div className="border-t border-gray-100 dark:border-slate-800 px-3 sm:px-4 py-2.5">
+        <div className="flex items-center gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
+          {podeDarEntrada && (
+            <Acao icon={<QrCode className="w-4 h-4" />} label="Ler nota" cor="text-amber-500"
+              title="Dar entrada no estoque pela nota fiscal (QR Code do cupom ou XML)"
+              onClick={() => navigate('/entrada-nfe?ler=1')} />
           )}
+          <Acao icon={<ShoppingCart className="w-4 h-4" />} label="Compras" cor="text-indigo-500"
+            title="Pedidos de compra aos fornecedores" onClick={onPurchaseOrders} />
+          <Acao icon={<Calculator className="w-4 h-4" />} label="Markup" cor="text-purple-500"
+            title="Calcular preço de venda pela margem" onClick={onMarkup} />
+          <Acao icon={<Barcode className="w-4 h-4" />} label="Etiquetas" cor="text-emerald-500"
+            title="Imprimir etiquetas com código de barras" onClick={onLabels} className="tour-produtos-etiquetas" />
+          <span className="shrink-0 w-px h-6 bg-gray-200 dark:bg-slate-700 mx-1" aria-hidden />
+          <Acao icon={<Upload className="w-4 h-4" />} label="Importar" cor="text-gray-500 dark:text-slate-400"
+            title="Importar produtos de planilha" onClick={onImport} />
+          <Acao icon={<Download className="w-4 h-4" />} label="Exportar" cor="text-gray-500 dark:text-slate-400"
+            title="Exportar a lista em CSV" onClick={onExport} />
         </div>
-
-        <div className="w-px h-8 bg-gray-100 dark:bg-slate-700 mx-1 hidden sm:block"></div>
-
-        <button
-          onClick={onNew}
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all text-sm font-bold shadow-[0_0_15px_rgba(37,99,235,0.4)]"
-        >
-          <Plus className="w-4 h-4" />
-          Novo Produto
-        </button>
       </div>
     </div>
   );

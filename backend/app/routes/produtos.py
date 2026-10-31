@@ -4119,6 +4119,51 @@ def listar_produtos_estoque():
             return jsonify({"error": f"Erro ao listar produtos: {str(e)}"}), 500
 
 
+def _top_categorias(linhas, limite=6):
+    """Maiores categorias + "Outras" com a soma do resto (cortar o resto fazia o gráfico mentir)."""
+    ordenadas = sorted(((n or "Sem Categoria", float(v or 0)) for n, v in linhas if v), key=lambda x: -x[1])
+    topo = [{"name": n, "value": round(v, 2)} for n, v in ordenadas[:limite]]
+    resto = sum(v for _, v in ordenadas[limite:])
+    if resto:
+        topo.append({"name": "Outras", "value": round(resto, 2)})
+    return topo
+
+
+def _distribuicao_por_categoria(q_global, query):
+    """Gráficos dos cards pelo catálogo inteiro, com a MESMA conta de cada card.
+
+    Contagens (total/normal/baixo/esgotado) usam a base global dos cards; valor e margem usam a
+    base filtrada, como valor_total_estoque e margem_media. Antes o gráfico era montado no
+    navegador só com a página aberta da lista (25 itens): card 3 esgotados, gráfico 1 (100%).
+    """
+    nome = func.coalesce(CategoriaProduto.nome, "Sem Categoria")
+
+    def por_categoria(q, *expr, condicao=None):
+        q = q.outerjoin(CategoriaProduto, CategoriaProduto.id == Produto.categoria_id)
+        if condicao is not None:
+            q = q.filter(condicao)
+        return q.with_entities(nome, *expr).group_by(nome).all()
+
+    contar = func.count(Produto.id)
+    dist = {
+        "all": _top_categorias(por_categoria(q_global, contar)),
+        "esgotado": _top_categorias(por_categoria(q_global, contar, condicao=Produto.quantidade <= 0)),
+        "baixo": _top_categorias(por_categoria(q_global, contar, condicao=and_(
+            Produto.quantidade > 0, Produto.quantidade <= Produto.quantidade_minima))),
+        "normal": _top_categorias(por_categoria(q_global, contar, condicao=Produto.quantidade > Produto.quantidade_minima)),
+        "valor": _top_categorias(por_categoria(query, func.sum(Produto.quantidade * Produto.preco_venda))),
+    }
+    margens = []
+    for categoria_nome, venda, custo in por_categoria(
+            query, func.sum(Produto.quantidade * Produto.preco_venda), func.sum(Produto.quantidade * Produto.preco_custo)):
+        venda, custo = float(venda or 0), float(custo or 0)
+        if custo > 0 and venda > 0:
+            margens.append((categoria_nome, (venda - custo) / custo * 100))
+    dist["margem"] = [{"name": n or "Sem Categoria", "value": round(v, 2)}
+                      for n, v in sorted(margens, key=lambda x: -x[1])[:6]]
+    return dist
+
+
 @produtos_bp.route("/estatisticas", methods=["GET"])
 @funcionario_required
 def obter_estatisticas_produtos():
@@ -4188,6 +4233,7 @@ def obter_estatisticas_produtos():
                         "validade": {"vencidos": 0, "vence_15": 0, "vence_30": 0, "vence_90": 0},
                         "top_produtos_margem": [],
                         "produtos_criticos": [],
+                        "distribuicao_categoria": _distribuicao_por_categoria(q_global, query),
                         "filtros_aplicados": {
                             "categoria": categoria,
                             "ativos": ativos,
@@ -4312,6 +4358,7 @@ def obter_estatisticas_produtos():
                     "validade": {"vencidos": 0, "vence_15": 0, "vence_30": 0, "vence_90": 0},
                     "top_produtos_margem": [],
                     "produtos_criticos": [],
+                    "distribuicao_categoria": _distribuicao_por_categoria(q_global, query),
                     "filtros_aplicados": {
                         "categoria": categoria,
                         "ativos": ativos,
@@ -4507,6 +4554,7 @@ def obter_estatisticas_produtos():
             },
             "top_produtos_margem": top_margem,
             "produtos_criticos": produtos_criticos,
+            "distribuicao_categoria": _distribuicao_por_categoria(q_global, query),
             "produtos": [], # A lista completa já é enviada na rota principal
             "filtros_aplicados": {
                 "categoria": categoria,

@@ -113,3 +113,15 @@ def test_atributo_de_outra_familia_e_descartado(client, session, ctx):
                atributos={"cor": "Rosa", "forma_apresentacao": "Pó"})
     assert r.status_code == 201, r.get_data(as_text=True)
     assert session.get(Produto, r.get_json()["produto"]["id"]).atributos == {"forma_apresentacao": "Pó"}
+
+
+def test_grafico_dos_cards_usa_o_catalogo_inteiro(client, session, ctx):
+    """Card dizia 3 esgotados e o gráfico (montado com a página da lista) mostrava 1 = 100%."""
+    r = client.get("/api/produtos/estatisticas?ativos=true", headers=ctx["headers"])
+    assert r.status_code == 200, r.get_data(as_text=True)
+    est = r.get_json()["estatisticas"]
+    dist = est["distribuicao_categoria"]
+    assert sum(c["value"] for c in dist["esgotado"]) == est["produtos_esgotados"]
+    assert sum(c["value"] for c in dist["baixo"]) == est["produtos_baixo_estoque"]
+    assert sum(c["value"] for c in dist["all"]) == est["total_produtos"]
+    assert len(dist["all"]) <= 7  # 6 maiores + "Outras"

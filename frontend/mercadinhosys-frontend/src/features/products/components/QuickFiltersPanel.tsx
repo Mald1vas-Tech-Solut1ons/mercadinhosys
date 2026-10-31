@@ -7,6 +7,7 @@ import {
     DollarSign,
     Package,
     Clock,
+    XCircle,
 } from 'lucide-react';
 import { useViewSchema, schemaHelpers } from '../../../services/viewSchemaService';
 
@@ -21,6 +22,7 @@ interface QuickFiltersPanelProps {
         margem_alta: number;
         margem_baixa: number;
         repor_urgente: number;
+        esgotados: number;
         sem_fornecedor: number;
         vencimento_proximo: number;
         vencido: number;
@@ -99,6 +101,15 @@ const QuickFiltersPanel: React.FC<QuickFiltersPanelProps> = ({
             color: 'emerald',
             count: counts.margem_alta,
             description: 'Mais rentáveis',
+        },
+        {
+            id: 'esgotados',
+            label: 'Esgotados',
+            icon: <XCircle className="w-4 h-4" />,
+            color: 'red',
+            count: counts.esgotados,
+            description: 'Estoque zerado: o PDV não vende',
+            pulse: counts.esgotados > 0,
         },
         {
             id: 'repor_urgente',

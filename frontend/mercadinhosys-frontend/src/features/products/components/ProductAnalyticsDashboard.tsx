@@ -36,6 +36,8 @@ interface ProductAnalyticsDashboardProps {
         validade?: { vencidos: number; vence_15: number; vence_30: number; vence_90: number };
         top_produtos_margem?: any[];
         produtos_criticos?: any[];
+        /** Gráfico de cada card pelo catálogo inteiro, com a mesma conta do card (servidor). */
+        distribuicao_categoria?: Record<string, Array<{ name: string; value: number }>>;
     };
     onCardClick: (filterType: string) => void;
     onAdvancedAnalyticsClick: (type: string) => void;
@@ -156,7 +158,12 @@ const ProductAnalyticsDashboard: React.FC<ProductAnalyticsDashboardProps> = ({
 
     // Data para o gráfico do modal (Composição por Categoria)
     const getModalChartData = () => {
-        if (!activeMetricModal || !produtos) return [];
+        if (!activeMetricModal) return [];
+        // Fonte única: o servidor agrega o catálogo inteiro do mesmo jeito que o número do card.
+        // (Montar aqui com `produtos` usava só a página aberta da lista e o gráfico desmentia o card.)
+        const doServidor = stats.distribuicao_categoria?.[activeMetricModal.id];
+        if (doServidor) return doServidor;
+        if (!produtos) return [];
         const categorias: any = {};
         let dataToProcess = produtos;
 

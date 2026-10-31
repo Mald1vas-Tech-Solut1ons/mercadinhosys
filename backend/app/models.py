@@ -2471,7 +2471,11 @@ class Auditoria(db.Model, MultiTenantMixin):
                 )
             )
         except Exception as e:
-            pass
+            # Auditoria que falha em silêncio é auditoria que mente: o evento some e
+            # ninguém fica sabendo. Loga com traceback e segue sem derrubar a transação
+            # (perder o rastro é ruim; perder a venda é pior).
+            if current_app:
+                current_app.logger.error(f"Falha ao registrar auditoria direto ({tipo_evento}): {e}", exc_info=True)
 
     @classmethod
     def registrar(cls, estabelecimento_id, tipo_evento, descricao, usuario_id=None, valor=None, detalhes=None):

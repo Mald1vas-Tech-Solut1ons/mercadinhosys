@@ -1196,6 +1196,12 @@ def cancelar_venda(venda_id):
         data = request.get_json() or {}
         motivo = data.get("motivo", "Cancelamento solicitado pelo usuário")
         funcionario_id = get_jwt().get('sub')
+        # FASE 1.8: o cliente devolveu o leite aberto. Item marcado como perda NÃO volta
+        # ao estoque (senão vira vendável de novo e o inventário mente).
+        itens_perda = data.get("itens_perda") or []
+        if not isinstance(itens_perda, list):
+            return jsonify({"error": "itens_perda precisa ser uma lista de ids de produto"}), 400
+        itens_perda = [int(p) for p in itens_perda if str(p).isdigit()]
 
         query = Venda.query.filter_by(id=venda_id)
         if str(estabelecimento_id).lower() != 'all':
@@ -1300,8 +1306,19 @@ def cancelar_venda(venda_id):
             legado = None if venda.tipo_venda == 'delivery' else [
                 (item.produto_id, item.quantidade) for item in venda.itens
                 if item.produto is not None and controla_estoque(item.produto)]
+            # Só entra em itens_perda produto que é desta venda: id solto não pode
+            # virar perda de outro item.
+            da_venda = {item.produto_id for item in venda.itens}
+            invalidos = [p for p in itens_perda if p not in da_venda]
+            if invalidos:
+                db.session.rollback()
+                return jsonify({"error": f"Produto(s) {invalidos} não fazem parte desta venda"}), 400
+
             estornar_saidas_venda(venda, funcionario_id=funcionario_id,
-                                  motivo=f"Cancelamento da venda #{venda.codigo}", itens_sem_movimento=legado)
+                                  motivo=f"Cancelamento da venda #{venda.codigo}", itens_sem_movimento=legado,
+                                  produtos_perda=itens_perda)
+            from app.services.estoque_service import registrar_perda_de_venda
+            registrar_perda_de_venda(venda, itens_perda, funcionario_id=funcionario_id)
             for item in venda.itens:
                 produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estabelecimento_id).first()
                 if produto:

@@ -194,22 +194,28 @@ def _baixa_efetiva(movimento, quantidade):
     return Decimal(valor) if valor is not None else quantidade
 
 
-def estornar_saidas_venda(venda, *, funcionario_id, motivo, itens_sem_movimento=None):
+def estornar_saidas_venda(venda, *, funcionario_id, motivo, itens_sem_movimento=None, produtos_perda=None):
     """Devolve ao estoque exatamente o que a venda consumiu, uma única vez.
 
     A fonte é o razão de movimentos: agregado e lotes voltam como saíram, com
     movimento de entrada vinculado. Venda legada sem movimento de saída só é
     reposta quando ``itens_sem_movimento`` informa que houve baixa sem rastro.
+
+    ``produtos_perda`` sai deste estorno: o cliente devolveu o leite aberto, o
+    produto não volta para a prateleira (ver registrar_perda_de_venda).
     """
+    perda = {int(p) for p in (produtos_perda or [])}
     saidas = MovimentacaoEstoque.query.filter_by(
         venda_id=venda.id, estabelecimento_id=venda.estabelecimento_id, tipo='saida').order_by(MovimentacaoEstoque.id).all()
+    saidas = [m for m in saidas if m.produto_id not in perda]
     estornos = MovimentacaoEstoque.query.filter_by(
         venda_id=venda.id, estabelecimento_id=venda.estabelecimento_id, tipo='entrada').count()
     if estornos:
         raise ValueError('Estoque desta venda já foi estornado')
     pendentes = [(m.produto_id, Decimal(str(m.quantidade)), m) for m in saidas]
     if not saidas and itens_sem_movimento:
-        pendentes = [(produto_id, Decimal(str(qtd)), None) for produto_id, qtd in itens_sem_movimento]
+        pendentes = [(produto_id, Decimal(str(qtd)), None)
+                     for produto_id, qtd in itens_sem_movimento if int(produto_id) not in perda]
     criados = []
     for produto_id, quantidade, saida in pendentes:
         produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=venda.estabelecimento_id)\
@@ -243,3 +249,66 @@ def estornar_saidas_venda(venda, *, funcionario_id, motivo, itens_sem_movimento=
         db.session.add(movimento)
         criados.append(movimento)
     return criados
+
+
+def registrar_perda_de_venda(venda, produtos_perda, *, funcionario_id, motivo="Perda em cancelamento de venda"):
+    """Cancelamento em que o item NÃO volta para a prateleira.
+
+    O estoque já foi baixado na venda; devolver o item ao estoque faria o
+    inventário mentir (o leite aberto volta a ser vendável). Aqui a saída
+    original da venda é retitulada como perda: o razão continua fechando com o
+    saldo do produto, e o DRE passa a ler aquilo como perda, não como venda.
+
+    Venda antiga sem rastro de saída ganha uma linha de perda explícita
+    (quantidade anterior = saldo atual + quantidade), sem tocar no saldo —
+    o produto já tinha sido baixado na venda.
+    """
+    from app.models import MovimentacaoEstoque, Produto
+
+    perda = [int(p) for p in (produtos_perda or [])]
+    if not perda:
+        return []
+
+    registrados = []
+    for produto_id in perda:
+        # Quantidade que a venda consumiu deste produto (agregando mais de um item do mesmo produto).
+        quantidade = sum(
+            (Decimal(str(item.quantidade or 0)) for item in venda.itens if item.produto_id == produto_id),
+            Decimal("0"),
+        )
+        if quantidade <= 0:
+            continue
+
+        saidas = [m for m in MovimentacaoEstoque.query.filter_by(
+            venda_id=venda.id, estabelecimento_id=venda.estabelecimento_id,
+            produto_id=produto_id, tipo='saida').order_by(MovimentacaoEstoque.id).all()
+            if not (m.motivo or "").startswith(motivo)]
+        if saidas:
+            for saida in saidas:
+                saida.motivo = motivo[:100]
+                saida.observacoes = f"Cancelamento da venda #{venda.codigo}: item não voltou ao estoque"
+            registrados.extend(saidas)
+            continue
+
+        produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=venda.estabelecimento_id)            .populate_existing().with_for_update().first()
+        if not produto:
+            continue
+        atual = Decimal(str(produto.quantidade or 0))
+        movimento = MovimentacaoEstoque(
+            estabelecimento_id=venda.estabelecimento_id,
+            produto_id=produto_id,
+            venda_id=venda.id,
+            funcionario_id=funcionario_id,
+            tipo='saida',
+            quantidade=quantidade,
+            quantidade_anterior=atual + quantidade,
+            quantidade_atual=atual,
+            custo_unitario=custo_historico(produto),
+            valor_total=(custo_historico(produto) * quantidade).quantize(CENT, rounding=ROUND_HALF_UP),
+            motivo=motivo[:100],
+            observacoes=f"Cancelamento da venda #{venda.codigo}: venda sem rastro de saída",
+        )
+        db.session.add(movimento)
+        registrados.append(movimento)
+
+    return registrados

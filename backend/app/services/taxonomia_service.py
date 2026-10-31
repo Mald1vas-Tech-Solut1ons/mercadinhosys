@@ -130,6 +130,44 @@ def outros(familia: str) -> tuple[str, str]:
     raise KeyError(f"família sem categoria 'Outros': {familia!r}")
 
 
+def _unicos_por_chave_canonica(alvo: str, formas_por_chave: dict) -> str | None:
+    """Chave cujo conjunto de formas casa com `alvo`; None se nenhuma casa ou se mais de uma."""
+    achados = [chave for chave, formas in formas_por_chave.items() if alvo in formas]
+    return achados[0] if len(achados) == 1 else None
+
+
+def chave_de_categoria(texto) -> str | None:
+    """Chave da categoria a partir do nome ou da chave pronta, SEM família informada.
+
+    Usado nos filtros da lista de produtos: casa pela chave canônica contra a taxonomia inteira.
+    Nome ambíguo entre famílias ("Outros" existe em todas) → None, nunca adivinha.
+    """
+    alvo = chave_canonica(texto)
+    if not alvo:
+        return None
+    formas = {
+        chave: {chave_canonica(nome), chave_canonica(chave), chave_canonica(f"{familia}.{nome}")}
+        for chave, (familia, nome) in _CATEGORIAS_POR_CHAVE.items()
+    }
+    return _unicos_por_chave_canonica(alvo, formas)
+
+
+def chave_de_subcategoria(texto) -> str | None:
+    """Chave da subcategoria a partir do nome ou da chave pronta, SEM família informada.
+
+    Mesma regra de `chave_de_categoria`: igualdade pela chave canônica contra a taxonomia toda,
+    e nome que existe em mais de uma família não é adivinhado (None).
+    """
+    alvo = chave_canonica(texto)
+    if not alvo:
+        return None
+    formas = {
+        chave: {chave_canonica(sub), chave_canonica(chave), chave_canonica(f"{categoria}.{sub}")}
+        for chave, (_familia, categoria, sub) in _SUBCATEGORIAS_POR_CHAVE.items()
+    }
+    return _unicos_por_chave_canonica(alvo, formas)
+
+
 # ---------------------------------------------------------------------------------------------
 # §2/§3.2 — espelho em `categorias_produto` e nomes de exibição
 # ---------------------------------------------------------------------------------------------

@@ -931,6 +931,10 @@ def criar_venda():
                     produto_codigo=produto.codigo_barras or produto.codigo_interno,
                     produto_unidade=produto.unidade_medida or "UN",
                     custo_unitario=custo_unitario,
+                    # Retrato da classificação no momento da venda (PLANO §2).
+                    familia_produto=produto.familia_produto,
+                    categoria_oficial=produto.categoria_oficial,
+                    subcategoria_oficial=produto.subcategoria_oficial,
                     margem_lucro_real=((preco_unitario - custo_unitario) * quantidade).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 )
                 db.session.add(venda_item)
@@ -1589,7 +1593,11 @@ def adicionar_item_pdv(venda_id):
                 quantidade=quantidade,
                 preco_unitario=float(produto.preco_venda),
                 total_item=quantidade * float(produto.preco_venda),
-                desconto=0
+                desconto=0,
+                # Retrato da classificação no momento da venda (PLANO §2).
+                familia_produto=produto.familia_produto,
+                categoria_oficial=produto.categoria_oficial,
+                subcategoria_oficial=produto.subcategoria_oficial,
             )
             db.session.add(item)
         venda.itens = VendaItem.query.filter_by(venda_id=venda_id).all()

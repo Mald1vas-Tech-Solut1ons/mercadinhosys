@@ -907,16 +907,18 @@ def finalizar_venda():
             if taxa_entrega > 0:
                 produto_taxa = Produto.query.filter_by(nome="Taxa de Entrega", estabelecimento_id=estab_id).first()
                 if not produto_taxa:
-                    from app.models import CategoriaProduto
-                    categoria = CategoriaProduto.query.filter_by(estabelecimento_id=estab_id, nome="Serviços").first()
-                    if not categoria:
-                        categoria = CategoriaProduto(estabelecimento_id=estab_id, nome="Serviços")
-                        db.session.add(categoria)
-                        db.session.flush()
+                    # Taxonomia (PLANO §3.3 #8): taxa de entrega é serviço, subcategoria oficial
+                    # "Taxas e Entregas" (família `servico`). Nada de categoria "Serviços" livre.
+                    from app.services.taxonomia_service import garantir_categoria_loja, resolver as resolver_subcategoria
+                    categoria_oficial, subcategoria_oficial = resolver_subcategoria("servico", "Taxas e Entregas")
+                    categoria = garantir_categoria_loja(estab_id, categoria_oficial)
 
                     produto_taxa = Produto(
                         estabelecimento_id=estab_id,
                         categoria_id=categoria.id,
+                        familia_produto="servico",
+                        categoria_oficial=categoria_oficial,
+                        subcategoria_oficial=subcategoria_oficial,
                         nome="Taxa de Entrega",
                         tipo="servico",
                         tipo_item="servico",
@@ -1108,6 +1110,10 @@ def finalizar_venda():
                     custo_unitario=custo_unitario,
                     # Snapshot da origem: marca o CMV como estimado no DRE.
                     custo_estimado=(getattr(produto, "origem_custo", "informado") != "informado"),
+                    # Retrato da classificação NO MOMENTO DA VENDA (PLANO §2).
+                    familia_produto=produto.familia_produto,
+                    categoria_oficial=produto.categoria_oficial,
+                    subcategoria_oficial=produto.subcategoria_oficial,
                     margem_lucro_real=to_decimal((preco_unitario - custo_unitario) * quantidade, precision=2)
                 )
                 db.session.add(novo_item)

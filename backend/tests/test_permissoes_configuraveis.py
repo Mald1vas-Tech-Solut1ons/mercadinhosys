@@ -66,15 +66,19 @@ def _cliente_payload(**extra):
 # ───────────────────────── rotas paralelas de produto ─────────────────────────
 
 def test_caixa_nao_troca_preco_pela_rota_paralela(client, session, loja):
+    from app.services.catalogo_familias import TAXONOMIA
+
     p = loja["prod"]
+    familia = p.familia_produto or "alimento"
+    subcategoria = TAXONOMIA[familia][next(iter(TAXONOMIA[familia]))][0]
     r = client.put(f"/api/produtos/estoque/{p.id}", headers=_h(loja["caixa"]),
-                   json={"nome": p.nome, "categoria": "Perm", "preco_custo": 2, "preco_venda": 2.10})
+                   json={"nome": p.nome, "subcategoria": subcategoria, "preco_custo": 2, "preco_venda": 2.10})
     assert r.status_code == 403 and r.get_json()["code"] == "ACAO_NAO_PERMITIDA"
     session.refresh(p)
     assert p.preco_venda == Decimal("5")
 
     ok = client.put(f"/api/produtos/estoque/{p.id}", headers=_h(loja["admin"]),
-                    json={"nome": p.nome, "categoria": "Perm", "preco_custo": 2, "preco_venda": 6})
+                    json={"nome": p.nome, "subcategoria": subcategoria, "preco_custo": 2, "preco_venda": 6})
     assert ok.status_code == 200, ok.get_data(as_text=True)
 
 

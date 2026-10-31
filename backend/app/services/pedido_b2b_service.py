@@ -216,6 +216,10 @@ def executar_expedicao(pedido, plano, cliente, *, agora=None):
             produto_nome=produto.nome, produto_codigo=produto.codigo_interno, produto_unidade=produto.unidade_medida,
             quantidade=linha.quantidade, preco_unitario=item.preco_unitario, desconto=linha.desconto_item,
             total_item=linha.total_item, custo_unitario=custo,
+            # Retrato da classificação no momento do faturamento (PLANO §2).
+            familia_produto=produto.familia_produto,
+            categoria_oficial=produto.categoria_oficial,
+            subcategoria_oficial=produto.subcategoria_oficial,
             margem_lucro_real=(linha.total_item - custo * linha.quantidade).quantize(CENT)))
         produto.quantidade_vendida = _dec(produto.quantidade_vendida) + linha.quantidade
         produto.total_vendido = _dec(produto.total_vendido) + linha.total_item

@@ -54,14 +54,14 @@ def test_implantacao_loja_mista_ponta_a_ponta(client, session):
 
     # Passo 3: planilha mista (preço/estoque com vírgula, itens sem código)
     csv_text = (
-        "nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;unidade;estoque;lote;data_validade;ncm\n"
-        "Leite Condensado 395g;Alimentos;5,50;8,90;7891000100103;;Nestle;UN;10;;;04029900\n"
-        f"Shampoo 350ml;Higiene;8,00;15,90;{_ean('789600400085')};;MarcaX;UN;12;;;33051000\n"
-        f"Perfume Colonia 100ml;Perfumaria;40,00;89,90;{_ean('789600400086')};;MarcaY;UN;5;;;33030010\n"
-        "Camiseta Preta M;Vestuario;15,00;39,90;;;MarcaZ;UN;8;;;61091000\n"
-        "Feijao Granel;Alimentos;4,00;9,00;;;;KG;8,5;;;07133399\n"
-        f"Liquidificador 220V;Eletroportateis;80,00;149,90;{_ean('789600400087')};;MarcaE;UN;3;;;85094050\n"
-        "Produto Sem Estoque;Geral;2,00;5,00;;;;UN;0;;;21069090\n"
+        "nome;subcategoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;unidade;estoque;lote;data_validade;ncm;familia\n"
+        "Leite Condensado 395g;Leites;5,50;8,90;7891000100103;;Nestle;UN;10;;;04029900;alimento\n"
+        f"Shampoo 350ml;Shampoo;8,00;15,90;{_ean('789600400085')};;MarcaX;UN;12;;;33051000;perfumaria_higiene\n"
+        f"Perfume Colonia 100ml;Perfumes Femininos;40,00;89,90;{_ean('789600400086')};;MarcaY;UN;5;;;33030010;perfumaria_higiene\n"
+        "Camiseta Preta M;Camisetas;15,00;39,90;;;MarcaZ;UN;8;;;61091000;vestuario\n"
+        "Feijao Granel;Granel;4,00;9,00;;;;KG;8,5;;;07133399;alimento\n"
+        f"Liquidificador 220V;Outros Eletro;80,00;149,90;{_ean('789600400087')};;MarcaE;UN;3;;;85094050;eletro\n"
+        "Produto Sem Estoque;Outros Alimentos;2,00;5,00;;;;UN;0;;;21069090;alimento\n"
     )
     r = client.post("/api/produtos/importar", headers=headers, content_type="multipart/form-data",
                     data={"arquivo": (io.BytesIO(csv_text.encode("utf-8")), "implantacao.csv")})

@@ -19,6 +19,7 @@ from flask_jwt_extended import create_access_token
 
 from app.models import CatalogoMestre, Estabelecimento, Funcionario, Produto
 from app.services.fiscal import emissao_service
+from app.services.taxonomia_service import nome_categoria_loja
 from app.services.view_schema_service import (
     MIX_PADRAO_POR_SEGMENTO,
     inferir_perfil_fiscal_padrao,
@@ -65,11 +66,11 @@ def test_importacao_infere_familia_pelo_ncm_na_mercearia(client, session):
     ctx = _ctx(session, "mercearia")
     ean_perfume = _ean("789700000001")
     body = _importar(client, ctx, CABECALHO + "\n"
-                     f"Perfume Floral 100ml;Perfumaria;40;89,90;{ean_perfume};;;UN;5;;;33030010\n"
-                     "Camiseta Preta M;Moda;15;39,90;;;;UN;8;;;61091000\n"
-                     "Liquidificador 600W;Eletro;80;149,90;;;;UN;3;;;85094050\n"
-                     "Arroz 5kg;Mercearia;19;27,90;;;;UN;10;;;10063021\n"
-                     "Pao Frances;Padaria;9;16,90;;;;KG;8;;;\n")
+                     f"Perfume Floral 100ml;Perfumes Femininos;40;89,90;{ean_perfume};;;UN;5;;;33030010\n"
+                                          "Camiseta Preta M;Outros Alimentos;15;39,90;;;;UN;8;;;61091000\n"
+                                          "Liquidificador 600W;Outros Eletro;80;149,90;;;;UN;3;;;85094050\n"
+                                          "Arroz 5kg;Arroz;19;27,90;;;;UN;10;;;10063021\n"
+                                          "Pao Frances;Pães e Bolos Industrializados;9;16,90;;;;KG;8;;;\n")
     assert body["total_importados"] == 5, body
 
     perfume = _p("Perfume Floral 100ml")
@@ -98,8 +99,8 @@ def test_importacao_infere_familia_pelo_ncm_na_mercearia(client, session):
 def test_importacao_no_generico_separa_roupa_e_calcado_pelo_capitulo(client, session):
     ctx = _ctx(session, "generico")
     body = _importar(client, ctx, CABECALHO + "\n"
-                     "Calca Jeans 40;Moda;55;119,90;;;;UN;4;;;62034200\n"
-                     "Tenis Corrida 41;Calcados;90;199,90;;;;PAR;2;;;64041100\n")
+                     "Calca Jeans 40;Jeans;55;119,90;;;;UN;4;;;62034200\n"
+                                          "Tenis Corrida 41;Tênis Esportivo;90;199,90;;;;PAR;2;;;64041100\n")
     assert body["total_importados"] == 2, body
     calca = _p("Calca Jeans 40")
     assert calca.familia_produto == "vestuario"
@@ -113,7 +114,7 @@ def test_importacao_no_generico_separa_roupa_e_calcado_pelo_capitulo(client, ses
 
 def test_importacao_sem_eletro_no_mix_usa_familia_padrao(client, session):
     ctx = _ctx(session, "mercearia", {"mix_produtos": ["bebida", "alimento"]})
-    body = _importar(client, ctx, CABECALHO + "\nSecador 2000W;Eletro;60;129,90;;;;UN;2;;;85163100\n")
+    body = _importar(client, ctx, CABECALHO + "\nSecador 2000W;Refrigerantes;60;129,90;;;;UN;2;;;85163100\n")
     assert body["total_importados"] == 1, body
     assert _p("Secador 2000W").familia_produto == "bebida"  # 1ª do mix configurado
 
@@ -121,11 +122,11 @@ def test_importacao_sem_eletro_no_mix_usa_familia_padrao(client, session):
 def test_importacao_coluna_familia_por_chave_ou_nome(client, session):
     ctx = _ctx(session, "mercearia")
     body = _importar(client, ctx, CABECALHO + ";Família\n"
-                     "Air Fryer 4L;Eletro;250;399,90;;;;UN;2;;;;eletro e eletroportateis\n"
-                     "Assadeira Redonda;Utilidades;20;39,90;;;;UN;6;;;;  BAZAR \n"
-                     "Sabonete 85g;Higiene;1;2,49;;;;UN;60;;;34011190;Perfumaria e Higiene\n"
-                     "Coisa Estranha;Geral;1;2;;;;UN;1;;;;foguetes\n"
-                     "Pastilha de Freio;Pecas;30;59,90;;;;UN;1;;;;Autopeças\n")
+                     "Air Fryer 4L;Outros Eletro;250;399,90;;;;UN;2;;;;eletro e eletroportateis\n"
+                                          "Assadeira Redonda;Panelas;20;39,90;;;;UN;6;;;;  BAZAR \n"
+                                          "Sabonete 85g;Outros Cosméticos;1;2,49;;;;UN;60;;;34011190;Perfumaria e Higiene\n"
+                                          "Coisa Estranha;Outros Alimentos;1;2;;;;UN;1;;;;foguetes\n"
+                                          "Pastilha de Freio;Outros Alimentos;30;59,90;;;;UN;1;;;;Autopeças\n")
     assert body["total_importados"] == 3, body
     assert body["total_erros"] == 2, body
     assert _p("Air Fryer 4L").familia_produto == "eletro"
@@ -138,19 +139,20 @@ def test_importacao_coluna_familia_por_chave_ou_nome(client, session):
 
 def test_importacao_coluna_familia_vence_o_ncm(client, session):
     ctx = _ctx(session, "generico")
-    _importar(client, ctx, CABECALHO + ";familia\nKit Presente;Presentes;20;49,90;;;;UN;3;;;33030010;bazar\n")
+    _importar(client, ctx, CABECALHO + ";familia\nKit Presente;Panelas;20;49,90;;;;UN;3;;;33030010;bazar\n")
     assert _p("Kit Presente").familia_produto == "bazar"
 
 
 def test_importacao_registra_ean_novo_no_catalogo_mestre(client, session):
     ctx = _ctx(session, "mercearia")
     ean = _ean("789700000099")
-    _importar(client, ctx, CABECALHO + f"\nCafe Especial 250g;Mercearia;20;34,90;{ean};;Torra Boa;UN;5;;;09012100\n")
+    _importar(client, ctx, CABECALHO + f"\nCafe Especial 250g;Café;20;34,90;{ean};;Torra Boa;UN;5;;;09012100\n")
     item = CatalogoMestre.query.filter_by(ean=ean).one()
     assert item.descoberto_via == "csv"
     assert item.nome == "Cafe Especial 250g"
     assert item.ncm == "09012100"
-    assert item.categoria == "Mercearia"
+    # Catálogo guarda o nome OFICIAL qualificado da categoria (taxonomia, PLANO §3.3 #6)
+    assert item.categoria == nome_categoria_loja("alimento", "Café da Manhã")
     assert item.descoberto_por_estabelecimento_id == ctx["estab"].id
 
 

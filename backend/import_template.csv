@@ -1,6 +1,6 @@
-nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;unidade;estoque;lote;data_validade
-Arroz Tio Joao 5kg;Alimentos;22.50;29.90;7891234567895;1001;Tio Joao;UN;50;L-2026;15/12/2026
-Leite Piracanjuba 1L;Laticinios;4.20;5.50;7890987654326;2002;Piracanjuba;UN;120;PR-44;20/08/2025
-Detergente Ype 500ml;Limpeza;1.80;2.50;7891230004561;3003;Ype;UN;200;YPE-11;30/01/2027
-Feijao Carioca 1kg;Alimentos;6.80;8.90;7894561230005;4004;Camil;UN;80;F-99;10/11/2025
-Oleo de Soja 900ml;Alimentos;5.50;7.50;7897894561235;5005;Liza;UN;60;LZ-10;05/05/2026
+nome;subcategoria;preco_custo;preco_venda;codigo_barras;codigo_interno;marca;unidade;estoque;lote;data_validade;familia
+Arroz Tio Joao 5kg;Arroz;22.50;29.90;7891234567895;1001;Tio Joao;UN;50;L-2026;15/12/2026;alimento
+Leite Piracanjuba 1L;Leites;4.20;5.50;7890987654326;2002;Piracanjuba;UN;120;PR-44;20/08/2025;alimento
+Detergente Ype 500ml;Detergentes;1.80;2.50;7891230004561;3003;Ype;UN;200;YPE-11;30/01/2027;limpeza
+Feijao Carioca 1kg;Feijão;6.80;8.90;7894561230005;4004;Camil;UN;80;F-99;10/11/2025;alimento
+Oleo de Soja 900ml;Óleos e Azeites;5.50;7.50;7897894561235;5005;Liza;UN;60;LZ-10;05/05/2026;alimento

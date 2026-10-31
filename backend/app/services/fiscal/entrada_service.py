@@ -253,14 +253,28 @@ def _custo_unitario(item: Dict[str, Any]) -> Decimal:
     return (total / qtd).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
 
-def _get_or_create_categoria_importacao(estab_id: int) -> CategoriaProduto:
-    cat = CategoriaProduto.query.filter_by(estabelecimento_id=estab_id, nome=CATEGORIA_IMPORTACAO).first()
-    if not cat:
-        cat = CategoriaProduto(estabelecimento_id=estab_id, nome=CATEGORIA_IMPORTACAO,
-                               descricao="Produtos cadastrados automaticamente via importação de XML")
-        db.session.add(cat)
-        db.session.flush()
-    return cat
+def _familia_do_item(estabelecimento, item: Dict[str, Any]) -> str:
+    """Família do item pelo NCM/descrição (helpers do BigDataCorp), presa ao mix da loja.
+
+    Sem evidência ou fora do mix cai na família padrão do segmento (1ª do mix), como no cadastro.
+    """
+    from app.services import bigdatacorp_service as bdc
+    from app.services.view_schema_service import mix_permitido_para_estabelecimento
+
+    mix = mix_permitido_para_estabelecimento(estabelecimento)
+    return bdc.familia_por_evidencia(item.get("ncm"), [item.get("descricao")], mix) or mix[0]
+
+
+def _classificacao_importacao(estab_id: int, familia: str):
+    """`(categoria da loja, categoria_oficial, subcategoria_oficial)` do "Outros …" da família.
+
+    PLANO §3.3 #7: a entrada por XML não inventa categoria ("Importação NF-e"); o item raro cai no
+    "Outros …" da família, inferida pelo NCM/descrição (regra 5 do plano: nunca "Geral").
+    """
+    from app.services.taxonomia_service import garantir_categoria_loja, outros
+
+    categoria_oficial, subcategoria_oficial = outros(familia)
+    return garantir_categoria_loja(estab_id, categoria_oficial), categoria_oficial, subcategoria_oficial
 
 
 def _upsert_fornecedor(estab_id: int, emit: Dict[str, Any]) -> Optional[Fornecedor]:
@@ -369,7 +383,7 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
         raise ImportacaoError('Há pedido deste fornecedor. Selecione o pedido ou confirme uma compra avulsa distinta.')
 
     forn = _upsert_fornecedor(estab_id, parsed["emitente"])
-    categoria = None
+    classificacoes = {}
     estabelecimento = Estabelecimento.query.get(estab_id)
 
     produtos_criados = 0
@@ -382,8 +396,10 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
                                   fornecedor_id=forn.id if forn else None, por_fornecedor=True)
 
         if prod is None:
-            if categoria is None:
-                categoria = _get_or_create_categoria_importacao(estab_id)
+            familia_item = _familia_do_item(estabelecimento, it)
+            if familia_item not in classificacoes:
+                classificacoes[familia_item] = _classificacao_importacao(estab_id, familia_item)
+            categoria, categoria_oficial, subcategoria_oficial = classificacoes[familia_item]
             ean = it.get("ean")
             if _ocupante(estab_id, Produto.codigo_barras, ean):
                 # Só acontece com produto excluído (o ativo teria casado acima).
@@ -400,6 +416,9 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
             prod = Produto(
                 estabelecimento_id=estab_id,
                 categoria_id=categoria.id,
+                familia_produto=familia_item,
+                categoria_oficial=categoria_oficial,
+                subcategoria_oficial=subcategoria_oficial,
                 fornecedor_id=forn.id if forn else None,
                 codigo_barras=ean,
                 codigo_interno=codigo_interno,

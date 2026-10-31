@@ -50,7 +50,19 @@ from app.services.view_schema_service import (
     sanitizar_atributos,
     sugestao_fiscal_para_familia,
 )
-from app.services.taxonomia_service import garantir_categoria_loja, resolver as resolver_subcategoria
+from app.services.taxonomia_service import (
+    chave_de_categoria,
+    chave_de_subcategoria,
+    garantir_categoria_loja,
+    outros as outros_taxonomia,
+    resolver as resolver_subcategoria,
+)
+
+
+def _chave_categoria_da_familia(familia, texto):
+    """Chave da categoria (`familia.categoria`) quando o filtro traz a família."""
+    alvo = chave_de_categoria(texto)
+    return alvo if alvo and alvo.startswith(f"{familia}.") else None
 
 def to_decimal(value, precision=2):
     """Converte qualquer valor numérico para Decimal de forma segura com precisão variável"""
@@ -706,7 +718,8 @@ def _sugestoes_cadastro(item, familia_escolhida=None) -> dict:
     from app.services import bigdatacorp_service as bdc
     from app.services.view_schema_service import (mix_permitido_para_estabelecimento, resolver_view_schema,
                                                   campos_de_atributo, sanitizar_atributos)
-    vazio = {"familia_produto": None, "categoria": item.categoria, "atributos": {}, "descricao": ""}
+    vazio = {"familia_produto": None, "categoria": item.categoria, "subcategoria": None,
+             "atributos": {}, "descricao": ""}
     try:
         estab_id = get_authorized_establishment_id()
         if not estab_id or str(estab_id).lower() == "all":
@@ -749,7 +762,13 @@ def _sugestoes_cadastro(item, familia_escolhida=None) -> dict:
                 if valor not in (None, "", []):
                     candidatos[chave] = valor
             atributos = sanitizar_atributos(schema, candidatos)
-        return {"familia_produto": familia, "categoria": categoria or item.categoria, "atributos": atributos,
+        # Subcategoria oficial da família sugerida (PLANO §3.3 #10): a categoria que o catálogo
+        # traz só vale se casar, por chave canônica, com uma subcategoria da taxonomia; sem casar
+        # devolve None e o formulário pede a escolha (nunca adivinha por semelhança).
+        chaves_taxonomia = resolver_subcategoria(familia, item.categoria) if familia else None
+        return {"familia_produto": familia, "categoria": categoria or item.categoria,
+                "subcategoria": chaves_taxonomia[1] if chaves_taxonomia else None,
+                "atributos": atributos,
                 "descricao": bdc.descricao_produto(resultado) if resultado else ""}
     except Exception as e:
         current_app.logger.warning(f"Sugestões de cadastro falharam ({item.ean}): {e}")
@@ -1214,14 +1233,8 @@ def catalogo_importar():
     if not eans:
         return jsonify({"success": False, "error": "Nenhum EAN informado"}), 400
 
-    # Categoria default da loja (garante categoria_id obrigatório)
-    cat_padrao = CategoriaProduto.query.filter_by(estabelecimento_id=estabelecimento_id).first()
-    if not cat_padrao:
-        cat_padrao = CategoriaProduto(estabelecimento_id=estabelecimento_id, nome="Geral")
-        db.session.add(cat_padrao)
-        db.session.flush()
-
-    cat_cache = {}
+    # Nada de categoria default: as categorias da loja nascem sob demanda, por
+    # `garantir_categoria_loja`, sempre a partir da taxonomia oficial (PLANO §3.3 #6).
     # Família de cada item: a do catálogo se a loja usa; senão a identificada pelo NCM/nome no mix
     # da loja; senão a padrão do segmento. Controle de validade segue a família (parafuso não vence).
     from app.services import bigdatacorp_service as _bdc
@@ -1240,18 +1253,6 @@ def catalogo_importar():
             schema = resolver_view_schema(_estab, familia_produto=familia)
             _validade_por_familia[familia] = bool((schema.get("flags") or {}).get("usa_validade", True))
         return _validade_por_familia[familia]
-
-    def resolver_categoria(nome):
-        if not nome:
-            return cat_padrao
-        if nome not in cat_cache:
-            c = CategoriaProduto.query.filter_by(estabelecimento_id=estabelecimento_id, nome=nome).first()
-            if not c:
-                c = CategoriaProduto(estabelecimento_id=estabelecimento_id, nome=nome)
-                db.session.add(c)
-                db.session.flush()
-            cat_cache[nome] = c
-        return cat_cache[nome]
 
     importados, pulados = 0, 0
     for ean in eans:
@@ -1275,10 +1276,18 @@ def catalogo_importar():
             preco_venda = Decimal("0.01")
 
         familia_item = familia_do_item(item)
+        # Taxonomia (PLANO §3.3 #6): a categoria do catálogo só vale se casar, por chave
+        # canônica, com uma subcategoria da família do item; sem casar → "Outros …" da família.
+        # Nunca se cria categoria fora da lista.
+        categoria_oficial, subcategoria_oficial = (
+            resolver_subcategoria(familia_item, item.categoria) or outros_taxonomia(familia_item)
+        )
         novo = Produto(
             estabelecimento_id=estabelecimento_id,
-            categoria_id=resolver_categoria(item.categoria).id,
+            categoria_id=garantir_categoria_loja(estabelecimento_id, categoria_oficial).id,
             familia_produto=familia_item,
+            categoria_oficial=categoria_oficial,
+            subcategoria_oficial=subcategoria_oficial,
             fornecedor_id=fornecedor_id,
             # Guardião: nome do catálogo pode vir minúsculo de onde a fonte trouxe;
             # grava canônico (UPPER) — importação segue a mesma qualidade do form.
@@ -1427,6 +1436,8 @@ def listar_produtos():
         # só ativos.
         ativo = request.args.get("ativos", request.args.get("ativo"))
         categoria = request.args.get("categoria")
+        categoria_oficial = (request.args.get("categoria_oficial") or "").strip() or None
+        subcategoria_oficial = (request.args.get("subcategoria_oficial") or "").strip() or None
         fornecedor_id = request.args.get("fornecedor_id", type=int)
         estoque_status = request.args.get("estoque_status") # baixo, esgotado, normal
         tipo = request.args.get("tipo")
@@ -1486,6 +1497,27 @@ def listar_produtos():
         # 2. Filtro de Categoria
         if categoria:
             query = query.join(CategoriaProduto).filter(CategoriaProduto.nome == categoria)
+
+        # 2.1 Filtro pela taxonomia oficial (PLANO §3.4): chave da categoria ou da subcategoria.
+        # Aceita a chave pronta ("bazar.cozinha.panela") ou o nome canônico ("PANELAS"), sem
+        # diferenciar maiúscula, acento nem pontuação — o mesmo `resolver` do cadastro.
+        if categoria_oficial or subcategoria_oficial:
+            filtro_familia = (request.args.get("familia_produto") or "").strip()
+            if subcategoria_oficial:
+                chave_sub = (resolver_subcategoria(filtro_familia, subcategoria_oficial) or (None, None))[1] \
+                    if filtro_familia else chave_de_subcategoria(subcategoria_oficial)
+                if not chave_sub:
+                    return jsonify({"error": f"subcategoria_oficial '{subcategoria_oficial}' não está na "
+                                             "taxonomia oficial"}), 400
+                query = query.filter(Produto.subcategoria_oficial == chave_sub)
+            else:
+                chave_cat = (categoria_oficial if "." in categoria_oficial else
+                             (chave_de_categoria(categoria_oficial) if not filtro_familia else
+                              _chave_categoria_da_familia(filtro_familia, categoria_oficial)))
+                if not chave_cat:
+                    return jsonify({"error": f"categoria_oficial '{categoria_oficial}' não está na "
+                                             "taxonomia oficial"}), 400
+                query = query.filter(Produto.categoria_oficial == chave_cat)
 
         # 3. Filtro de Fornecedor
         if fornecedor_id:
@@ -5173,27 +5205,27 @@ def criar_produto_estoque():
         preco_venda = Decimal(str(data["preco_venda"]))
         margem = ((preco_venda - preco_custo) / preco_custo * 100) if preco_custo > 0 else 0
 
-        # Buscar ou criar categoria
-        categoria_nome = data["categoria"].strip()
-        categoria = CategoriaProduto.query.filter_by(
-            estabelecimento_id=estabelecimento_id,
-            nome=categoria_nome
-        ).first()
-        
-        if not categoria:
-            # Criar nova categoria
-            categoria = CategoriaProduto(
-                estabelecimento_id=estabelecimento_id,
-                nome=categoria_nome,
-                ativo=True
-            )
-            db.session.add(categoria)
-            db.session.flush()  # Para obter o ID
+        # Taxonomia oficial (PLANO §3.3 #3 — mesma regra do cadastro): a subcategoria é
+        # obrigatória e tem de existir na família do produto. `categoria` só vale como
+        # fallback quando vem sozinho. Fora da lista → 400 categoria_invalida; nunca se cria
+        # categoria por nome livre.
+        tipo_item = "servico" if data.get("tipo_item") == "servico" else "produto"
+        _, familia_produto, schema, _perfil_fiscal = _resolver_contexto_produto(
+            estabelecimento_id, data, tipo_item=tipo_item)
+        nome_familia = schema.get("familia_produto", {}).get("nome")
+        chaves_taxonomia, erro_taxonomia = _taxonomia_da_entrada(data, familia_produto, nome_familia)
+        if erro_taxonomia:
+            return erro_taxonomia
+        categoria_oficial, subcategoria_oficial = chaves_taxonomia
+        categoria = garantir_categoria_loja(estabelecimento_id, categoria_oficial)
 
         # Criar produto
         produto = Produto(
             estabelecimento_id=estabelecimento_id,
             categoria_id=categoria.id,
+            familia_produto=familia_produto,
+            categoria_oficial=categoria_oficial,
+            subcategoria_oficial=subcategoria_oficial,
             fornecedor_id=data.get("fornecedor_id"),
             # Vazio vira NULL: há unique (estab, codigo_interno) e (estab, codigo_barras).
             # Com "" o 2º produto sem código colidia (500). NULLs não conflitam no Postgres.
@@ -5356,24 +5388,37 @@ def atualizar_produto_estoque(id):
             produto.descricao = data["descricao"].strip()
         if "marca" in data:
             produto.marca = data["marca"].strip()
-        if "categoria" in data:
-            # Buscar ou criar categoria
-            categoria_nome = data["categoria"].strip()
-            categoria = CategoriaProduto.query.filter_by(
-                estabelecimento_id=estabelecimento_id,
-                nome=categoria_nome
-            ).first()
-            
-            if not categoria:
-                categoria = CategoriaProduto(
-                    estabelecimento_id=estabelecimento_id,
-                    nome=categoria_nome,
-                    ativo=True
-                )
-                db.session.add(categoria)
-                db.session.flush()
-            
-            produto.categoria_id = categoria.id
+
+        # Taxonomia oficial (PLANO §3.3 #4 — mesma regra da edição do cadastro): a subcategoria
+        # informada tem de existir na família; se a família mudou e não veio classificação nova,
+        # 400 pedindo a lista da família nova. Não existe mais criação de categoria por nome.
+        familia_anterior = produto.familia_produto
+        tipo_item = "servico" if (data.get("tipo_item") or produto.tipo_item) == "servico" else "produto"
+        _, familia_produto, schema, _perfil_fiscal = _resolver_contexto_produto(
+            estabelecimento_id, data, tipo_item=tipo_item, produto_atual=produto)
+        trocou_familia = bool(data.get("familia_produto") or data.get("tipo_item")) \
+            and familia_produto != familia_anterior
+        nome_familia = schema.get("familia_produto", {}).get("nome")
+        informado_taxonomia = data.get("subcategoria") or data.get("categoria")
+        chaves_taxonomia = None
+        if informado_taxonomia is not None and str(informado_taxonomia).strip():
+            chaves_taxonomia, erro_taxonomia = _taxonomia_da_entrada(data, familia_produto, nome_familia)
+            if erro_taxonomia:
+                return erro_taxonomia
+        elif trocou_familia:
+            chaves_taxonomia = (
+                resolver_subcategoria(familia_produto, produto.subcategoria_oficial)
+                if produto.subcategoria_oficial else None
+            )
+            if chaves_taxonomia is None:
+                return _erro_categoria_invalida(nome_familia)
+        if chaves_taxonomia:
+            categoria_oficial, subcategoria_oficial = chaves_taxonomia
+            produto.categoria_oficial = categoria_oficial
+            produto.subcategoria_oficial = subcategoria_oficial
+            produto.categoria_id = garantir_categoria_loja(estabelecimento_id, categoria_oficial).id
+        if "familia_produto" in data or "tipo_item" in data:
+            produto.familia_produto = familia_produto
         if "fornecedor_id" in data:
             produto.fornecedor_id = data["fornecedor_id"]
         if "quantidade_minima" in data:
@@ -6021,13 +6066,16 @@ def atualizar_classificacao_abc():
 _IMPORT_PRODUTOS_MAX_LINHAS = 2000
 
 _IMPORT_PRODUTOS_CABECALHO = (
-    "nome;categoria;preco_custo;preco_venda;codigo_barras;codigo_interno;"
+    "nome;subcategoria;preco_custo;preco_venda;codigo_barras;codigo_interno;"
     "marca;unidade;estoque;lote;data_validade;ncm"
 )
 
 # Cabeçalho da planilha (minúsculo, sem acento, espaço vira "_") → coluna canônica.
+# `categoria` continua aceito: é o nome antigo da coluna e vale como fallback da
+# subcategoria (PLANO §3.3 #5).
 _IMPORT_PRODUTOS_ALIASES = {
     "produto": "nome",
+    "subcategoria_oficial": "subcategoria", "sub_categoria": "subcategoria",
     "custo": "preco_custo", "preco_de_custo": "preco_custo",
     "preco": "preco_venda", "preco_de_venda": "preco_venda",
     "codigo_de_barras": "codigo_barras", "ean": "codigo_barras", "gtin": "codigo_barras",
@@ -6175,11 +6223,13 @@ def _imp_ler_linha(v: dict) -> dict:
         raise ValueError("o nome do produto é obrigatório")
     if len(nome) > 100:
         raise ValueError(f"o nome tem {len(nome)} caracteres; o máximo é 100")
-    categoria = " ".join(v.get("categoria", "").split())
-    if not categoria:
-        raise ValueError("a categoria é obrigatória")
-    if len(categoria) > 50:
-        raise ValueError("o nome da categoria passa de 50 caracteres")
+    # Coluna `subcategoria` (chave ou nome oficial da família). `categoria` é o nome antigo
+    # da coluna e vale só como fallback — nunca texto livre (PLANO §3.3 #5).
+    subcategoria = " ".join((v.get("subcategoria") or v.get("categoria") or "").split())
+    if not subcategoria:
+        raise ValueError("a subcategoria é obrigatória")
+    if len(subcategoria) > 80:
+        raise ValueError("a subcategoria passa de 80 caracteres")
     preco_venda = _imp_decimal(v.get("preco_venda"), "preço de venda")
     if preco_venda <= 0:
         raise ValueError("o preço de venda deve ser maior que zero")
@@ -6191,7 +6241,7 @@ def _imp_ler_linha(v: dict) -> dict:
         raise ValueError("o código interno passa de 50 caracteres")
     return {
         "nome": nome,
-        "categoria": categoria,
+        "subcategoria": subcategoria,
         "preco_custo": _imp_decimal(v.get("preco_custo"), "preço de custo", "0"),
         "preco_venda": preco_venda,
         "estoque": estoque,
@@ -6278,7 +6328,9 @@ def importar_produtos_csv():
         if not leitor.fieldnames:
             return jsonify({"success": False, "message": "A planilha está vazia"}), 400
         leitor.fieldnames = [_imp_coluna(c) for c in leitor.fieldnames]
-        faltando = [c for c in ("nome", "categoria", "preco_venda") if c not in leitor.fieldnames]
+        faltando = [c for c in ("nome", "preco_venda") if c not in leitor.fieldnames]
+        if "subcategoria" not in leitor.fieldnames and "categoria" not in leitor.fieldnames:
+            faltando.append("subcategoria")
         if faltando:
             return jsonify({
                 "success": False,
@@ -6304,14 +6356,6 @@ def importar_produtos_csv():
         lotes_da_loja = set(db.session.execute(
             select(ProdutoLote.numero_lote).where(ProdutoLote.estabelecimento_id == estabelecimento_id)
         ).scalars())
-        categorias = {}
-        for cat in db.session.execute(
-            select(CategoriaProduto)
-            .where(CategoriaProduto.estabelecimento_id == estabelecimento_id)
-            .order_by(CategoriaProduto.deleted_at.isnot(None), CategoriaProduto.id)
-        ).scalars():
-            categorias.setdefault(_imp_chave_categoria(cat.nome), cat)
-
         estabelecimento = _resolver_estabelecimento(estabelecimento_id)
         mix_loja = mix_permitido_para_estabelecimento(estabelecimento)
         contexto_por_familia = {}
@@ -6367,20 +6411,19 @@ def importar_produtos_csv():
                 familia, perfil_fiscal, fiscal = _contexto_fiscal(
                     _imp_resolver_familia(d["familia"], d["ncm"], mix_loja))
 
-                chave_cat = _imp_chave_categoria(d["categoria"])
+                # Subcategoria oficial da família da linha (chave ou nome, casada pela chave
+                # canônica). Não resolvido → erro DESTA linha; nunca cria categoria por texto
+                # livre (PLANO §3.3 #5).
+                chaves_taxonomia = resolver_subcategoria(familia, d["subcategoria"])
+                if chaves_taxonomia is None:
+                    nome_familia = (FAMILIAS_PRODUTO.get(familia) or {}).get("nome") or familia
+                    raise ValueError(
+                        f"subcategoria '{d['subcategoria']}' não está na lista de {nome_familia}. "
+                        "Use uma subcategoria oficial da família (ou 'Outros …')."
+                    )
+                categoria_oficial, subcategoria_oficial = chaves_taxonomia
                 with db.session.begin_nested():
-                    categoria = categorias.get(chave_cat)
-                    if categoria is None:
-                        categoria = CategoriaProduto(
-                            estabelecimento_id=estabelecimento_id,
-                            nome=CategoriaProduto.normalizar_nome_categoria(d["categoria"]),
-                            ativo=True,
-                        )
-                        db.session.add(categoria)
-                        db.session.flush()
-                    elif categoria.deleted_at is not None or not categoria.ativo:
-                        categoria.deleted_at = None
-                        categoria.ativo = True
+                    categoria = garantir_categoria_loja(estabelecimento_id, categoria_oficial)
 
                     custo, venda, estoque = d["preco_custo"], d["preco_venda"], d["estoque"]
                     validade = d["data_validade"]
@@ -6403,6 +6446,8 @@ def importar_produtos_csv():
                         ativo=True,
                         tipo_item="produto",
                         familia_produto=familia,
+                        categoria_oficial=categoria_oficial,
+                        subcategoria_oficial=subcategoria_oficial,
                         perfil_fiscal=perfil_fiscal,
                         cfop_padrao=fiscal["cfop_padrao_sugerido"],
                         cst_icms=fiscal["cst_icms_sugerido"],
@@ -6463,7 +6508,6 @@ def importar_produtos_csv():
                     )
 
                 # Só depois do savepoint gravado: estado em memória nunca aponta para algo desfeito.
-                categorias[chave_cat] = categoria
                 if ean:
                     eans_na_planilha[ean] = numero
                 if interno:

@@ -297,6 +297,9 @@ FAMILIAS_PRODUTO = {
 from app.services.catalogo_familias import (  # noqa: E402
     AJUSTES_FAMILIAS_EXISTENTES, CAMPOS_FAMILIAS, FAMILIAS_NOVAS, MIX_NOVAS_POR_SEGMENTO,
 )
+# A árvore oficial vem de taxonomia_service, que só importa este módulo de forma tardia
+# (dentro de `_nome_familia`), então não há ciclo de import.
+from app.services.taxonomia_service import arvore  # noqa: E402
 
 for _chave, _ajuste in AJUSTES_FAMILIAS_EXISTENTES.items():
     _familia = FAMILIAS_PRODUTO[_chave]
@@ -997,6 +1000,9 @@ def resolver_view_schema(
         "flags": flags,
         # Categorias prontas da família (o cadastro mostra para tocar; as da loja continuam valendo).
         "categorias_sugeridas": list(info_familia.get("categorias") or []),
+        # Árvore oficial Família → Categoria → Subcategoria (PLANO §3.4): o formulário escolhe a
+        # subcategoria daqui e manda a chave; não existe categoria de texto livre.
+        "taxonomia": arvore(familia_produto),
         "unidades": unidades or info_familia.get("unidades") or info_segmento["unidades"],
         "tipos_item": (
             ["produto", "servico"]

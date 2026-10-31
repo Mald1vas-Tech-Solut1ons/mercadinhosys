@@ -297,23 +297,10 @@ def tenant_onboarding():
         db.session.add(caixa)
         logger.info(f"✅ Caixa inicial criado")
 
-        # 6. Criar Categorias padrão
-        categorias_padrao = [
-            {"nome": "Geral", "codigo": "CAT001"},
-            {"nome": "Bebidas", "codigo": "CAT002"},
-            {"nome": "Mercearia", "codigo": "CAT003"}
-        ]
-        
-        for cat_data in categorias_padrao:
-            categoria = CategoriaProduto(
-                estabelecimento_id=estabelecimento.id,
-                nome=cat_data["nome"],
-                codigo=cat_data["codigo"],
-                ativo=True
-            )
-            db.session.add(categoria)
-        
-        logger.info(f"✅ Categorias padrão criadas")
+        # 6. Categorias: NÃO criar nada no onboarding (PLANO §3.3 #9). As linhas de
+        # `categorias_produto` nascem sob demanda, por `garantir_categoria_loja`, sempre a partir
+        # da taxonomia oficial (código + nome "<Família> › <Categoria>"). Criar "Geral/Bebidas/
+        # Mercearia" aqui enchia a loja de categoria fora da lista oficial.
 
         # Commit da transação atômica
         db.session.commit()

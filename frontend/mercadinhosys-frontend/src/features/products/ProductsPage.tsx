@@ -3,7 +3,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Calculator,
   X,
-  PackageX
+  PackageX,
+  Zap,
+  ChevronRight
 } from 'lucide-react';
 import { Fornecedor, Produto, ProdutoFiltros, ProdutoLote } from '../../types';
 import { TaxonomiaCategoria } from '../../types/viewSchema';
@@ -21,6 +23,7 @@ import PurchaseOrderModal from './components/PurchaseOrderModal';
 import CommandToolbar from './components/CommandToolbar';
 
 import ProductFormModal from './components/ProductFormModal';
+import EntradaRapidaPallet from './components/EntradaRapidaPallet';
 import LabelPrintModal from './labels/LabelPrintModal';
 import PinDialog from '../../components/modals/PinDialog';
 import { ProductsTable } from './components/ProductsTable';
@@ -81,6 +84,10 @@ const ProductsPage: React.FC = () => {
   const [filtroRapido, setFiltroRapido] = useState<string | null>(null);
 
   const [showProductModal, setShowProductModal] = useState(false);
+  // Modo paralelo ao cadastro completo: 200 itens de pallet com 2 campos e Enter (Fase 2.1).
+  const [showEntradaPallet, setShowEntradaPallet] = useState(false);
+  // Código que o modo pallet manda para o cadastro completo ("Abrir completo").
+  const [codigoParaModalCompleto, setCodigoParaModalCompleto] = useState<string | null>(null);
   const [showStockModal, setShowStockModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showLabelModal, setShowLabelModal] = useState(false);
@@ -326,6 +333,50 @@ const ProductsPage: React.FC = () => {
       navigate(route);
     }
   };
+
+  /**
+   * Entrada rápida (pallet): fecha o modo e recarrega lista/estatísticas SÓ se algo entrou.
+   * 200 itens não podem virar 200 recargas — a atualização é uma só, no fim da entrada.
+   */
+  const fecharEntradaPallet = (totalSalvo: number) => {
+    setShowEntradaPallet(false);
+    if (totalSalvo > 0) {
+      loadProdutos();
+      loadStats();
+    }
+  };
+
+  const abrirCadastroCompletoComCodigo = (codigo: string) => {
+    setShowEntradaPallet(false);
+    setEditMode(false);
+    setSelectedProduct(null);
+    setCodigoParaModalCompleto(codigo);
+    setShowProductModal(true);
+  };
+
+  // O ProductFormModal não recebe "código inicial" por prop (contrato já usado por outras telas).
+  // Para o "Abrir completo" já abrir preenchido, o código entra no campo de EAN do próprio modal
+  // pelo caminho que o React entende (setter nativo + evento input) — dali em diante é o lookup
+  // automático do modal que assume.
+  useEffect(() => {
+    if (!showProductModal || !codigoParaModalCompleto) return;
+    const codigo = codigoParaModalCompleto;
+    setCodigoParaModalCompleto(null);
+    let tentativas = 0;
+    const timer = window.setInterval(() => {
+      const campo = document.querySelector<HTMLInputElement>('input[placeholder="EAN-13 / EAN-8"]');
+      if (campo) {
+        window.clearInterval(timer);
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+        setter?.call(campo, codigo);
+        campo.dispatchEvent(new Event('input', { bubbles: true }));
+        campo.focus();
+      } else if (++tentativas > 25) {
+        window.clearInterval(timer);
+      }
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [showProductModal, codigoParaModalCompleto]);
 
   // Handlers
   const doDelete = async (id: number) => {
@@ -693,6 +744,26 @@ const ProductsPage: React.FC = () => {
         />
       </div>
 
+      {/* Entrada rápida: o caminho de 200 itens (bipa → preço → quantidade → Enter). Fica
+          colada na barra de comando, logo abaixo do "Novo Produto", porque é a ação do dia
+          de recebimento — não pode custar um menu. */}
+      <button
+        type="button"
+        onClick={() => setShowEntradaPallet(true)}
+        className="group flex w-full items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-3 text-left text-white shadow-lg shadow-emerald-600/20 transition-all hover:bg-emerald-700 active:scale-[0.995] sm:w-auto sm:min-w-[22rem] sm:px-5"
+      >
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/15">
+          <Zap className="h-6 w-6" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-black uppercase leading-tight tracking-tight">Entrada rápida (pallet)</span>
+          <span className="block text-[11px] font-semibold text-emerald-50/90">
+            Bipe, preço e quantidade. Sem formulário.
+          </span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 opacity-80 transition-transform group-hover:translate-x-0.5" />
+      </button>
+
       {!emBusca && (
         <>
           <ConsultorInsightCard especialista="estoque" titulo="Consultor IA - Inteligência de Estoque" className="mb-2" />
@@ -753,6 +824,13 @@ const ProductsPage: React.FC = () => {
         sortConfig={{ key: filtros.ordenar_por || 'nome', direction: filtros.direcao || 'asc' }}
       />
       </div>
+
+      {/* Modo pallet: modal tela-cheia, independente do ProductFormModal (que segue intocado). */}
+      <EntradaRapidaPallet
+        show={showEntradaPallet}
+        onClose={fecharEntradaPallet}
+        onAbrirCompleto={abrirCadastroCompletoComCodigo}
+      />
 
       <ProductFormModal
         show={showProductModal}

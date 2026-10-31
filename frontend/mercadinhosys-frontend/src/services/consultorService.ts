@@ -31,9 +31,40 @@ export interface RelatorioEstruturado {
   tabelas: RelatorioTabela[];
 }
 
+/**
+ * Mapa de nomes reais para o navegador resolver pseudônimos.
+ * O LLM só enxerga "Cliente #<id>" / "Funcionário #<id>"; este mapa NÃO vai no
+ * prompt — chega no payload e a troca acontece só na exibição, no navegador.
+ */
+export interface MapaEntidades {
+  funcionarios: Record<string, string>;
+  clientes: Record<string, string>;
+}
+
+export type TipoInsight = 'excecao' | 'risco' | 'oportunidade';
+
+export type TipoAcaoInsight = 'repor' | 'cobrar' | 'promocionar' | 'ver_contagem';
+
+export interface AcaoInsight {
+  tipo: TipoAcaoInsight;
+  payload?: Record<string, any>;
+}
+
+/**
+ * Um insight estruturado (formato 'json') devolvido pelo backend. O campo
+ * `texto` é a única fonte de texto exibido — nunca deve ser fabricado no front.
+ */
+export interface InsightItem {
+  tipo: TipoInsight;
+  texto: string;
+  acao?: AcaoInsight;
+}
+
 export interface InsightResponse {
   success: boolean;
-  insights?: string;
+  insights?: string | InsightItem[];
+  formato?: 'texto' | 'json';
+  mapa_entidades?: MapaEntidades;
   fontes?: string[];
   fontes_detalhadas?: FonteDetalhada[];
   acoes_sugeridas?: AcaoSugerida[];
@@ -52,6 +83,7 @@ export interface ChatResponse {
   fontes_detalhadas?: FonteDetalhada[];
   acoes_sugeridas?: AcaoSugerida[];
   relatorio_estruturado?: RelatorioEstruturado;
+  mapa_entidades?: MapaEntidades;
   provider?: string;
   code?: string;
   error?: string;
@@ -64,6 +96,7 @@ export interface ResumoDiarioResponse {
   fontes?: string[];
   fontes_detalhadas?: FonteDetalhada[];
   acoes_sugeridas?: AcaoSugerida[];
+  mapa_entidades?: MapaEntidades;
   cached?: boolean;
   aviso?: string;
   error?: string;
@@ -74,6 +107,11 @@ export interface ExecutarAcaoResponse {
   acao?: string;
   mensagem?: string;
   entidade?: Record<string, any>;
+  error?: string;
+}
+
+export interface DesfazerAcaoResponse {
+  success: boolean;
   error?: string;
 }
 
@@ -155,6 +193,41 @@ export const consultorService = {
         return error.response.data as ExecutarAcaoResponse;
       }
       return { success: false, error: 'Erro ao executar ação do Consultor da Loja' };
+    }
+  },
+
+  /**
+   * Desfaz uma ação já executada, usando a `entidade` devolvida pelo backend.
+   * Reaproveita endpoints existentes (nenhum endpoint novo):
+   * - lembrete     -> DELETE /despesas/:id
+   * - produto      -> DELETE /produtos/:id/ (force: produto recém-cadastrado)
+   * - pedido_compra-> POST  /pedidos-compra/:id/devolver (rascunho vira "devolvido")
+   */
+  desfazerAcao: async (
+    entidade: { tipo?: string; id?: number | string } | null | undefined
+  ): Promise<DesfazerAcaoResponse> => {
+    const tipo = entidade?.tipo;
+    const id = entidade?.id;
+    if (!tipo || id === null || id === undefined) {
+      return { success: false, error: 'Não há como desfazer esta ação.' };
+    }
+    try {
+      if (tipo === 'lembrete') {
+        await api.delete(`/despesas/${id}`);
+      } else if (tipo === 'produto') {
+        await api.delete(`/produtos/${id}/`, { params: { force: true } });
+      } else if (tipo === 'pedido_compra') {
+        await api.post(`/pedidos-compra/${id}/devolver`);
+      } else {
+        return { success: false, error: 'Este tipo de ação não pode ser desfeito.' };
+      }
+      return { success: true };
+    } catch (error: any) {
+      const dados = error?.response?.data;
+      return {
+        success: false,
+        error: dados?.error || dados?.message || 'Não foi possível desfazer a ação.',
+      };
     }
   },
 

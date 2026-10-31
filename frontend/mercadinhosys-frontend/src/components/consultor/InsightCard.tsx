@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, RefreshCw, AlertCircle, CheckCircle, TrendingUp, HelpCircle, Play, Check } from 'lucide-react';
+import { Sparkles, RefreshCw, AlertCircle, CheckCircle, TrendingUp, HelpCircle, Play, Check, AlertTriangle, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { consultorService, AcaoSugerida, FonteDetalhada } from '../../services/consultorService';
+import { useNavigate } from 'react-router-dom';
+import { consultorService, AcaoSugerida, FonteDetalhada, InsightItem, MapaEntidades, AcaoInsight, ExecutarAcaoResponse } from '../../services/consultorService';
 import { showToast } from '../../utils/toast';
 import { authService } from '../../features/auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
@@ -57,12 +58,112 @@ const cacheInsights = new Map<
   string,
   {
     em: number;
-    insights: string;
+    insights: string | InsightItem[];
+    mapa_entidades?: MapaEntidades;
     fontes: string[];
     fontesDetalhadas: FonteDetalhada[];
     acoesSugeridas: AcaoSugerida[];
   }
 >();
+
+type TipoItemRenderizado = 'good' | 'attention' | 'action' | 'excecao' | 'risco' | 'oportunidade';
+
+interface ItemInsightRenderizado {
+  id: string | number;
+  Icone: typeof CheckCircle;
+  cor: string;
+  texto: string;
+  acao?: AcaoInsight;
+}
+
+const iconePorTipo: Record<TipoItemRenderizado, { Icone: typeof CheckCircle; cor: string }> = {
+  good: { Icone: CheckCircle, cor: 'text-emerald-500' },
+  attention: { Icone: AlertCircle, cor: 'text-amber-500' },
+  action: { Icone: TrendingUp, cor: 'text-blue-500' },
+  excecao: { Icone: AlertCircle, cor: 'text-amber-500' },
+  risco: { Icone: AlertTriangle, cor: 'text-red-500' },
+  oportunidade: { Icone: TrendingUp, cor: 'text-blue-500' },
+};
+
+/**
+ * Troca pseudônimos por nomes reais SÓ na exibição (o LLM nunca recebe o nome).
+ * O mapa vem em `mapa_entidades` ({funcionarios: {id: nome}, clientes: {id: nome}}).
+ * Se não houver nome para o id, mantém o pseudônimo — nunca inventa.
+ */
+const resolverNomes = (texto: string, mapa?: MapaEntidades): string => {
+  if (!mapa || !texto) return texto;
+  return texto
+    .replace(/Cliente\s+#(\d+)/g, (trecho: string, id: string) => mapa.clientes?.[id] ?? trecho)
+    .replace(/Funcion[áa]rios?\s+#(\d+)/g, (trecho: string, id: string) => mapa.funcionarios?.[id] ?? trecho);
+};
+
+/** Remove só a casca de markdown (listas/bold); preserva o conteúdo e os números. */
+const limparLinha = (str: string): string =>
+  str
+    .replace(/^[*•-]\s+/, '')
+    .replace(/^[1-3][.)]\s*/, '')
+    .replace(/\*\*/g, '');
+
+/**
+ * Parser único dos dois formatos do backend:
+ * - string (formato antigo): uma linha por item, sem fabricar linhas ausentes.
+ * - array JSON (formato novo): usa `tipo` e `texto` exatamente como vieram.
+ * Nunca inventa texto nem arredonda número: o `texto` é passado adiante intacto.
+ */
+const parseInsights = (
+  insights: string | InsightItem[] | null,
+  mapa?: MapaEntidades
+): ItemInsightRenderizado[] => {
+  if (!insights) return [];
+
+  if (Array.isArray(insights)) {
+    const itens: ItemInsightRenderizado[] = [];
+    insights.forEach((item, i) => {
+      if (!item) return;
+      const texto =
+        typeof item.texto === 'string'
+          ? item.texto
+          : item.texto == null
+            ? ''
+            : String(item.texto);
+      if (!texto.trim()) return;
+      const tipo: TipoItemRenderizado =
+        item.tipo === 'excecao' || item.tipo === 'risco' || item.tipo === 'oportunidade'
+          ? item.tipo
+          : 'good';
+      const { Icone, cor } = iconePorTipo[tipo];
+      itens.push({
+        id: `json-${i}`,
+        Icone,
+        cor,
+        texto: resolverNomes(texto, mapa),
+        acao: item.acao,
+      });
+    });
+    return itens;
+  }
+
+  // Formato antigo (string): preserva a estrutura de 3 linhas (bom / atenção / ação)
+  // e tolera strings com mais ou menos linhas sem fabricar o que faltou.
+  const linhas = insights.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+  const tipos: TipoItemRenderizado[] = ['good', 'attention', 'action'];
+  return linhas.map((linha, i) => ({
+    id: `texto-${i}`,
+    ...iconePorTipo[tipos[i % tipos.length]],
+    texto: resolverNomes(limparLinha(linha), mapa),
+  }));
+};
+
+/** Ação estruturada do insight (formato JSON) vira navegação para a tela certa. */
+const rotaAcaoInsight = (tipo?: string): { rotulo: string; rota: string } | null => {
+  switch (tipo) {
+    case 'repor': return { rotulo: 'Repor estoque', rota: '/products' };
+    case 'cobrar': return { rotulo: 'Cobrar cliente', rota: '/customers' };
+    case 'promocionar': return { rotulo: 'Criar promoção', rota: '/products' };
+    case 'ver_contagem': return { rotulo: 'Ver contagem', rota: '/estoque-contagem' };
+    default: return null;
+  }
+};
 
 export const InsightCard: React.FC<InsightCardProps> = ({
   especialista,
@@ -70,7 +171,9 @@ export const InsightCard: React.FC<InsightCardProps> = ({
   className = '',
 }) => {
   const planoGratis = isPlanoGratis(authService.getCurrentUser());
-  const [insights, setInsights] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [insights, setInsights] = useState<string | InsightItem[] | null>(null);
+  const [mapaEntidades, setMapaEntidades] = useState<MapaEntidades | undefined>(undefined);
   const [resumoMatinal, setResumoMatinal] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +194,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({
       const guardado = cacheInsights.get(especialista);
       if (guardado && Date.now() - guardado.em < TTL_CACHE_MS) {
         setInsights(guardado.insights);
+        setMapaEntidades(guardado.mapa_entidades);
         setFontes(guardado.fontes);
         setFontesDetalhadas(guardado.fontesDetalhadas);
         setAcoesSugeridas(guardado.acoesSugeridas);
@@ -106,12 +210,14 @@ export const InsightCard: React.FC<InsightCardProps> = ({
         const fDet = response.fontes_detalhadas || [];
         const acoes = response.acoes_sugeridas || [];
         setInsights(response.insights);
+        if (response.mapa_entidades) setMapaEntidades(response.mapa_entidades);
         setFontes(fList);
         setFontesDetalhadas(fDet);
         setAcoesSugeridas(acoes);
         cacheInsights.set(especialista, {
           em: Date.now(),
           insights: response.insights,
+          mapa_entidades: response.mapa_entidades,
           fontes: fList,
           fontesDetalhadas: fDet,
           acoesSugeridas: acoes,
@@ -145,26 +251,38 @@ export const InsightCard: React.FC<InsightCardProps> = ({
       consultorService.obterResumoDiario(false).then((res) => {
         if (res.success && res.resumo) {
           setResumoMatinal(res.resumo);
+          if (res.mapa_entidades) setMapaEntidades(res.mapa_entidades);
         }
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [especialista]);
 
+  const desfazerAcao = async (res: ExecutarAcaoResponse, idx: number) => {
+    const undo = await consultorService.desfazerAcao(res.entidade);
+    if (undo.success) {
+      setAcoesConcluidas((prev) => {
+        const novo = { ...prev };
+        delete novo[idx];
+        return novo;
+      });
+      showToast.info('Ação desfeita.');
+    } else {
+      showToast.error(undo.error || 'Não foi possível desfazer a ação.');
+    }
+  };
+
   const handleExecutarAcao = async (acao: AcaoSugerida, idx: number) => {
     if (executandoIdx !== null || acoesConcluidas[idx]) return;
-    const confirmado = window.confirm(
-      `${acao.confirmacao}\n\n${acao.descricao}`
-    );
-    if (!confirmado) return;
 
+    // Sem window.confirm: executa na hora e oferece "Desfazer" via toast.
     setExecutandoIdx(idx);
     try {
       const res = await consultorService.executarAcao(acao.acao, acao.parametros);
       if (res.success) {
         const msg = res.mensagem || 'Ação executada com sucesso!';
         setAcoesConcluidas((prev) => ({ ...prev, [idx]: msg }));
-        showToast.success(msg);
+        showToast.successAction(msg, 'Desfazer', () => desfazerAcao(res, idx));
       } else {
         showToast.error(res.error || 'Não foi possível executar a ação.');
       }
@@ -173,21 +291,6 @@ export const InsightCard: React.FC<InsightCardProps> = ({
     } finally {
       setExecutandoIdx(null);
     }
-  };
-
-  const parseInsights = (text: string) => {
-    const lines = text.split('\n').filter((l) => l.trim().length > 0);
-    const good = lines[0] || 'Tudo dentro do esperado.';
-    const attention = lines[1] || 'Nenhum risco iminente detectado.';
-    const action = lines[2] || 'Mantenha o bom trabalho.';
-
-    const cleanText = (str: string) => str.replace(/^[1-3*]\.?\s*/, '').replace(/\*\*/g, '');
-
-    return [
-      { id: 1, type: 'good', text: cleanText(good), icon: <CheckCircle className="w-5 h-5 text-emerald-500" /> },
-      { id: 2, type: 'attention', text: cleanText(attention), icon: <AlertCircle className="w-5 h-5 text-amber-500" /> },
-      { id: 3, type: 'action', text: cleanText(action), icon: <TrendingUp className="w-5 h-5 text-blue-500" /> }
-    ];
   };
 
   const Icon = iconMap[especialista] || Sparkles;
@@ -233,7 +336,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({
             <span className="font-bold text-indigo-600 dark:text-indigo-400 block text-xs uppercase tracking-wider mb-1">
               Resumo Diário da Loja
             </span>
-            <p className="leading-relaxed">{resumoMatinal}</p>
+            <p className="leading-relaxed">{resolverNomes(resumoMatinal, mapaEntidades)}</p>
           </div>
         )}
 
@@ -252,7 +355,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({
           ) : insights ? (
             <div className="flex flex-col gap-4 mt-2">
               <AnimatePresence>
-                {parseInsights(insights).map((item, i) => (
+                {parseInsights(insights, mapaEntidades).map((item, i) => (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0, x: -10 }}
@@ -261,11 +364,28 @@ export const InsightCard: React.FC<InsightCardProps> = ({
                     className="flex items-start gap-3 bg-gray-50/50 dark:bg-gray-700/30 p-3 rounded-xl border border-transparent hover:border-gray-100 dark:hover:border-gray-600 transition-colors group"
                   >
                     <div className="mt-0.5 group-hover:scale-110 transition-transform">
-                      {item.icon}
+                      <item.Icone className={`w-5 h-5 ${item.cor}`} />
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-                      {item.text}
-                    </p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
+                        {item.texto}
+                      </p>
+                      {item.acao &&
+                        (() => {
+                          const destino = rotaAcaoInsight(item.acao.tipo);
+                          if (!destino) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => navigate(destino.rota)}
+                              className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors"
+                            >
+                              {destino.rotulo}
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })()}
+                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>

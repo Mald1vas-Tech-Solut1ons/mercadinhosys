@@ -7,9 +7,10 @@ acento, sem pontuação, sem palavras de ligação (e, de, da, do, das, dos, par
 simples → singular. "cama e mesa" = "CAMA, MESA" = "Cama Mesa".
 
 **Sem distância de letras**: nada de SemVer/difflib/"parecido". Igual por chave canônica → usa a
-oficial; parecido mas diferente → não adivinha (devolve None).
+oficial; parecido mas diferente → não adivinha (devolve None). O único atalho é `SINONIMOS`, um
+dicionário explícito de nomes antigos cujo significado é inequívoco (ex.: "Geral" → "Outros …").
 
-`garantir_categoria_loja` (cria/sincroniza `categorias_produto`) fica para o bloco seguinte do plano.
+`garantir_categoria_loja` mantém espelhada a linha de `categorias_produto` da categoria oficial.
 """
 from app.services.catalogo_familias import TAXONOMIA, chave_categoria, chave_subcategoria, slug
 
@@ -43,6 +44,16 @@ def chave_canonica(texto) -> str:
     return slug(texto).replace("_", " ")
 
 
+# Sinônimos legados (PLANO §3.2): nome antigo → nome oficial, SÓ onde o significado é
+# inequívoco. Nada de semelhança por letras: o casamento continua sendo igualdade de chave
+# canônica. "outros" é sentinela: manda para a categoria "Outros …" da própria família.
+# A categoria "Geral" era texto livre dos primórdios (regra 5 proíbe "Geral"); quem ainda
+# manda "Geral" cai no "Outros …" da família, nunca numa categoria inventada.
+SINONIMOS = {
+    "geral": "outros",
+}
+
+
 def _categorias(familia: str) -> dict:
     return TAXONOMIA.get(familia) or {}
 
@@ -69,6 +80,7 @@ def resolver(familia: str, subcategoria: str | None, categoria: str | None = Non
     ("bazar.cozinha.panela") ou o par curto ("cozinha.panela"). Devolve
     `(chave_categoria, chave_subcategoria)` ou None quando não há igualdade exata pela chave
     canônica — inclusive subcategoria de outra família. Só categoria sem subcategoria → None.
+    Sinônimo legado de `SINONIMOS` é aplicado depois da igualdade e continua preso à família.
     """
     if not subcategoria or not str(subcategoria).strip():
         return None
@@ -76,6 +88,14 @@ def resolver(familia: str, subcategoria: str | None, categoria: str | None = Non
     alvo = chave_canonica(subcategoria)
     if not alvo:
         return None
+
+    # Sinônimo legado: só o que está mapeado (nada de "parecido").
+    sinonimo = SINONIMOS.get(alvo)
+    if sinonimo == "outros":
+        return outros(familia)
+    if sinonimo:
+        alvo = sinonimo
+
     alvo_curto = alvo[len(familia) + 1:] if alvo.startswith(f"{chave_canonica(familia)} ") else alvo
     categoria_esperada = chave_canonica(categoria) if categoria else None
 

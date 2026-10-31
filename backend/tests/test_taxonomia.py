@@ -187,6 +187,15 @@ def test_outros_devolve_as_chaves_de_outros_da_familia():
     assert all(outros(familia)[1] for familia in TAXONOMIA)
 
 
+def test_sinonimo_legado_geral_cai_em_outros_da_propria_familia():
+    # "Geral" era a categoria de texto livre dos primórdios (regra 5 proíbe "Geral").
+    assert resolver("alimento", "Geral") == outros("alimento")
+    assert resolver("bazar", "GERAL") == outros("bazar")          # não cruza para alimento
+    assert resolver("limpeza", " geral ") == outros("limpeza")
+    # Sinônimo não abre porta para texto inventado.
+    assert resolver("bazar", "Geralzinho") is None
+
+
 def test_arvore_tem_categoria_e_subcategoria_com_chave_e_nome():
     cozinha = next(c for c in arvore("bazar") if c["nome"] == "Cozinha")
     assert cozinha["chave"] == "bazar.cozinha"

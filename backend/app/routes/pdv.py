@@ -492,11 +492,11 @@ def obter_configuracoes_pdv():
         import traceback
         erro_formatado = traceback.format_exc()
         current_app.logger.error(f"ERRO CRÍTICO CONFIG PDV: {erro_formatado}")
+        # Detalhe técnico fica no log: a resposta nunca carrega str(e) nem traceback para a tela.
         return jsonify({
             "success": False,
             "error": "Falha na comunicação com o servidor de configurações",
-            "msg": f"O servidor do PDV está temporariamente instável. Detalhe técnico: {str(e)}",
-            "traceback": erro_formatado
+            "msg": "O servidor do PDV está temporariamente instável. Tente novamente em instantes."
         }), 500
 
 

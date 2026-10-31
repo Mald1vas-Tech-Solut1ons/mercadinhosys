@@ -903,11 +903,9 @@ const ProductFormModal = ({
                                         categoria_oficial: escolha.categoria.chave,
                                         categoria: escolha.subcategoria.nome,
                                     }))}
-                                    label={ehServico ? 'Subcategoria do serviço *' : 'Subcategoria *'}
                                     erro={editMode && produto && !(produto as any).subcategoria_oficial
-                                        ? 'Produto antigo sem subcategoria oficial: escolha uma antes de salvar.'
+                                        ? 'Produto antigo sem subcategoria oficial: escolha categoria e subcategoria antes de salvar.'
                                         : null}
-                                    ajuda={`Lista oficial de ${schema?.familia_produto?.nome || 'produto'}.`}
                                 />
                             </div>
                             {visivel('marca') && !ehServico && (

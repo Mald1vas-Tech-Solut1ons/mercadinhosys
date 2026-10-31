@@ -51,6 +51,12 @@ const CategoriaPicker: React.FC<CategoriaPickerProps> = ({ taxonomia, value, onC
     }, [categoria, busca]);
 
     const semTaxonomia = !(taxonomia || []).length;
+    // "Outros" é rede de segurança INTERNA (importação por XML/planilha), não escolha do lojista:
+    // o cadastro só oferece categoria de verdade, com as subcategorias dela.
+    const categoriasVisiveis = useMemo(
+        () => (taxonomia || []).filter(cat => chaveCanonica(cat.nome) !== 'outro'),
+        [taxonomia],
+    );
 
     const escolherCategoria = (chave: string) => {
         setBusca('');
@@ -95,7 +101,7 @@ const CategoriaPicker: React.FC<CategoriaPickerProps> = ({ taxonomia, value, onC
                     </p>
                 ) : (
                     <div className="flex flex-wrap gap-1.5" role="group" aria-label="Categoria">
-                        {(taxonomia || []).map(cat => (
+                        {categoriasVisiveis.map(cat => (
                             <button key={cat.chave} type="button" aria-pressed={cat.chave === categoriaAtiva}
                                 disabled={disabled}
                                 onClick={() => escolherCategoria(cat.chave)}

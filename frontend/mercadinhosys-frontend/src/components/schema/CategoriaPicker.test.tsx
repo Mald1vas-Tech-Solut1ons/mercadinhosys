@@ -105,6 +105,17 @@ describe('CategoriaPicker — Família → Categoria → Subcategoria', () => {
         expect(screen.getByRole('button', { name: 'Feijão' })).toHaveAttribute('aria-pressed', 'true');
     });
 
+    it('NÃO oferece a categoria "Outros" (é rede de segurança interna, não escolha do lojista)', () => {
+        render(<CategoriaPicker taxonomia={[
+            { chave: 'alimento.basico', nome: 'Básicos da Despensa', subcategorias: [{ chave: 'alimento.basico.arroz', nome: 'Arroz' }] },
+            { chave: 'alimento.outro', nome: 'Outros', subcategorias: [{ chave: 'alimento.outro.outros_alimentos', nome: 'Outros Alimentos' }] },
+        ]} value="" onChange={vi.fn()} />);
+
+        expect(screen.getByRole('button', { name: 'Básicos da Despensa' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Outros' })).not.toBeInTheDocument();
+        expect(screen.queryByText(/Outros Alimentos/)).not.toBeInTheDocument();
+    });
+
     it('sem taxonomia avisa em vez de inventar opções', () => {
         render(<CategoriaPicker taxonomia={[]} value="" onChange={vi.fn()} />);
         expect(screen.getByText(/lista oficial desta família não chegou/i)).toBeInTheDocument();

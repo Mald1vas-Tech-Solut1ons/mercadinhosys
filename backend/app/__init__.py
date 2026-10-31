@@ -1008,6 +1008,17 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar SFA: {e}")
 
+    # Contagem cíclica de estoque — "O que sumiu" (FASE 3.1)
+    try:
+        # Importar aqui garante que os models da contagem entram no registry do
+        # SQLAlchemy mesmo quando o app sobe só com create_app (testes, CLI).
+        from app import models_contagem  # noqa: F401
+        from app.routes.contagem import contagem_bp
+        app.register_blueprint(contagem_bp, url_prefix="/api/contagem")
+        logger.info("✅ Blueprint Contagem cíclica registrado em /api/contagem")
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar Contagem cíclica: {e}")
+
     # Dashboard Científico já é tratado via dashboard_bp centralizado
     pass
 

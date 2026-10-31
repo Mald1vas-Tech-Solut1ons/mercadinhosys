@@ -44,8 +44,17 @@ const App: React.FC = () => {
                   toastOptions={{
                     duration: 2500,
                     style: estiloBaseToast,
+                    // Aviso que não é anunciado é aviso que não existe: o caixa pode ser
+                    // lerdo de vista e o toast dizer "produto vencido". role/aria-live
+                    // fazem o leitor de tela falar a mensagem crítica.
+                    ariaProps: { role: 'status', 'aria-live': 'polite' },
                     success: { style: { ...estiloBaseToast, borderLeft: '4px solid #10b981' }, iconTheme: { primary: '#10b981', secondary: '#0f172a' } },
-                    error: { duration: 6000, style: { ...estiloBaseToast, borderLeft: '4px solid #ef4444' }, iconTheme: { primary: '#ef4444', secondary: '#0f172a' } },
+                    error: {
+                      duration: 6000,
+                      style: { ...estiloBaseToast, borderLeft: '4px solid #ef4444' },
+                      iconTheme: { primary: '#ef4444', secondary: '#0f172a' },
+                      ariaProps: { role: 'alert', 'aria-live': 'assertive' },
+                    },
                   }}
                 />
               </Router>

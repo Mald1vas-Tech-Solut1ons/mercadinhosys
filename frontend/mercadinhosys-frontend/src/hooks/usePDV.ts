@@ -77,6 +77,13 @@ const createInitialSession = (): PDVSession => ({
 // bloqueio de tela) e voltar zera o carrinho inteiro, pois o estado vivia só em memória.
 // FASE 1.4: sessão keyada por operador — pdv_sessions_v1_<funcionario_id>.
 // O carrinho do operador anterior não vaza para o novo operador no mesmo tablet.
+/**
+ * Valor de sangria a partir do qual o PDV avisa (FASE 1.x).
+ * Hoje é constante porque Configuracao não tem campo de limite de sangria — quando
+ * tiver, este é o único ponto a trocar (a tela não decide mais o número).
+ */
+export const LIMITE_SANGRIA_PADRAO = 500;
+
 export { PDV_STORAGE_PREFIX, pdvStorageKey, limparSessaoOperador } from '../utils/pdvStorage';
 import { pdvStorageKey, limparSessaoOperador } from '../utils/pdvStorage';
 
@@ -609,7 +616,8 @@ export const usePDV = () => {
 
             // ── Alerta de Sangria ──────────────────────────────────────────
             const totalDinheiro = pagamentos.filter(p => p.forma === 'dinheiro').reduce((sum, p) => sum + p.valor, 0);
-            const LIMITE_SANGRIA = 500;
+            // Sem campo de limite de sangria no backend ainda: valor nomeado aqui, num lugar só.
+            const LIMITE_SANGRIA = LIMITE_SANGRIA_PADRAO;
             if (totalDinheiro > 0) {
                 try {
                     const resumo = await pdvService.getResumoCaixa();

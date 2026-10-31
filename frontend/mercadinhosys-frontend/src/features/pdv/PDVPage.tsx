@@ -71,7 +71,7 @@ const CaixaBloqueado: React.FC<{ onAbrirCaixa: () => void }> = ({ onAbrirCaixa }
         </p>
         <button
             onClick={onAbrirCaixa}
-            className="px-8 py-4 bg-red-600 text-white font-black rounded-2xl uppercase text-sm tracking-widest shadow-lg hover:bg-red-700 transition-all active:scale-95"
+            className="px-8 py-4 bg-emerald-600 text-white font-black rounded-2xl uppercase text-sm tracking-widest shadow-lg hover:bg-emerald-700 transition-all active:scale-95"
         >
             <Wallet className="w-5 h-5 inline mr-2" />
             Abrir Caixa
@@ -594,7 +594,7 @@ const PDVPage: React.FC = () => {
                                 onClick={() => alternarSessao(sessao.id)}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-t-2xl transition-all ${sessaoAtivaId === sessao.id ? 'bg-white dark:bg-slate-900 shadow-[0_-4px_10px_rgba(0,0,0,0.02)] text-blue-600 dark:text-blue-400 font-black' : 'bg-transparent text-slate-500 hover:bg-slate-300/50 dark:hover:bg-slate-900/50 font-bold'}`}
                             >
-                                <span className="text-xs uppercase tracking-wider whitespace-nowrap">Cx. {index + 1}</span>
+                                <span className="text-xs uppercase tracking-wider whitespace-nowrap">Venda {index + 1}</span>
                                 {sessao.carrinho.length > 0 && (
                                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${sessaoAtivaId === sessao.id ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30' : 'bg-slate-300/50 text-slate-600 dark:bg-slate-800'}`}>
                                         {sessao.carrinho.length}
@@ -665,13 +665,13 @@ const PDVPage: React.FC = () => {
                         <div className="hidden md:flex lg:hidden shrink-0 items-center justify-between gap-4 px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                             <div className="flex flex-col">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase">Total Geral</span>
-                                <span className="text-2xl font-black text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(total)}</span>
+                                <span className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{formatCurrency(total)}</span>
                             </div>
                             <button
                                 onClick={() => handleAbrirCheckout('pagamento')}
                                 className={`h-12 px-8 rounded-2xl font-black uppercase text-xs tracking-widest whitespace-nowrap shadow-lg ${
                                     caixaEstaAberto
-                                        ? 'bg-red-600 text-white shadow-red-500/20'
+                                        ? 'bg-emerald-600 text-white shadow-emerald-500/20'
                                         : 'bg-amber-500 text-white shadow-amber-500/20'
                                 }`}
                             >
@@ -686,7 +686,7 @@ const PDVPage: React.FC = () => {
                     <div className="flex-1 p-4 sm:p-6 flex flex-col justify-end gap-4 sm:p-6">
                         <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none text-center">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Total a Pagar</span>
-                            <span className="text-xl lg:text-xl xl:text-3xl font-black text-red-600 dark:text-red-400 tabular-nums block wrap-break-word leading-none">
+                            <span className="text-xl lg:text-xl xl:text-3xl font-black text-slate-900 dark:text-white tabular-nums block wrap-break-word leading-none">
                                 {formatCurrency(total)}
                             </span>
                         </div>
@@ -698,7 +698,7 @@ const PDVPage: React.FC = () => {
                                 }}
                                 className={`w-full h-16 rounded-2xl flex items-center justify-center gap-3 font-bold uppercase text-xs tracking-widest shadow-lg active:scale-95 transition-all ${
                                     caixaEstaAberto
-                                        ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20'
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
                                         : 'bg-amber-100 text-amber-800 border border-amber-200 hover:bg-amber-200 dark:bg-amber-950/30 dark:text-amber-200 dark:border-amber-800/50 dark:hover:bg-amber-950/50'
                                 }`}
                             >
@@ -1098,7 +1098,7 @@ const PDVPage: React.FC = () => {
                                         <span className="text-md font-bold text-slate-500 tabular-nums dark:text-gray-400">{formatCurrency(subtotal)}</span>
                                     </div>
                                     <div className="text-right">
-                                        <span className="text-[10px] font-black text-red-600 uppercase tracking-widest block mb-1">Total a Pagar</span>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1">Total a Pagar</span>
                                         <span className="text-2xl lg:text-2xl xl:text-4xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter leading-none">
                                             {formatCurrency(total)}
                                         </span>
@@ -1131,7 +1131,7 @@ const PDVPage: React.FC = () => {
                                         carrinho.length === 0 || loading
                                             ? 'bg-slate-200 text-slate-400'
                                             : caixaEstaAberto
-                                                ? 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/20'
+                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/20'
                                                 : 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-500/20'
                                     }`}
                                 >
@@ -1231,13 +1231,13 @@ const PDVPage: React.FC = () => {
                 <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 p-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-100 dark:border-slate-800 flex items-center justify-between z-50">
                     <div className="flex flex-col pl-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase">Total Geral</span>
-                        <span className="text-xl lg:text-xl xl:text-3xl font-black text-red-600 dark:text-red-400 tabular-nums">{formatCurrency(total)}</span>
+                        <span className="text-xl lg:text-xl xl:text-3xl font-black text-slate-900 dark:text-white tabular-nums">{formatCurrency(total)}</span>
                     </div>
                     <button
                         onClick={() => handleAbrirCheckout('pagamento')}
                         className={`h-14 px-10 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl ${
                             caixaEstaAberto
-                                ? 'bg-red-600 text-white shadow-red-500/20'
+                                ? 'bg-emerald-600 text-white shadow-emerald-500/20'
                                 : 'bg-amber-500 text-white shadow-amber-500/20'
                         }`}
                     >

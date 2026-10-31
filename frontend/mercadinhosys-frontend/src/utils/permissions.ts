@@ -168,3 +168,62 @@ export function getSettingsTabs(user?: UsuarioLogado | null): string[] {
     }
     return tabs;
 }
+
+/**
+ * Menu do piloto (FASE 2.2).
+ *
+ * O filtro por cargo deixa o DONO (nível 1) ver tudo — inclusive SFA, Logística
+ * e RH, que não existem na operação de um mercadinho de bairro. Cada módulo
+ * extra na face é uma pergunta no WhatsApp do CTO no primeiro dia.
+ *
+ * Regra: quem opera vê a operação diária; o resto fica em "Mais módulos"
+ * (continua visível e alcançável, mas fora do caminho). Super admin e modo
+ * espelho não são afetados.
+ */
+export const ROTAS_OPERACAO_DIARIA: string[] = [
+    '/dashboard', '/pdv', '/pdv?manage=true', '/products',
+    '/customers', '/sales', '/expenses', '/reports', '/entrada-nfe',
+];
+
+/** Rotas que o operador de caixa (nível 4) realmente usa. */
+export const ROTAS_CAIXA: string[] = ['/pdv', '/pdv?manage=true'];
+
+export interface ItemMenuBase {
+    to: string;
+}
+
+export interface MenuPorPersona<T extends ItemMenuBase> {
+    principais: T[];
+    mais: T[];
+}
+
+/**
+ * Divide um menu em "operação diária" e "mais módulos" conforme a persona.
+ * Super admin recebe tudo em `principais` (modo espelho continua vendo tudo).
+ */
+export function getMenuForUser<T extends ItemMenuBase>(
+    user: UsuarioLogado | null | undefined,
+    itens: T[],
+): MenuPorPersona<T> {
+    if (!user || user.is_super_admin) {
+        return { principais: itens, mais: [] };
+    }
+
+    const nivel = getNivel(user);
+
+    if (nivel >= 4) {
+        return {
+            principais: itens.filter(i => ROTAS_CAIXA.includes(i.to)),
+            mais: itens.filter(i => !ROTAS_CAIXA.includes(i.to)),
+        };
+    }
+
+    if (nivel <= 2) {
+        return {
+            principais: itens.filter(i => ROTAS_OPERACAO_DIARIA.includes(i.to)),
+            mais: itens.filter(i => !ROTAS_OPERACAO_DIARIA.includes(i.to)),
+        };
+    }
+
+    return { principais: itens, mais: [] };
+}

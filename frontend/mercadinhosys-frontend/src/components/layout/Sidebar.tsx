@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     Home,
@@ -29,7 +29,7 @@ import {
     Database
 } from 'lucide-react';
 import { authService } from '../../features/auth/authService';
-import { canAccessRoute } from '../../utils/permissions';
+import { canAccessRoute, getMenuForUser } from '../../utils/permissions';
 
 const menuItems = [
     { to: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -65,6 +65,22 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
+    const [maisAberto, setMaisAberto] = useState(false);
+
+    // Persona do piloto: o dono (nível 1) via tudo, inclusive SFA/Delivery/RH.
+    // A operação diária fica na face; o resto vai para "Mais módulos".
+    const menuVisivel = useMemo(() => {
+        const user = authService.getCurrentUser();
+        const isSuperAdmin = user?.is_super_admin || false;
+        const permitidos = menuItems.filter(item => {
+            if (['/estabelecimentos', '/leads', '/monitor', '/catalogo-mestre'].includes(item.to)) {
+                return isSuperAdmin;
+            }
+            return isSuperAdmin || canAccessRoute(item.to, user);
+        });
+        return getMenuForUser(user, permitidos);
+    }, []);
+
     return (
         <aside className={`hidden md:block bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-full overflow-y-auto custom-scrollbar transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
             <div className="p-4 flex justify-end">
@@ -78,18 +94,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
             </div>
             <nav className="px-4 pb-4">
                 <ul className="space-y-2">
-                    {menuItems.filter(item => {
-                        const user = authService.getCurrentUser();
-                        const isSuperAdmin = user?.is_super_admin || false;
-
-                        // Rotas de administração global do SaaS: só Super Admin
-                        if (['/estabelecimentos', '/leads', '/monitor', '/catalogo-mestre'].includes(item.to)) {
-                            return isSuperAdmin;
-                        }
-
-                        // Regras de Acesso centralizadas (nível do cargo + plano)
-                        return isSuperAdmin || canAccessRoute(item.to, user);
-                    }).map((item) => (
+                    {menuVisivel.principais.map((item) => (
                         <li key={item.to}>
                             <NavLink
                                 to={item.to}
@@ -106,6 +111,40 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
                         </li>
                     ))}
                 </ul>
+
+                {menuVisivel.mais.length > 0 && (
+                    <div className="mt-4 border-t border-gray-100 dark:border-gray-700 pt-3">
+                        <button
+                            onClick={() => setMaisAberto(v => !v)}
+                            aria-expanded={maisAberto}
+                            className={`flex w-full items-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors ${isCollapsed ? 'justify-center px-1 py-3' : 'px-4 py-2.5 space-x-3'}`}
+                        >
+                            {maisAberto ? <ChevronLeft className="w-5 h-5 shrink-0" /> : <ChevronRight className="w-5 h-5 shrink-0" />}
+                            {!isCollapsed && <span className="text-sm font-bold whitespace-nowrap">Mais módulos ({menuVisivel.mais.length})</span>}
+                        </button>
+                        {maisAberto && (
+                            <ul className="mt-1 space-y-1">
+                                {menuVisivel.mais.map(item => (
+                                    <li key={item.to}>
+                                        <NavLink
+                                            to={item.to}
+                                            onClick={() => setMaisAberto(false)}
+                                            className={({ isActive }) =>
+                                                `flex items-center rounded-lg text-sm transition-colors ${isCollapsed ? 'justify-center px-1 py-2' : 'px-4 py-2 space-x-3'} ${isActive
+                                                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`
+                                            }
+                                        >
+                                            <item.icon className="w-4 h-4 shrink-0" />
+                                            {!isCollapsed && <span className="whitespace-nowrap overflow-hidden">{item.label}</span>}
+                                        </NavLink>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                )}
+
                 <div className="mt-6 border-t border-gray-100 dark:border-gray-700 pt-4">
                     <button
                         onClick={() => window.dispatchEvent(new CustomEvent('start-tour'))}

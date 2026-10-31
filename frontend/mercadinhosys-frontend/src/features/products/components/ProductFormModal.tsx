@@ -122,6 +122,10 @@ const CategoriasProntas = ({ sugeridas, daLoja, atual, onEscolher }: {
     );
 };
 
+// O servidor grava estes campos em MAIÚSCULAS (guardião do cadastro): o formulário mostra igual.
+const CAMPOS_MAIUSCULOS = new Set<string>(['nome', 'marca', 'fabricante', 'categoria']);
+const maiusculas = (t?: string | null) => (t || '').toUpperCase();
+
 // Espelha services/fiscal/tributacao.py (Lei 10.147/2000): as listas vêm do schema.
 const ncmMonofasico = (ncm: string, regras?: RegrasFiscais): boolean => {
     const digitos = (ncm || '').replace(/\D/g, '');
@@ -336,11 +340,11 @@ const ProductFormModal = ({
                 const familiaNova = !produto && !familiaEscolhida.current && s?.familia_produto ? s.familia_produto : null;
                 setFormData(prev => ({
                     ...prev,
-                    nome: d.nome || prev.nome,
+                    nome: maiusculas(d.nome) || prev.nome,
                     // Não sobrescreve o que o usuário já escolheu; categoria casa com as da loja.
-                    categoria: prev.categoria || s?.categoria || d.categoria || '',
-                    marca: d.marca || prev.marca,
-                    fabricante: prev.fabricante || d.fabricante || '',
+                    categoria: prev.categoria || maiusculas(s?.categoria || d.categoria),
+                    marca: maiusculas(d.marca) || prev.marca,
+                    fabricante: prev.fabricante || maiusculas(d.fabricante),
                     descricao: prev.descricao || s?.descricao || '',
                     ncm: d.ncm || prev.ncm,
                     cest: d.cest || prev.cest,
@@ -403,7 +407,7 @@ const ProductFormModal = ({
 
     const escolherResultadoNome = (item: CatalogoBuscaItem) => {
         setResultadosNome([]);
-        setFormData(prev => ({ ...prev, nome: item.nome }));
+        setFormData(prev => ({ ...prev, nome: maiusculas(item.nome) }));
         handleScanCodigo(item.ean);
     };
 
@@ -487,7 +491,7 @@ const ProductFormModal = ({
     };
 
     const field = (key: keyof typeof emptyForm, value: any) =>
-        setFormData(prev => ({ ...prev, [key]: value }));
+        setFormData(prev => ({ ...prev, [key]: CAMPOS_MAIUSCULOS.has(key) && typeof value === 'string' ? value.toUpperCase() : value }));
 
     // Auto-focus: o cursor sempre no próximo campo que exige decisão.
     // EAN ao abrir; preço de custo assim que o lookup preenche; nome quando
@@ -1329,7 +1333,7 @@ const ProductFormModal = ({
                 <BarcodeScanner onScan={handleScanCodigo} onClose={() => setShowScanner(false)}
                     onBuscarNome={ehServico ? undefined : (termo) => {
                         setShowScanner(false);
-                        setFormData(prev => ({ ...prev, nome: termo }));
+                        setFormData(prev => ({ ...prev, nome: maiusculas(termo) }));
                         buscarPorNome(termo);
                     }} />
             )}

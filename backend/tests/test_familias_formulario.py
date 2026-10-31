@@ -125,3 +125,16 @@ def test_grafico_dos_cards_usa_o_catalogo_inteiro(client, session, ctx):
     assert sum(c["value"] for c in dist["baixo"]) == est["produtos_baixo_estoque"]
     assert sum(c["value"] for c in dist["all"]) == est["total_produtos"]
     assert len(dist["all"]) <= 7  # 6 maiores + "Outras"
+
+
+def test_busca_por_palavras_em_qualquer_ordem(client, session, ctx):
+    r = _criar(client, ctx, nome="PANO DE PRATOS ESTAMPADO", categoria="Panos de Prato",
+               familia_produto="cama_mesa_banho", quantidade=4)
+    assert r.status_code == 201, r.get_data(as_text=True)
+    for termo in ("pano prato", "prato pano", "PANOS", "estampado pano"):
+        resp = client.get(f"/api/produtos/?busca={termo}&ativos=true", headers=ctx["headers"])
+        nomes = [p["nome"] for p in resp.get_json().get("produtos", resp.get_json().get("data", []))]
+        assert "PANO DE PRATOS ESTAMPADO" in nomes, (termo, nomes)
+    resp = client.get("/api/produtos/?busca=pano%20inexistentexyz&ativos=true", headers=ctx["headers"])
+    nomes = [p["nome"] for p in resp.get_json().get("produtos", resp.get_json().get("data", []))]
+    assert "PANO DE PRATOS ESTAMPADO" not in nomes

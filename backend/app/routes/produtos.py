@@ -103,6 +103,27 @@ def _parse_optional_date(raw_value):
     return datetime.strptime(raw_value, "%Y-%m-%d").date()
 
 
+def _filtrar_busca_produto(query, busca: str):
+    """Busca por palavras: cada palavra precisa aparecer no nome, código, marca ou descrição,
+    em qualquer ordem, sem acento nem maiúscula ("pano prato" acha "PANO DE PRATOS").
+
+    Antes o texto inteiro tinha de aparecer igual, na mesma sequência.
+    """
+    palavras = [p for p in re.sub(r"[%_]", " ", busca).split() if p][:8]
+    # Plural e singular se acham: "panos" vira "pano", que casa com "pano" e "panos".
+    palavras = [p[:-1] if len(p) > 3 and p[-1] in "sS" else p for p in palavras]
+    for palavra in palavras:
+        termo = f"%{palavra}%"
+        query = query.filter(or_(
+            ilike_unaccent(Produto.nome, termo),
+            ilike_unaccent(Produto.codigo_barras, termo),
+            ilike_unaccent(Produto.codigo_interno, termo),
+            ilike_unaccent(Produto.descricao, termo),
+            ilike_unaccent(Produto.marca, termo),
+        ))
+    return query
+
+
 def _ensure_unique_lote_number(estabelecimento_id: int, numero_lote: str, lote_id: int = None):
     numero_lote = (numero_lote or "").strip()
     if not numero_lote:
@@ -1498,16 +1519,7 @@ def listar_produtos():
 
         # 7. Busca Textual
         if busca:
-            busca_termo = f"%{busca}%"
-            query = query.filter(
-                or_(
-                    ilike_unaccent(Produto.nome, busca_termo),
-                    ilike_unaccent(Produto.codigo_barras, busca_termo),
-                    ilike_unaccent(Produto.codigo_interno, busca_termo),
-                    ilike_unaccent(Produto.descricao, busca_termo),
-                    ilike_unaccent(Produto.marca, busca_termo),
-                )
-            )
+            query = _filtrar_busca_produto(query, busca)
 
         # 8. Filtros de Validade (produto OU lotes do produto; fallback só por produto se lotes falhar)
         hoje = date.today()
@@ -3884,16 +3896,7 @@ def listar_produtos_estoque():
                 query = query.filter(Produto.quantidade > Produto.quantidade_minima)
 
         if busca:
-            busca_termo = f"%{busca}%"
-            query = query.filter(
-                db.or_(
-                    ilike_unaccent(Produto.nome, busca_termo),
-                    ilike_unaccent(Produto.codigo_barras, busca_termo),
-                    ilike_unaccent(Produto.codigo_interno, busca_termo),
-                    ilike_unaccent(Produto.descricao, busca_termo),
-                    ilike_unaccent(Produto.marca, busca_termo),
-                )
-            )
+            query = _filtrar_busca_produto(query, busca)
 
         # Ordenação
         if ordenar_por == "nome":
@@ -4264,16 +4267,7 @@ def obter_estatisticas_produtos():
                 query = query.filter(Produto.quantidade > Produto.quantidade_minima)
 
         if busca:
-            busca_termo = f"%{busca}%"
-            query = query.filter(
-                db.or_(
-                    ilike_unaccent(Produto.nome, busca_termo),
-                    ilike_unaccent(Produto.codigo_barras, busca_termo),
-                    ilike_unaccent(Produto.codigo_interno, busca_termo),
-                    ilike_unaccent(Produto.descricao, busca_termo),
-                    ilike_unaccent(Produto.marca, busca_termo),
-                )
-            )
+            query = _filtrar_busca_produto(query, busca)
 
         # Aplicar filtro rápido
         if filtro_rapido:

@@ -168,7 +168,7 @@ const QuickFiltersPanel: React.FC<QuickFiltersPanelProps> = ({
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 mb-6">
+        <div className="w-full min-w-0 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 mb-6">
             <div className="flex items-center gap-2 mb-4">
                 <Clock className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -184,7 +184,7 @@ const QuickFiltersPanel: React.FC<QuickFiltersPanelProps> = ({
                 )}
             </div>
 
-            <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-8 snap-x snap-mandatory hide-scrollbar">
+            <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 gap-2 sm:grid sm:grid-cols-[repeat(auto-fit,minmax(132px,1fr))] snap-x snap-mandatory hide-scrollbar">
                 {filters.map((filter) => {
                     const isActive = activeFilter === filter.id;
                     const colors = colorClasses[filter.color as keyof typeof colorClasses];
@@ -196,13 +196,19 @@ const QuickFiltersPanel: React.FC<QuickFiltersPanelProps> = ({
                             className={`
                                 p-3 rounded-lg transition-all duration-200 text-left min-w-[150px] sm:min-w-0 snap-start shrink-0
                                 ${isActive ? colors.active : `${colors.bg} ${colors.text} ${colors.hover}`}
-                                ${filter.pulse && !isActive ? 'animate-pulse' : ''}
                             `}
                             title={filter.description}
                         >
                             <div className="flex items-center gap-2 mb-1">
                                 {filter.icon}
                                 <span className="text-lg font-bold">{filter.count}</span>
+                                {/* Alerta discreto: só um ponto pulsa (o cartão inteiro piscando parecia desabilitado). */}
+                                {filter.pulse && !isActive && (
+                                    <span className="relative ml-auto flex h-2.5 w-2.5" aria-hidden>
+                                        <span className="absolute inline-flex h-full w-full rounded-full bg-current opacity-60 animate-ping" />
+                                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
+                                    </span>
+                                )}
                             </div>
                             <p className="text-xs font-medium leading-tight">
                                 {filter.label}

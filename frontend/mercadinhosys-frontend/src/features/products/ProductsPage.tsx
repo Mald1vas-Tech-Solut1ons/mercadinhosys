@@ -201,6 +201,9 @@ const ProductsPage: React.FC = () => {
     // já na abertura da página.
     const timer = setTimeout(() => {
       setFiltros(prev => (prev.busca === buscaLocal ? prev : { ...prev, busca: buscaLocal }));
+      // O efeito só roda quando o texto muda: busca nova começa na 1ª página
+      // (antes ficava na página em que estava e mostrava "0 de 2").
+      setPage(1);
     }, 500);
     return () => clearTimeout(timer);
   }, [buscaLocal]);

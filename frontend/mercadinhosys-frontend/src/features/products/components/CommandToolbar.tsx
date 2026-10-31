@@ -65,13 +65,17 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
   const podeDarEntrada = canAccessRoute('/entrada-nfe', authService.getCurrentUser());
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm">
+    // min-w-0: a linha de ações rola por dentro; sem isso ela alargava a barra inteira e o
+    // "Novo Produto" saía da tela no celular.
+    <div className="w-full min-w-0 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm">
       {/* Linha 1: busca + filtros + ação principal (nunca quebra o texto do botão). */}
       <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4">
         <div className="relative flex-1 min-w-0 basis-full sm:basis-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500 pointer-events-none" />
           <input
-            type="search"
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             className="block w-full h-11 pl-10 pr-10 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800
@@ -124,7 +128,7 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
       </div>
 
       {/* Linha 2: ações secundárias. No celular rola na horizontal em vez de estourar a tela. */}
-      <div className="border-t border-gray-100 dark:border-slate-800 px-3 sm:px-4 py-2.5">
+      <div className="min-w-0 border-t border-gray-100 dark:border-slate-800 px-3 sm:px-4 py-2.5">
         <div className="flex items-center gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
           {podeDarEntrada && (
             <Acao icon={<QrCode className="w-4 h-4" />} label="Ler nota" cor="text-amber-500"

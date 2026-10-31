@@ -96,13 +96,13 @@ const CategoriasProntas = ({ sugeridas, daLoja, atual, onEscolher }: {
     const atualNorm = normalizar(atual || '');
     const visiveis = todas ? sugeridas : sugeridas.slice(0, 12);
     return (
-        <div className="mt-2">
-            <div className="flex flex-wrap gap-1.5">
+        <div className="mt-2 min-w-0">
+            <div className="flex gap-1.5 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
                 {visiveis.map(c => {
                     const escolhida = atualNorm !== '' && normalizar(c) === atualNorm;
                     return (
                         <button key={c} type="button" onClick={() => onEscolher(c)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${escolhida
+                            className={`shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors ${escolhida
                                 ? 'bg-blue-600 border-blue-600 text-white'
                                 : daLojaNorm.has(normalizar(c))
                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
@@ -113,7 +113,7 @@ const CategoriasProntas = ({ sugeridas, daLoja, atual, onEscolher }: {
                 })}
                 {sugeridas.length > 12 && (
                     <button type="button" onClick={() => setTodas(v => !v)}
-                        className="px-2.5 py-1 rounded-full text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
+                        className="shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline">
                         {todas ? 'ver menos' : `ver todas (${sugeridas.length})`}
                     </button>
                 )}
@@ -712,11 +712,11 @@ const ProductFormModal = ({
             footer={
                 <div className="flex w-full sm:w-auto gap-3">
                     <button type="button" onClick={onClose}
-                        className="flex-1 sm:flex-none px-6 py-3 text-gray-600 dark:text-gray-400 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
+                        className="flex-1 sm:flex-none px-4 sm:px-6 py-3 text-gray-600 dark:text-gray-400 font-bold whitespace-nowrap hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">
                         Cancelar
                     </button>
                     <button onClick={handleSubmit} disabled={loading || isSearchingCosmos}
-                        className="flex-1 sm:flex-none px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                        className="flex-[2] sm:flex-none px-5 sm:px-8 py-3 bg-blue-600 text-white rounded-xl font-bold whitespace-nowrap hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                         {loading ? 'Salvando...' : (ehServico ? 'Salvar Serviço' : 'Salvar Produto')}
                     </button>
                 </div>

@@ -85,7 +85,7 @@ export const MODULOS_PLANO_GRATIS: Modulo[] = [
     'fornecedores', 'clientes', 'configuracoes', 'entrada_nfe',
 ];
 
-const PLANOS_PRO = ['pro', 'pago', 'premium', 'elite', 'advanced', 'enterprise', 'master', 'profissional', 'professional'];
+const PLANOS_PRO = ['pro', 'pago', 'premium', 'elite', 'advanced', 'enterprise', 'master', 'profissional', 'professional', 'trial', 'teste'];
 
 export function isPlanoGratis(user?: UsuarioLogado | null): boolean {
     if (user?.is_super_admin) return false;

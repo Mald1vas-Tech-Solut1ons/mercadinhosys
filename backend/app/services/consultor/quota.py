@@ -1,12 +1,26 @@
 """Gerenciamento de quota e limites de uso do Consultor Inteligente.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from app.models import ConsultorInteracao, db, _tenant_atual
 from app.utils.timezone import now_utc, to_local
 
 CONSULTOR_LIMITE_DIA = 40 # Limite padrão diário de interações completas via Chat
 INSIGHT_LIMITE_DIA = 20    # Limite padrão de *refreshes manuais* de insights por dia
+
+FUSO_LOJA = ZoneInfo("America/Sao_Paulo")
+
+
+def _inicio_dia_local_em_utc() -> datetime:
+    """Meia-noite no fuso da loja, convertida para UTC (que é como created_at é gravado).
+
+    A conta antiga usava datetime(agora_utc.year, ...): a cota virava às 21h de
+    Brasília (meia-noite UTC) e o lojista perdia a noite inteira de consultas.
+    """
+    agora_local = datetime.now(FUSO_LOJA)
+    inicio_local = agora_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    return inicio_local.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def _contar_interacoes_hoje(estabelecimento_id: int) -> int:
@@ -16,9 +30,8 @@ def _contar_interacoes_hoje(estabelecimento_id: int) -> int:
     # o SQLAlchemy necessita da data extraída em Python ou SQL.
     # Como created_at está em UTC no banco, a consulta exata requer conversão.
     # Para simplificar, buscamos as últimas 24h em UTC.
-    
-    agora_utc = now_utc()
-    inicio_dia_utc = datetime(agora_utc.year, agora_utc.month, agora_utc.day)
+
+    inicio_dia_utc = _inicio_dia_local_em_utc()
     
     # Busca todas de hoje (UTC)
     q = ConsultorInteracao.query.filter(
@@ -33,8 +46,7 @@ def _contar_interacoes_hoje(estabelecimento_id: int) -> int:
 
 def _contar_insights_hoje(estabelecimento_id: int) -> int:
     """Conta refreshes manuais de insight no dia atual (fuso Brasil)."""
-    agora_utc = now_utc()
-    inicio_dia_utc = datetime(agora_utc.year, agora_utc.month, agora_utc.day)
+    inicio_dia_utc = _inicio_dia_local_em_utc()
     
     q = ConsultorInteracao.query.filter(
         ConsultorInteracao.estabelecimento_id == estabelecimento_id,

@@ -1,4 +1,4 @@
-"""DeepSeek para RAG e Groq para textos curtos; sem chamadas duplicadas."""
+"""DeepSeek para RAG e Groq para textos curtos; com fallback real entre provedores."""
 import logging
 import os
 import requests
@@ -12,18 +12,25 @@ PROVIDERS = {'deepseek': {'url': 'https://api.deepseek.com/chat/completions',
                       'model_default':'openai/gpt-oss-20b'}}
 TIMEOUT_SEGUNDOS = 45
 
+
 def llm_disponivel(provider='deepseek') -> bool:
     config = PROVIDERS.get(provider, PROVIDERS['deepseek'])
     return bool(os.getenv(config['key_env'], '').strip())
 
-def gerar_resposta(messages: list[dict], provider: str = 'deepseek',
-                   max_tokens: int = 1024, temperature: float = 0.2) -> str | None:
-    """O servidor escolhe o provedor pela tarefa; Gemini legado vira DeepSeek.
 
-    Não registra chave, prompt ou conteúdo recebido. Não repete chamadas pagas
-    automaticamente. Em falha, o chamador mantém seu fallback de interface.
+def _providers_para(provider: str) -> list[str]:
+    """Ordem de tentativa: o pedido primeiro, o outro configurado depois.
+
+    O Consultor pede DeepSeek. Se a DeepSeek cair (5xx, timeout, chave inválida),
+    o lojista não pode ler "não foi possível gerar" — ele não tem nada a ver com
+    a disponibilidade do provedor.
     """
-    provider = provider if provider in PROVIDERS else 'deepseek'
+    pedido = provider if provider in PROVIDERS else 'deepseek'
+    return [pedido] + [nome for nome in PROVIDERS if nome != pedido]
+
+
+def _chamar_provider(provider: str, messages: list[dict], max_tokens: int,
+                     temperature: float) -> str | None:
     config = PROVIDERS[provider]
     if not llm_disponivel(provider):
         return None
@@ -58,5 +65,23 @@ def gerar_resposta(messages: list[dict], provider: str = 'deepseek',
                     usage.get('prompt_tokens'), usage.get('completion_tokens'))
         return content.strip() if isinstance(content, str) and content.strip() else None
     except (requests.RequestException, ValueError, TypeError, IndexError, KeyError):
-        logger.warning('LLM %s: falha de rede ou resposta inválida; sem fallback externo.', provider)
+        logger.warning('LLM %s: falha de rede ou resposta inválida.', provider)
         return None
+
+
+def gerar_resposta(messages: list[dict], provider: str = 'deepseek',
+                   max_tokens: int = 1024, temperature: float = 0.2) -> str | None:
+    """Tenta o provedor pedido e, se ele falhar, o outro configurado.
+
+    Não registra chave, prompt ou conteúdo recebido. Cada provedor é tentado uma
+    única vez por chamada — fallback entre provedores, não retry do mesmo.
+    """
+    for nome in _providers_para(provider):
+        if not llm_disponivel(nome):
+            continue
+        resposta = _chamar_provider(nome, messages, max_tokens, temperature)
+        if resposta:
+            if nome != provider:
+                logger.warning('LLM fallback: %s respondeu no lugar de %s', nome, provider)
+            return resposta
+    return None

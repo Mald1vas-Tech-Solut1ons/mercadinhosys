@@ -12,6 +12,7 @@ import { isPlanoGratis } from '../../utils/permissions';
 import { InsightCard } from '../../components/consultor/InsightCard';
 import AlertsPanel from './components/AlertsPanel';
 import OnboardingPiloto from '../onboarding/OnboardingPiloto';
+import PainelDoDia from './components/PainelDoDia';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { dataLocalISO } from '../../utils/dataLocal';
 import type { PeriodoDashboard } from './components/PorQueMudou';
@@ -140,7 +141,10 @@ export default function DashboardPageV2() {
       {/* Checklist executável do piloto: 4 cards que FAZEM, no lugar do tour de 13 passos. */}
       <OnboardingPiloto />
 
-      <InsightCard especialista="geral" titulo="Consultor M-IA" className="mb-6 tour-ia-consultor" />
+      {/* As três perguntas das 7h, cada uma com o botão que resolve. */}
+      <PainelDoDia data={data} />
+
+      <InsightCard especialista="geral" titulo="Consultor da Loja" className="mb-6 tour-ia-consultor" />
 
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
           (snap + sangria até as bordas) para nunca cortar/embaralhar os rótulos. */}

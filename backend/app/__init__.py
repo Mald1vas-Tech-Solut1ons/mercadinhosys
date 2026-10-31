@@ -294,6 +294,13 @@ def create_app(config_name=None):
             g.user_id = int(identidade) if identidade is not None and str(identidade).isdigit() else None
         except Exception:
             g.user_id = None
+        # Rotas e serviços consultam request.funcionario_id (ex.: consultor) e nunca
+        # encontravam nada — o fallback existia e não era alimentado.
+        try:
+            from flask import request as _flask_request
+            _flask_request.funcionario_id = g.user_id
+        except Exception:
+            pass
 
         if not claims:
             return  # Rota pública / sem autenticação: nada a escopar.

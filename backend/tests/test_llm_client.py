@@ -3,13 +3,27 @@ import pytest
 from app.utils.llm_client import gerar_resposta, llm_disponivel
 
 def test_chaves_antigas_nao_ativam_outros_provedores(monkeypatch):
+    # GEMINI_API_KEY é legado: não existe mais em PROVIDERS e não pode ativar nada.
     monkeypatch.delenv('DEEPSEEK_API', raising=False)
-    monkeypatch.setenv('GROQ_API_KEY', 'chave-antiga')
+    monkeypatch.delenv('GROQ_API_KEY', raising=False)
     monkeypatch.setenv('GEMINI_API_KEY', 'chave-antiga')
     with patch('app.utils.llm_client.requests.post') as post:
         assert not llm_disponivel()
         assert gerar_resposta([{'role':'user', 'content':'oi'}]) is None
         post.assert_not_called()
+
+
+def test_sem_deepseek_usa_groq_como_fallback(monkeypatch):
+    """Fallback real: DeepSeek fora do ar não pode virar 'não foi possível gerar'."""
+    monkeypatch.delenv('DEEPSEEK_API', raising=False)
+    monkeypatch.setenv('GROQ_API_KEY', 'chave-groq')
+    response = MagicMock(status_code=200)
+    response.json.return_value = {'choices':[{'message':{'content':'resumo'}}], 'usage': {}}
+    response.headers = {}
+    with patch('app.utils.llm_client.requests.post', return_value=response) as post:
+        assert gerar_resposta([{'role':'user', 'content':'oi'}]) == 'resumo'
+        assert post.call_count == 1
+        assert 'groq' in post.call_args.args[0]
 
 def test_cliente_legado_usa_somente_deepseek_com_limite(monkeypatch):
     monkeypatch.setenv('DEEPSEEK_API', 'chave-ficticia')

@@ -10,6 +10,222 @@ Regras (brainstorm aprovado em 2026-10-30):
 view_schema_service junta este catálogo às famílias técnicas que já existiam (construção, eletro...).
 """
 
+# Lista OFICIAL de categorias por família (estudo de mercado 2026-10-31): o cadastro só aceita estas.
+# Fontes: Pão de Açúcar (mapa de categorias), Havan (departamentos); regra GS1 GPC: cada categoria
+# pertence a UMA família. Só o super admin acrescenta categorias (vale para todas as lojas).
+CATEGORIAS_OFICIAIS = {
+    "alimento": [
+        "Arroz", "Feijão", "Grãos e Cereais", "Massas", "Farinhas e Farofas", "Açúcar", "Adoçantes", "Sal",
+        "Óleos e Azeites", "Vinagres", "Molhos e Atomatados", "Maionese", "Ketchup e Mostarda",
+        "Temperos e Especiarias", "Caldos e Sopas", "Enlatados e Conservas", "Peixes em Conserva", "Pratos Prontos",
+        "Café", "Chás", "Achocolatados", "Leite em Pó", "Leites", "Leites Vegetais", "Cereais Matinais",
+        "Aveia e Granola", "Biscoitos Doces", "Biscoitos Salgados", "Snacks e Salgadinhos", "Pipoca",
+        "Chocolates e Bombons", "Balas e Doces", "Confeitaria e Sobremesas", "Doces em Calda e Geleias", "Mel",
+        "Pães e Bolos Industrializados", "Torradas", "Alimentos Infantis", "Saudáveis e Funcionais", "Diet e Light",
+        "Sem Glúten e Sem Lactose", "Étnicos e Importados", "Sazonais de Páscoa e Natal", "Cestas Básicas",
+        "Granel", "Outros Alimentos",
+    ],
+    "bebida": [
+        "Refrigerantes", "Águas Minerais", "Águas com Gás", "Águas Saborizadas", "Sucos Prontos",
+        "Sucos Concentrados e Refrescos", "Néctares", "Chás Prontos", "Energéticos", "Isotônicos e Hidratação",
+        "Água de Coco", "Bebidas Lácteas", "Cervejas", "Cervejas Especiais e Artesanais", "Cervejas sem Álcool",
+        "Vinhos Tintos", "Vinhos Brancos e Rosés", "Espumantes", "Cachaças e Aguardentes", "Vodkas", "Whiskies",
+        "Gin", "Licores", "Conhaques", "Destilados Diversos", "Drinks Prontos", "Gelo", "Xaropes", "Outras Bebidas",
+    ],
+    "suplementos": [
+        "Vitaminas", "Vitamina C", "Vitamina D", "Complexo B", "Multivitamínicos", "Vitaminas Infantis",
+        "Vitaminas para Gestantes", "Minerais", "Magnésio", "Zinco", "Ferro", "Cálcio", "Ômega 3", "Colágeno",
+        "Proteínas e Whey", "Proteína Vegetal", "Creatina", "Pré-treino", "Termogênicos", "BCAA e Aminoácidos",
+        "Glutamina", "Hipercalóricos", "Carboidratos e Gel", "Barras de Proteína", "Fitoterápicos", "Probióticos",
+        "Melatonina e Sono", "Emagrecimento", "Imunidade", "Cabelos, Pele e Unhas", "Outros Suplementos",
+    ],
+    "perfumaria_higiene": [
+        "Perfumes Femininos", "Perfumes Masculinos", "Colônias Infantis", "Body Splash", "Maquiagem Rosto",
+        "Maquiagem Olhos", "Batons e Lábios", "Esmaltes", "Unhas e Cutelaria", "Shampoo", "Condicionador",
+        "Hidratação e Tratamento Capilar", "Finalizadores e Fixadores", "Coloração de Cabelo",
+        "Acessórios de Cabelo", "Hidratantes Corporais", "Cuidados com o Rosto", "Proteção Solar", "Pós-sol",
+        "Óleos Corporais", "Kits e Presentes", "Necessaires e Acessórios", "Outros Cosméticos",
+    ],
+    "embalagem_descartavel": [
+        "Copos Descartáveis", "Pratos Descartáveis", "Talheres Descartáveis", "Marmitex e Embalagens Delivery",
+        "Potes Descartáveis com Tampa", "Sacolas", "Sacos para Alimentos", "Guardanapos de Papel", "Papel Toalha",
+        "Filme PVC e Papel Alumínio", "Coadores de Papel", "Palitos", "Canudos", "Toalhas Descartáveis", "Balões",
+        "Velas de Aniversário", "Artigos para Festa", "Decoração de Festa", "Lembrancinhas",
+        "Embalagens para Presente", "Forminhas e Embalagens para Doces", "Confeitaria Decorativa",
+        "Outros Descartáveis e Festa",
+    ],
+    "bazar": [
+        "Panelas", "Frigideiras", "Panelas de Pressão", "Jogos de Panelas", "Formas e Assadeiras", "Refratários",
+        "Louças e Aparelhos de Jantar", "Pratos", "Tigelas e Cumbucas", "Copos", "Taças", "Canecas e Xícaras",
+        "Jarras e Suqueiras", "Garrafas e Squeezes", "Garrafas Térmicas", "Talheres e Faqueiros", "Facas e Tábuas",
+        "Utensílios de Cozinha", "Potes e Vasilhas", "Potes Herméticos", "Porta-mantimentos",
+        "Porta-temperos e Saleiros", "Porta-frios e Petisqueiras", "Escorredores", "Acessórios de Pia",
+        "Organização da Cozinha", "Caixas Organizadoras", "Cestos e Organizadores", "Cabides", "Lavanderia",
+        "Artigos para Banheiro", "Churrasco", "Velas e Fósforos", "Pilhas e Baterias", "Utilidades Diversas",
+        "Outras Utilidades",
+    ],
+    "eletro": [
+        "Air Fryers e Fritadeiras", "Aspiradores", "Balanças de Cozinha", "Batedeiras",
+        "Bebedouros e Purificadores", "Cafeteiras Elétricas", "Chaleiras Elétricas", "Espremedores",
+        "Ferros de Passar", "Grill e Sanduicheiras", "Liquidificadores", "Máquinas de Costura", "Mixers",
+        "Panelas Elétricas", "Passadeiras a Vapor", "Pipoqueiras", "Processadores", "Torradeiras",
+        "Fornos Elétricos", "Micro-ondas", "Crepeiras e Waffle", "Panificadoras", "Bombas para Garrafão",
+        "Ventiladores", "Aquecedores", "Climatizadores e Umidificadores", "Ar-condicionado", "Secadores de Cabelo",
+        "Chapinhas e Escovas", "Barbeadores e Aparadores", "Geladeiras e Freezers", "Fogões e Cooktops",
+        "Lavadoras e Secadoras", "Lava-louças", "Coifas e Depuradores", "Duchas e Torneiras Elétricas",
+        "Outros Eletro",
+    ],
+    "construcao_leve": [
+        "Cimento", "Argamassa", "Rejunte", "Areia e Pedra", "Impermeabilizantes", "Silicones e Vedantes",
+        "Colas de Construção", "Lixas", "Fitas", "Telas e Arames", "Lonas", "Outros Construção",
+    ],
+    "construcao_eletrica": [
+        "Fios e Cabos", "Disjuntores", "Tomadas e Interruptores", "Lâmpadas", "Luminárias",
+        "Extensões e Filtros de Linha", "Fita Isolante", "Quadros e Caixas", "Eletrodutos", "Plugues e Adaptadores",
+        "Campainhas", "Sensores", "Outros Elétrica",
+    ],
+    "construcao_hidraulica": [
+        "Tubos PVC", "Conexões", "Registros e Válvulas", "Torneiras", "Chuveiros e Duchas", "Sifões e Ralos",
+        "Caixas d'Água", "Mangueiras", "Esgoto", "Vedação Hidráulica", "Boias e Reparos", "Outros Hidráulica",
+    ],
+    "construcao_ferragem": [
+        "Parafusos", "Pregos", "Buchas", "Porcas e Arruelas", "Dobradiças", "Fechaduras", "Cadeados", "Puxadores",
+        "Trincos e Ferrolhos", "Correntes e Cabos de Aço", "Ganchos e Suportes", "Outras Ferragens",
+    ],
+    "vestuario": [
+        "Camisetas", "Blusas", "Camisas", "Regatas", "Calças", "Jeans", "Bermudas", "Shorts", "Saias", "Vestidos",
+        "Macacões", "Moletons", "Jaquetas e Casacos", "Moda Íntima Feminina", "Cuecas", "Sutiãs",
+        "Pijamas e Camisolas", "Meias", "Moda Praia", "Moda Fitness", "Moda Infantil", "Moda Bebê", "Plus Size",
+        "Uniformes", "Outros Vestuário",
+    ],
+    "calcados": [
+        "Tênis Casual", "Tênis Esportivo", "Sapatos Sociais", "Sapatilhas", "Sandálias", "Rasteiras", "Chinelos",
+        "Tamancos", "Botas", "Coturnos", "Pantufas", "Infantil", "Bebê", "Palmilhas e Cadarços",
+        "Cuidados com Calçados", "Outros Calçados",
+    ],
+    "autopecas": [
+        "Óleos e Lubrificantes", "Aditivos e Fluidos", "Filtros", "Freios", "Suspensão", "Motor",
+        "Elétrica Automotiva", "Lâmpadas Automotivas", "Baterias", "Pneus e Câmaras", "Transmissão",
+        "Limpeza Automotiva", "Acessórios Internos", "Acessórios Externos", "Tapetes Automotivos", "Som Automotivo",
+        "Moto Peças", "Capacetes", "Outros Automotivo",
+    ],
+    "frios_congelados": [
+        "Leites Frescos", "Iogurtes", "Bebidas Lácteas e Leite Fermentado", "Queijos",
+        "Requeijão e Queijos Cremosos", "Manteigas e Margarinas", "Cremes e Chantilly", "Presunto", "Mortadela",
+        "Salames", "Linguiças", "Salsichas", "Peito de Peru e Frios Especiais", "Defumados", "Patês e Antepastos",
+        "Massas Frescas", "Pratos Prontos Congelados", "Pizzas Congeladas", "Lanches Congelados",
+        "Hambúrgueres e Empanados", "Carnes e Aves Congeladas", "Vegetais Congelados", "Batata Congelada",
+        "Sorvetes", "Açaí", "Polpas de Fruta", "Sobremesas Geladas", "Outros Frios e Congelados",
+    ],
+    "hortifruti_pesaveis": [
+        "Frutas", "Frutas Secas", "Verduras", "Legumes", "Temperos Frescos", "Cogumelos", "Orgânicos", "Ovos",
+        "Carne Bovina", "Carne Suína", "Aves", "Carnes Temperadas", "Miúdos", "Peixes", "Frutos do Mar", "Bacalhau",
+        "Pães Franceses", "Pães Especiais", "Bolos e Doces de Padaria", "Salgados", "Confeitaria Gelada",
+        "Rotisseria", "Outros Hortifrúti e Padaria",
+    ],
+    "higiene": [
+        "Sabonetes em Barra", "Sabonetes Líquidos", "Creme Dental", "Escovas de Dente", "Fio Dental",
+        "Enxaguante Bucal", "Desodorantes", "Absorventes", "Protetores Diários", "Papel Higiênico",
+        "Lenços de Papel", "Barbear e Pós-barba", "Depilação", "Algodão e Hastes", "Higiene Íntima",
+        "Fraldas Geriátricas", "Álcool em Gel", "Curativos e Primeiros Socorros", "Preservativos", "Repelentes",
+        "Pomadas e Cremes", "Relaxantes Musculares", "Outros de Higiene",
+    ],
+    "limpeza": [
+        "Detergentes", "Lava-roupas em Pó", "Lava-roupas Líquido", "Sabão em Barra", "Amaciantes",
+        "Alvejantes e Tira-manchas", "Facilitadores de Passar", "Água Sanitária", "Desinfetantes",
+        "Limpadores Multiuso", "Limpa Vidros", "Limpador Sanitário", "Desengordurantes", "Limpa Alumínio e Forno",
+        "Álcool de Limpeza", "Ceras e Lustra-móveis", "Limpa Carpete e Estofado", "Inseticidas",
+        "Odorizadores e Aromatizadores", "Esponjas e Lã de Aço", "Panos e Flanelas", "Luvas", "Vassouras e Rodos",
+        "Mops e Esfregões", "Baldes e Bacias", "Pás de Lixo", "Escovas de Limpeza", "Desentupidores",
+        "Sacos de Lixo", "Lixeiras", "Prendedores e Varais", "Outros de Limpeza",
+    ],
+    "bebe": [
+        "Mamadeiras", "Bicos e Chupetas", "Mordedores", "Copos de Transição", "Pratos e Talheres Infantis",
+        "Leites e Fórmulas Infantis", "Papinhas", "Fraldas Infantis", "Lenços Umedecidos", "Pomadas para Assaduras",
+        "Shampoo e Sabonete Infantil", "Higiene Bucal Infantil", "Banheiras e Banho", "Toalhas e Fraldas de Pano",
+        "Enxoval", "Roupas de Bebê", "Bodies", "Meias e Sapatinhos", "Carrinhos e Cadeirinhas",
+        "Bolsas Maternidade", "Brinquedos de Bebê", "Segurança do Bebê", "Outros para Bebê",
+    ],
+    "pet": [
+        "Ração para Cães", "Ração para Gatos", "Ração para Aves", "Ração para Peixes",
+        "Ração para Roedores e Outros", "Ração Úmida e Sachês", "Petiscos e Biscoitos", "Areia Sanitária",
+        "Tapetes Higiênicos", "Higiene e Banho Pet", "Antipulgas e Vermífugos", "Coleiras, Guias e Peitorais",
+        "Comedouros e Bebedouros", "Camas e Casinhas", "Caixas de Transporte", "Brinquedos para Pets", "Roupas Pet",
+        "Arranhadores", "Gaiolas e Viveiros", "Aquários e Acessórios", "Outros Pet",
+    ],
+    "cama_mesa_banho": [
+        "Jogos de Lençol", "Lençóis Avulsos", "Fronhas", "Colchas e Cobre-leitos", "Edredons",
+        "Cobertores e Mantas", "Travesseiros", "Protetores de Colchão", "Saias de Cama", "Toalhas de Banho",
+        "Toalhas de Rosto", "Jogos de Toalhas", "Toalhas de Praia", "Roupões", "Tapetes de Banheiro",
+        "Toalhas de Mesa", "Jogos Americanos", "Caminhos de Mesa", "Panos de Prato", "Guardanapos de Tecido",
+        "Cama Infantil", "Outros Cama, Mesa e Banho",
+    ],
+    "decoracao": [
+        "Quadros e Decoração de Parede", "Porta-retratos", "Espelhos", "Relógios de Parede", "Vasos Decorativos",
+        "Flores e Plantas Artificiais", "Velas Decorativas", "Difusores e Aromatizadores", "Luminárias e Abajures",
+        "Enfeites e Esculturas", "Decoração de Mesa", "Cortinas e Persianas", "Tapetes", "Almofadas",
+        "Capas de Sofá", "Cestas Decorativas", "Nichos e Prateleiras", "Adesivos de Parede", "Decoração de Natal",
+        "Decoração de Páscoa", "Datas Comemorativas", "Outros Decoração",
+    ],
+    "jardinagem": [
+        "Plantas Ornamentais", "Suculentas e Cactos", "Flores", "Mudas Frutíferas", "Mudas de Hortaliças",
+        "Sementes", "Terra e Substratos", "Adubos e Fertilizantes", "Defensivos e Controle de Pragas",
+        "Vasos Plásticos", "Vasos de Cerâmica e Barro", "Cachepôs", "Pratos para Vaso",
+        "Suportes e Jardim Vertical", "Ferramentas de Jardim", "Regadores", "Mangueiras e Esguichos", "Irrigação",
+        "Cortadores e Roçadeiras", "Grama e Paisagismo", "Decoração de Jardim", "Piscina", "Outros Jardinagem",
+    ],
+    "papelaria": [
+        "Cadernos", "Fichários e Refis", "Agendas e Planners", "Blocos e Post-its", "Canetas", "Lápis e Lapiseiras",
+        "Borrachas e Apontadores", "Marca-textos", "Lápis de Cor e Giz de Cera", "Canetinhas e Hidrocor",
+        "Tintas e Pincéis", "Colas", "Tesouras e Estiletes", "Réguas e Geometria", "Estojos", "Mochilas Escolares",
+        "Lancheiras e Garrafas Escolares", "Papel Sulfite", "Papéis Especiais e Cartolinas", "Envelopes",
+        "Pastas e Arquivos", "Grampeadores, Clipes e Elásticos", "Fitas Adesivas", "Calculadoras",
+        "Material de Escritório", "Livros de Colorir e Atividades", "Artesanato", "Papel de Presente",
+        "Outros Papelaria",
+    ],
+    "brinquedos": [
+        "Bonecas e Acessórios", "Bonecos e Figuras de Ação", "Pelúcias", "Carrinhos, Pistas e Veículos",
+        "Jogos de Tabuleiro", "Jogos de Cartas e Raciocínio", "Quebra-cabeças", "Didáticos e Educativos",
+        "Blocos de Montar", "Artes, Pintura e Massinha", "Bolhas de Sabão", "Instrumentos Musicais",
+        "Brinquedos para Bebê", "Brinquedos Eletrônicos", "Controle Remoto", "Brinquedos Esportivos",
+        "Bolas Infantis", "Bicicletas, Patinetes e Patins", "Piscinas e Infláveis", "Lançadores e Armas d'Água",
+        "Fantasias", "Bijuterias Infantis", "Brinquedos Econômicos", "Outros Brinquedos",
+    ],
+    "eletronicos": [
+        "Celulares e Smartphones", "Carregadores", "Cabos e Adaptadores", "Fones de Ouvido", "Caixas de Som",
+        "Capinhas", "Películas", "Power Banks", "Suportes de Celular", "Smartwatches",
+        "Pen Drives e Cartões de Memória", "Mouses e Teclados", "Acessórios de Informática", "Notebooks e Tablets",
+        "Smart TVs", "Antenas e Controles Remotos", "Games e Acessórios", "Pilhas e Baterias Recarregáveis",
+        "Casa Inteligente", "Câmeras e Segurança", "Outros Eletrônicos",
+    ],
+    "ferramentas": [
+        "Ferramentas Manuais", "Chaves de Fenda e Phillips", "Chaves Combinadas e Allen", "Alicates",
+        "Martelos e Marretas", "Serrotes e Serras Manuais", "Trenas e Medição", "Níveis", "Ferramentas Elétricas",
+        "Furadeiras e Parafusadeiras", "Brocas, Bits e Discos", "Lixadeiras e Esmerilhadeiras", "Serras Elétricas",
+        "Compressores e Lavadoras de Pressão", "Soldas", "Caixas e Maletas de Ferramentas", "Escadas",
+        "Fitas e Vedantes", "Colas e Silicones", "EPI e Segurança", "Outras Ferramentas",
+    ],
+    "tintas": [
+        "Tintas Látex", "Tintas Acrílicas", "Esmaltes Sintéticos", "Vernizes e Seladores", "Massa Corrida",
+        "Tintas Spray", "Rolos", "Pincéis", "Bandejas e Acessórios", "Fitas Crepe", "Solventes e Thinner",
+        "Outros Pintura",
+    ],
+    "acessorios": [
+        "Bolsas", "Mochilas", "Carteiras", "Necessaires", "Malas e Viagem", "Cintos", "Bonés e Chapéus",
+        "Óculos de Sol", "Relógios", "Bijuterias", "Brincos", "Colares", "Pulseiras", "Anéis", "Lenços e Echarpes",
+        "Guarda-chuvas", "Outros Acessórios",
+    ],
+    "esporte": [
+        "Bolas", "Fitness e Musculação", "Yoga e Pilates", "Ciclismo", "Camping", "Pesca", "Praia e Piscina",
+        "Coolers e Caixas Térmicas", "Garrafas Esportivas", "Patins e Skates", "Natação", "Lutas",
+        "Acessórios Esportivos", "Outros Esporte e Lazer",
+    ],
+    "tabacaria": [
+        "Cigarros", "Seda e Filtros", "Isqueiros", "Fósforos", "Acessórios de Tabacaria", "Carvão para Narguilé",
+        "Outros Tabacaria",
+    ],
+}
+
 # Campos novos (origem 'atributo', segmentos=[]: só aparecem pela família que os habilita).
 CAMPOS_FAMILIAS = [
     # Alimentos, frios e pesáveis
@@ -205,15 +421,7 @@ AJUSTES_FAMILIAS_EXISTENTES = {
         "nome": "Mercearia e Alimentos",
         "flags_override": _VALIDADE_OBRIGATORIA,
         "campos_habilitados": ["peso_volume", "sabor", "alergenicos", "conservacao", "caracteristicas_alimento"],
-        "categorias": [
-            "Arroz", "Feijão", "Massas", "Molhos e Extratos", "Óleos e Azeites", "Vinagres", "Açúcar", "Adoçantes",
-            "Sal", "Farinhas e Fermentos", "Grãos e Cereais", "Café", "Chás", "Achocolatados", "Leite em Pó",
-            "Biscoitos Doces", "Biscoitos Salgados", "Bolachas Recheadas", "Snacks e Salgadinhos", "Chocolates",
-            "Balas e Gomas", "Doces e Sobremesas", "Gelatinas e Pudins", "Enlatados", "Conservas", "Atomatados",
-            "Temperos e Condimentos", "Caldos", "Maionese e Ketchup", "Cereais Matinais", "Aveia e Granola",
-            "Pães e Bolos Prontos", "Torradas", "Geleias e Pastas", "Mel", "Alimentos Infantis", "Diet e Light",
-            "Sem Glúten e Sem Lactose", "Naturais e Integrais", "Comida Oriental", "Importados", "Granel",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["alimento"],
     },
     "bebida": {
         "nome": "Bebidas",
@@ -222,13 +430,7 @@ AJUSTES_FAMILIAS_EXISTENTES = {
                                "unidades_pacote", "sabor"],
         "campos_ocultos": ["embalagem"],
         "exemplos": {"nome": "Ex: Refrigerante Cola 2L", "categoria": "Ex: Refrigerantes, Cervejas, Sucos..."},
-        "categorias": [
-            "Refrigerantes", "Águas Minerais", "Águas com Gás", "Águas Saborizadas", "Sucos Prontos",
-            "Sucos Concentrados", "Néctares", "Chás Prontos", "Energéticos", "Isotônicos", "Água de Coco",
-            "Bebidas Lácteas", "Cervejas", "Cervejas Especiais", "Chopes e Barris", "Vinhos Tintos",
-            "Vinhos Brancos e Rosés", "Espumantes", "Cachaças", "Vodkas", "Whiskies", "Gin", "Licores",
-            "Destilados Diversos", "Drinks Prontos", "Gelo", "Xaropes",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["bebida"],
     },
     "suplementos": {
         "nome": "Suplementos e Vitaminas",
@@ -236,14 +438,7 @@ AJUSTES_FAMILIAS_EXISTENTES = {
         "campos_habilitados": ["forma_apresentacao", "nutriente_principal", "dose_porcao", "doses_por_embalagem",
                                "concentracao_dose", "sabor", "alergenicos", "registro_anvisa", "publico"],
         "campos_ocultos": ["embalagem", "itens_por_embalagem", "cor"],
-        "categorias": [
-            "Vitaminas", "Vitamina C", "Vitamina D", "Complexo B", "Multivitamínicos", "Vitaminas Infantis",
-            "Vitaminas para Gestantes", "Minerais", "Magnésio", "Zinco", "Ferro", "Cálcio", "Ômega 3",
-            "Colágeno", "Proteínas e Whey", "Proteína Vegetal", "Creatina", "Pré-treino", "Termogênicos",
-            "BCAA e Aminoácidos", "Glutamina", "Hipercalóricos", "Carboidratos e Gel", "Barras de Proteína",
-            "Fitoterápicos", "Probióticos", "Melatonina e Sono", "Emagrecimento", "Imunidade",
-            "Cabelos, Pele e Unhas",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["suplementos"],
     },
     "perfumaria_higiene": {
         "nome": "Perfumaria e Cosméticos",
@@ -251,13 +446,7 @@ AJUSTES_FAMILIAS_EXISTENTES = {
         "flags_override": dict(_VALIDADE_OBRIGATORIA, usa_lotes=True),
         "campos_habilitados": ["peso_volume", "fragrancia", "tipo_pele_cabelo", "publico", "tom", "registro_anvisa"],
         "campos_ocultos": ["cor", "itens_por_embalagem"],
-        "categorias": [
-            "Perfumes Femininos", "Perfumes Masculinos", "Colônias Infantis", "Body Splash", "Desodorantes Colônia",
-            "Maquiagem Rosto", "Maquiagem Olhos", "Batons e Lábios", "Esmaltes", "Acessórios de Unha", "Shampoo",
-            "Condicionador", "Máscaras e Tratamento Capilar", "Finalizadores", "Tinturas e Coloração",
-            "Hidratantes Corporais", "Cuidados com o Rosto", "Protetor Solar", "Pós-sol", "Óleos Corporais",
-            "Kits e Presentes",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["perfumaria_higiene"],
     },
     "embalagem_descartavel": {
         "nome": "Festas e Descartáveis",
@@ -265,12 +454,7 @@ AJUSTES_FAMILIAS_EXISTENTES = {
         "flags_override": _VALIDADE_OPCIONAL,
         "campos_habilitados": ["cor", "material", "capacidade", "medidas", "unidades_pacote", "ocasiao"],
         "campos_ocultos": ["controlar_validade", "itens_por_embalagem"],
-        "categorias": [
-            "Copos Descartáveis", "Pratos Descartáveis", "Talheres Descartáveis", "Marmitex e Delivery",
-            "Potes com Tampa", "Sacolas", "Sacos de Presente", "Guardanapos", "Toalhas Descartáveis",
-            "Filme PVC e Papel Alumínio", "Canudos", "Balões", "Velas de Aniversário", "Artigos para Festa",
-            "Decoração de Festa", "Fantasias", "Embalagens para Doces", "Forminhas", "Confeitaria",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["embalagem_descartavel"],
     },
     "bazar": {
         "nome": "Bazar e Utilidades Domésticas",
@@ -278,82 +462,40 @@ AJUSTES_FAMILIAS_EXISTENTES = {
         "campos_habilitados": ["cor", "material", "capacidade", "medidas", "pecas_conjunto", "usos_cozinha",
                                "voltagem_eletro", "certificacao_inmetro"],
         "campos_ocultos": _SEM_VALIDADE + ["itens_por_embalagem"],
-        "categorias": [
-            "Panelas", "Frigideiras", "Panelas de Pressão", "Jogos de Panelas", "Formas e Assadeiras",
-            "Refratários", "Potes e Vasilhas", "Potes Herméticos", "Garrafas e Squeezes", "Garrafas Térmicas",
-            "Copos", "Canecas e Xícaras", "Taças", "Pratos", "Aparelhos de Jantar", "Talheres",
-            "Facas e Tábuas", "Utensílios de Cozinha", "Porta-temperos", "Porta-mantimentos", "Escorredores",
-            "Lixeiras de Pia", "Organizadores", "Cabides", "Caixas Organizadoras", "Utilidades de Banheiro",
-            "Lavanderia", "Churrasco", "Velas e Fósforos", "Pilhas e Baterias", "Presentes",
-            "Utilidades Diversas",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["bazar"],
     },
     "eletro": {
         "nome": "Eletroportáteis e Eletrodomésticos",
         "campos_habilitados": ["voltagem_eletro", "garantia_meses", "modelo", "potencia_w", "cor",
                                "certificacao_inmetro"],
-        "categorias": [
-            "Liquidificadores", "Batedeiras", "Mixers", "Processadores", "Air Fryer", "Fritadeiras",
-            "Sanduicheiras e Grills", "Cafeteiras", "Chaleiras Elétricas", "Torradeiras", "Panelas Elétricas",
-            "Micro-ondas", "Fornos Elétricos", "Ventiladores", "Aquecedores", "Climatizadores",
-            "Ferros de Passar", "Aspiradores", "Secadores de Cabelo", "Chapinhas e Escovas",
-            "Barbeadores e Aparadores", "Balanças", "Purificadores", "Geladeiras e Freezers",
-            "Fogões e Cooktops", "Lavadoras",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["eletro"],
     },
     "construcao_leve": {
         "campos_habilitados": ["cor", "medidas", "material"],
-        "categorias": [
-            "Cimento", "Argamassa", "Rejunte", "Areia e Pedra", "Impermeabilizantes", "Silicones e Vedantes",
-            "Colas", "Lixas", "Fitas", "Telas e Arames", "Lonas", "EPI e Segurança", "Escadas",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["construcao_leve"],
     },
     "construcao_eletrica": {
-        "categorias": [
-            "Fios e Cabos", "Disjuntores", "Tomadas e Interruptores", "Lâmpadas", "Luminárias",
-            "Extensões e Filtros de Linha", "Fita Isolante", "Quadros e Caixas", "Eletrodutos",
-            "Plugues e Adaptadores", "Campainhas", "Sensores",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["construcao_eletrica"],
     },
     "construcao_hidraulica": {
-        "categorias": [
-            "Tubos PVC", "Conexões", "Registros e Válvulas", "Torneiras", "Chuveiros e Duchas", "Sifões e Ralos",
-            "Caixas d'Água", "Mangueiras", "Esgoto", "Vedação Hidráulica", "Boias e Reparos",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["construcao_hidraulica"],
     },
     "construcao_ferragem": {
-        "categorias": [
-            "Parafusos", "Pregos", "Buchas", "Porcas e Arruelas", "Dobradiças", "Fechaduras", "Cadeados",
-            "Puxadores", "Trincos e Ferrolhos", "Correntes e Cabos de Aço", "Ganchos e Suportes",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["construcao_ferragem"],
     },
     "vestuario": {
         "nome": "Moda e Vestuário",
         "campos_habilitados": ["genero"],
-        "categorias": [
-            "Camisetas", "Blusas", "Camisas", "Regatas", "Calças", "Jeans", "Bermudas", "Shorts", "Saias",
-            "Vestidos", "Macacões", "Moletons", "Jaquetas e Casacos", "Moda Íntima Feminina", "Cuecas",
-            "Sutiãs", "Pijamas e Camisolas", "Meias", "Moda Praia", "Moda Fitness", "Moda Infantil",
-            "Moda Bebê", "Plus Size", "Uniformes",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["vestuario"],
     },
     "calcados": {
         "campos_habilitados": ["numeracao", "tipo_calcado", "material_calcado", "modelo", "genero", "cor"],
-        "categorias": [
-            "Tênis Casual", "Tênis Esportivo", "Sapatos Sociais", "Sapatilhas", "Sandálias", "Rasteiras",
-            "Chinelos", "Tamancos", "Botas", "Coturnos", "Pantufas", "Infantil", "Bebê",
-            "Palmilhas e Cadarços", "Cuidados com Calçados",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["calcados"],
     },
     "autopecas": {
         "nome": "Automotivo e Autopeças",
         "campos_habilitados": ["cor", "peso_volume"],
-        "categorias": [
-            "Óleos e Lubrificantes", "Aditivos e Fluidos", "Filtros", "Freios", "Suspensão", "Motor",
-            "Elétrica Automotiva", "Lâmpadas Automotivas", "Baterias", "Pneus e Câmaras", "Transmissão",
-            "Limpeza Automotiva", "Acessórios Internos", "Acessórios Externos", "Tapetes Automotivos",
-            "Som Automotivo", "Moto Peças", "Capacetes",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["autopecas"],
     },
 }
 
@@ -368,13 +510,7 @@ FAMILIAS_NOVAS = {
         "exemplos": {"nome": "Ex: Queijo Mussarela Fatiado 150g", "categoria": "Ex: Queijos, Iogurtes...",
                      "marca": "Ex: Tirolez"},
         "perfil_fiscal": "mercearia_padrao", "fiscal_como": "alimento",
-        "categorias": [
-            "Leite", "Iogurtes", "Bebidas Lácteas", "Queijos", "Requeijão", "Manteiga e Margarina",
-            "Creme de Leite e Leite Condensado", "Presunto", "Mortadela", "Salame", "Linguiças", "Salsichas",
-            "Peito de Peru", "Frios Fatiados", "Congelados Prontos", "Pizzas Congeladas", "Hambúrgueres",
-            "Empanados", "Batata Congelada", "Vegetais Congelados", "Sorvetes", "Polpas de Fruta",
-            "Massas Frescas", "Ovos",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["frios_congelados"],
     },
     "hortifruti_pesaveis": {
         "nome": "Hortifrúti, Açougue e Padaria",
@@ -386,11 +522,7 @@ FAMILIAS_NOVAS = {
         "unidades": ["kg", "g", "un", "duzia", "bandeja"],
         "exemplos": {"nome": "Ex: Tomate Italiano kg", "categoria": "Ex: Frutas, Carnes, Pães..."},
         "perfil_fiscal": "mercearia_padrao", "fiscal_como": "alimento",
-        "categorias": [
-            "Frutas", "Verduras", "Legumes", "Temperos Frescos", "Ovos", "Carne Bovina", "Carne Suína", "Aves",
-            "Peixes e Frutos do Mar", "Miúdos", "Carnes Temperadas", "Pães Franceses", "Pães Especiais",
-            "Bolos", "Salgados", "Doces de Padaria", "Rotisseria",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["hortifruti_pesaveis"],
     },
     "higiene": {
         "nome": "Higiene e Cuidados Pessoais",
@@ -402,13 +534,7 @@ FAMILIAS_NOVAS = {
         "exemplos": {"nome": "Ex: Creme Dental Menta 90g", "categoria": "Ex: Higiene Bucal, Sabonetes...",
                      "marca": "Ex: Colgate"},
         "perfil_fiscal": "perfumaria_higiene", "fiscal_como": "perfumaria_higiene",
-        "categorias": [
-            "Sabonetes em Barra", "Sabonetes Líquidos", "Creme Dental", "Escovas de Dente", "Fio Dental",
-            "Enxaguante Bucal", "Desodorantes Aerosol", "Desodorantes Roll-on", "Absorventes",
-            "Protetores Diários", "Papel Higiênico", "Lenços de Papel", "Barbear e Lâminas", "Depilação",
-            "Algodão e Hastes", "Higiene Íntima", "Fraldas Geriátricas", "Curativos e Primeiros Socorros",
-            "Preservativos", "Pomadas e Cremes", "Relaxantes Musculares",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["higiene"],
     },
     "limpeza": {
         "nome": "Limpeza",
@@ -421,14 +547,7 @@ FAMILIAS_NOVAS = {
         "exemplos": {"nome": "Ex: Detergente Neutro 500ml", "categoria": "Ex: Detergentes, Desinfetantes...",
                      "marca": "Ex: Ypê"},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Detergentes", "Sabão em Pó", "Sabão Líquido", "Sabão em Barra", "Amaciantes",
-            "Alvejantes e Tira-manchas", "Água Sanitária", "Desinfetantes", "Multiuso", "Limpa Vidros",
-            "Limpeza de Banheiro", "Desengordurantes", "Ceras e Lustra-móveis", "Limpeza Pesada",
-            "Inseticidas e Repelentes", "Aromatizadores e Odorizadores", "Esponjas e Palhas de Aço",
-            "Panos de Limpeza", "Luvas", "Vassouras e Rodos", "Baldes e Pás", "Sacos de Lixo", "Lixeiras",
-            "Prendedores e Varais",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["limpeza"],
     },
     "bebe": {
         "nome": "Bebê e Infantil",
@@ -441,13 +560,7 @@ FAMILIAS_NOVAS = {
         "exemplos": {"nome": "Ex: Mamadeira Anticólica 260ml", "categoria": "Ex: Mamadeiras, Chupetas...",
                      "marca": "Ex: MAM"},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Mamadeiras", "Bicos de Mamadeira", "Chupetas", "Mordedores", "Copos de Transição",
-            "Pratos e Talheres Infantis", "Fraldas Descartáveis", "Lenços Umedecidos", "Pomadas para Assaduras",
-            "Shampoo e Sabonete Infantil", "Banheiras e Banho", "Toalhas e Fraldas de Pano", "Enxoval",
-            "Roupinhas de Bebê", "Bodies", "Meias e Sapatinhos", "Carrinhos e Cadeirinhas",
-            "Acessórios de Passeio", "Brinquedos de Bebê", "Segurança do Bebê",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["bebe"],
     },
     "pet": {
         "nome": "Pet Shop",
@@ -459,12 +572,7 @@ FAMILIAS_NOVAS = {
         "exemplos": {"nome": "Ex: Ração Cães Adultos Carne 10kg", "categoria": "Ex: Ração, Petiscos...",
                      "marca": "Ex: Pedigree"},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Ração para Cães", "Ração para Gatos", "Ração Úmida e Sachês", "Petiscos", "Areia Sanitária",
-            "Tapetes Higiênicos", "Higiene Pet", "Antipulgas e Vermífugos", "Coleiras e Guias",
-            "Comedouros e Bebedouros", "Camas e Casinhas", "Brinquedos Pet", "Roupas Pet", "Pássaros",
-            "Aquarismo", "Roedores",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["pet"],
     },
     "cama_mesa_banho": {
         "nome": "Cama, Mesa e Banho",
@@ -476,13 +584,7 @@ FAMILIAS_NOVAS = {
         "exemplos": {"nome": "Ex: Jogo de Lençol Casal 4 Peças 200 Fios", "categoria": "Ex: Jogos de Cama...",
                      "marca": "Ex: Santista"},
         "perfil_fiscal": "vestuario_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Jogos de Lençol", "Lençóis Avulsos", "Fronhas", "Colchas e Cobre-leitos", "Edredons",
-            "Cobertores e Mantas", "Travesseiros", "Protetores de Colchão", "Toalhas de Banho", "Toalhas de Rosto",
-            "Toalhas de Praia", "Roupões", "Tapetes de Banheiro", "Toalhas de Mesa", "Jogos Americanos",
-            "Panos de Prato", "Guardanapos de Tecido", "Cortinas", "Almofadas e Capas", "Tapetes de Sala",
-            "Capas de Sofá", "Cama Infantil",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["cama_mesa_banho"],
     },
     "decoracao": {
         "nome": "Decoração e Casa",
@@ -493,12 +595,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_VALIDADE + _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Difusor de Ambiente Lavanda 250ml", "categoria": "Ex: Difusores, Quadros..."},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Quadros e Molduras", "Porta-retratos", "Vasos Decorativos", "Flores Artificiais", "Espelhos",
-            "Relógios de Parede", "Velas Decorativas", "Difusores e Aromatizadores", "Luminárias",
-            "Enfeites e Esculturas", "Cestas", "Nichos e Prateleiras", "Adesivos de Parede", "Natal", "Páscoa",
-            "Datas Comemorativas",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["decoracao"],
     },
     "jardinagem": {
         "nome": "Jardinagem e Plantas",
@@ -510,13 +607,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Vaso Plástico Redondo 30cm", "categoria": "Ex: Vasos, Sementes, Adubos..."},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Plantas Ornamentais", "Suculentas e Cactos", "Mudas de Frutíferas", "Mudas de Hortaliças",
-            "Sementes", "Terra e Substratos", "Adubos e Fertilizantes", "Defensivos e Inseticidas de Jardim",
-            "Vasos de Plástico", "Vasos de Cerâmica", "Cachepôs", "Pratos para Vaso", "Ferramentas de Jardim",
-            "Regadores", "Mangueiras e Esguichos", "Irrigação", "Grama e Paisagismo", "Decoração de Jardim",
-            "Piscina",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["jardinagem"],
     },
     "papelaria": {
         "nome": "Papelaria e Escritório",
@@ -527,13 +618,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_VALIDADE + _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Caderno Universitário 10 Matérias", "categoria": "Ex: Cadernos, Canetas..."},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Cadernos", "Fichários e Refis", "Agendas e Planners", "Blocos e Post-its", "Canetas",
-            "Lápis e Lapiseiras", "Borrachas e Apontadores", "Marca-textos", "Lápis de Cor e Giz", "Canetinhas",
-            "Tintas e Pincéis", "Colas", "Tesouras", "Réguas e Geometria", "Estojos", "Mochilas", "Lancheiras",
-            "Papel Sulfite", "Papéis Especiais", "Envelopes", "Pastas e Arquivos", "Grampeadores e Clipes",
-            "Fitas Adesivas", "Material de Escritório", "Artesanato", "Papel de Presente",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["papelaria"],
     },
     "brinquedos": {
         "nome": "Brinquedos",
@@ -544,13 +629,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_VALIDADE + _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Boneca Bebê Reborn 40cm", "categoria": "Ex: Bonecas, Carrinhos..."},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Bonecas", "Bonecos e Figuras de Ação", "Carrinhos", "Pistas", "Blocos de Montar", "Quebra-cabeças",
-            "Jogos de Tabuleiro", "Jogos de Cartas", "Educativos", "Pelúcias", "Brinquedos de Bebê",
-            "Massinha e Slime", "Artes e Pintura", "Instrumentos Musicais", "Ao Ar Livre", "Bolas",
-            "Bicicletas e Patinetes", "Piscinas e Infláveis", "Lançadores e Armas d'Água", "Controle Remoto",
-            "Fantasias", "Brinquedos Econômicos",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["brinquedos"],
     },
     "eletronicos": {
         "nome": "Eletrônicos, Celulares e Informática",
@@ -561,12 +640,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_VALIDADE + _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Cabo USB-C 1m Turbo", "categoria": "Ex: Carregadores, Fones..."},
         "perfil_fiscal": "eletro", "fiscal_como": "eletro",
-        "categorias": [
-            "Carregadores", "Cabos USB", "Fones de Ouvido", "Caixas de Som", "Capinhas", "Películas",
-            "Power Banks", "Suportes de Celular", "Smartwatches", "Celulares", "Pen Drives e Cartões de Memória",
-            "Mouses e Teclados", "Acessórios de Informática", "Adaptadores e Extensões", "TV e Vídeo",
-            "Antenas e Controles", "Pilhas e Baterias", "Lâmpadas Inteligentes", "Games e Acessórios",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["eletronicos"],
     },
     "ferramentas": {
         "nome": "Ferramentas",
@@ -578,12 +652,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": ["largura_mm", "espessura_mm", "comprimento_m", "diametro_pol", "raio_mm"],
         "exemplos": {"nome": "Ex: Furadeira de Impacto 650W", "categoria": "Ex: Ferramentas Elétricas..."},
         "perfil_fiscal": "construcao_ferragem", "fiscal_como": "construcao_ferragem",
-        "categorias": [
-            "Ferramentas Manuais", "Chaves de Fenda e Phillips", "Chaves Combinadas e Allen", "Alicates",
-            "Martelos", "Serrotes e Serras", "Trenas e Medição", "Níveis", "Ferramentas Elétricas",
-            "Furadeiras e Parafusadeiras", "Brocas e Bits", "Lixadeiras e Esmerilhadeiras",
-            "Caixas de Ferramentas", "Escadas", "Fitas e Vedantes", "Colas e Silicones", "EPI e Segurança",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["ferramentas"],
     },
     "tintas": {
         "nome": "Construção — Tintas e Pintura",
@@ -594,10 +663,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": ["largura_mm", "espessura_mm", "comprimento_m", "diametro_pol", "raio_mm"],
         "exemplos": {"nome": "Ex: Tinta Acrílica Fosca Branco Neve 18L", "categoria": "Ex: Tintas Látex..."},
         "perfil_fiscal": "construcao_leve", "fiscal_como": "construcao_leve",
-        "categorias": [
-            "Tintas Látex", "Tintas Acrílicas", "Esmaltes Sintéticos", "Vernizes e Seladores", "Massa Corrida",
-            "Tintas Spray", "Rolos", "Pincéis", "Bandejas e Acessórios", "Fitas Crepe", "Solventes e Thinner",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["tintas"],
     },
     "acessorios": {
         "nome": "Acessórios, Bolsas e Bijuterias",
@@ -608,11 +674,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_MODA,
         "exemplos": {"nome": "Ex: Bolsa Transversal Couro Sintético", "categoria": "Ex: Bolsas, Bijuterias..."},
         "perfil_fiscal": "vestuario_padrao", "fiscal_como": "vestuario",
-        "categorias": [
-            "Bolsas", "Mochilas", "Carteiras", "Necessaires", "Malas e Viagem", "Cintos", "Bonés e Chapéus",
-            "Óculos de Sol", "Relógios", "Bijuterias", "Brincos", "Colares", "Pulseiras", "Anéis",
-            "Acessórios de Cabelo", "Lenços e Echarpes", "Guarda-chuvas",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["acessorios"],
     },
     "esporte": {
         "nome": "Esporte, Lazer e Camping",
@@ -623,11 +685,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_VALIDADE + _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Bola de Futebol Campo Oficial", "categoria": "Ex: Bolas, Camping..."},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bazar",
-        "categorias": [
-            "Bolas", "Fitness e Musculação", "Yoga e Pilates", "Ciclismo", "Camping", "Pesca", "Praia e Piscina",
-            "Coolers e Caixas Térmicas", "Garrafas Esportivas", "Patins e Skates", "Natação", "Lutas",
-            "Acessórios Esportivos",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["esporte"],
     },
     "tabacaria": {
         "nome": "Tabacaria (+18)",
@@ -638,10 +696,7 @@ FAMILIAS_NOVAS = {
         "campos_ocultos": _SEM_VALIDADE + _SEM_EMBALAGEM,
         "exemplos": {"nome": "Ex: Isqueiro Grande", "categoria": "Ex: Cigarros, Isqueiros..."},
         "perfil_fiscal": "bazar_padrao", "fiscal_como": "bebida",
-        "categorias": [
-            "Cigarros", "Seda e Filtros", "Isqueiros", "Fósforos", "Acessórios de Tabacaria",
-            "Carvão para Narguilé",
-        ],
+        "categorias": CATEGORIAS_OFICIAIS["tabacaria"],
     },
 }
 

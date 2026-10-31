@@ -24,6 +24,7 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
     const [erro, setErro] = useState<string | null>(null);
     const [scannerAberto, setScannerAberto] = useState(false);
     const [fotosComErro, setFotosComErro] = useState<Set<number>>(new Set());
+    const [indiceAtivo, setIndiceAtivo] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const { config } = useConfig();
@@ -188,7 +189,29 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
                         id="produto-search-input"
                         type="text"
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
+                        onChange={(e) => { setQuery(e.target.value); setIndiceAtivo(0); }}
+                        onKeyDown={(e) => {
+                            // O caixa bipa, a lista traz N resultados e o certo é o primeiro:
+                            // ele precisa escolher sem largar o teclado (padrão do BuscaGlobal).
+                            if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                setIndiceAtivo(i => Math.min(i + 1, resultados.length - 1));
+                            } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                setIndiceAtivo(i => Math.max(i - 1, 0));
+                            } else if (e.key === 'Enter') {
+                                const alvo = resultados[indiceAtivo];
+                                if (alvo) {
+                                    e.preventDefault();
+                                    handleProdutoClick(alvo);
+                                }
+                            }
+                        }}
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-expanded={resultados.length > 0}
+                        aria-controls="produto-search-resultados"
+                        aria-activedescendant={resultados[indiceAtivo] ? `produto-option-${resultados[indiceAtivo].id}` : undefined}
                         placeholder="Buscar por nome, marca, código de barras..."
                         disabled={disabled}
                         className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800"
@@ -219,10 +242,13 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
                     style={{ maxHeight: 'min(24rem, calc(100dvh - 14rem))' }}
                 >
                     <div
+                        id="produto-search-resultados"
+                        role="listbox"
+                        aria-label="Resultados da busca de produtos"
                         className="overflow-y-auto overscroll-contain custom-scrollbar"
                         style={{ maxHeight: 'min(24rem, calc(100dvh - 14rem))', WebkitOverflowScrolling: 'touch' }}
                     >
-                    {resultados.map((produto) => {
+                    {resultados.map((produto, indice) => {
                         const un = ((produto as any).unidade_medida || 'UN').toUpperCase();
                         const isPeso = UNIDADES_PESO.includes(un);
                         const estq: number = (produto as any).quantidade_estoque ?? (produto as any).estoque_atual ?? 0;
@@ -233,8 +259,14 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
                         return (
                             <div
                                 key={produto.id}
+                                id={`produto-option-${produto.id}`}
+                                role="option"
+                                aria-selected={indice === indiceAtivo}
                                 onClick={() => handleProdutoClick(produto)}
-                                className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
+                                onMouseEnter={() => setIndiceAtivo(indice)}
+                                className={`p-3 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors ${indice === indiceAtivo
+                                    ? 'bg-blue-50 dark:bg-blue-900/30 ring-2 ring-inset ring-blue-400'
+                                    : 'hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
                             >
                                 <div className="flex items-center gap-3">
                                     {mostrarFotoProduto && imagemUrl && !fotosComErro.has(produto.id) ? (

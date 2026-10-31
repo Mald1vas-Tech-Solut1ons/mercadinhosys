@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bar, Line, Doughnut } from "react-chartjs-2";
 import {
     Chart as ChartJS, BarElement, CategoryScale, LinearScale,
@@ -9,9 +9,12 @@ import {
     Search, Download, RefreshCw, TrendingUp, TrendingDown, ShoppingBag, Receipt,
     DollarSign, Eye, X, Calendar, CreditCard, ChevronLeft, ChevronRight,
     Ban, Clock, Crown, Users, Sparkles, AlertTriangle, Percent, Lightbulb, Printer,
+    PackageCheck, Trash2, KeyRound,
 } from "lucide-react";
 import { apiClient } from "../../api/apiClient";
 import { showToast } from "../../utils/toast";
+import { authService } from "../auth/authService";
+import { getSettingsTabs } from "../../utils/permissions";
 import { fiscalService } from "../fiscal/fiscalService";
 import SFAPedidosTab from "./SFAPedidosTab";
 import { InsightCard as ConsultorInsightCard } from "../../components/consultor/InsightCard";
@@ -23,6 +26,19 @@ ChartJS.register(BarElement, CategoryScale, LinearScale, PointElement, LineEleme
 // ──────────────────────────────────────────────────────────────
 // Tipos
 // ──────────────────────────────────────────────────────────────
+// Item da venda como o GET /vendas/:id devolve (o endpoint de detalhe já traz
+// produto_id e unidade_medida; categoria_oficial/data_validade entram quando o
+// backend expuser — a regra abaixo já os considera).
+interface ItemCancelamento {
+    produto_id: number;
+    produto_nome: string;
+    quantidade: number;
+    unidade_medida?: string;
+    categoria_oficial?: string;
+    data_validade?: string | null;
+}
+type DestinoEstorno = "estoque" | "perda";
+
 interface Venda {
     id: number; codigo: string;
     cliente?: { nome: string } | null;
@@ -30,7 +46,7 @@ interface Venda {
     total: number; desconto: number;
     forma_pagamento?: string; data?: string; data_venda?: string; created_at?: string;
     status: string; quantidade_itens?: number;
-    itens?: Array<{ produto_nome: string; quantidade: number; preco_unitario: number; total_item: number }>;
+    itens?: Array<{ produto_nome: string; quantidade: number; preco_unitario: number; total_item: number; produto_id?: number; unidade_medida?: string }>;
     pagamentos?: Array<{ forma_pagamento: string; valor: number }>;
 }
 interface Analytics {
@@ -70,6 +86,18 @@ const canonicalForma = (f = "") => {
     if (s.includes("boleto")) return "Boleto";
     return f ? formaLabel(f) : "Outros";
 };
+
+// Regra pura do destino padrão de cada item no cancelamento: perecível/granel
+// (KG, categoria de frios/padaria/hortifruti ou com validade) tende a virar
+// perda; item lacrado volta ao estoque. O operador pode trocar caso a caso.
+const CATEGORIAS_PERECIVEIS = ["frios", "padaria", "hortifruti", "hortifrutigranjeiro", "acougue", "peixaria", "laticinios", "flv"];
+const semAcento = (v?: string) => (v || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+export function destinoPadraoEstorno(item: Pick<ItemCancelamento, "unidade_medida" | "categoria_oficial" | "data_validade">): DestinoEstorno {
+    if (item.data_validade) return "perda";
+    if (CATEGORIAS_PERECIVEIS.some((c) => semAcento(item.categoria_oficial).includes(c))) return "perda";
+    if (semAcento(item.unidade_medida) === "kg") return "perda";
+    return "estoque";
+}
 
 function Kpi({ titulo, valor, sub, Icon, cor }: { titulo: string; valor: string; sub?: string; Icon: React.ElementType; cor: string }) {
     return (
@@ -227,23 +255,70 @@ export default function SalesPage() {
     const irPara = (page: number) => { const novo = { ...filtros, page }; setFiltros(novo); carregarVendas(novo); };
 
     const [pinCancelamento, setPinCancelamento] = useState("");
-    
+    // Itens da venda + destino escolhido por item (estoque ou perda).
+    const [itensCancelamento, setItensCancelamento] = useState<ItemCancelamento[]>([]);
+    const [destinos, setDestinos] = useState<Record<number, DestinoEstorno>>({});
+    const [carregandoItens, setCarregandoItens] = useState(false);
+    const navigate = useNavigate();
+    // Só quem enxerga a aba "Sistema & Segurança" pode configurar o PIN.
+    const podeConfigurarPin = useMemo(() => getSettingsTabs(authService.getCurrentUser()).includes("sistema"), []);
+
+    const abrirCancelamento = async (v: Venda) => {
+        setCancelar(v); setMotivo(""); setPinCancelamento(""); setDestinos({}); setItensCancelamento([]);
+        // A listagem não traz os itens; o detalhe traz produto_id/unidade_medida.
+        setCarregandoItens(true);
+        try {
+            const { data } = await apiClient.get(`/vendas/${v.id}`);
+            const itens: ItemCancelamento[] = (data?.venda?.itens ?? data?.itens ?? []).filter((i: ItemCancelamento) => i?.produto_id);
+            setItensCancelamento(itens);
+            // Chave por índice: o mesmo produto pode aparecer em linhas diferentes.
+            setDestinos(Object.fromEntries(itens.map((i, idx) => [idx, destinoPadraoEstorno(i)])));
+        } catch {
+            setItensCancelamento([]);
+        } finally { setCarregandoItens(false); }
+    };
+
     const confirmarCancelamento = async () => {
         if (!cancelar) return;
         setCancelando(true);
         try {
-            const payload = { 
+            // itens_perda: o backend não devolve estes ao estoque — registra saída
+            // com motivo "Perda em cancelamento de venda"; os demais são estornados.
+            const itensPerda = itensCancelamento
+                .filter((_, idx) => destinos[idx] === "perda")
+                .map((i) => i.produto_id);
+            const payload: Record<string, unknown> = {
                 motivo: motivo || "Cancelamento via painel de vendas",
-                pin_cancelamento: pinCancelamento || undefined
+                pin_cancelamento: pinCancelamento || undefined,
             };
+            if (itensCancelamento.length > 0) payload.itens_perda = Array.from(new Set(itensPerda));
             const { data } = await apiClient.post(`/vendas/${cancelar.id}/cancelar`, payload);
             if (data.success !== false) {
-                showToast.success("Venda cancelada e produtos estornados ao estoque");
-                setCancelar(null); setMotivo(""); setPinCancelamento("");
+                const qtdPerda = new Set(itensPerda).size;
+                const qtdEstoque = Math.max(itensCancelamento.length - qtdPerda, 0);
+                showToast.success(
+                    itensCancelamento.length > 0
+                        ? `Venda cancelada: ${qtdEstoque} item(ns) estornado(s) ao estoque e ${qtdPerda} enviado(s) para perda`
+                        : "Venda cancelada e produtos estornados ao estoque"
+                );
+                setCancelar(null); setMotivo(""); setPinCancelamento(""); setDestinos({}); setItensCancelamento([]);
                 carregarVendas(); carregarAnalytics();
             } else { showToast.error(data.error || "Não foi possível cancelar"); }
         } catch (e: any) {
-            showToast.error(e?.response?.data?.error || "Erro ao cancelar venda");
+            // 400/403/429 do PIN merecem mensagem explícita, não erro genérico.
+            const status = e?.response?.status;
+            const code = e?.response?.data?.code;
+            const msg = e?.response?.data?.error;
+            if (code === "PIN_BLOQUEADO" || status === 429) {
+                showToast.error(msg || "PIN bloqueado após tentativas erradas. Aguarde alguns minutos e tente de novo.", { duration: 8000 });
+            } else if (status === 403) {
+                showToast.error(msg || "PIN inválido ou sem permissão. Peça ao dono ou gerente para autorizar o cancelamento.", { duration: 8000 });
+            } else if (status === 400) {
+                showToast.error(msg || "Não foi possível cancelar esta venda. Confira motivo e PIN e tente novamente.", { duration: 8000 });
+            } else {
+                showToast.error(msg || "Erro ao cancelar venda");
+            }
+            setPinCancelamento("");
         } finally { setCancelando(false); }
     };
 
@@ -566,7 +641,7 @@ export default function SalesPage() {
                                                         <button onClick={() => setCupomVendaId(v.id)} title="Reimprimir cupom" className="p-3 md:p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"><Printer className="w-4 h-4" /></button>
                                                     )}
                                                     {v.status !== "cancelada" && (
-                                                        <button onClick={() => { setCancelar(v); setMotivo(""); }} title="Cancelar e estornar" className="p-3 md:p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-lg text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"><Ban className="w-4 h-4" /></button>
+                                                        <button onClick={() => abrirCancelamento(v)} title="Cancelar e estornar" className="p-3 md:p-2 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0 flex items-center justify-center rounded-lg text-error-600 hover:bg-error-50 dark:hover:bg-error-900/20"><Ban className="w-4 h-4" /></button>
                                                     )}
                                                 </div>
                                             </td>
@@ -633,10 +708,40 @@ export default function SalesPage() {
                             <div className="w-11 h-11 rounded-xl bg-error-50 text-error-600 dark:bg-error-900/20 flex items-center justify-center shrink-0"><AlertTriangle className="w-6 h-6" /></div>
                             <div>
                                 <h3 className="font-black text-slate-900 dark:text-white">Cancelar venda {cancelar.codigo}?</h3>
-                                <p className="text-sm text-slate-500 mt-0.5 dark:text-gray-400">Os produtos serão <strong>estornados ao estoque</strong> automaticamente. Esta ação não pode ser desfeita.</p>
+                                <p className="text-sm text-slate-500 mt-0.5 dark:text-gray-400">Escolha o destino de cada item. O que for para <strong>perda</strong> não volta ao estoque. Esta ação não pode ser desfeita.</p>
                             </div>
                         </div>
-                        <div className="px-6 py-4 space-y-4">
+                        <div className="px-6 py-4 space-y-4 max-h-[65vh] overflow-y-auto">
+                            <div>
+                                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Destino dos itens</label>
+                                {carregandoItens ? (
+                                    <p className="mt-2 text-sm text-slate-500 dark:text-gray-400 inline-flex items-center gap-2"><RefreshCw className="w-4 h-4 animate-spin" /> Carregando itens da venda...</p>
+                                ) : itensCancelamento.length === 0 ? (
+                                    <p className="mt-2 text-sm text-slate-500 dark:text-gray-400">Não foi possível listar os itens desta venda. Todos voltarão ao estoque.</p>
+                                ) : (
+                                    <ul className="mt-2 space-y-2">
+                                        {itensCancelamento.map((item, idx) => {
+                                            const perda = destinos[idx] === "perda";
+                                            return (
+                                                <li key={`${item.produto_id}-${idx}`} className="rounded-xl border border-slate-200 dark:border-slate-700 p-2.5">
+                                                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{item.produto_nome}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-gray-400 mb-2">{num(item.quantidade)} {item.unidade_medida || "UN"}</p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <button type="button" onClick={() => setDestinos((d) => ({ ...d, [idx]: "estoque" }))}
+                                                            className={`inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold border transition-colors ${!perda ? "bg-success-600 text-white border-success-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
+                                                            <PackageCheck className="w-3.5 h-3.5" /> Volta ao estoque
+                                                        </button>
+                                                        <button type="button" onClick={() => setDestinos((d) => ({ ...d, [idx]: "perda" }))}
+                                                            className={`inline-flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold border transition-colors ${perda ? "bg-error-600 text-white border-error-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
+                                                            <Trash2 className="w-3.5 h-3.5" /> Vai para perda
+                                                        </button>
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                )}
+                            </div>
                             <div>
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Motivo do estorno</label>
                                 {motivosEstorno.length > 0 ? (
@@ -652,6 +757,12 @@ export default function SalesPage() {
                             <div>
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400">PIN de Cancelamento (Obrigatório)</label>
                                 <input type="password" inputMode="numeric" autoComplete="off" value={pinCancelamento} onChange={(e) => setPinCancelamento(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="Digite seu PIN..." className="mt-1 w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-error-500" maxLength={6} />
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="text-xs text-slate-500 dark:text-gray-400 inline-flex items-center gap-1"><KeyRound className="w-3.5 h-3.5" /> PIN do dono ou gerente</span>
+                                    {podeConfigurarPin && (
+                                        <button type="button" onClick={() => navigate("/settings?tab=sistema")} className="text-xs font-bold text-primary-600 hover:underline dark:text-primary-400">Não sei meu PIN → Configurar agora</button>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-2 px-6 pb-6">

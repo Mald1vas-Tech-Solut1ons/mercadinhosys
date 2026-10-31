@@ -344,6 +344,17 @@ def obter_configuracoes_pdv():
         if not isinstance(cached_config, dict):
             cached_config = {}
 
+        if not cached_config:
+            # Cache frio (boot do servidor / TTL de 5 min expirado): esta rota só LÊ o cache e
+            # ninguém o aquecia aqui. Resultado no piloto: depois de reiniciar, o PDV servia os
+            # defaults do sistema (limite de desconto 10, controlar_validade=True, formas de
+            # pagamento padrão) até alguém abrir a tela de Configurações.
+            from app.utils.query_helpers import get_configuracao_safe
+            config_do_banco = get_configuracao_safe(funcionario_data.get("estabelecimento_id"))
+            if isinstance(config_do_banco, dict) and config_do_banco:
+                cached_config = config_do_banco
+                set_cached_config(funcionario_data.get("estabelecimento_id"), config_do_banco)
+
         # Formas de pagamento base canônicas (sempre presentes)
         FORMAS_PADRAO = [
             {"tipo": "dinheiro",       "label": "Dinheiro",           "taxa": 0,   "permite_troco": True},
@@ -433,6 +444,10 @@ def obter_configuracoes_pdv():
                 "role": funcionario_data.get("role"),
                 "pode_dar_desconto": permissoes.get("pode_dar_desconto", False),
                 "limite_desconto": permissoes.get("limite_desconto", 0),
+                # FASE 1.7: a UI precisa do MESMO teto que validate_pricing aplica
+                # (min(funcionario, loja)). Sem isso o operador descobre o limite só no F9,
+                # com a fila esperando e a venda quebrando.
+                "limite_desconto_loja": float(cached_config.get("desconto_maximo_funcionario", 10.0)) if cached_config else 10.0,
                 "pode_cancelar_venda": permissoes.get("pode_cancelar_venda", False),
             },
             "formas_pagamento": formas_pagamento,

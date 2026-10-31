@@ -15,7 +15,7 @@ vi.mock('../utils/toast', () => ({
 
 import { pdvService } from '../features/pdv/pdvService'
 import { showToast } from '../utils/toast'
-import { usePDV } from './usePDV'
+import { usePDV, limparSessaoOperador } from './usePDV'
 
 const svc = pdvService as unknown as Record<string, ReturnType<typeof vi.fn>>
 
@@ -25,7 +25,7 @@ const config = (over: Record<string, unknown> = {}) => ({
   dias_alerta_validade: 30,
   permitir_venda_sem_estoque: false,
   permite_venda_sem_cliente: true,
-  funcionario: { role: 'CAIXA', limite_desconto: 10 },
+  funcionario: { role: 'CAIXA', limite_desconto: 10, pode_dar_desconto: true },
   ...over,
 })
 
@@ -207,5 +207,97 @@ describe('usePDV', () => {
     act(() => { result.current.adicionarPagamento('pix', 50) })
     await expect(result.current.finalizarVenda(undefined, enqueue)).rejects.toBeTruthy()
     expect(enqueue).not.toHaveBeenCalled()
+  })
+
+  // ─── FASE 1.7: o operador descobre o limite ANTES de montar a venda ───────────
+  describe('limite de desconto (FASE 1.7)', () => {
+    const caixa = (limite_desconto: number, limite_desconto_loja: number, id = 7) =>
+      config({ funcionario: { id, role: 'CAIXA', limite_desconto, limite_desconto_loja, pode_dar_desconto: true } })
+
+    it('desconto acima do limite não é aplicado e pede autorização', async () => {
+      const { result } = await setup(caixa(10, 10))
+      act(() => { result.current.adicionarProduto(prod(1, 100)) })
+      let erro: any = null
+      act(() => {
+        try { result.current.aplicarDescontoItem(1, 40) } catch (e) { erro = e }
+      })
+      expect(erro?.code).toBe('DESCONTO_EXCEDE_LIMITE')
+      expect(result.current.carrinho[0].desconto).toBe(0)
+      expect(showToast.error).toHaveBeenCalled()
+    })
+
+    it('desconto dentro do limite é aplicado sem pedir PIN', async () => {
+      const { result } = await setup(caixa(10, 10))
+      act(() => { result.current.adicionarProduto(prod(1, 100)) })
+      act(() => { result.current.aplicarDescontoItem(1, 10) })
+      expect(result.current.carrinho[0].desconto).toBe(10)
+      expect(result.current.total).toBe(90)
+    })
+
+    it('depois do PIN do gerente o desconto entra e fica marcado como autorizado', async () => {
+      const { result } = await setup(caixa(10, 10))
+      act(() => { result.current.adicionarProduto(prod(1, 100)) })
+      act(() => { result.current.aplicarDescontoItemAutorizado(1, 40) })
+      expect(result.current.carrinho[0].desconto).toBe(40)
+      expect(result.current.carrinho[0].descontoAutorizadoExterno).toBe(true)
+      expect(result.current.total).toBe(60)
+    })
+
+    it('limite 0 no permissoes_json do piloto cai no limite da loja (não trava em 0%)', async () => {
+      const { result } = await setup(caixa(0, 25))
+      act(() => { result.current.adicionarProduto(prod(1, 100)) })
+      expect(result.current.validarDescontoPermitido(25)).toBe(true)
+      expect(result.current.validarDescontoPermitido(26)).toBe(false)
+      act(() => { result.current.aplicarDescontoItem(1, 25) })
+      expect(result.current.carrinho[0].desconto).toBe(25)
+    })
+
+    it('admin aplica desconto alto direto, sem PIN', async () => {
+      const { result } = await setup(config({ funcionario: { id: 9, role: 'ADMIN' } }))
+      act(() => { result.current.adicionarProduto(prod(1, 100)) })
+      act(() => { result.current.aplicarDescontoItem(1, 90) })
+      expect(result.current.carrinho[0].desconto).toBe(90)
+    })
+
+    it('operador sem pode_dar_desconto tem limite 0, igual ao servidor', async () => {
+      const { result } = await setup(config({
+        funcionario: { id: 11, role: 'CAIXA', limite_desconto: 10, limite_desconto_loja: 10, pode_dar_desconto: false },
+      }))
+      act(() => { result.current.adicionarProduto(prod(1, 100)) })
+      expect(result.current.validarDescontoPermitido(1)).toBe(false)
+      let erro: any = null
+      act(() => {
+        try { result.current.aplicarDescontoItem(1, 5) } catch (e) { erro = e }
+      })
+      expect(erro?.code).toBe('DESCONTO_EXCEDE_LIMITE')
+    })
+  })
+
+  // ─── FASE 1.4: carrinho por operador no tablet compartilhado ──────────────────
+  describe('carrinho por operador (FASE 1.4)', () => {
+    const operador = (id: number) => config({ funcionario: { id, role: 'CAIXA', limite_desconto: 10, pode_dar_desconto: true } })
+
+    it('o operador seguinte começa com carrinho vazio e a chave do anterior fica intacta', async () => {
+      const a = await setup(operador(101))
+      act(() => { a.result.current.adicionarProduto(prod(1, 10)) })
+      await waitFor(() =>
+        expect(JSON.parse(sessionStorage.getItem('pdv_sessions_v1_101') as string).sessoes[0].carrinho).toHaveLength(1),
+      )
+
+      const b = await setup(operador(202))
+      await waitFor(() => expect(sessionStorage.getItem('pdv_sessions_v1_202')).not.toBeNull())
+      expect(b.result.current.carrinho).toHaveLength(0)
+      expect(JSON.parse(sessionStorage.getItem('pdv_sessions_v1_202') as string).sessoes[0].carrinho).toHaveLength(0)
+      // o carrinho da operadora A não foi apagado nem herdado
+      expect(JSON.parse(sessionStorage.getItem('pdv_sessions_v1_101') as string).sessoes[0].carrinho).toHaveLength(1)
+    })
+
+    it('limparSessaoOperador apaga só a chave de quem saiu', () => {
+      sessionStorage.setItem('pdv_sessions_v1_101', JSON.stringify({ sessoes: [{ id: 'x' }], sessaoAtivaId: 'x' }))
+      sessionStorage.setItem('pdv_sessions_v1_202', JSON.stringify({ sessoes: [{ id: 'y' }], sessaoAtivaId: 'y' }))
+      limparSessaoOperador(101)
+      expect(sessionStorage.getItem('pdv_sessions_v1_101')).toBeNull()
+      expect(sessionStorage.getItem('pdv_sessions_v1_202')).not.toBeNull()
+    })
   })
 })

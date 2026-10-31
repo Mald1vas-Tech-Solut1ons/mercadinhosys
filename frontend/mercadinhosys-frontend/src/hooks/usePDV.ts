@@ -3,6 +3,7 @@ import { Produto, Cliente } from '../types';
 import { pdvService, ConfiguracoesPDV, CaixaPDV } from '../features/pdv/pdvService';
 import { showToast } from '../utils/toast';
 import { mensagemErro } from '../utils/mensagemErro';
+import { parseDataValidade } from '../utils/validade';
 
 export interface ItemCarrinho {
     produto: Produto;
@@ -11,6 +12,8 @@ export interface ItemCarrinho {
     desconto: number;
     descontoPercentual: boolean;
     total: number;
+    /** FASE 1.7: true quando o desconto foi autorizado por gerente/admin via PinDialog. */
+    descontoAutorizadoExterno?: boolean;
 }
 
 export interface FormaPagamento {
@@ -72,11 +75,29 @@ const createInitialSession = (): PDVSession => ({
 
 // Persistência da sessão do caixa: sem isso, sair da tela do PDV (menu, notificação,
 // bloqueio de tela) e voltar zera o carrinho inteiro, pois o estado vivia só em memória.
-const PDV_STORAGE_KEY = 'pdv_sessions_v1';
+// FASE 1.4: sessão keyada por operador — pdv_sessions_v1_<funcionario_id>.
+// O carrinho do operador anterior não vaza para o novo operador no mesmo tablet.
+export { PDV_STORAGE_PREFIX, pdvStorageKey, limparSessaoOperador } from '../utils/pdvStorage';
+import { pdvStorageKey, limparSessaoOperador } from '../utils/pdvStorage';
 
-const carregarSessoesSalvas = (): { sessoes: PDVSession[]; sessaoAtivaId: string } | null => {
+/**
+ * FASE 1.7: limite efetivo de desconto. O backend (checkout_locking.validate_pricing) usa
+ * min(funcionario.limite_desconto, config.desconto_maximo_percentual, config.desconto_maximo_funcionario).
+ * `limite_desconto` 0/ausente no permissoes_json significa "sem limite explícito do funcionário" —
+ * nesse caso vale o limite da LOJA, senão o operador do piloto fica travado em 0% e não vende.
+ */
+export const calcularLimiteDesconto = (configuracoes: ConfiguracoesPDV | null): number => {
+    if (!configuracoes) return 0;
+    // validate_pricing (checkout_locking.py:85): sem pode_dar_desconto o limite é 0.
+    if (!configuracoes.funcionario.pode_dar_desconto) return 0;
+    const daLoja = configuracoes.funcionario.limite_desconto_loja ?? 100;
+    const doFuncionario = configuracoes.funcionario.limite_desconto ?? 0;
+    return Math.min(doFuncionario > 0 ? doFuncionario : daLoja, daLoja);
+};
+
+const carregarSessoesSalvas = (funcionarioId?: number | string | null): { sessoes: PDVSession[]; sessaoAtivaId: string } | null => {
     try {
-        const raw = sessionStorage.getItem(PDV_STORAGE_KEY);
+        const raw = sessionStorage.getItem(pdvStorageKey(funcionarioId));
         if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (!Array.isArray(parsed.sessoes) || parsed.sessoes.length === 0) return null;
@@ -109,18 +130,39 @@ export const usePDV = () => {
         }
     }, []);
 
-    // Múltiplas Sessões do PDV — restauradas do sessionStorage ao remontar a tela
-    const [estadoInicial] = useState(() => carregarSessoesSalvas());
+    // Múltiplas Sessões do PDV — restauradas do sessionStorage ao remontar a tela.
+    // FASE 1.4: storage keyada por funcionário — o carrinho do operador anterior
+    // não vaza para o novo operador no mesmo tablet. Quando o operador muda (troca no
+    // CaixaHeader ou logout/login), os estadoInicial/sessões são re-carregados para a
+    // chave do operador atual, e o state é substituído (não "mesclado") pelo do novo.
+    const [funcionarioIdSessao, setFuncionarioIdSessao] = useState<number | null>(null);
+    const [estadoInicial] = useState(() => carregarSessoesSalvas(null));
     const [sessoes, setSessoes] = useState<PDVSession[]>(() => estadoInicial?.sessoes ?? [createInitialSession()]);
     const [sessaoAtivaId, setSessaoAtivaId] = useState<string>(() => estadoInicial?.sessaoAtivaId ?? sessoes[0].id);
 
+    // Assim que 'configuracoes' chega com o operador logado, muda a chave de persistência.
+    useEffect(() => {
+        const fid = configuracoes?.funcionario?.id ?? null;
+        if (fid === funcionarioIdSessao) return;
+        let salvo = carregarSessoesSalvas(fid);
+        // Migração única: carrinho que estava na chave legada (antes da FASE 1.4) é do
+        // operador que está no aparelho — adota em vez de descartar o trabalho dele.
+        if (!salvo && funcionarioIdSessao === null) {
+            salvo = carregarSessoesSalvas(null);
+            if (salvo) limparSessaoOperador(null);
+        }
+        setFuncionarioIdSessao(fid);
+        setSessoes(salvo?.sessoes ?? [createInitialSession()]);
+        setSessaoAtivaId(salvo?.sessaoAtivaId ?? (salvo?.sessoes?.[0]?.id ?? Date.now().toString()));
+    }, [configuracoes?.funcionario?.id, funcionarioIdSessao]);
+
     useEffect(() => {
         try {
-            sessionStorage.setItem(PDV_STORAGE_KEY, JSON.stringify({ sessoes, sessaoAtivaId }));
+            sessionStorage.setItem(pdvStorageKey(funcionarioIdSessao), JSON.stringify({ sessoes, sessaoAtivaId }));
         } catch {
             // sessionStorage indisponível (modo privado/quota) — segue apenas em memória
         }
-    }, [sessoes, sessaoAtivaId]);
+    }, [sessoes, sessaoAtivaId, funcionarioIdSessao]);
 
     const sessaoAtiva = sessoes.find(s => s.id === sessaoAtivaId) || sessoes[0];
 
@@ -224,20 +266,30 @@ export const usePDV = () => {
     }, [sessaoAtivaId]);
 
     // Carregar configurações do PDV
-    useEffect(() => {
-        const carregarConfiguracoes = async () => {
-            try {
-                const config = await pdvService.getConfiguracoes();
-                setConfiguracoes(config);
-                setFormasPagamento(config.formas_pagamento);
-                await refreshCaixa();
-            } catch (error) {
-                console.error('Erro ao carregar configurações/caixa do PDV:', error);
-                showToast.error(mensagemErro(error, 'Não foi possível carregar as configurações do PDV. Recarregue a página.'), { duration: 6000 });
-            }
-        };
-        carregarConfiguracoes();
+    const recarregarConfiguracoes = useCallback(async () => {
+        try {
+            const config = await pdvService.getConfiguracoes();
+            setConfiguracoes(config);
+            setFormasPagamento(config.formas_pagamento);
+            await refreshCaixa();
+        } catch (error) {
+            console.error('Erro ao carregar configurações/caixa do PDV:', error);
+            showToast.error(mensagemErro(error, 'Não foi possível carregar as configurações do PDV. Recarregue a página.'), { duration: 6000 });
+        }
     }, [refreshCaixa]);
+
+    useEffect(() => {
+        void recarregarConfiguracoes();
+    }, [recarregarConfiguracoes]);
+
+    // FASE 1.4: outro operador assume o tablet sem recarregar a página. Recarrega as
+    // configurações para que permissões, limite de desconto e a chave do carrinho passem
+    // a ser as do operador novo (o login dispara 'auth-change').
+    useEffect(() => {
+        const aoTrocarOperador = () => { void recarregarConfiguracoes(); };
+        window.addEventListener('auth-change', aoTrocarOperador);
+        return () => window.removeEventListener('auth-change', aoTrocarOperador);
+    }, [recarregarConfiguracoes]);
 
     useEffect(() => {
         const syncCaixa = () => {
@@ -301,38 +353,33 @@ export const usePDV = () => {
         const controlarValidade = configuracoes?.controlar_validade ?? true;
 
         if (controlarValidade && produto.data_validade) {
-            let y, m, d;
-            if (produto.data_validade.includes('-')) {
-                [y, m, d] = produto.data_validade.split('-').map(Number);
+            const dataValidade = parseDataValidade(produto.data_validade);
+            if (!dataValidade) {
+                // Produto sem data legível → sem bloqueio (regra do guardião: null = sem data).
             } else {
-                [d, m, y] = produto.data_validade.split('/').map(Number);
-            }
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
 
-            const dataValidade = new Date(y, m - 1, d);
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
+                if (dataValidade < hoje) {
+                    // Vencido não entra no carrinho (só "a vencer" é aviso).
+                    showToast.error(`Produto vencido — não pode ser vendido. Retire da gôndola. (${produto.nome})`, {
+                        duration: 8000
+                    });
+                    return false;
+                } else {
+                    const diasAlerta = configuracoes?.dias_alerta_validade ?? 30;
+                    const dataLimiteAlerta = new Date(hoje);
+                    dataLimiteAlerta.setDate(hoje.getDate() + diasAlerta);
 
-            if (dataValidade < hoje) {
-                // Vencido não entra no carrinho (só "a vencer" é aviso).
-                showToast.error(`Produto vencido — não pode ser vendido. Retire da gôndola. (${produto.nome})`, {
-                    duration: 8000,
-                    icon: '🚫'
-                });
-                return false;
-            } else {
-                const diasAlerta = configuracoes?.dias_alerta_validade ?? 30;
-                const dataLimiteAlerta = new Date(hoje);
-                dataLimiteAlerta.setDate(hoje.getDate() + diasAlerta);
+                    if (dataValidade <= dataLimiteAlerta) {
+                        const diffTime = dataValidade.getTime() - hoje.getTime();
+                        const diasRestantes = Math.round(diffTime / (1000 * 3600 * 24));
 
-                if (dataValidade <= dataLimiteAlerta) {
-                    const diffTime = dataValidade.getTime() - hoje.getTime();
-                    const diasRestantes = Math.round(diffTime / (1000 * 3600 * 24));
-
-                    if (diasRestantes >= 0) {
-                        showToast.warning(`AVISO: ${produto.nome} vence em ${diasRestantes === 0 ? 'hoje' : diasRestantes + ' dias'}`, {
-                            duration: 5000,
-                            icon: '⚠️'
-                        });
+                        if (diasRestantes >= 0) {
+                            showToast.warning(`AVISO: ${produto.nome} vence em ${diasRestantes === 0 ? 'hoje' : diasRestantes + ' dias'}`, {
+                                duration: 5000
+                            });
+                        }
                     }
                 }
             }
@@ -433,13 +480,37 @@ export const usePDV = () => {
     }, [removerProduto, configuracoes, getEstoqueDisponivel, round, setCarrinho]);
 
     const aplicarDescontoItem = useCallback((produtoId: number, desconto: number, percentual: boolean = false) => {
+        if (!configuracoes) return;
+        const item = (sessaoAtiva.carrinho || []).find(i => i.produto.id === produtoId);
+        if (!item) return;
+
+        const descontoValor = percentual
+            ? item.precoUnitario * item.quantidade * (desconto / 100)
+            : desconto;
+
+        const percentualEfetivo = ((descontoValor || 0) / Math.max(subtotal, 0.01)) * 100;
+        const limiteDesconto = calcularLimiteDesconto(configuracoes);
+        const ehAdmin = configuracoes.funcionario.role === 'ADMIN' || configuracoes.funcionario.role === 'admin';
+
+        // FASE 1.7: acima do limite, exige autorização de gerente/admin via PIN.
+        // O PinDialog é disparado pela CAMADA UI (PDVPage) pois é visual; aqui
+        // apenas decidimos se bloqueia. PDVPage chama aplicarDescontoItem e,
+        // quando bloqueado, abre o PinDialog e re-chama com autorizado=true.
+        if (!ehAdmin && percentualEfetivo > limiteDesconto) {
+            const msg = `Desconto de ${percentualEfetivo.toFixed(1)}% excede seu limite de ${limiteDesconto}%. Um gerente precisa autorizar.`;
+            showToast.error(msg, { duration: 6000 });
+            // Lança erro especial que PDVPage escuta para abrir o PinDialog.
+            const err: any = new Error('DESCONTO_EXCEDE_LIMITE');
+            err.code = 'DESCONTO_EXCEDE_LIMITE';
+            err.produtoId = produtoId;
+            err.desconto = desconto;
+            err.percentual = percentual;
+            throw err;
+        }
+
         setCarrinho(prev =>
             prev.map(item => {
                 if (item.produto.id === produtoId) {
-                    const descontoValor = percentual
-                        ? item.precoUnitario * item.quantidade * (desconto / 100)
-                        : desconto;
-
                     return {
                         ...item,
                         desconto: descontoValor,
@@ -450,14 +521,14 @@ export const usePDV = () => {
                 return item;
             })
         );
-    }, [setCarrinho]);
+    }, [configuracoes, sessaoAtiva.carrinho, subtotal, setCarrinho]);
 
     const validarDescontoPermitido = useCallback((valorDesconto: number): boolean => {
         if (!configuracoes) return false;
         if (configuracoes.funcionario.role === 'ADMIN') return true;
 
         const percentualDesconto = (valorDesconto / subtotal) * 100;
-        const limiteDesconto = configuracoes.funcionario.limite_desconto || 0;
+        const limiteDesconto = calcularLimiteDesconto(configuracoes);
         return percentualDesconto <= limiteDesconto;
     }, [configuracoes, subtotal]);
 
@@ -563,6 +634,29 @@ export const usePDV = () => {
         }
     };
 
+    /** FASE 1.7: aplica o desconto SEM checar limite — só deve ser chamado pela UI
+     *  depois que o PinDialog autorizou um gerente/admin. O `pinAutorizado` é repassado
+     *  para o backend no próximo finalizarVenda para gravar Auditoria no servidor. */
+    const aplicarDescontoItemAutorizado = useCallback((produtoId: number, desconto: number, percentual: boolean = false) => {
+        const item = (sessaoAtiva.carrinho || []).find(i => i.produto.id === produtoId);
+        if (!item) return;
+        const descontoValor = percentual
+            ? item.precoUnitario * item.quantidade * (desconto / 100)
+            : desconto;
+        setCarrinho(prev =>
+            prev.map(it => it.produto.id === produtoId
+                ? {
+                    ...it,
+                    desconto: descontoValor,
+                    descontoPercentual: percentual,
+                    total: it.precoUnitario * it.quantidade - descontoValor,
+                    descontoAutorizadoExterno: true,
+                }
+                : it
+            )
+        );
+    }, [sessaoAtiva.carrinho, setCarrinho]);
+
     return {
         // Multi-Session Utilities
         sessoes,
@@ -604,6 +698,7 @@ export const usePDV = () => {
         removerProduto,
         atualizarQuantidade,
         aplicarDescontoItem,
+        aplicarDescontoItemAutorizado,
         validarDescontoPermitido,
         limparCarrinho,
         finalizarVenda,

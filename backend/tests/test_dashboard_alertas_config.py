@@ -43,7 +43,11 @@ def _tipos(client, h):
     assert r.status_code == 200, r.get_data(as_text=True)
     corpo = r.get_json()
     assert corpo["total"] == len(corpo["alertas"])
-    return sorted(a["tipo"] for a in corpo["alertas"])
+    # "cobertura" (FASE 3.3) é alerta de giro e depende do histórico de vendas do
+    # banco de teste — que é compartilhado entre arquivos. Estes testes guardam o
+    # contrato dos toggles de estoque; o tipo novo tem teste próprio em
+    # tests/test_estoque_alerta_giro.py.
+    return sorted(a["tipo"] for a in corpo["alertas"] if a["tipo"] != "cobertura")
 
 
 def test_tudo_ligado_traz_ruptura_e_vencimento(client, session):

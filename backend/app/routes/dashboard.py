@@ -499,6 +499,7 @@ def dashboard_alertas():
                 alertas.append({
                     "id": f"r_{p.id}",
                     "tipo": "ruptura",
+                    "produto_id": p.id,
                     "produto_nome": p.nome,
                     "quantidade": float(qtd),
                     "estoque_minimo": float(qtd_min)
@@ -525,28 +526,31 @@ def dashboard_alertas():
         # fim de semana chega em 8 unidades na sexta e o sistema fica quieto. Aqui a
         # cobertura (dias até acabar) entra no MESMO painel de alertas.
         # Usa a agregação já cacheada por tenant (giro_cache) — nenhuma query nova de vendas.
-        try:
-            agregado = giro_cache.get_vendas_agregadas(estabelecimento_id)
-            ja_alertados = {a["produto_id"] for a in alertas if "produto_id" in a}
-            ativos = [p for p in query.all() if p.id not in ja_alertados]
-            for p in ativos:
-                metrica = giro_cache.metrica_produto(p, hoje, agregado)
-                alertar, cobertura = _deve_alertar_por_cobertura(metrica, p, hoje)
-                if not alertar:
-                    continue
-                alertas.append({
-                    "id": f"c_{p.id}",
-                    "tipo": "cobertura",
-                    "produto_id": p.id,
-                    "produto_nome": p.nome,
-                    "quantidade": float(p.quantidade or 0),
-                    "cobertura_dias": round(cobertura, 1),
-                    "vmd": round(float(metrica.get("vmd") or 0), 2),
-                    "mensagem": f"Acaba em {round(cobertura, 1)} dia(s) no ritmo atual",
-                })
-        except Exception as erro_giro:
-            # Alerta de giro não pode derrubar o painel inteiro.
-            logger.warning(f"Alerta por giro indisponível: {erro_giro}")
+        # Só roda com os alertas de estoque LIGADOS: loja que desligou alerta de
+        # estoque não quer receber "acaba em 3 dias" pela porta dos fundos.
+        if alertar_ruptura:
+            try:
+                agregado = giro_cache.get_vendas_agregadas(estabelecimento_id)
+                ja_alertados = {a["produto_id"] for a in alertas if "produto_id" in a}
+                ativos = [p for p in query.all() if p.id not in ja_alertados]
+                for p in ativos:
+                    metrica = giro_cache.metrica_produto(p, hoje, agregado)
+                    alertar, cobertura = _deve_alertar_por_cobertura(metrica, p, hoje)
+                    if not alertar:
+                        continue
+                    alertas.append({
+                        "id": f"c_{p.id}",
+                        "tipo": "cobertura",
+                        "produto_id": p.id,
+                        "produto_nome": p.nome,
+                        "quantidade": float(p.quantidade or 0),
+                        "cobertura_dias": round(cobertura, 1),
+                        "vmd": round(float(metrica.get("vmd") or 0), 2),
+                        "mensagem": f"Acaba em {round(cobertura, 1)} dia(s) no ritmo atual",
+                    })
+            except Exception as erro_giro:
+                # Alerta de giro não pode derrubar o painel inteiro.
+                logger.warning(f"Alerta por giro indisponível: {erro_giro}")
 
         def get_priority(a):
             if a["tipo"] == "vencido": return 0

@@ -1088,11 +1088,14 @@ class CategoriaProduto(db.Model, MultiTenantMixin, SoftDeleteMixin, Serializable
     __tablename__ = "categorias_produto"
     id = db.Column(db.Integer, primary_key=True)
     estabelecimento_id = TenantID()
-    nome = db.Column(db.String(50), nullable=False)
+    nome = db.Column(db.String(120), nullable=False)
     descricao = db.Column(db.Text)
     # Guarda a chave oficial da categoria (ex.: "embalagem_descartavel.embalagem_delivery", 41 chars):
     # 20 não cabia. A linha é encontrada por `codigo`, nunca por `nome`.
-    codigo = db.Column(db.String(60))
+    # 120 = largura REAL da coluna (migration 9c4e1a7b6d20). A chave mais longa da taxonomia tem 41 e
+    # o nome qualificado "<Família> › <Categoria>" chega a 46: com a coluna menor que o model o INSERT
+    # de `garantir_categoria_loja` estourava no Postgres e o cadastro de produto virava 500.
+    codigo = db.Column(db.String(120))
     ativo = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     deleted_at = db.Column(db.DateTime, nullable=True)

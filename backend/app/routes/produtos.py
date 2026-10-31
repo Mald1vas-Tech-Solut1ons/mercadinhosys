@@ -2623,12 +2623,15 @@ def criar_produto():
 
         error_details = traceback.format_exc()
         current_app.logger.error(f"Erro ao criar produto: {str(e)}\n{error_details}")
+        # Nada de str(e)/traceback na resposta: o detalhe (SQL, nome de coluna, driver) fica no log.
+        # O cliente recebia a stack trace crua no toast — foi assim que o erro de varchar(20) apareceu
+        # na tela da loja em 31/10.
         return (
             jsonify(
                 {
                     "success": False,
-                    "message": f"Erro interno ao criar produto: {str(e)}",
-                    "traceback": error_details,
+                    "message": "Não foi possível salvar o produto. Tente novamente em instantes; "
+                               "se o erro continuar, chame o suporte.",
                 }
             ),
             500,

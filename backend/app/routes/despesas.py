@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request, current_app
 from app import db
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import plan_required
-from app.models import Despesa, Funcionario
+from app.models import Configuracao, Despesa, Estabelecimento, Funcionario
 from app.dashboard_cientifico.data_layer import DataLayer
 from sqlalchemy import func, or_
 from app.services.rh_calculator_service import calcular_provisoes
@@ -1183,9 +1183,22 @@ def resumo_financeiro():
         # DRE: receita bruta − impostos sobre vendas = receita líquida; − CMV = lucro bruto.
         _config = (Configuracao.query.filter_by(estabelecimento_id=estabelecimento_id).first()
                    if str(estabelecimento_id).lower() != 'all' else None)
+        # FASE 3.4: Simples Nacional não se calcula por dentro da venda. O DAS é mensal,
+        # sobre o faturamento, e quem fecha é o contador — inventar "imposto a recolher"
+        # por venda aqui seria número errado com cara de certo numa tela de lucro.
+        regime = ""
+        if str(estabelecimento_id).lower() != 'all':
+            _estab = Estabelecimento.query.filter_by(id=estabelecimento_id).first()
+            regime = (_estab.regime_tributario or "") if _estab else ""
+        eh_simples = "SIMPLES" in regime.upper()
+
         aliquota_impostos = float(_config.aliquota_impostos_venda) if _config and _config.aliquota_impostos_venda is not None else None
-        impostos_venda = receita_bruta * (aliquota_impostos or 0.0) / 100.0
-        receita_liquida = receita_bruta - impostos_venda
+        if eh_simples:
+            impostos_venda = None
+            receita_liquida = receita_bruta
+        else:
+            impostos_venda = receita_bruta * (aliquota_impostos or 0.0) / 100.0
+            receita_liquida = receita_bruta - impostos_venda
         lucro_bruto = receita_liquida - vendas.get("cogs", 0.0)
 
         # Transparência do custo estimado: o valor do CMV não muda — só informa
@@ -1218,8 +1231,14 @@ def resumo_financeiro():
                 "lucro_liquido": lucro_bruto - despesas_operacionais - custo_folha_total,
                 "impostos_configurados": aliquota_impostos is not None,
                 "aliquota_impostos_venda": aliquota_impostos,
-                "aviso": None if aliquota_impostos is not None else
-                         "Alíquota de impostos sobre vendas não configurada: o lucro está antes dos impostos.",
+                "regime_tributario": regime or None,
+                # Simples: número não existe por venda — o rótulo diz o que existe (DAS).
+                "imposto_rotulo": "Simples Nacional — DAS mensal" if eh_simples else None,
+                "aviso": ("Imposto não calculado por venda: Simples Nacional recolhe DAS mensal "
+                          "sobre o faturamento — o valor é apurado pelo contador."
+                          if eh_simples else
+                          (None if aliquota_impostos is not None else
+                           "Alíquota de impostos sobre vendas não configurada: o lucro está antes dos impostos.")),
             },
             "contas_receber": {
                 "total_aberto": receber_total,

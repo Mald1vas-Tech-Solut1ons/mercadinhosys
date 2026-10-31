@@ -421,6 +421,38 @@ def dashboard_comparativo():
         return jsonify({"success": False, "error": "Erro ao comparar períodos"}), 500
 
 
+# FASE 3.3: cobertura abaixo disso vira alerta (produto acaba em menos de 5 dias).
+COBERTURA_ALERTA_DIAS = 5.0
+
+# Bebida no fim de semana e panetone em dezembro saem mais rápido que a média do
+# próprio produto — o alerta tem que subir antes, não depois. Regra local, sem API.
+_BEBIDAS_FIM_DE_SEMANA = ("cerveja", "refrigerante", "refrigerantes", "refri")
+_SAZONAIS_FESTA = ("panetone", "champanhe", "champanha")
+
+
+def _fator_contexto(produto, hoje) -> float:
+    nome = str(getattr(produto, "nome", "") or "").lower()
+    fator = 1.0
+    if hoje.weekday() >= 4 and any(termo in nome for termo in _BEBIDAS_FIM_DE_SEMANA):
+        fator = 0.7
+    if hoje.month in (12, 1) and any(termo in nome for termo in _SAZONAIS_FESTA):
+        fator = 0.5
+    return fator
+
+
+def _deve_alertar_por_cobertura(metrica, produto, hoje):
+    """(alertar, cobertura_ajustada). Sem giro, sem alerta — item novo não é 'lento'."""
+    cobertura = metrica.get("cobertura_dias") if isinstance(metrica, dict) else None
+    if cobertura is None:
+        return False, 0.0
+    if float(metrica.get("vmd") or 0) <= 0:
+        return False, 0.0
+    ajustada = float(cobertura) * _fator_contexto(produto, hoje)
+    if ajustada <= 0:
+        return False, 0.0
+    return ajustada < COBERTURA_ALERTA_DIAS, ajustada
+
+
 @dashboard_bp.route("/alertas", methods=["GET"])
 @jwt_required()
 def dashboard_alertas():
@@ -429,6 +461,7 @@ def dashboard_alertas():
         from sqlalchemy import or_, and_
         from app.models import Produto
         from app.utils.query_helpers import get_configuracao_safe
+        from app.utils import giro_cache
 
         estabelecimento_id = get_establishment_id()
         hoje = date.today()
@@ -487,11 +520,40 @@ def dashboard_alertas():
                         "data_validade": iso_utc(p.data_validade)
                     })
                     
+        # FASE 3.3 — alerta por GIRO, não só por mínimo estático.
+        # O mínimo (default 10) é igual para todo mundo; quem vende 30 cervejas no
+        # fim de semana chega em 8 unidades na sexta e o sistema fica quieto. Aqui a
+        # cobertura (dias até acabar) entra no MESMO painel de alertas.
+        # Usa a agregação já cacheada por tenant (giro_cache) — nenhuma query nova de vendas.
+        try:
+            agregado = giro_cache.get_vendas_agregadas(estabelecimento_id)
+            ja_alertados = {a["produto_id"] for a in alertas if "produto_id" in a}
+            ativos = [p for p in query.all() if p.id not in ja_alertados]
+            for p in ativos:
+                metrica = giro_cache.metrica_produto(p, hoje, agregado)
+                alertar, cobertura = _deve_alertar_por_cobertura(metrica, p, hoje)
+                if not alertar:
+                    continue
+                alertas.append({
+                    "id": f"c_{p.id}",
+                    "tipo": "cobertura",
+                    "produto_id": p.id,
+                    "produto_nome": p.nome,
+                    "quantidade": float(p.quantidade or 0),
+                    "cobertura_dias": round(cobertura, 1),
+                    "vmd": round(float(metrica.get("vmd") or 0), 2),
+                    "mensagem": f"Acaba em {round(cobertura, 1)} dia(s) no ritmo atual",
+                })
+        except Exception as erro_giro:
+            # Alerta de giro não pode derrubar o painel inteiro.
+            logger.warning(f"Alerta por giro indisponível: {erro_giro}")
+
         def get_priority(a):
             if a["tipo"] == "vencido": return 0
             if a["tipo"] == "ruptura": return 1
-            return 2
-            
+            if a["tipo"] == "cobertura": return 2
+            return 3
+
         alertas.sort(key=lambda x: get_priority(x))
         
         return jsonify({"success": True, "alertas": alertas[:50], "total": len(alertas)})

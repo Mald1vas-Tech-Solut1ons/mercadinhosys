@@ -5,6 +5,7 @@ import ResponsiveModal from '../../../components/ui/ResponsiveModal';
 import FotoUpload from '../../../components/ui/FotoUpload';
 import SchemaField from '../../../components/schema/SchemaField';
 import CategoriaPicker from '../../../components/schema/CategoriaPicker';
+import FamiliaPicker from '../../../components/schema/FamiliaPicker';
 import { showToast } from '../../../utils/toast';
 import { Produto } from '../../../types';
 import { RegrasFiscais, TipoItem } from '../../../types/viewSchema';
@@ -763,11 +764,12 @@ const ProductFormModal = ({
                                         Família do Item *
                                         <CampoAjuda texto="Define que tipo de item é este (alimento, bebida, peça, etc). A partir daqui o formulário se adapta: campos, exemplos e até a sugestão fiscal (CFOP/CSOSN) mudam de acordo com a família escolhida." />
                                     </label>
-                                    <select
+                                    <FamiliaPicker
+                                        familias={familiasDisponiveis}
                                         value={formData.familia_produto}
-                                        onChange={e => {
+                                        disabled={editMode && ehServico}
+                                        onChange={familiaNova => {
                                             familiaEscolhida.current = true;
-                                            const familiaNova = e.target.value;
                                             // Troca de família limpa a subcategoria que não pertence à nova
                                             // (PLANO §4 item 2 / regra 7 do §1) e avisa por toast.
                                             setFormData(prev => {
@@ -780,15 +782,7 @@ const ProductFormModal = ({
                                                 return { ...prev, familia_produto: familiaNova };
                                             });
                                         }}
-                                        className={inputClass}
-                                        disabled={editMode && ehServico}
-                                    >
-                                        {familiasDisponiveis.map(familia => (
-                                            <option key={familia.chave} value={familia.chave}>
-                                                {familia.nome}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
                                 </div>
                             )}
                             <div className="sm:col-span-2">

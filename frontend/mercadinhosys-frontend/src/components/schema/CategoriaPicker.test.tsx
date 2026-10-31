@@ -30,10 +30,10 @@ describe('CategoriaPicker — Família → Categoria → Subcategoria', () => {
         expect(screen.getByText(/nível 2/)).toBeInTheDocument();
     });
 
-    it('a subcategoria não pode ser escolhida antes da categoria', () => {
+    it('sem categoria escolhida as subcategorias ficam ocultas, mas a busca já funciona', () => {
         renderPicker();
-        expect(screen.getByLabelText('Buscar subcategoria')).toBeDisabled();
-        expect(screen.getByText('Escolha a categoria acima para ver as subcategorias.')).toBeInTheDocument();
+        expect(screen.getByLabelText('Buscar categoria ou subcategoria')).toBeEnabled();
+        expect(screen.getByText(/Escolha a categoria acima — ou digite na busca/)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Arroz' })).not.toBeInTheDocument();
     });
 
@@ -78,19 +78,35 @@ describe('CategoriaPicker — Família → Categoria → Subcategoria', () => {
         });
     });
 
-    it('a busca filtra as subcategorias pela chave canônica ("feij" → Feijão)', () => {
+    it('a busca acha a subcategoria em toda a família, sem escolher categoria antes ("feij" → Feijão)', () => {
         renderPicker(vi.fn(), 'alimento.basico.arroz');
-        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'feij' } });
+        fireEvent.change(screen.getByLabelText('Buscar categoria ou subcategoria'), { target: { value: 'feij' } });
 
-        expect(screen.getByRole('button', { name: 'Feijão' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Arroz' })).not.toBeInTheDocument();
+        expect(screen.getByRole('option', { name: /Feijão/ })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: /Arroz/ })).not.toBeInTheDocument();
     });
 
     it('busca sem resultado mostra a mensagem da lista oficial', () => {
         renderPicker(vi.fn(), 'alimento.basico.arroz');
-        fireEvent.change(screen.getByLabelText('Buscar subcategoria'), { target: { value: 'arroz integral xxx' } });
+        fireEvent.change(screen.getByLabelText('Buscar categoria ou subcategoria'), { target: { value: 'arroz integral xxx' } });
 
-        expect(screen.getByText('Não está na lista oficial. Use “Outros …” ou peça ao suporte')).toBeInTheDocument();
+        expect(screen.getByText(/Não está na lista oficial/)).toBeInTheDocument();
+    });
+
+    it('categorias aparecem em ordem alfabética', () => {
+        render(
+            <CategoriaPicker
+                taxonomia={[
+                    { chave: 'a.zeta', nome: 'Zeta', subcategorias: [] },
+                    { chave: 'a.alfa', nome: 'Alfa', subcategorias: [] },
+                    { chave: 'a.beta', nome: 'Ágape', subcategorias: [] },
+                ]}
+                value=""
+                onChange={vi.fn()}
+            />,
+        );
+        const nomes = screen.getAllByRole('button').map(b => b.textContent?.trim());
+        expect(nomes).toEqual(['Ágape', 'Alfa', 'Zeta']); // pt-BR: ágape antes de alfa
     });
 
     it('não existe opção de criar categoria nem subcategoria', () => {

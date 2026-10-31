@@ -9,6 +9,7 @@ Regras (brainstorm aprovado em 2026-10-30):
 
 view_schema_service junta este catálogo às famílias técnicas que já existiam (construção, eletro...).
 """
+import unicodedata
 
 # Taxonomia OFICIAL em 3 níveis — Família → Categoria → Subcategoria (docs/PLANO_CATEGORIAS_OFICIAIS.md
 # §3.1 e Anexo A, 31/10/2026). Fontes: Pão de Açúcar (mapa de categorias), Havan (departamentos);
@@ -335,7 +336,43 @@ TAXONOMIA = {
 CATEGORIAS_OFICIAIS = {
     familia: [sub for subs in categorias.values() for sub in subs]
     for familia, categorias in TAXONOMIA.items()
-}# Campos novos (origem 'atributo', segmentos=[]: só aparecem pela família que os habilita).
+}
+
+
+# ---------------------------------------------------------------------------------------------
+# Chaves da taxonomia (§3.1): `slug` = chave canônica da regra 4 do plano com "_" no lugar do
+# espaço. Minúsculas, sem acento, sem pontuação, sem conectivos (e, de, da, do, das, dos, para,
+# com) e plural simples → singular (tira o "s" final de palavra com mais de 3 letras).
+# "cama e mesa" == "CAMA, MESA" == "Cama Mesa" → "cama_mesa"; "Brinquedo" == "Brinquedos".
+# ---------------------------------------------------------------------------------------------
+_CONECTIVOS = frozenset({"e", "de", "da", "do", "das", "dos", "para", "com"})
+
+
+def _singular(palavra: str) -> str:
+    return palavra[:-1] if len(palavra) > 3 and palavra.endswith("s") else palavra
+
+
+def slug(texto) -> str:
+    """Chave canônica da regra 4, com "_" separando as palavras."""
+    base = unicodedata.normalize("NFKD", str(texto or ""))
+    base = "".join(c for c in base if not unicodedata.combining(c)).lower()
+    # Apóstrofo é pontuação: sai sem deixar espaço ("Caixas d'Água" -> "caixas dagua").
+    base = base.replace("'", "").replace("\u2019", "")
+    palavras = "".join(c if c.isalnum() else " " for c in base).split()
+    return "_".join(_singular(p) for p in palavras if p not in _CONECTIVOS)
+
+
+def chave_categoria(familia: str, categoria: str) -> str:
+    """Chave globlal da categoria: "<familia>.<slug da categoria>" (ex.: bazar.cozinha)."""
+    return f"{familia}.{slug(categoria)}"
+
+
+def chave_subcategoria(familia: str, categoria: str, subcategoria: str) -> str:
+    """Chave global da subcategoria: "<familia>.<categoria>.<subcategoria>"."""
+    return f"{chave_categoria(familia, categoria)}.{slug(subcategoria)}"
+
+
+# Campos novos (origem 'atributo', segmentos=[]: só aparecem pela família que os habilita).
 CAMPOS_FAMILIAS = [
     # Alimentos, frios e pesáveis
     {"chave": "peso_volume", "label": "Peso / Volume Líquido", "tipo": "text", "grupo": "atributos",
@@ -605,6 +642,11 @@ AJUSTES_FAMILIAS_EXISTENTES = {
         "nome": "Automotivo e Autopeças",
         "campos_habilitados": ["cor", "peso_volume"],
         "categorias": CATEGORIAS_OFICIAIS["autopecas"],
+    },
+    # Família "servico" (Anexo A): o formulário é definido em view_schema_service; aqui entram as
+    # categorias oficiais, para a taxonomia não ficar sem uso no schema.
+    "servico": {
+        "categorias": CATEGORIAS_OFICIAIS["servico"],
     },
 }
 

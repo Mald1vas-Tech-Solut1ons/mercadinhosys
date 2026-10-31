@@ -11,6 +11,7 @@ import { authService } from '../auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
 import { InsightCard } from '../../components/consultor/InsightCard';
 import AlertsPanel from './components/AlertsPanel';
+import OnboardingPiloto from '../onboarding/OnboardingPiloto';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { dataLocalISO } from '../../utils/dataLocal';
 import type { PeriodoDashboard } from './components/PorQueMudou';
@@ -20,7 +21,9 @@ export default function DashboardPageV2() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [erroDados, setErroDados] = useState<'plano' | 'assinatura' | 'falha' | null>(null);
-  const [daysFilter, setDaysFilter] = useState<number | 'custom'>(30);
+  // O dono abre o painel às 7h perguntando "como foi ontem / como está hoje".
+  // 30 dias escondia o dia inteiro atrás de um filtro que ele tinha que lembrar.
+  const [daysFilter, setDaysFilter] = useState<number | 'custom'>(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const { selectedTenantId } = useSuperAdmin();
@@ -133,6 +136,9 @@ export default function DashboardPageV2() {
            )}
         </div>
       </div>
+
+      {/* Checklist executável do piloto: 4 cards que FAZEM, no lugar do tour de 13 passos. */}
+      <OnboardingPiloto />
 
       <InsightCard especialista="geral" titulo="Consultor M-IA" className="mb-6 tour-ia-consultor" />
 

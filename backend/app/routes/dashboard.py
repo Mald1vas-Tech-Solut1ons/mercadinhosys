@@ -358,6 +358,22 @@ def assinar_espelho_ponto():
 
 
 
+@dashboard_bp.route("/categorias", methods=["GET"])
+@gerente_ou_admin_required
+@plan_required('Pro')
+def dashboard_categorias():
+    """Vendas por categoria e subcategoria — o recorte que o dono usa para decidir compra."""
+    try:
+        from app.services.dashboard_categorias import analise_por_categoria
+        estabelecimento_id = get_establishment_id()
+        dias = request.args.get("days", default=30, type=int)
+        dias = max(1, min(dias, 365))
+        return jsonify({"success": True, "data": analise_por_categoria(estabelecimento_id, dias)})
+    except Exception as e:
+        logger.error(f"Erro na analise por categoria: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @dashboard_bp.route("/executivo", methods=["GET"])
 @gerente_ou_admin_required
 @plan_required('Pro')

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/apiClient';
-import { Target, Package, AlertTriangle, Users, DollarSign, Activity } from 'lucide-react';
+import { Target, Package, AlertTriangle, Users, DollarSign, Activity, Layers } from 'lucide-react';
 
 import ExecutiveTab from './components/tabs/ExecutiveTab';
 import SalesSfaTab from './components/tabs/SalesSfaTab';
 import InventoryTab from './components/tabs/InventoryTab';
 import FinancialTab from './components/tabs/FinancialTab';
 import RHTab from './components/tabs/RHTab';
+import CategoriasTab from './components/tabs/CategoriasTab';
 import { authService } from '../auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
 import { InsightCard } from '../../components/consultor/InsightCard';
@@ -74,6 +75,7 @@ export default function DashboardPageV2() {
     : [
         { id: 'executive', label: 'Visão Executiva', icon: Activity },
         { id: 'sales', label: 'Vendas & SFA', icon: Target },
+        { id: 'categorias', label: 'Categorias & Subcategorias', icon: Layers },
         { id: 'inventory', label: 'Estoque Inteligente', icon: Package },
         { id: 'financial', label: 'Financeiro', icon: DollarSign },
         { id: 'rh', label: 'Equipe & RH', icon: Users },
@@ -199,6 +201,7 @@ export default function DashboardPageV2() {
           <div className="animate-in slide-in-from-bottom-4 duration-500">
             {activeTab === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} />}
             {activeTab === 'sales' && <SalesSfaTab data={data} />}
+            {activeTab === 'categorias' && <CategoriasTab dias={typeof daysFilter === 'number' ? daysFilter : 30} />}
             {activeTab === 'inventory' && <InventoryTab data={data} />}
             {activeTab === 'financial' && <FinancialTab data={data} />}
             {activeTab === 'rh' && <RHTab data={data} onRefresh={loadData} />}

@@ -257,6 +257,28 @@ def test_nome_qualificado_de_toda_categoria_cabe_em_50_caracteres():
     assert len(maior) <= LIMITE_NOME_CATEGORIA
 
 
+def test_chave_e_nome_de_categoria_cabem_nas_colunas_do_model():
+    """Regressão 31/10: com `codigo` varchar(20) em produção, todo cadastro com categoria real dava 500.
+
+    O cliente salvava produto e recebia `StringDataRightTruncation: value too long for type character
+    varying(20)` em cima do formulário — a coluna era menor que o próprio model já publicado. O SQLite
+    dos testes não aplica tamanho de varchar, então a suíte ficava verde: a checagem aqui é ESTÁTICA,
+    contra a largura declarada no model, e vale para qualquer banco.
+    """
+    largura_codigo = CategoriaProduto.__table__.c.codigo.type.length
+    largura_nome = CategoriaProduto.__table__.c.nome.type.length
+    maior_chave = max((chave_categoria(familia, categoria)
+                       for familia, categorias in TAXONOMIA.items() for categoria in categorias), key=len)
+    maior_nome = max((nome_categoria_loja(familia, categoria)
+                      for familia, categorias in TAXONOMIA.items() for categoria in categorias), key=len)
+
+    assert len(maior_chave) <= largura_codigo, (maior_chave, len(maior_chave), largura_codigo)
+    assert len(maior_nome) <= largura_nome, (maior_nome, len(maior_nome), largura_nome)
+    # Piso histórico: 20 foi o valor que quebrou em produção; 41 é a maior chave oficial hoje.
+    assert largura_codigo >= 60
+    assert largura_nome >= 50
+
+
 def test_produto_serializa_os_campos_da_taxonomia(session):
     estab = session.query(Estabelecimento).first()
     categoria = garantir_categoria_loja(estab.id, "bazar.cozinha")

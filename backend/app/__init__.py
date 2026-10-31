@@ -292,8 +292,20 @@ def create_app(config_name=None):
         except Exception:
             claims = None
 
+        # Trilha rastreável: o listener forense (app/listeners.py) carimba o autor com `g.user_id`.
+        # Sem isto, todo evento automático (produtos_update, vendas_insert, ...) nascia com
+        # usuario_id NULL e aparecia como "SISTEMA" no monitor — nada era atribuível a quem fez.
+        from flask_jwt_extended import get_jwt_identity
+        try:
+            identidade = get_jwt_identity()
+            g.user_id = int(identidade) if identidade is not None and str(identidade).isdigit() else None
+        except Exception:
+            g.user_id = None
+
         if not claims:
             return  # Rota pública / sem autenticação: nada a escopar.
+
+        g.user_nome = claims.get("nome") or claims.get("username")
 
         from app.utils.query_helpers import get_authorized_establishment_id
         is_super = bool(claims.get("is_super_admin", False))

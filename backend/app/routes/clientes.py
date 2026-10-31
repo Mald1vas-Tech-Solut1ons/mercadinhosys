@@ -1013,7 +1013,9 @@ def excluir_cliente(id):
         Auditoria.registrar(
             estabelecimento_id=cliente.estabelecimento_id, tipo_evento="cliente_excluido",
             descricao=f"Cliente {cliente.nome} (id {cliente.id}) excluído",
-            usuario_id=int(username) if str(username).isdigit() else None,
+            # Login por e-mail deixa 'sub' não numérico: o rastro ficava com usuario_id NULL.
+            # A identidade do JWT é a fonte correta (e é id de funcionário em todos os fluxos).
+            usuario_id=(int(get_jwt_identity()) if str(get_jwt_identity() or '').isdigit() else None),
             detalhes={"cliente_id": cliente.id, "cpf": cliente.cpf, "cnpj": cliente.cnpj})
         db.session.delete(cliente)
         db.session.commit()

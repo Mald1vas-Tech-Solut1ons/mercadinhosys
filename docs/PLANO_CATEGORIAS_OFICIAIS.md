@@ -44,9 +44,20 @@ Tabela `produtos`: acrescentar
 - índice `ix_produtos_estab_subcat (estabelecimento_id, subcategoria_oficial)`
 
 Manter `produtos.categoria_id` + `categorias_produto` funcionando **sincronizados** (telas, filtros, relatórios e DRE usam):
-ao gravar a subcategoria, o backend garante na loja uma linha em `categorias_produto` com `nome` = nome de exibição da
-**categoria** oficial (ex.: "Cozinha") e `codigo` = chave (`bazar.cozinha`), e aponta `categoria_id` para ela.
-(Assim nada que lê `categoria_id` quebra.) Busca da linha por `codigo` (não por nome).
+ao gravar a subcategoria, o backend garante na loja uma linha em `categorias_produto` com `codigo` = chave da categoria
+(`bazar.cozinha`) e `nome` = **"<Família> › <Categoria>"** (ex.: "Bazar › Cozinha"), e aponta `categoria_id` para ela.
+
+**ATENÇÃO (premissa verificada no código):** `categorias_produto` tem `UniqueConstraint("estabelecimento_id", "nome")`
+(`uq_categoria_estab_nome`). Nomes de categoria se repetem entre famílias ("Cozinha" em Bazar e Limpeza, "Alimentação"
+em Bebê e Pet, "Outros" em todas). Por isso o nome gravado é QUALIFICADO pela família; só o nome da categoria quebraria o
+cadastro com erro de duplicidade. Busca da linha por `codigo`, nunca por nome. O campo `nome` tem 50 caracteres: teste o
+maior "Família › Categoria"; se passar, use nome curto da família (ex.: "Cama/Mesa/Banho › Banho").
+
+Tabela `venda_itens`: acrescentar `familia_produto VARCHAR(40)`, `categoria_oficial VARCHAR(60)` e
+`subcategoria_oficial VARCHAR(80)` = **retrato no momento da venda** (gravado no checkout a partir do produto).
+Hoje o histórico por categoria usa a categoria ATUAL do produto: reclassificar reescreve o passado. Com o retrato, os
+relatórios oferecem duas visões: "classificação atual" (padrão do varejo) e "como foi vendido" (auditoria). Vendas
+antigas: preencher uma vez com a classificação atual e registrar a data do corte.
 
 Migração: o projeto adiciona colunas em `backend/app/__init__.py` (lista de `("tabela", "coluna", "TIPO")`, ver o bloco que
 contém `("configuracoes", "tentativas_senha_bloqueio", "INTEGER DEFAULT 3")`) **e** declara no model `Produto`
@@ -170,6 +181,40 @@ funcionando. **Apagar os arquivos de pré-visualização antes do commit.**
    (branch `main`), `git pull --ff-only origin main` (**sem reset**, o Rafael vetou) e
    `npx vercel@latest deploy --prod --yes --scope maldivastech` na raiz do clone. Conferir `https://mercadinhosys.vercel.app/version.json`.
 6. Publicar backend antes do frontend (o front novo depende das colunas e do campo `taxonomia`).
+
+## 7b. Indicadores por Família → Categoria → Subcategoria (gerenciamento por categoria)
+
+Situação hoje (verificada no código em 31/10): o painel científico
+(`backend/app/dashboard_cientifico/temporal_analysis.py`) agrupa vendas por hora × `CategoriaProduto.nome` ATUAL; os cards
+de produtos agrupam por categoria (`_distribuicao_por_categoria` em `routes/produtos.py`); `routes/relatorios.py` só
+devolve `categoria_id`. NÃO existe indicador por família/categoria/subcategoria de faturamento, margem, mix, giro,
+ruptura ou encalhe. **Não confundir com `Despesa.categoria` (financeiro): não tocar.**
+
+Endpoint novo `GET /api/relatorios/categorias?nivel=familia|categoria|subcategoria&pai=<chave>&inicio=&fim=&visao=atual|venda`,
+um registro por nó (drill-down Família → Categoria → Subcategoria → Produto):
+
+| Indicador | Fórmula |
+|---|---|
+| Faturamento | soma de venda_itens.total_item (vendas finalizadas, sem canceladas) |
+| Participação no mix % | faturamento do nó / faturamento do nível pai |
+| Margem bruta R$ e % | soma (total_item - custo unitário na venda × quantidade); % sobre o faturamento |
+| Quantidade e nº de vendas | soma de quantidade; vendas distintas que tiveram o nó |
+| Crescimento % | contra o período anterior de mesma duração |
+| Estoque a custo R$ | soma de quantidade × preco_custo dos produtos ativos do nó |
+| Cobertura (dias) | estoque em unidades / venda média diária dos últimos 30 dias |
+| GMROI | margem bruta do período / estoque médio a custo |
+| Ruptura % | SKUs do nó com estoque <= 0 / SKUs ativos do nó |
+| Encalhe % | SKUs sem venda há 60 dias / SKUs ativos do nó |
+| Perdas R$ | descartes e vencimentos do período (movimentações de saída por perda) |
+| A vencer | lotes com validade <= 30 dias (só famílias com validade) |
+| Curva ABC interna | A/B/C dos produtos dentro do nó (80/15/5 do faturamento) |
+| Papel da categoria | quadrante faturamento × margem: Destino (alto/alto), Tráfego (alto fat./baixa margem), Rentabilidade (baixo fat./alta margem), Revisar (baixo/baixo) |
+
+Tela (`src/features/reports/`, aba "Categorias"): drill-down por clique, tabela ordenável com os indicadores, barras
+horizontais de participação (não pizza com 30 fatias), quadrante faturamento × margem, seletor de período e de visão
+(atual / como foi vendido). Os cards de Produtos (Esgotados, Baixo estoque...) passam a mostrar o gráfico por família →
+categoria usando `taxonomia`. Celular: a tabela vira lista de cartões; nada fora da tela em 375 px.
+Testes: valores conferidos contra uma venda montada no teste (faturamento, margem, mix somando 100%, ruptura, GMROI).
 
 ## 8. Critérios de aceite (provar em produção, sem subir app no container)
 - Cadastro com subcategoria fora da lista → 400; com a lista → 201 (testes automáticos + 1 cadastro real feito pelo Rafael).

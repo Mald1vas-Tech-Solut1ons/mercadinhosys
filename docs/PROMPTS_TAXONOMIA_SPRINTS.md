@@ -65,9 +65,14 @@ Tarefa:
 2. Registre as colunas na lista de colunas automáticas de backend/app/__init__.py (mesmo padrão de
    ("configuracoes", "tentativas_senha_bloqueio", "INTEGER DEFAULT 3")).
 3. Implemente garantir_categoria_loja(estab_id, chave_categoria): procura em categorias_produto por codigo=chave
-   (ativo), cria se não existir com nome = nome de exibição da categoria oficial e codigo = chave. Nunca por nome.
+   (ativo); cria se não existir com nome = "<Família> › <Categoria>" (QUALIFICADO: há UniqueConstraint
+   estabelecimento_id+nome e nomes de categoria se repetem entre famílias) e codigo = chave. Nunca por nome.
+   Teste o maior nome contra o limite de 50 caracteres.
+5. Em VendaItem, adicione familia_produto, categoria_oficial e subcategoria_oficial (retrato no momento da venda),
+   também na lista de colunas automáticas. O preenchimento no checkout fica para o prompt 2.2.
 4. Inclua categoria_oficial e subcategoria_oficial (+ nomes de exibição) no to_dict do produto.
-Testes: garantir_categoria_loja é idempotente (2 chamadas = 1 linha); produto serializa os campos novos.
+Testes: garantir_categoria_loja é idempotente (2 chamadas = 1 linha); "Cozinha" de bazar e de limpeza na mesma loja
+NÃO colidem; "Outros" de 3 famílias na mesma loja não colidem; produto serializa os campos novos.
 ```
 **Aceite:** testes verdes; nenhuma coluna removida; o modelo cola o diff do model.
 
@@ -99,6 +104,8 @@ Tarefa: aplique a mesma regra em: POST /estoque, PUT /estoque/<id>, importação
 fallback "categoria"; não resolvido vira erro da linha), catalogo_importar (sem casar → outros(familia)),
 fiscal/entrada_service.py (_get_or_create_categoria_importacao → outros(familia pelo NCM)),
 pdv.py Taxa de Entrega → família servico / "Taxas e Entregas", saas.py onboarding → não criar categorias.
+Checkout (finalizar venda no PDV e pedido SFA faturado): gravar em cada VendaItem o retrato familia_produto,
+categoria_oficial e subcategoria_oficial do produto naquele momento.
 Teste de varredura: após exercitar cada rota, nenhuma linha em categorias_produto tem codigo vazio/nome fora da taxonomia.
 Rode a suíte inteira.
 ```
@@ -182,6 +189,40 @@ Teste: aplicar e depois restaurar pelo backup deixa tudo como antes.
 
 ---
 
+## Sprint 4b — Indicadores por categoria (painel profissional)
+
+### Prompt 4b.1 — Endpoint de indicadores
+```
+[BLOCO FIXO]
+Leia: PLANO §7b inteiro.
+Tarefa: crie GET /api/relatorios/categorias (nivel, pai, inicio, fim, visao=atual|venda) com TODOS os indicadores da
+tabela do §7b. Agregação no SQL (group by), nunca loop em Python sobre vendas. Não toque em Despesa.categoria.
+Testes com massa montada no teste (3 famílias, 5 subcategorias, vendas com custo conhecido): faturamento, margem,
+mix somando 100%, ruptura, encalhe, GMROI e cobertura batendo com o cálculo à mão (escreva o cálculo no teste).
+```
+**Aceite:** testes verdes; o modelo mostra o cálculo à mão de 2 indicadores.
+
+### Prompt 4b.2 — Retrato nas vendas antigas
+```
+[BLOCO FIXO]
+Leia: PLANO §2 (retrato em venda_itens).
+Tarefa: comando "flask preencher-retrato-vendas --loja <id>" (dentro de register_commands) que preenche
+familia_produto, categoria_oficial e subcategoria_oficial dos VendaItem vazios com a classificação ATUAL do produto,
+em lotes de 1000, e registra a data do corte nas configurações da loja. Idempotente. Teste local. NÃO rode em produção.
+```
+**Aceite:** teste verde; rodar 2 vezes não muda nada na segunda.
+
+### Prompt 4b.3 — Tela "Categorias" nos relatórios
+```
+[BLOCO FIXO]
+Leia: PLANO §7b (parte "Tela") e §5.
+Tarefa: aba "Categorias" em src/features/reports/: drill-down Família → Categoria → Subcategoria → Produto, tabela
+ordenável, barras horizontais de participação, quadrante faturamento × margem com o papel de cada nó, seletor de
+período e de visão. Cards de Produtos: gráfico com nível família → categoria. Celular: cartões, nada fora da tela em
+375 px. Faça a conferência visual do PLANO §5 e mostre as capturas.
+```
+**Aceite:** você vê as capturas e confere 1 número da tela contra o relatório de vendas do mesmo período.
+
 ## Sprint 5 — Publicação e prova
 
 ### Prompt 5.1 — PR e CI
@@ -218,6 +259,7 @@ o que foi provado e como, o que NÃO foi provado, comando de rollback.
 | 2 Travas | 2.1, 2.2, 2.3 | suíte inteira verde, nenhum caminho cria categoria livre |
 | 3 Tela | 3.1, 3.2, 3.3 | capturas aprovadas por você (desktop e celular) |
 | 4 Conversão | 4.1, 4.2 | CSV de exemplo + teste de backup/restauração |
+| 4b Indicadores | 4b.1, 4b.2, 4b.3 | números batendo com cálculo à mão + capturas aprovadas |
 | 5 Publicação | 5.1, 5.2, 5.3 | relatório com SHA, provas e rollback |
 
 Se o modelo travar, errar ou "pular" algo: repita o mesmo prompt acrescentando "Você não fez X; faça só X agora".

@@ -64,30 +64,21 @@ class DataLayer:
     def get_sales_summary_range(db, estabelecimento_id: int, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """Resumo de vendas para um período específico (inclui o dia inteiro de end_date)"""
         try:
-            from datetime import timezone
-            # Garantir timezone UTC para todas as datas de entrada
-            if isinstance(start_date, datetime):
-                start_dt = start_date if start_date.tzinfo else start_date.replace(tzinfo=timezone.utc)
-            else:
-                start_dt = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
-                
-            if isinstance(end_date, datetime):
-                end_dt = end_date if end_date.tzinfo else end_date.replace(tzinfo=timezone.utc)
-            else:
-                end_dt = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
+            # A janela chega como datetime naive UTC (o decorator já converteu
+            # aware→naive). Datas puras (date) são dias da LOJA: convertemos para
+            # os instantes UTC naive correspondentes (meia-noite e fim do dia), em
+            # vez de comparar por data UTC — que deslocava a fronteira em 3h.
+            start_dt = start_date if isinstance(start_date, datetime) else local_date_to_utc_naive(start_date)
+            end_dt = end_date if isinstance(end_date, datetime) else local_date_to_utc_naive(end_date, fim_do_dia=True)
 
-            start_d = start_dt.date()
-            end_d = end_dt.date()
-            end_exclusive = end_d + timedelta(days=1)
-        
             query = db.session.query(
                 func.count(Venda.id).label('total_vendas'),
                 func.sum(Venda.total).label('total_faturado'),
                 func.avg(Venda.total).label('ticket_medio'),
                 func.count(func.distinct(get_local_date(Venda.data_venda))).label('dias_com_venda')
             ).filter(
-                Venda.data_venda >= start_d,
-                Venda.data_venda < end_exclusive,
+                Venda.data_venda >= start_dt,
+                Venda.data_venda <= end_dt,
                 Venda.status == 'finalizada'
             )
             
@@ -125,9 +116,10 @@ class DataLayer:
         """
         try:
             from app.utils.financeiro_constants import sem_categorias_integradas
+            from app.utils.timezone import hoje_local
 
-            start_date = (datetime.now(timezone.utc) - timedelta(days=days)).date()
-            end_date = start_date + timedelta(days=max(days - 1, 0))
+            start_date = (hoje_local() - timedelta(days=days - 1))
+            end_date = hoje_local()
 
             # Garante formato start_date datetime
             start_dt = datetime.combine(start_date, datetime.min.time())

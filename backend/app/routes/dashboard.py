@@ -11,7 +11,7 @@ from app.decorators.plan_guards import plan_required
 import logging
 from datetime import datetime, timezone
 from sqlalchemy import and_
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local
 
 logger = logging.getLogger(__name__)
 dashboard_bp = Blueprint("dashboard", __name__)
@@ -480,7 +480,7 @@ def dashboard_alertas():
         from app.utils import giro_cache
 
         estabelecimento_id = get_establishment_id()
-        hoje = date.today()
+        hoje = hoje_local()
 
         # Respeita Configurações > Estoque da loja: alerta de estoque mínimo e
         # controle de validade desligados = nenhum alerta daquele tipo.

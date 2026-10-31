@@ -190,7 +190,7 @@ def test_post_sem_modo_regressao_comportamento_antigo(client, ctx):
     r = client.post("/api/produtos/", json={
         "entrar_sem_estoque": True,  # guardião: estoque 0 só com exceção consciente
         "nome": "Produto Comum", "categoria": "Bazar",
-        "preco_custo": 10.0, "preco_venda": 15.0, "quantidade": 5,
+        "preco_custo": 10.0, "preco_venda": 15.0, "quantidade": 5, "data_validade": "2099-12-31",
     }, headers=_headers(ctx["estab"].id, ctx["admin"].id))
     assert r.status_code == 201, r.get_data(as_text=True)
     produto = r.get_json()["produto"]

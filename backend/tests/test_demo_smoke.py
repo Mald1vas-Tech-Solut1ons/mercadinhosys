@@ -58,7 +58,7 @@ def test_demo_cadastrar_produto(client, ctx):
         "categoria": "Geral",
         "preco_custo": 4.50,
         "preco_venda": 8.90,
-        "quantidade": 100,
+        "quantidade": 100, "data_validade": "2099-12-31",
         "codigo_barras": "7890000000017",
     }, headers=_headers(ctx["estab"].id, ctx["admin"].id))
     assert r.status_code in (200, 201), r.get_data(as_text=True)

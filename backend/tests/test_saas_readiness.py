@@ -50,7 +50,7 @@ def test_quota_required_respeita_alias_legado_de_plano_pago(client, session):
         "categoria": "Geral",
         "preco_custo": 4.50,
         "preco_venda": 8.90,
-        "quantidade": 100,
+        "quantidade": 100, "data_validade": "2099-12-31",
         "codigo_barras": "7890000000093",
     }, headers={"Authorization": f"Bearer {token}"})
 

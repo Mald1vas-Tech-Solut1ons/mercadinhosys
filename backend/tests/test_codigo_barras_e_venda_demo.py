@@ -107,7 +107,7 @@ def test_codigo_interno_nao_consulta_cosmos_nem_entra_no_catalogo_global(client,
 
     r = client.post("/api/produtos/", headers=ctx["headers"], json={
         "nome": "Bolo caseiro", "categoria": "Demo", "preco_custo": 10, "preco_venda": 25,
-        "codigo_barras": "2000000000015", "quantidade": 3})
+        "codigo_barras": "2000000000015", "quantidade": 3, "data_validade": "2099-12-31"})
     assert r.status_code == 201, r.get_json()
     assert CatalogoMestre.query.filter_by(ean="2000000000015").first() is None
 
@@ -117,7 +117,7 @@ def test_codigo_interno_nao_consulta_cosmos_nem_entra_no_catalogo_global(client,
 def test_produto_cadastrado_com_estoque_inicial_vende_e_baixa(client, session, ctx):
     r = client.post("/api/produtos/", headers=ctx["headers"], json={
         "nome": "Sabonete Demo", "categoria": "Demo", "preco_custo": 1.5, "preco_venda": 3.5,
-        "quantidade": 12})
+        "quantidade": 12, "data_validade": "2099-12-31"})
     assert r.status_code == 201, r.get_json()
     produto = Produto.query.filter_by(nome="SABONETE DEMO").first()
     r = _vender(client, ctx, produto, quantidade=2, preco=3.5)

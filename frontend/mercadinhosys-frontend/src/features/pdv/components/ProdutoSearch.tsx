@@ -10,11 +10,13 @@ import ImageZoomModal from '../../../components/ui/ImageZoomModal';
 
 interface ProdutoSearchProps {
     onProdutoSelecionado: (produto: Produto) => void;
+    /** FASE 1.1: caixa fechado → busca/scanner inativos (venda não pode começar). */
+    disabled?: boolean;
 }
 
 const UNIDADES_PESO = ['KG', 'G', 'GR', 'L', 'LT', 'ML'];
 
-const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) => {
+const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, disabled = false }) => {
     const [query, setQuery] = useState('');
     const [resultados, setResultados] = useState<Produto[]>([]);
     const [loading, setLoading] = useState(false);
@@ -178,8 +180,12 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
             {/* Barra de Busca */}
             <div className="flex items-center space-x-2 mb-4">
                 <button
-                    onClick={() => setScannerAberto(true)}
-                    className="p-3 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 shadow-lg transition"
+                    onClick={() => !disabled && setScannerAberto(true)}
+                    disabled={disabled}
+                    className={`p-3 text-white rounded-lg shadow-lg transition ${disabled
+                        ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed opacity-60'
+                        : 'bg-linear-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                    }`}
                     title="Abrir scanner de código de barras"
                 >
                     <Camera className="w-5 h-5" />
@@ -194,8 +200,9 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado }) =
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         placeholder="Buscar por nome, marca, código de barras..."
-                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 dark:text-white"
-                        autoFocus
+                        disabled={disabled}
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 dark:text-white disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                        autoFocus={!disabled}
                     />
                     {loading && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">

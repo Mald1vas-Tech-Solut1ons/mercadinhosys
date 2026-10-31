@@ -55,6 +55,41 @@ def obter_caixa_atual():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@caixas_bp.route("/ultimo-fechamento", methods=["GET"])
+@jwt_required()
+@permission_required('gestao_caixa')
+def obter_ultimo_fechamento():
+    """FASE 1.3: Retorna o saldo_final do último caixa fechado do estabelecimento.
+    Usado pelo CaixaManager para sugerir o valor de abertura do dia seguinte.
+    """
+    try:
+        user_id = int(get_jwt_identity())
+        funcionario = Funcionario.query.get(user_id)
+        if not funcionario:
+            return jsonify({"success": False, "error": "Funcionário não encontrado"}), 404
+
+        ultimo = Caixa.query.filter_by(
+            estabelecimento_id=funcionario.estabelecimento_id,
+            status="fechado"
+        ).order_by(Caixa.data_fechamento.desc()).first()
+
+        if not ultimo:
+            return jsonify({"success": True, "data": None}), 200
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "caixa_id": ultimo.id,
+                "numero_caixa": ultimo.numero_caixa,
+                "saldo_final": float(ultimo.saldo_final) if ultimo.saldo_final is not None else None,
+                "data_fechamento": iso_utc(ultimo.data_fechamento) if ultimo.data_fechamento else None,
+            }
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Erro ao obter último fechamento: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @caixas_bp.route("/abrir", methods=["POST"])
 @jwt_required()
 @permission_required('gestao_caixa')

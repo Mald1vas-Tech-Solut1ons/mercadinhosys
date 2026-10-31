@@ -11,6 +11,8 @@ import { formatCurrency } from '../../../utils/formatters';
 import { mensagemErro } from '../../../utils/mensagemErro';
 import { printHtml } from '../../../utils/printHtml';
 import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
+import { apiClient } from '../../../api/apiClient';
+import { AlertCircle } from 'lucide-react';
 
 interface CaixaManagerProps {
     caixaAtual: CaixaPDV | null;
@@ -53,11 +55,27 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
     const [loadingAuditoria, setLoadingAuditoria] = useState(false);
     const [resumoCaixa, setResumoCaixa] = useState<any>(null);
     const [loadingResumo, setLoadingResumo] = useState(false);
+    // FASE 1.3: sugestão de abertura baseada no fechamento de ontem
+    const [ultimoFechamento, setUltimoFechamento] = useState<{ saldo_final: number; data_fechamento: string } | null>(null);
 
     useEffect(() => {
         if (activeTab === 'auditoria' && caixaAtual) carregarAuditoria();
         if (activeTab === 'fechar' && caixaAtual) carregarResumoCaixa();
     }, [activeTab, caixaAtual]);
+
+    useEffect(() => {
+        if (isOpen && !caixaAtual) {
+            apiClient.get('/caixas/ultimo-fechamento')
+                .then(res => {
+                    const d = res.data?.data;
+                    const saldo = d?.saldo_final;
+                    setUltimoFechamento(typeof saldo === 'number' && Number.isFinite(saldo)
+                        ? { saldo_final: saldo, data_fechamento: d.data_fechamento }
+                        : null);
+                })
+                .catch(() => setUltimoFechamento(null));
+        }
+    }, [isOpen, caixaAtual]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -240,6 +258,20 @@ const CaixaManager: React.FC<CaixaManagerProps> = ({ caixaAtual, setCaixaAtual, 
 
                     {/* Form */}
                     <form onSubmit={handleAbertura} className="relative px-6 pb-8 space-y-5">
+                        {ultimoFechamento && (
+                            <div className="rounded-2xl px-4 py-3 flex items-center gap-3"
+                                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+                                <AlertCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-emerald-300 text-xs font-bold uppercase tracking-widest">Ontem o caixa fechou com</p>
+                                    <p className="text-lg font-black text-emerald-200 tabular-nums">{formatCurrency(ultimoFechamento.saldo_final)}</p>
+                                </div>
+                                <button type="button" onClick={() => setSaldoInicial(ultimoFechamento.saldo_final.toFixed(2).replace('.', ','))}
+                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black rounded-xl uppercase tracking-wider transition-all active:scale-95">
+                                    Usar este valor
+                                </button>
+                            </div>
+                        )}
                         <div className="rounded-2xl overflow-hidden"
                             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                             <div className="flex items-center px-4 py-1 border-b"

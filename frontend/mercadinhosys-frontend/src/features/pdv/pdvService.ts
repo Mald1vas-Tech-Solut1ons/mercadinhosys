@@ -15,6 +15,8 @@ export interface ConfiguracoesPDV {
         role: string;
         pode_dar_desconto: boolean;
         limite_desconto: number;
+        /** FASE 1.7: teto da loja (Configuracao.desconto_maximo_funcionario) — o backend aplica min(operador, loja). */
+        limite_desconto_loja?: number;
         pode_cancelar_venda: boolean;
     };
     formas_pagamento: FormaPagamentoPDV[];

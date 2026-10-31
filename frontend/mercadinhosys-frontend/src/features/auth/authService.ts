@@ -3,6 +3,7 @@ import axios from 'axios';
 import { LoginApiResponse } from '../../types';
 import { API_CONFIG } from '../../api/apiConfig';
 import { viewSchemaService } from '../../services/viewSchemaService';
+import { limparCarrinhosPdv } from '../../utils/pdvStorage';
 
 const API_URL = API_CONFIG.BASE_URL;
 
@@ -224,13 +225,16 @@ class AuthService {
             'current_estabelecimento_id',
             'theme',
             'preferencias_usuario',
-            'pdv_sessions_v1'
         ];
 
         keysToRemove.forEach(key => {
             localStorage.removeItem(key);
             sessionStorage.removeItem(key);
         });
+
+        // FASE 1.4: o carrinho é por operador (pdv_sessions_v1_<funcionario_id>) e não pode
+        // sobreviver ao logout — o próximo login no tablet começaria com o carrinho do anterior.
+        limparCarrinhosPdv();
 
         viewSchemaService.invalidate();
         // Dispara evento para atualizar estado de autenticação

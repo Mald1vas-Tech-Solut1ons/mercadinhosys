@@ -33,6 +33,7 @@ import { mensagemErro } from '../../utils/mensagemErro';
 import { apiClient } from '../../api/apiClient';
 import PDVSkeleton from './components/PDVSkeleton';
 import CaixaManager from './components/CaixaManager';
+import PinDialog from '../../components/modals/PinDialog';
 import MultiPaymentManager from './components/MultiPaymentManager';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
@@ -102,6 +103,7 @@ const PDVPage: React.FC = () => {
         removerProduto,
         atualizarQuantidade,
         aplicarDescontoItem,
+        aplicarDescontoItemAutorizado,
         descontoTotal,
         limparCarrinho,
         finalizarVenda,
@@ -155,6 +157,8 @@ const PDVPage: React.FC = () => {
     // Reimpressão (2ª via) de venda anterior — inclusive offline
     const [listaReimpressaoAberta, setListaReimpressaoAberta] = useState(false);
     const [reimpressao, setReimpressao] = useState<CupomParaReimprimir | null>(null);
+    // FASE 1.7: desconto pendente de autorização (o PinDialog abre com esse contexto)
+    const [descontoPendente, setDescontoPendente] = useState<{ produtoId: number; desconto: number; percentual: boolean } | null>(null);
     // Cabeçalho da loja fica no aparelho para o cupom de venda sem internet
     useEffect(() => { salvarCabecalhoCupom(configuracoes?.cupom_cabecalho); }, [configuracoes?.cupom_cabecalho]);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
@@ -372,6 +376,12 @@ const PDVPage: React.FC = () => {
                 setManagerCaixaAberto(true);
                 return;
             }
+            // FASE 1.7: o backend recusa desconto acima do limite (400, validate_pricing).
+            // Sem isso o operador só via um erro genérico e não sabia o que fazer.
+            if (error?.response?.status === 400 && /desconto/i.test(String(errData?.error ?? ''))) {
+                showToast.error(`Desconto recusado pelo servidor: ${errData.error}. Reduza o desconto ou peça autorização do gerente.`, { duration: 8000 });
+                return;
+            }
             // Outros erros já tratados pelo promise
         } finally {
             finalizandoRef.current = false;
@@ -387,6 +397,24 @@ const PDVPage: React.FC = () => {
         }
         setActiveSection(section);
         setFormaPagamentoAberta(true);
+    };
+
+    const handleAplicarDesconto = (produtoId: number, val: number, perc: boolean) => {
+        try {
+            aplicarDescontoItem(produtoId, val, perc);
+        } catch (e: any) {
+            if (e?.code === 'DESCONTO_EXCEDE_LIMITE') {
+                setDescontoPendente({ produtoId, desconto: val, percentual: perc });
+            }
+            // outros erros já foram levados via toast pelo hook
+        }
+    };
+
+    const handleConfirmarPinDesconto = () => {
+        if (!descontoPendente) return;
+        aplicarDescontoItemAutorizado(descontoPendente.produtoId, descontoPendente.desconto, descontoPendente.percentual);
+        showToast.success('Desconto autorizado e aplicado');
+        setDescontoPendente(null);
     };
 
     const handleLimparCarrinho = async () => {
@@ -528,6 +556,16 @@ const PDVPage: React.FC = () => {
                 produto={produtoPendentePeso}
             />
 
+            <PinDialog
+                open={!!descontoPendente}
+                title="Autorizar desconto"
+                description={descontoPendente
+                    ? `Desconto de ${descontoPendente.percentual ? `${descontoPendente.desconto}%` : formatCurrency(descontoPendente.desconto)} acima do seu limite. Peça o PIN de um gerente ou admin para liberar.`
+                    : undefined}
+                onSuccess={() => handleConfirmarPinDesconto()}
+                onClose={() => setDescontoPendente(null)}
+            />
+
             <div className="tour-pdv-leitor">
                 <CaixaHeader
                     funcionarioNome={configuracoes?.funcionario.nome}
@@ -614,7 +652,7 @@ const PDVPage: React.FC = () => {
                                         total={item.total}
                                         onAtualizarQuantidade={(qtd) => atualizarQuantidade(item.produto.id, qtd)}
                                         onRemover={() => removerProduto(item.produto.id)}
-                                        onAplicarDesconto={(val, perc) => aplicarDescontoItem(item.produto.id, val, perc)}
+                                        onAplicarDesconto={(val, perc) => handleAplicarDesconto(item.produto.id, val, perc)}
                                     />
                                 ))}
                             </div>

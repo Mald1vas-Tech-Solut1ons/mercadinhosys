@@ -18,6 +18,32 @@ describe('isSafeToApply', () => {
     expect(isSafeToApply(storage({ sessoes: [{ carrinho: [{}], pagamentos: [] }] }))).toBe(false)
     expect(isSafeToApply(storage({ sessoes: [{ carrinho: [] }, { carrinho: [], pagamentos: [{}] }] }))).toBe(false)
   })
+
+  // FASE 1.4: o carrinho passou a ser keyado por operador (pdv_sessions_v1_<id>).
+  // Se o update do PWA só olhar a chave legada, ele recarrega no meio da venda do operador.
+  const storageComChaves = (mapa: Record<string, unknown>) => {
+    const chaves = Object.keys(mapa)
+    return {
+      getItem: (k: string) => (k in mapa ? JSON.stringify(mapa[k]) : null),
+      get length() { return chaves.length },
+      key: (i: number) => chaves[i],
+    }
+  }
+
+  it('lê o carrinho de TODOS os operadores, não só a chave legada', () => {
+    expect(isSafeToApply(storageComChaves({
+      pdv_sessions_v1_101: { sessoes: [{ carrinho: [], pagamentos: [] }] },
+      pdv_sessions_v1_202: { sessoes: [{ carrinho: [{}], pagamentos: [] }] },
+    }))).toBe(false)
+  })
+
+  it('seguro quando nenhum operador tem carrinho aberto', () => {
+    expect(isSafeToApply(storageComChaves({
+      pdv_sessions_v1_101: { sessoes: [{ carrinho: [], pagamentos: [] }] },
+      pdv_sessions_v1_202: { sessoes: [{ carrinho: [], pagamentos: [] }] },
+      outra_chave: { qualquer: true },
+    }))).toBe(true)
+  })
 })
 
 describe('createUpdateManager', () => {

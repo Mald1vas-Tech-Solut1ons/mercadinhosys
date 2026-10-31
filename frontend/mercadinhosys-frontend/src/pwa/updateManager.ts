@@ -29,19 +29,36 @@ type Listener = (s: UpdateState) => void;
 export const CHECK_INTERVAL_MS = 15 * 60 * 1000;
 export const BOOT_APPLY_WINDOW_MS = 15 * 1000;
 export const STALE_AFTER_MS = 30 * 1000;
-const PDV_STORAGE_KEY = 'pdv_sessions_v1';
+// FASE 1.4: o carrinho agora é por operador (pdv_sessions_v1_<funcionario_id>). A chave
+// legada continua existindo para carrinhos anteriores à troca de chave.
+const PDV_STORAGE_PREFIX = 'pdv_sessions_v1';
 const RELOAD_FLAG = 'pwa_chunk_reload_at';
 
+const ehChaveDeCarrinhoPdv = (chave: string) =>
+  chave === PDV_STORAGE_PREFIX || chave.startsWith(`${PDV_STORAGE_PREFIX}_`);
+
+type StorageLike = Pick<Storage, 'getItem'> & Partial<Pick<Storage, 'length' | 'key'>>;
+
 /** Seguro para recarregar sem perder trabalho: nenhum carrinho/pagamento em andamento. */
-export function isSafeToApply(storage: Pick<Storage, 'getItem'> = sessionStorage): boolean {
+export function isSafeToApply(storage: StorageLike = sessionStorage): boolean {
   try {
-    const raw = storage.getItem(PDV_STORAGE_KEY);
-    if (!raw) return true;
-    const { sessoes } = JSON.parse(raw);
-    if (!Array.isArray(sessoes)) return true;
-    return sessoes.every(
-      (s: { carrinho?: unknown[]; pagamentos?: unknown[] }) => !s?.carrinho?.length && !s?.pagamentos?.length,
-    );
+    const chaves: string[] = [];
+    for (let i = 0; i < (storage.length ?? 0); i++) {
+      const chave = storage.key?.(i);
+      if (chave && ehChaveDeCarrinhoPdv(chave)) chaves.push(chave);
+    }
+    // Stub de teste (sem iteração de chaves): cai na chave legada.
+    if (chaves.length === 0) chaves.push(PDV_STORAGE_PREFIX);
+
+    return chaves.every((chave) => {
+      const raw = storage.getItem(chave);
+      if (!raw) return true;
+      const { sessoes } = JSON.parse(raw);
+      if (!Array.isArray(sessoes)) return true;
+      return sessoes.every(
+        (s: { carrinho?: unknown[]; pagamentos?: unknown[] }) => !s?.carrinho?.length && !s?.pagamentos?.length,
+      );
+    });
   } catch {
     return true;
   }

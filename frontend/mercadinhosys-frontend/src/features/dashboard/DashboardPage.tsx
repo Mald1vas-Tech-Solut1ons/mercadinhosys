@@ -14,6 +14,9 @@ import { InsightCard } from '../../components/consultor/InsightCard';
 import AlertsPanel from './components/AlertsPanel';
 import OnboardingPiloto from '../onboarding/OnboardingPiloto';
 import PainelDoDia from './components/PainelDoDia';
+import PeriodoSemVenda from './components/PeriodoSemVenda';
+import { periodoSemVenda } from '../../utils/ultimoMovimento';
+import { formatDate } from '../../utils/formatters';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { dataLocalISO } from '../../utils/dataLocal';
 import type { PeriodoDashboard } from './components/PorQueMudou';
@@ -24,8 +27,11 @@ export default function DashboardPageV2() {
   const [data, setData] = useState<any>(null);
   const [erroDados, setErroDados] = useState<'plano' | 'assinatura' | 'falha' | null>(null);
   // O dono abre o painel às 7h perguntando "como foi ontem / como está hoje".
-  // 30 dias escondia o dia inteiro atrás de um filtro que ele tinha que lembrar.
-  const [daysFilter, setDaysFilter] = useState<number | 'custom'>(1);
+  // Mas o padrão em "Hoje" devolvia R$ 0,00 em todos os cards num dia sem venda
+  // (loja fechada, feriado, antes da primeira venda) — e o dono lia isso como
+  // "o sistema perdeu meus dados". O painel abre em 30 dias, que sempre tem
+  // número, e "Hoje" continua a um clique no seletor.
+  const [daysFilter, setDaysFilter] = useState<number | 'custom'>(30);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const { selectedTenantId } = useSuperAdmin();
@@ -143,6 +149,19 @@ export default function DashboardPageV2() {
       {/* As três perguntas das 7h, cada uma com o botão que resolve. */}
       <PainelDoDia data={data} />
 
+      {/* Período sem venda: diz o que houve e quando foi o último movimento,
+          em vez de deixar o dono achar que os números sumiram. Na Visão Executiva
+          o próprio ExecutiveTab mostra o bloco completo — aqui é só a faixa
+          para as demais abas, sem repetir a mesma mensagem duas vezes. */}
+      {data && activeTab !== 'executive' && periodoSemVenda(data) && (
+        <PeriodoSemVenda
+          data={data}
+          variante="banner"
+          periodo={periodo ? `${formatDate(periodo.de)} a ${formatDate(periodo.ate)}` : undefined}
+          onVerPeriodo={(dias) => setDaysFilter(dias)}
+        />
+      )}
+
       <InsightCard especialista="geral" titulo="Consultor da Loja" className="mb-6 tour-ia-consultor" />
 
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
@@ -196,7 +215,7 @@ export default function DashboardPageV2() {
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-            {activeTab === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} />}
+            {activeTab === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} onVerPeriodo={(dias) => setDaysFilter(dias)} />}
             {activeTab === 'sales' && <SalesSfaTab data={data} />}
             {activeTab === 'categorias' && <CategoriasTab dias={typeof daysFilter === 'number' ? daysFilter : 30} />}
             {activeTab === 'inventory' && <InventoryTab data={data} />}

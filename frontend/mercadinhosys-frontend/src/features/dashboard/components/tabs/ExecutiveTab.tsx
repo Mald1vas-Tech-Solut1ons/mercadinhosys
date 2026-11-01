@@ -5,14 +5,18 @@ import { formatCurrency, formatDate } from '../../../../utils/formatters';
 import { useTheme } from '../../../../theme/useTheme';
 import { chartColors } from '../../../../utils/chartColors';
 import PorQueMudou, { type PeriodoDashboard } from '../PorQueMudou';
+import PeriodoSemVenda from '../PeriodoSemVenda';
+import { periodoSemVenda } from '../../../../utils/ultimoMovimento';
 
 interface ExecutiveTabProps {
   data: any;
   onNavigateToTab?: (tabId: string) => void;
   periodo?: PeriodoDashboard;
+  /** Troca o período do painel (usado pelo estado "sem venda no período"). */
+  onVerPeriodo?: (dias: number) => void;
 }
 
-export default function ExecutiveTab({ data, onNavigateToTab, periodo }: ExecutiveTabProps) {
+export default function ExecutiveTab({ data, onNavigateToTab, periodo, onVerPeriodo }: ExecutiveTabProps) {
   const navigate = useNavigate();
   // Card clicável: abre a lista que formou o número, no mesmo período.
   const abrirVendas = () => navigate(periodo ? `/sales?de=${periodo.de}&ate=${periodo.ate}` : '/sales');
@@ -51,6 +55,20 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
   const ticketMedio = data?.summary?.avg_ticket?.value || 0;
   
   const recomendacoes = data?.recomendacoes || [];
+
+  // Sem venda no recorte escolhido, os seis cards viram R$ 0,00 e o dono lê como
+  // perda de dado. Aqui a tela diz o que houve e quando foi o último movimento.
+  if (periodoSemVenda(data)) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <PeriodoSemVenda
+          data={data}
+          periodo={periodo ? `${formatDate(periodo.de)} a ${formatDate(periodo.ate)}` : undefined}
+          onVerPeriodo={onVerPeriodo}
+        />
+      </div>
+    );
+  }
 
   const dreData = [
     { name: 'Lucro Líquido', value: Math.max(0, lucroLiquido), color: '#10b981', desc: 'Valor real que sobrou no caixa após pagar todos os custos e despesas' },

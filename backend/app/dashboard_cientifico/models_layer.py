@@ -550,18 +550,59 @@ class PracticalModels:
             except Exception:  # scipy ausente: aproximação normal, declarada no retorno
                 t_crit = 1.96
 
+            # Sazonalidade semanal: fator de cada dia da semana sobre a média
+            # observada. Vem dos dados — não é constante inventada. Só aplicamos
+            # com 2+ semanas de histórico (senão o "padrão semanal" é ruído de
+            # 1-2 ocorrências por dia e distorce a reta em vez de informá-la).
+            fatores_semanais = {wd: 1.0 for wd in range(7)}
+            if n_total >= PracticalModels.FORECAST_FIT_WINDOW:
+                weekday_vals = defaultdict(list)
+                for d, v in observed.items():
+                    weekday_vals[d.weekday()].append(v)
+                overall_mean = y_mean
+                for wd in range(7):
+                    vals = weekday_vals.get(wd, [])
+                    if vals and overall_mean > 0:
+                        fatores_semanais[wd] = statistics.mean(vals) / overall_mean
+
+            # Histórico do MESMO feriado (mesmo mês/dia em anos anteriores) para
+            # estimar a venda de feriado com dado real, em vez de zerar ou chutar.
+            from app.dashboard_cientifico.calendario import info_data, nome_feriado as _nome_feriado
+            feriado_hist = defaultdict(list)
+            for d, v in observed.items():
+                if _nome_feriado(d):
+                    feriado_hist[(d.month, d.day)].append(v)
+
             last_date = ordered[-1][0]
             forecast = []
             for i in range(int(days_ahead)):
                 future_date = last_date + timedelta(days=i + 1)
                 fx = float((future_date - origin).days)
-                predicted = max(0.0, slope * fx + intercept)
+                base = slope * fx + intercept
+                fator = fatores_semanais.get(future_date.weekday(), 1.0)
+                predicted = max(0.0, base * fator)
                 margin = t_crit * resid_std * math.sqrt(1 + 1 / n + (fx - x_mean) ** 2 / sxx)
+
+                info = info_data(future_date)
+                historico_feriado = feriado_hist.get((future_date.month, future_date.day))
+                # Feriado com histórico real: usa a média observada dele (mais
+                # honesto que zerar ou chutar fator). Sem histórico: mantém a
+                # sazonalidade, mas sinaliza incerteza alargando a faixa.
+                if info["feriado"] and historico_feriado:
+                    predicted = max(0.0, statistics.mean(historico_feriado))
+                    margin *= 1.5
+                elif info["feriado"]:
+                    margin *= 2.0
+
                 forecast.append({
                     "data": iso_utc(future_date),
                     "valor_previsto": round(predicted, 2),
                     "lower_bound": round(max(0.0, predicted - margin), 2),
                     "upper_bound": round(predicted + margin, 2),
+                    "dia_semana": info["dia_semana"],
+                    "fator_sazonal": round(fator, 3),
+                    "feriado": info["feriado"],
+                    "feriado_nome": info["feriado_nome"],
                 })
 
             return {
@@ -569,8 +610,12 @@ class PracticalModels:
                 "available": True,
                 "reason": None,
                 "confidence": "low" if n < PracticalModels.FORECAST_FIT_WINDOW else "medium",
-                "method": "linear_regression_simple",
+                "method": "regressao_linear_sazonal_semanal_feriados",
                 "interval": {"level": 0.95, "type": "prediction_interval_from_residuals"},
+                "seasonality": {
+                    "tipo": "semanal",
+                    "fatores": {str(k): round(v, 3) for k, v in fatores_semanais.items()},
+                },
                 "observations": n_total,
                 "fit_observations": n,
                 "trend": "up" if slope > 0 else "down" if slope < 0 else "flat",
@@ -792,50 +837,77 @@ class PracticalModels:
             return anomalies
 
         try:
-            import numpy as np
+            from datetime import datetime
+            from collections import defaultdict
+            from app.dashboard_cientifico.calendario import info_data
 
-            # IMPORTANTE: só analisar DIAS ABERTOS. Dia com faturamento ~0 é loja
-            # fechada (domingo/feriado), não uma "queda brusca" — era isso que
-            # enchia o painel de falsos alertas de domingos passados.
+            # Só analisar DIAS ABERTOS. Dia com faturamento ~0 é loja fechada
+            # (domingo/feriado), não uma "queda brusca" — era isso que enchia o
+            # painel de falsos alertas de domingos passados.
             def _dia_aberto(s):
                 v = s.get('total')
                 return v is not None and float(v) > 1.0
 
-            vendas_validas = [s for s in sales_timeseries if _dia_aberto(s)]
-            if len(vendas_validas) >= 7:
-                vals = np.array([float(s['total']) for s in vendas_validas])
-                mediana = float(np.median(vals))
-                mad = float(np.median(np.abs(vals - mediana)))
+            abertos = []
+            for s in sales_timeseries:
+                if not _dia_aberto(s) or not isinstance(s.get("data"), str):
+                    continue
+                try:
+                    d = datetime.strptime(s["data"][:10], "%Y-%m-%d").date()
+                except ValueError:
+                    continue
+                abertos.append((d, float(s["total"])))
 
-                if mad > 0:
-                    z_scores = 0.6745 * (vals - mediana) / mad
-                    for idx, z in enumerate(z_scores):
-                        # Só desvios REALMENTE fortes entre dias abertos
-                        if abs(z) > 2.5:
-                            s = vendas_validas[idx]
-                            valor = float(s['total'])
-                            data_str = s.get('data', 'N/D')
-                            tipo = "Pico de Vendas" if z > 0 else "Queda de Vendas"
-                            var_pct = ((valor - mediana) / mediana * 100) if mediana > 0 else 0
-                            if z > 0:
-                                desc = (f"Em {data_str} você vendeu R$ {valor:,.2f} "
-                                        f"({var_pct:+.0f}% vs. um dia normal). "
-                                        f"Veja o que deu certo e repita.")
-                            else:
-                                desc = (f"Em {data_str} as vendas caíram para R$ {valor:,.2f} "
-                                        f"({var_pct:.0f}% vs. um dia normal). "
-                                        f"Verifique falta de produto, troco ou equipe reduzida.")
-                            anomalies.append({
-                                "tipo": f"Vendas: {tipo}",
-                                "descricao": desc,
-                                "data": data_str,
-                                "valor": valor,
-                                "media_esperada": mediana,
-                                "impacto": float(z),
-                                "impacto_estimado": valor - mediana,
-                                "severidade": "alta" if abs(z) > 3.5 else "media",
-                                "causa_provavel": "Variação atípica de demanda"
-                            })
+            if len(abertos) < 7:
+                return anomalies
+
+            # Referência por DIA DA SEMANA (não pela mediana geral): um sábado
+            # fraco não é "queda" só porque domingo vende pouco.
+            por_semana = defaultdict(list)
+            for d, v in abertos:
+                por_semana[d.weekday()].append(v)
+
+            for d, v in abertos:
+                base = por_semana[d.weekday()]
+                if len(base) < 2:
+                    continue
+                esperado = statistics.median(base)
+                if esperado <= 0:
+                    continue
+                desvio = (v - esperado) / esperado * 100  # %
+                if abs(desvio) < 30:  # abaixo disso não é anomalia
+                    continue
+
+                info = info_data(d)
+                if info["feriado"]:
+                    # Feriado explica o movimento: reporta como explicado, não
+                    # como "variação atípica" — o lojista já sabe que feriado
+                    # não é dia normal.
+                    tipo = "Feriado"
+                    causa = f"Feriado ({info['feriado_nome'] or 'nacional'})"
+                else:
+                    tipo = "Pico de Vendas" if desvio > 0 else "Queda de Vendas"
+                    causa = "Variação atípica vs. o mesmo dia da semana"
+
+                severidade = "alta" if abs(desvio) >= 60 else "media"
+                anomalies.append({
+                    "tipo": f"Vendas: {tipo}",
+                    "descricao": (
+                        f"Em {d.isoformat()} você vendeu R$ {v:,.2f} "
+                        f"({desvio:+.0f}% vs. uma {info['dia_semana'].lower()} típica). "
+                        f"{'Explicado por feriado.' if info['feriado'] else 'Verifique o que mudou.'}"
+                    ),
+                    "data": d.isoformat(),
+                    "valor": v,
+                    "media_esperada": round(esperado, 2),
+                    "desvio_percentual": round(desvio, 1),
+                    "impacto_estimado": round(v - esperado, 2),
+                    "severidade": severidade,
+                    "causa_provavel": causa,
+                    "feriado": info["feriado"],
+                    "feriado_nome": info["feriado_nome"],
+                    "dia_semana": info["dia_semana"],
+                })
 
             # Mais RECENTES primeiro (o lojista quer ver o que acabou de acontecer,
             # não um domingo de 3 meses atrás).

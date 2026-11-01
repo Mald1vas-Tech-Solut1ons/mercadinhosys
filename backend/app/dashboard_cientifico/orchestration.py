@@ -107,10 +107,12 @@ class DashboardOrchestrator:
         """
         # 1. Coletar dados
         from datetime import timedelta
-        end_date = datetime.now(timezone.utc)
-        start_current = end_date - timedelta(days=days)
-        start_previous = end_date - timedelta(days=days * 2)
-        end_previous = end_date - timedelta(days=days)
+        from app.utils.timezone import hoje_local, local_date_to_utc_naive
+        hoje = hoje_local()
+        end_date = local_date_to_utc_naive(hoje, fim_do_dia=True)
+        start_current = local_date_to_utc_naive(hoje - timedelta(days=days - 1))
+        start_previous = local_date_to_utc_naive(hoje - timedelta(days=2 * days - 1))
+        end_previous = local_date_to_utc_naive(hoje - timedelta(days=days), fim_do_dia=True)
 
         sales_summary = DataLayer.get_sales_summary_range(
             self.establishment_id, start_current, end_date
@@ -285,12 +287,19 @@ class DashboardOrchestrator:
         _logger = logging.getLogger(__name__)
         
         from datetime import timedelta
-        end_date = end_date_override if end_date_override else datetime.now(timezone.utc)
+        from app.utils.timezone import hoje_local, local_date_to_utc_naive
         if start_date_override and end_date_override:
             start_current = start_date_override
+            end_date = end_date_override
         else:
-            # 🔥 CORREÇÃO: Forçar início do dia para capturar despesas/vendas do primeiro dia completo
-            start_current = (end_date - timedelta(days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
+            # Janela de `days` dias da LOJA (America/Sao_Paulo) terminando hoje,
+            # inclusive. `local_date_to_utc_naive` converte meia-noite local para
+            # o instante UTC naive que o banco grava — sem isso, entre 21h e
+            # meia-noite local o "hoje" ainda não tinha virado no relógio UTC e o
+            # filtro "Hoje" deslocava a fronteira do dia em 3h.
+            hoje = hoje_local()
+            end_date = local_date_to_utc_naive(hoje, fim_do_dia=True)
+            start_current = local_date_to_utc_naive(hoje - timedelta(days=days - 1))
         
         def _confidence_from_samples(samples: int) -> str:
             """Função auxiliar para calcular confiança baseada em amostras"""
@@ -304,9 +313,15 @@ class DashboardOrchestrator:
         
         from app.models import Cliente
         from app.dashboard_cientifico.models_layer import PracticalModels as _PM
-        # Ajustar período anterior também
-        start_previous = (start_current - timedelta(days=days)).replace(hour=0, minute=0, second=0, microsecond=0)
-        end_previous = (start_current - timedelta(seconds=1))
+        # Período anterior: mesma duração, imediatamente antes, em dias da loja.
+        if start_date_override and end_date_override:
+            duracao = end_date - start_current
+            end_previous = start_current - timedelta(seconds=1)
+            start_previous = start_current - duracao
+        else:
+            hoje = hoje_local()
+            start_previous = local_date_to_utc_naive(hoje - timedelta(days=2 * days - 1))
+            end_previous = local_date_to_utc_naive(hoje - timedelta(days=days), fim_do_dia=True)
 
         import time
         from flask import current_app

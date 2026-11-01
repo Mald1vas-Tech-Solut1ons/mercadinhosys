@@ -47,6 +47,10 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     contexto["hoje"] = get_vendas_stats(hoje, hoje)
     contexto["ontem"] = get_vendas_stats(ontem, ontem)
     contexto["semana"] = get_vendas_stats(semana_inicio, hoje)
+    # Comparações que a IA usa para explicar o "porquê": mesma janela na semana
+    # anterior e o mesmo dia da semana na semana passada.
+    contexto["semana_anterior"] = get_vendas_stats(semana_inicio - timedelta(days=7), semana_inicio - timedelta(days=1))
+    contexto["mesmo_dia_semana_anterior"] = get_vendas_stats(hoje - timedelta(days=7), hoje - timedelta(days=7))
     contexto["mes_atual"] = get_vendas_stats(mes_atual_inicio, hoje)
     contexto["mes_anterior"] = get_vendas_stats(mes_anterior_inicio, mes_anterior_fim)
 

@@ -1,7 +1,7 @@
 import { TrendingUp, AlertTriangle, CheckCircle, Brain, Target, Shield, ArrowRight, PieChart as PieChartIcon, BarChart3, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { formatCurrency } from '../../../../utils/formatters';
+import { formatCurrency, formatDate } from '../../../../utils/formatters';
 import { useTheme } from '../../../../theme/useTheme';
 import { chartColors } from '../../../../utils/chartColors';
 import PorQueMudou, { type PeriodoDashboard } from '../PorQueMudou';
@@ -24,7 +24,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
   const executarRecomendacao = (rec: any) => {
     const alvo = rec?.alvo;
     const ctx = `${rec?.mensagem || ''} ${rec?.cta || ''} ${rec?.tipo || ''}`.toLowerCase();
-    if (alvo === 'clientes') { navigate('/customers?segmento=Risco'); return; }
+    if (alvo === 'clientes') { navigate('/customers?segmento=Em%20Risco'); return; }
     if (alvo === 'produtos') {
       if (ctx.includes('validade') || ctx.includes('vencer') || ctx.includes('vencid') || ctx.includes('promover'))
         navigate('/products?filtro=validade');
@@ -43,7 +43,10 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
   const despesas = data?.financials?.expenses || data?.total_despesas || 0;
   const growth = data?.summary?.growth_period || data?.summary?.growth;
   const growthAvailable = growth && growth.status !== 'no_data' && growth.value !== null && growth.value !== undefined;
-  const previsoesAvailability = data?.analytics_availability?.previsoes;
+  const forecast = data?.forecast?.forecast || [];
+  const anomalies = data?.anomalies || data?.alertas_cientificos || [];
+  const temAnomalias = anomalies.length > 0;
+  const waterfallMax = Math.max(faturamento, cogs, despesas, Math.abs(lucroLiquido), 1);
   const margemLiquida = data?.financials?.net_margin || (faturamento > 0 ? (lucroLiquido / faturamento) * 100 : 0);
   const ticketMedio = data?.summary?.avg_ticket?.value || 0;
   
@@ -97,10 +100,10 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
         <div role="button" tabIndex={0} title="Abrir as vendas do período" aria-label="Abrir as vendas do período" onClick={abrirVendas} onKeyDown={(e) => { if (e.key === 'Enter') (abrirVendas)(); }} className={`bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group ${cardClicavel}`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
+            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm flex items-center gap-1.5 group/tooltip relative">
               Faturamento
-              <Info className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help" />
-              <div className="invisible group-hover/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
+              <Info tabIndex={0} className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help focus:outline-none" />
+              <div className="invisible group-hover/tooltip:visible group-focus-within/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
                 Soma total de todas as vendas brutas realizadas no período, antes de abater qualquer custo.
               </div>
             </h3>
@@ -126,10 +129,10 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
         <div role="button" tabIndex={0} title="Abrir o financeiro" aria-label="Abrir o financeiro" onClick={() => onNavigateToTab?.('financial')} onKeyDown={(e) => { if (e.key === 'Enter') (() => onNavigateToTab?.('financial'))(); }} className={`bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group ${cardClicavel}`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
+            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm flex items-center gap-1.5 group/tooltip relative">
               Lucro Líquido
-              <Info className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help" />
-              <div className="invisible group-hover/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
+              <Info tabIndex={0} className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help focus:outline-none" />
+              <div className="invisible group-hover/tooltip:visible group-focus-within/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
                 O que sobrou limpo no caixa após pagar os fornecedores da mercadoria vendida e as despesas da loja.
               </div>
             </h3>
@@ -137,12 +140,12 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
               <Target className="w-5 h-5 text-emerald-400" />
             </div>
           </div>
-          <div className="text-xl lg:text-2xl xl:text-3xl font-black text-gray-900 dark:text-white mb-2 tracking-tighter whitespace-nowrap tabular-nums">
+          <div className={`text-xl lg:text-2xl xl:text-3xl font-black mb-2 tracking-tighter whitespace-nowrap tabular-nums ${lucroLiquido < 0 ? 'text-red-400' : 'text-gray-900 dark:text-white'}`}>
             {formatCurrency(lucroLiquido)}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs xl:text-sm">
              <span className="text-gray-500 dark:text-slate-400">Margem líquida: </span>
-             <span className={`font-bold ${margemLiquida >= 10 ? 'text-emerald-400' : margemLiquida > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+             <span className={`font-bold ${margemLiquida >= 8 ? 'text-emerald-400' : margemLiquida > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                {margemLiquida.toFixed(1).replace('.', ',')}%
              </span>
           </div>
@@ -152,10 +155,10 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
         <div role="button" tabIndex={0} title="Abrir as vendas do período" aria-label="Abrir as vendas do período" onClick={abrirVendas} onKeyDown={(e) => { if (e.key === 'Enter') (abrirVendas)(); }} className={`bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group ${cardClicavel}`}>
           <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
+            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm flex items-center gap-1.5 group/tooltip relative">
               Ticket Médio
-              <Info className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help" />
-              <div className="invisible group-hover/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
+              <Info tabIndex={0} className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help focus:outline-none" />
+              <div className="invisible group-hover/tooltip:visible group-focus-within/tooltip:visible absolute top-full left-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
                 Faturamento dividido pelo número de vendas: quanto, em média, cada venda deixa no caixa.
               </div>
             </h3>
@@ -175,10 +178,10 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
         <div className="bg-white dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-6 border border-gray-200 dark:border-slate-700/50 shadow-lg relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-150" />
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm tracking-wider uppercase flex items-center gap-1.5 group/tooltip relative">
+            <h3 className="text-gray-500 dark:text-slate-400 font-medium text-sm flex items-center gap-1.5 group/tooltip relative">
               A Receber
-              <Info className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help" />
-              <div className="invisible group-hover/tooltip:visible absolute top-full right-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
+              <Info tabIndex={0} className="w-4 h-4 text-gray-400 dark:text-slate-500 cursor-help focus:outline-none" />
+              <div className="invisible group-hover/tooltip:visible group-focus-within/tooltip:visible absolute top-full right-0 mt-2 w-48 p-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs text-gray-600 dark:text-slate-300 z-10 shadow-xl normal-case tracking-normal">
                 Soma de todas as vendas a prazo (cartão pendente, carnê) incluindo vendas fiadas. Dinheiro na rua.
               </div>
             </h3>
@@ -222,7 +225,32 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
             <h3 className="text-gray-600 dark:text-slate-300 font-bold">Composição Financeira (DRE)</h3>
           </div>
           <div className="h-[280px] w-full flex items-center justify-center">
-            {dreData.length > 0 ? (
+            {lucroLiquido < 0 ? (
+              <div className="w-full max-w-md">
+                <p className="text-xs font-semibold text-red-400 mb-3">Resultado negativo no período — o negócio consumiu mais do que faturou:</p>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Receita Bruta', value: faturamento, color: '#3b82f6' },
+                    { label: 'Custo da Mercadoria (CMV)', value: cogs, color: '#f59e0b' },
+                    { label: 'Despesas Operacionais', value: despesas, color: '#ef4444' },
+                    { label: 'Prejuízo (Lucro Líquido)', value: Math.abs(lucroLiquido), color: '#ef4444' },
+                  ].map((linha) => (
+                    <div key={linha.label}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-medium text-gray-600 dark:text-slate-300">{linha.label}</span>
+                        <span className="font-bold tabular-nums" style={{ color: linha.color }}>{formatCurrency(linha.value)}</span>
+                      </div>
+                      <div className="h-3 bg-gray-100 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${(linha.value / waterfallMax) * 100}%`, backgroundColor: linha.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-gray-400 dark:text-slate-500">
+                  Lucro líquido: <span className="font-bold text-red-400">{formatCurrency(lucroLiquido)}</span>
+                </p>
+              </div>
+            ) : dreData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Tooltip 
@@ -332,7 +360,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
                        rec.prioridade === 2 ? 'text-amber-400' :
                        'text-blue-400'
                      }`}>
-                       {rec.tipo.replace(/_/g, ' ').toUpperCase()}
+                       {formatRecommendationType(rec.tipo)}
                      </h4>
                      <p className="text-gray-600 dark:text-slate-300 leading-relaxed text-sm">{rec.mensagem}</p>
                      {rec.impacto_estimado > 0 && (
@@ -345,7 +373,7 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
                  {rec.cta && (
                    <button
                      onClick={() => executarRecomendacao(rec)}
-                     className="whitespace-nowrap px-5 py-2.5 bg-white/10 hover:bg-white/20 text-gray-900 dark:text-white font-medium rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
+                     className="whitespace-nowrap px-5 py-2.5 bg-white hover:bg-gray-100 text-gray-900 border border-gray-200 dark:bg-white/10 dark:hover:bg-white/20 dark:text-white dark:border-transparent font-medium rounded-xl transition-colors flex items-center gap-2 cursor-pointer"
                    >
                      {rec.cta} <ArrowRight size={16} />
                    </button>
@@ -368,15 +396,15 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
         <div className="bg-white dark:bg-slate-800/60 rounded-3xl border border-gray-200 dark:border-slate-700/60 overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/80">
              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-               <AlertTriangle className="text-amber-400" /> Anomalias Detectadas
+               {temAnomalias && <AlertTriangle className="text-amber-400" />} Anomalias Detectadas
              </h2>
           </div>
-          <div className="p-4 space-y-3 h-64 overflow-y-auto hide-scrollbar">
-             {(data?.anomalies || data?.alertas_cientificos) && (data?.anomalies || data?.alertas_cientificos).length > 0 ? (
-               (data?.anomalies || data?.alertas_cientificos).map((alerta: any, i: number) => (
+          <div className="p-4 space-y-3 h-64 overflow-y-auto">
+             {temAnomalias ? (
+               anomalies.map((alerta: any, i: number) => (
                  <div key={i} className="p-4 bg-gray-50 dark:bg-slate-900/40 rounded-xl border border-gray-200 dark:border-slate-700/50 hover:border-amber-500/30 transition-colors">
                    <div className="flex items-center gap-2 mb-2">
-                     <div className={`w-2 h-2 rounded-full ${(alerta.gravidade || alerta.impacto) > 7 ? 'bg-red-500' : 'bg-amber-500'}`}></div>
+                     <div className={`w-2 h-2 rounded-full ${alerta.severidade === 'alta' ? 'bg-red-500' : 'bg-amber-500'}`}></div>
                      <h4 className="font-bold text-gray-700 dark:text-slate-200">{alerta.titulo || alerta.tipo || 'Anomalia Detectada'}</h4>
                    </div>
                    <p className="text-sm text-gray-500 dark:text-slate-400 mb-2">{alerta.descricao}</p>
@@ -393,36 +421,38 @@ export default function ExecutiveTab({ data, onNavigateToTab, periodo }: Executi
           </div>
         </div>
 
-        {/* Previsões Estratégicas */}
+        {/* Previsão de Vendas: cada dia com faixa de incerteza e nome do feriado. */}
         <div className="bg-white dark:bg-slate-800/60 rounded-3xl border border-gray-200 dark:border-slate-700/60 overflow-hidden">
           <div className="p-6 border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/80">
              <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-               <Target className="text-blue-400" /> Previsões Estratégicas (Próximos 30 dias)
+               <Target className="text-blue-400" /> Previsão de Vendas
              </h2>
           </div>
-          <div className="p-4 space-y-3 h-64 overflow-y-auto hide-scrollbar">
-             {(data?.previsoes || data?.insights_cientificos?.previsoes) && (data?.previsoes || data?.insights_cientificos?.previsoes).length > 0 ? (
-               (data?.previsoes || data?.insights_cientificos?.previsoes).map((prev: any, i: number) => (
+          <div className="p-4 space-y-3 h-64 overflow-y-auto">
+             {forecast.length > 0 ? (
+               forecast.map((prev: any, i: number) => (
                  <div key={i} className="p-4 bg-gray-50 dark:bg-slate-900/40 rounded-xl border border-gray-200 dark:border-slate-700/50 hover:border-blue-500/30 transition-colors">
-                   <div className="flex justify-between items-center mb-2">
-                     <h4 className="font-bold text-gray-700 dark:text-slate-200">{prev.variavel}</h4>
-                                           <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold">{prev.nivel_confianca ? `Confiança ${prev.nivel_confianca === 'low' ? 'baixa' : 'média'}` : 'Estimativa'}{prev.observacoes ? ` · ${prev.observacoes} dias` : ''}</span>
+                   <div className="flex justify-between items-start gap-2 mb-1">
+                     <h4 className="font-bold text-gray-700 dark:text-slate-200">
+                       {prev.dia_semana || 'Previsão'}
+                       {prev.data && <span className="font-normal text-gray-400 dark:text-slate-500"> · {formatDate(prev.data)}</span>}
+                     </h4>
+                     {prev.feriado && (
+                       <span className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-full font-bold whitespace-nowrap">
+                         {prev.feriado_nome || 'Feriado'}
+                       </span>
+                     )}
                    </div>
-                   <div className="flex items-end justify-between">
-                     <div>
-                       <p className="text-xs text-gray-400 dark:text-slate-500">Valor Atual</p>
-                       <p className="font-medium text-gray-600 dark:text-slate-300">{typeof prev.valor_atual === 'number' ? formatCurrency(prev.valor_atual) : prev.valor_atual}</p>
-                     </div>
-                     <ArrowRight className="text-gray-400 dark:text-slate-600 w-4 h-4 mb-1" />
-                     <div className="text-right">
-                       <p className="text-xs text-gray-400 dark:text-slate-500">Previsão</p>
-                       <p className="font-bold text-blue-400">{typeof prev.previsao_30d === 'number' ? formatCurrency(prev.previsao_30d) : prev.previsao_30d}</p>
-                     </div>
-                   </div>
+                   <p className="font-bold text-blue-400 text-lg tabular-nums">{formatCurrency(prev.valor_previsto)}</p>
+                   <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                     Faixa esperada: {formatCurrency(prev.lower_bound)} – {formatCurrency(prev.upper_bound)}
+                   </p>
                  </div>
                ))
              ) : (
-                               <p className="text-gray-400 dark:text-slate-500 text-center pt-10">{previsoesAvailability?.reason || 'Dados insuficientes para gerar previsões confiáveis neste período.'}</p>
+               <p className="text-gray-400 dark:text-slate-500 text-center pt-10">
+                 {data?.forecast?.reason || data?.analytics_availability?.forecast?.reason || 'Dados insuficientes para gerar previsões confiáveis neste período.'}
+               </p>
              )}
           </div>
         </div>

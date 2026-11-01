@@ -396,6 +396,28 @@ def _tenant_registro(tenant):
     ).scalar_one()
 
 
+def _mapa_entidades(estabelecimento_id):
+    """Nomes reais para o navegador resolver pseudônimos (Cliente #id / Funcionário #id).
+
+    O LLM só enxerga o pseudônimo; este mapa NÃO vai no prompt — vai no payload,
+    para o front trocar "Cliente #12" pelo nome sem expor dado pessoal à IA.
+    """
+    mapa = {"funcionarios": {}, "clientes": {}}
+    try:
+        est_id = int(estabelecimento_id)
+    except (TypeError, ValueError):
+        return mapa
+    from app.models import Cliente
+    try:
+        for f in Funcionario.query.filter_by(estabelecimento_id=est_id).all():
+            mapa["funcionarios"][str(f.id)] = f.nome
+        for c in Cliente.query.filter_by(estabelecimento_id=est_id).all():
+            mapa["clientes"][str(c.id)] = c.nome
+    except Exception:
+        pass
+    return mapa
+
+
 def _recuperar(especialista, tenant, is_manager, pergunta):
     try:
         return recuperar_evidencias(especialista, tenant, is_manager, BUILDERS, pergunta)
@@ -567,6 +589,7 @@ def chat_consultor():
         "duracao_ms": duracao_ms,
         "fontes": lista_fontes,
         "fontes_detalhadas": _detalhar_fontes(lista_fontes),
+        "mapa_entidades": _mapa_entidades(registro_est_id),
         "provider": provider_efetivo,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,
@@ -656,8 +679,11 @@ def gerar_insights():
     mensagens = mensagens_rag(
         sys_prompt,
         context_data,
-        "Gere 3 tópicos curtos: destaque, risco e ação recomendada. Cite as fontes e os períodos. "
-        "Se não houver um destaque positivo, diga isso. Não invente números.",
+        "Gere 3 insights em JSON (um array), cada um com as chaves: "
+        "\"tipo\" (\"excecao\"|\"risco\"|\"oportunidade\"), \"texto\" (1-2 frases), "
+        "e opcionalmente \"acao\" com {\"tipo\": \"repor\"|\"cobrar\"|\"promocionar\"|\"ver_contagem\", \"payload\": {...}}. "
+        "Para cada insight, deixe claro: o que está fora do normal (exceção), por que acontece (porquê) e a ação recomendada. "
+        "Cite as fontes e os períodos. Não invente números. Responda SOMENTE o JSON, sem markdown.",
     )
 
     meta = _chamar_llm(mensagens, provider_solicitado, max_tokens=512)
@@ -667,6 +693,27 @@ def gerar_insights():
         return jsonify({"success": True, "insights": None, "aviso": "Falha na resposta do LLM."}), 200
 
     resposta_texto = meta["texto"]
+
+    # O prompt pede JSON; se o LLM devolver um array válido, entregamos
+    # estruturado (o front renderiza a ação). Caso contrário, cai no texto bruto
+    # (compatível com o formato antigo) — nunca fabricamos estrutura.
+    insights_payload = resposta_texto
+    formato = "texto"
+    try:
+        import json as _json
+        _txt = resposta_texto.strip()
+        if _txt.startswith("```"):
+            _txt = _txt.strip("`")
+            if _txt.lower().startswith("json"):
+                _txt = _txt[4:]
+            _txt = _txt.strip()
+        _parsed = _json.loads(_txt)
+        if isinstance(_parsed, list):
+            insights_payload = _parsed
+            formato = "json"
+    except Exception:
+        pass
+
     provider_efetivo = meta.get("provider") or provider_solicitado
     prompt_tokens = int(meta.get("prompt_tokens") or 0)
     completion_tokens = int(meta.get("completion_tokens") or 0)
@@ -692,7 +739,9 @@ def gerar_insights():
     lista_fontes = [s["fonte"] for s in context_data["fontes"]]
     payload = {
         "success": True,
-        "insights": resposta_texto,
+        "insights": insights_payload,
+        "formato": formato,
+        "mapa_entidades": _mapa_entidades(registro_est_id),
         "duracao_ms": duracao_ms,
         "fontes": lista_fontes,
         "fontes_detalhadas": _detalhar_fontes(lista_fontes),
@@ -799,6 +848,7 @@ def resumo_diario_proativo():
         "resumo": resposta_texto,
         "fontes": fontes,
         "fontes_detalhadas": _detalhar_fontes(fontes),
+        "mapa_entidades": _mapa_entidades(registro_est_id),
         "provider": provider_efetivo,
         "duracao_ms": duracao_ms,
         "cached": False,

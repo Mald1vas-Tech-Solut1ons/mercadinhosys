@@ -30,6 +30,7 @@ from app.services.consultor.contextos.sistema import (
 )
 from app.services.taxonomia_service import garantir_categoria_loja, resolver
 from app.utils.timezone import hoje_local, now_utc
+from app.utils import giro_cache
 
 ACOES_WHITELIST = frozenset({"criar_lembrete", "gerar_pedido_compra", "cadastrar_produto"})
 
@@ -54,6 +55,23 @@ def salvar_resumo_diario_cache(estabelecimento_id: int, payload: dict[str, Any])
         return
     chave = (int(estabelecimento_id), hoje_local().isoformat())
     _RESUMO_DIARIO_CACHE[chave] = payload
+
+
+def _quantidade_reposicao(produto, agregado) -> Decimal:
+    """Quantidade sugerida por GIRO (VMD × 30 dias de cobertura), com piso 1.
+
+    Sem giro (item novo/sem venda recente), cai no mínimo estático — nunca
+    inventa preço nem quantidade: o que não tem dado fica como está no cadastro.
+    """
+    hoje = hoje_local()
+    metrica = giro_cache.metrica_produto(produto, hoje, agregado)
+    vmd = float(metrica.get("vmd") or 0)
+    atual = float(produto.quantidade or 0)
+    if vmd > 0:
+        alvo = max(vmd * 30, float(produto.quantidade_minima or 0))
+        return max(Decimal("1"), Decimal(str(round(alvo - atual))))
+    faltante = Decimal(str(produto.quantidade_minima or 0)) - Decimal(str(produto.quantidade or 0))
+    return max(Decimal("1"), faltante)
 
 
 def sugerir_acoes(
@@ -106,17 +124,14 @@ def sugerir_acoes(
             forn = db.session.get(Fornecedor, forn_id)
             itens_forn = [p for p in criticos if p.fornecedor_id == forn_id][:5]
             if forn and itens_forn:
+                agregado = giro_cache.get_vendas_agregadas(est_id)
                 itens_payload = []
                 for p in itens_forn:
-                    faltante = max(
-                        Decimal("1"),
-                        Decimal(str(p.quantidade_minima or 10)) - Decimal(str(p.quantidade or 0)),
-                    )
                     itens_payload.append({
                         "produto_id": p.id,
                         "nome": p.nome,
-                        "quantidade": float(faltante),
-                        "preco_unitario": float(p.preco_custo or 1),
+                        "quantidade": float(_quantidade_reposicao(p, agregado)),
+                        "preco_unitario": float(p.preco_custo or 0),
                     })
                 nomes_curtos = ", ".join(p.nome for p in itens_forn[:2])
                 sugestoes.append({
@@ -278,9 +293,8 @@ def executar_acao_confirmada(
                 continue
 
             qtd = max(Decimal("1"), Decimal(str(item_raw.get("quantidade") or 1)))
-            preco_unit = Decimal(str(item_raw.get("preco_unitario") or produto.preco_custo or 1))
-            if preco_unit <= 0:
-                preco_unit = Decimal("1.00")
+            # Sem custo cadastrado, o item entra com 0 — não inventamos R$ 1,00.
+            preco_unit = Decimal(str(item_raw.get("preco_unitario") or produto.preco_custo or 0))
             total_item = (qtd * preco_unit).quantize(Decimal("0.01"))
 
             item_db = PedidoCompraItem(

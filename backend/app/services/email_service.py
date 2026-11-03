@@ -96,6 +96,20 @@ def _resolve_mail_setting(key: str, default=None):
     return val
 
 
+def _remetente():
+    """Remetente único de todos os envios: EMAIL_FROM > MAIL_DEFAULT_SENDER > MAIL_USERNAME."""
+    return (
+        os.getenv("EMAIL_FROM")
+        or _resolve_mail_setting("MAIL_DEFAULT_SENDER")
+        or _resolve_mail_setting("MAIL_USERNAME")
+    )
+
+
+def _responder_para():
+    """Endereço de resposta (MAIL_REPLY_TO); None quando não configurado."""
+    return _resolve_mail_setting("MAIL_REPLY_TO")
+
+
 from email.mime.image import MIMEImage
 import uuid
 
@@ -173,7 +187,7 @@ def enviar_cupom_fiscal(venda_data: dict, cliente_email: str):
         mail_port = int(_resolve_mail_setting("MAIL_PORT", 587))
         mail_username = _resolve_mail_setting("MAIL_USERNAME")
         mail_password = _resolve_mail_setting("MAIL_PASSWORD")
-        mail_sender = _resolve_mail_setting("MAIL_DEFAULT_SENDER", mail_username)
+        mail_sender = _remetente()
         mail_use_tls = _resolve_mail_setting("MAIL_USE_TLS", True)
         mail_use_ssl = _resolve_mail_setting("MAIL_USE_SSL", False)
 
@@ -394,6 +408,8 @@ def enviar_cupom_fiscal(venda_data: dict, cliente_email: str):
             msg["Subject"] = f"★ [Comprovante] {estabelecimento.get('nome_fantasia', 'Mercadinho')} - #{venda.get('codigo', '')}"
             msg["From"] = mail_sender
             msg["To"] = cliente_email
+            if _responder_para():
+                msg["Reply-To"] = _responder_para()
             
             msg_alternative = MIMEMultipart('alternative')
             msg.attach(msg_alternative)
@@ -440,10 +456,9 @@ def enviar_cupom_fiscal(venda_data: dict, cliente_email: str):
         msg_erro = str(e)
         if "535" in msg_erro or "Username and Password not accepted" in msg_erro:
             detalhe = (
-                "Credenciais Gmail rejeitadas. "
-                "O Gmail exige App Password (senha de aplicativo), não a senha normal da conta. "
-                "Acesse: myaccount.google.com → Segurança → Senhas de app → Gere uma senha para 'Email'. "
-                "Atualize MAIL_PASSWORD no backend/mail.env com os 16 caracteres gerados (sem espaços)."
+                "Credenciais SMTP rejeitadas. "
+                "Use a senha de app do provedor (Zoho: Minha conta → Segurança → Senhas específicas de app), "
+                "não a senha normal da conta, e atualize MAIL_PASSWORD no .env do backend."
             )
         else:
             detalhe = f"Erro de autenticação SMTP: {msg_erro}"
@@ -467,7 +482,8 @@ def enviar_email_com_anexo(to, subject, body, attachment_name, attachment_data, 
     try:
         msg = Message(
             subject=subject,
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@mercadinhosys.com'),
+            sender=_remetente(),
+            reply_to=_responder_para(),
             recipients=[to],
             body=body
         )
@@ -493,9 +509,8 @@ def enviar_email(to, subject, template):
     try:
         msg = Message(
             subject=subject,
-            sender=current_app.config.get(
-                "MAIL_DEFAULT_SENDER", "noreply@mercadinhosys.com"
-            ),
+            sender=_remetente(),
+            reply_to=_responder_para(),
             recipients=[to],
         )
         # Se o template for HTML, usa html, senão usa body
@@ -530,7 +545,8 @@ def enviar_email_transacional(destino: str, assunto: str, corpo_html: str, corpo
     erro quando não há provedor; o chamador decide o plano B (ex.: link no painel).
     Nunca registra o corpo no log: ele carrega o link de acesso.
     """
-    remetente = os.getenv("EMAIL_FROM") or _resolve_mail_setting("MAIL_DEFAULT_SENDER")
+    remetente = _remetente()
+    responder_para = _responder_para()
     api_key = (os.getenv("RESEND_API_KEY") or "").strip()
     if api_key:
         if not remetente:
@@ -564,6 +580,8 @@ def enviar_email_transacional(destino: str, assunto: str, corpo_html: str, corpo
         mensagem["Subject"] = assunto
         mensagem["From"] = remetente or usuario
         mensagem["To"] = destino
+        if responder_para:
+            mensagem["Reply-To"] = responder_para
         mensagem.set_content(corpo_texto)
         mensagem.add_alternative(corpo_html, subtype="html")
         try:

@@ -80,9 +80,9 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
     cpf_admin: '',
     senha_admin: '',
     confirmar_senha: '',
-    // Plano de acesso: padrão = trial Pro por 30 dias
+    // Plano de acesso: padrão = trial Pro por 60 dias (2 meses)
     tipo_acesso: 'trial',
-    trial_dias: '30'
+    trial_dias: '60'
   });
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -174,7 +174,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
         senha_admin: formData.senha_admin || undefined,
         plano: formData.tipo_acesso,          // 'trial' | 'gratuito'
         trial_dias: formData.tipo_acesso === 'trial'
-          ? (parseInt(formData.trial_dias, 10) || 30)
+          ? (parseInt(formData.trial_dias, 10) || 60)
           : undefined
       };
 
@@ -233,7 +233,7 @@ const NovoClienteModal: React.FC<NovoClienteModalProps> = ({
       senha_admin: '',
       confirmar_senha: '',
       tipo_acesso: 'trial',
-      trial_dias: '30'
+      trial_dias: '60'
     });
     setCurrentStep(1);
   };

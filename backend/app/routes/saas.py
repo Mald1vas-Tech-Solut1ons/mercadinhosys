@@ -12,6 +12,7 @@ import logging
 from app.services.email_service import email_service
 import json
 from app.middleware.rate_limit import limiter
+from app.routes.onboarding import TRIAL_DIAS
 from app.decorators.plan_guards import normalize_plan
 from app.utils.timezone import iso_utc
 
@@ -179,9 +180,9 @@ def tenant_onboarding():
             plano_inicial = normalize_plan(pedido_plano)
             plano_status_inicial = 'ativo'
         try:
-            trial_dias = int(data.get('trial_dias')) if data.get('trial_dias') is not None else 30
+            trial_dias = int(data.get('trial_dias')) if data.get('trial_dias') is not None else TRIAL_DIAS
         except (TypeError, ValueError):
-            trial_dias = 30
+            trial_dias = TRIAL_DIAS
         if trial_dias < 1: trial_dias = 1
         if trial_dias > 365: trial_dias = 365
         if em_trial:

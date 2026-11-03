@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../auth/authService';
+import SegmentosGrid from './SegmentosGrid';
+import { ChatMIA, FaleComDesenvolvedor, ImplantaComVoce, OfertaDoisMeses, PrimeiraCliente, TrabalhosDoSistema } from './BlocosVenda';
+import { entrarNaDemo } from './entrarNaDemo';
+import { NICHOS, rotaNicho, REGIOES_ATENDIDAS, linkWhatsApp } from './site';
+import { useSeo } from './useSeo';
 import {
     ShoppingCart,
     ShieldCheck,
@@ -11,13 +16,10 @@ import {
     User,
     Check,
     Truck,
-    X,
     Briefcase,
-    Building2,
     Users,
     FileText,
     Activity,
-    Lock,
     MapPin,
     ChevronDown,
     ChevronUp,
@@ -33,7 +35,9 @@ const SplashIntro: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.8 }}
-            className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden"
+            onClick={onComplete}
+            role="presentation"
+            className="fixed inset-0 z-9999 flex flex-col items-center justify-center overflow-hidden cursor-pointer"
             style={{ background: 'radial-gradient(120% 140% at 50% 0%, #1D4ED8 0%, #0F2E5C 55%, #0A1220 100%)' }}
         >
             <motion.div 
@@ -102,19 +106,17 @@ const SplashIntro: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
+    const location = useLocation();
+    useSeo(
+        'MercadinhoSys: sistema de gestão com IA para todo tipo de comércio',
+        'Sistema com IA para mercadinho, loja de roupas, moto peças, tabacaria e mais. Caixa, estoque, fiado e lucro real. 2 meses grátis com implantação.',
+        '/',
+    );
     const [leadName, setLeadName] = useState('');
     const [leadEmail, setLeadEmail] = useState('');
     const [leadWhatsApp, setLeadWhatsApp] = useState('');
     const [loadingLead, setLoadingLead] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [conversionModalOpen, setConversionModalOpen] = useState(false);
-    const [selectedPlan, setSelectedPlan] = useState<{ name: string, price: string } | null>(null);
-    const [onboardingEmail, setOnboardingEmail] = useState('');
-    const [onboardingWhatsApp, setOnboardingWhatsApp] = useState('');
-    const [onboardingStoreName, setOnboardingStoreName] = useState('');
-    const [loadingCheckout, setLoadingCheckout] = useState(false);
-    const [termsAccepted, setTermsAccepted] = useState(false);
-    
     // FAQ state
     const [openFaq, setOpenFaq] = useState<number | null>(null);
     
@@ -127,6 +129,12 @@ const LandingPage: React.FC = () => {
         }, 3000); // Failsafe in case animation onComplete fails
         return () => clearTimeout(timer);
     }, []);
+
+    useEffect(() => {
+        if (showSplash || !location.hash) return;
+        const t = setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }), 100);
+        return () => clearTimeout(t);
+    }, [showSplash, location.hash]);
 
     useEffect(() => {
         const token = sessionStorage.getItem('access_token');
@@ -161,149 +169,19 @@ const LandingPage: React.FC = () => {
         }
     };
 
-    const handlePlanSelect = (tier: { name: string, price: string }) => {
-        setSelectedPlan({ name: tier.name, price: tier.price });
-        setConversionModalOpen(true);
-    };
-
-    const handleCheckout = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!termsAccepted) {
-            showToast.error('Você precisa aceitar os Termos de Uso e Política de Privacidade para prosseguir.');
-            return;
-        }
-        setLoadingCheckout(true);
-        try {
-            const response = await fetch(`${API_CONFIG.BASE_URL}/billing/public-checkout`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    email: onboardingEmail,
-                    whatsapp: onboardingWhatsApp,
-                    nome_loja: onboardingStoreName,
-                    plan_name: selectedPlan?.name
-                }),
-            });
-            const result = await response.json();
-            if (response.ok && result.checkout_url) {
-                showToast.create('Conta criada! Redirecionando para o pagamento...');
-                window.location.href = result.checkout_url;
-            } else {
-                showToast.error(result.message || 'Erro ao iniciar checkout.');
-            }
-        } catch {
-            showToast.error('Erro de conexão.');
-        } finally {
-            setLoadingCheckout(false);
-        }
-    };
-
-    const handleDemoAccess = async () => {
-        try {
-            showToast.loading('Preparando ambiente de demonstração...');
-            const response = await fetch(`${API_CONFIG.BASE_URL}/auth/demo`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                const data = result.data || {};
-                const access_token = data.access_token || result.access_token;
-                const refresh_token = data.refresh_token || result.refresh_token;
-                const user = data.user;
-                const estabelecimento = data.estabelecimento;
-
-                if (access_token) sessionStorage.setItem('access_token', access_token);
-                if (refresh_token) sessionStorage.setItem('refresh_token', refresh_token);
-                if (user) sessionStorage.setItem('user_data', JSON.stringify(user));
-                if (estabelecimento) localStorage.setItem('estabelecimento_data', JSON.stringify(estabelecimento));
-                
-                window.dispatchEvent(new Event('auth-change'));
-                showToast.dismiss();
-                showToast.info('Entrando no ambiente de demonstração...', { icon: '✨' });
-                setTimeout(() => { window.location.href = '/dashboard'; }, 500);
-            } else {
-                showToast.dismiss();
-                showToast.error(result.error || 'Erro ao acessar demonstração');
-            }
-        } catch {
-            showToast.dismiss();
-            showToast.error('Erro de conexão com o servidor demo.');
-        }
-    };
-
-    const tiers = [
-        {
-            name: 'Gratuito',
-            price: 'Grátis',
-            period: 'Plano de entrada',
-            description: 'Para colocar a operação no eixo e testar o sistema sem investimento inicial.',
-            features: [
-                '1 usuário administrador',
-                'PDV e gestão de caixa',
-                'Produtos, clientes e fornecedores',
-                'Dashboard executivo básico',
-                'Ideal para operação essencial'
-            ],
-            cta: 'Ativar Plano Grátis',
-            highlight: false
-        },
-        {
-            name: 'Pro',
-            price: 'R$ 99,90',
-            period: '/mês (Oferta de Lançamento)',
-            description: 'Para crescer com controle, produtividade e visão gerencial da operação.',
-            features: [
-                'Terminais PDV Ilimitados',
-                'Compras & Doca com recebimento',
-                'Vendas analíticas e histórico gerencial',
-                'Módulo SFA (Força de Vendas)',
-                'Módulo RH (Holerite e Ponto GPS)',
-                'Emissão NFe/NFCe Automática',
-                'Gestão Financeira e DRE',
-                'Auditoria e Controle de Acesso',
-                'Consultor M-IA (Gestor Inteligente)',
-                'Suporte VIP Prioritário'
-            ],
-            cta: 'Assinar Plano Pro',
-            highlight: true
-        }
-    ];
+    const handleDemoAccess = entrarNaDemo;
 
     const faqs = [
-        { q: "O sistema atende distribuidores e atacadistas?", a: "Sim! O MercadinhoSys foi construído com arquitetura de ERP de ponta. Temos controle rigoroso de estoque, grades, lotes, comissionamento multinível e módulo SFA (Força de Vendas) para representantes comerciais." },
-        { q: "E se a minha internet cair, o PDV para?", a: "Nunca. Nosso PDV possui tecnologia Offline-First. Você continua vendendo e emitindo cupons normalmente. Assim que a internet voltar, tudo é sincronizado para a nuvem automaticamente." },
-        { q: "Como funciona o controle de ponto do RH?", a: "É um RH de verdade! Seus funcionários batem ponto pelo celular ou tablet com registro de Foto e Geolocalização (GPS). O sistema gera relatórios completos e até holerites para sua equipe." },
-        { q: "Consigo limitar o que meus funcionários acessam?", a: "Com certeza. Temos um controle de acesso granular de nível empresarial. Você define exatamente o que o Caixa, o Gerente e o Repositor podem ver e fazer. E tudo fica registrado no nosso log de Auditoria." },
-        { q: "O que entra no plano Grátis e quando vale migrar para o Pro?", a: "O plano Grátis entrega o mínimo operacional: <strong>PDV, caixa, produtos, clientes, fornecedores e visão executiva</strong>. O plano Pro libera a gestão profissional completa, com <strong>compras, vendas analíticas, fiscal, inteligência, equipe e módulos avançados</strong>. Para quem quer sair do básico e ganhar escala com controle, o Pro é o caminho natural." },
-        { q: "Existe fidelidade ou multa de cancelamento?", a: "Não. Acreditamos na qualidade do nosso sistema. Você assina, usa, e se não gostar, pode cancelar a qualquer momento sem pegadinhas ou taxas escondidas." }
-    ];
-
-    const testimonials = [
-        {
-            name: "Roberto Almeida",
-            role: "Dono da Rede Super Bom",
-            type: "Atacadista",
-            text: "Eu usava um ERP famoso que me custava rios de dinheiro e era super difícil de usar. O MercadinhoSys me entregou tudo que eu precisava: Força de vendas, DRE, fiscal afiado e controle de estoque de alto nível, por uma fração do preço.",
-            initial: "R",
-            color: "bg-blue-500"
-        },
-        {
-            name: "Carla Mendes",
-            role: "Gerente, Mercadinho da Vila",
-            type: "Varejo Local",
-            text: "Antes o caixa parava quando a internet caía. Agora a gente vende sem parar! O módulo de RH também salvou minha vida, consigo tirar o holerite de todos os funcionários com dois cliques.",
-            initial: "C",
-            color: "bg-emerald-500"
-        },
-        {
-            name: "Fernando Costa",
-            role: "Distribuidora Costa Bebidas",
-            type: "Distribuidora",
-            text: "Nossos vendedores externos usam o aplicativo SFA na rua. O pedido cai na matriz na hora, a nota fiscal é emitida em segundos e a entrega já sai. Automação pura! Recomendo de olhos fechados.",
-            initial: "F",
-            color: "bg-purple-500"
-        }
+        { q: "Como funcionam os 2 meses grátis?", a: "Você usa o sistema completo por 2 meses, sem cartão e sem pagar nada. Nesse tempo a gente implanta junto com você: importa seus produtos, configura a loja e acompanha até você andar sozinho. <strong>Só continua pagando se gostar e se fizer sentido para o seu negócio.</strong>" },
+        { q: "E depois dos 2 meses, quanto custa?", a: "R$ 99,90 por mês no Plano Pro, com preço travado: menos de R$ 3,40 por dia. Sem taxa de implantação, sem fidelidade e sem multa para cancelar." },
+        { q: "Serve para o meu tipo de comércio?", a: "Sim. O MercadinhoSys atende mercadinho, mercearia, supermercado, loja de roupas, calçados, moto peças, tabacaria, suplementos, material de construção, adega e conveniência e distribuidora. Cada tipo de loja tem cadastro próprio: grade de tamanho e cor, numeração, validade e lote, unidades por metro ou saco, peças por moto." },
+        { q: "Por que o nome é MercadinhoSys se atende outros comércios?", a: "Porque é fácil como o caixa do mercadinho do bairro. Por trás do nome está um sistema completo: caixa, estoque, compras, fiado, financeiro, equipe, entregas e inteligência artificial." },
+        { q: "Meus dados ficam seguros?", a: "Sim. Os dados de cada loja ficam separados, cada funcionário só vê o que você liberar e tudo o que acontece no sistema fica registrado. E você sabe quem fez o sistema: fala direto com o desenvolvedor." },
+        { q: "Preciso de computador?", a: "Não é obrigatório. Funciona no celular, no tablet e no computador. A câmera do celular serve de leitor de código de barras." },
+        { q: "E se a internet cair?", a: "O sistema funciona pela internet. Os cupons já emitidos ficam guardados no aparelho para reimprimir, e um chip de celular como reserva resolve a maioria das quedas." },
+        { q: "Emite nota fiscal?", a: "A emissão de nota fiscal é um módulo à parte, com custo à parte. Consulte as condições no atendimento." },
+        { q: "Consigo limitar o que meus funcionários acessam?", a: "Sim. Você define o que o caixa, o gerente e o repositor podem ver e fazer. Cancelar uma venda ou estornar pede o seu PIN, e tudo fica registrado." },
+        { q: "O sistema atende distribuidores?", a: "Sim. O vendedor externo tira pedido no celular, o estoque é reservado e separado, e o cliente empresa (CNPJ) tem limite de crédito." }
     ];
 
     return (
@@ -313,21 +191,22 @@ const LandingPage: React.FC = () => {
                 {showSplash && <SplashIntro onComplete={() => setShowSplash(false)} />}
             </AnimatePresence>
 
-            <div className="bg-linear-to-r from-red-600 to-red-500 text-white py-2 px-4 text-center text-sm font-bold tracking-wide z-60 relative shadow-md">
-                <span className="inline-block animate-pulse mr-2">⚠️</span> 
-                ATENÇÃO: O SEU CONCORRENTE JÁ ESTÁ DIGITALIZADO. PARE DE PERDER DINHEIRO COM SISTEMAS OBSOLETOS.
-            </div>
+            <a href="#oferta" className="block bg-[#FFD43B] text-[#0A1220] py-2 px-4 text-center text-xs sm:text-sm font-black tracking-wide z-60 relative shadow-md">
+                <span className="sm:hidden">2 MESES GRÁTIS · SÓ PAGA SE GOSTAR</span>
+                <span className="hidden sm:inline">2 MESES GRÁTIS: SÓ PAGA SE FIZER SENTIDO PARA O SEU NEGÓCIO</span>
+            </a>
 
             {/* WhatsApp Floating Button */}
             <a
-                href="https://wa.me/5511919889233"
+                href={linkWhatsApp('Olá! Vi o site do MercadinhoSys e quero saber mais.')}
+                aria-label="Falar no WhatsApp"
                 target="_blank"
                 rel="noreferrer"
-                className="fixed bottom-8 right-8 z-100 bg-emerald-500 text-white p-4 rounded-full shadow-2xl shadow-emerald-400/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
+                className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-100 bg-emerald-500 text-white p-4 rounded-full shadow-2xl shadow-emerald-400/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
             >
                 <MessageCircle className="w-8 h-8" />
                 <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-500 font-bold whitespace-nowrap">
-                    Fale com Consultor
+                    Fale com o desenvolvedor
                 </span>
             </a>
 
@@ -343,11 +222,11 @@ const LandingPage: React.FC = () => {
                                 Mercadinho<span className="text-[#FF6A5C]">Sys</span>
                             </span>
                         </div>
-                        <div className="hidden lg:flex items-center gap-8">
-                            <a href="#erp-features" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Tecnologia ERP</a>
-                            <a href="#how-it-works" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Como Funciona</a>
-                            <a href="#testimonials" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Clientes</a>
-                            <a href="#pricing" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Planos</a>
+                        <div className="hidden xl:flex items-center gap-7">
+                            <a href="#segmentos" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Segmentos</a>
+                            <a href="#ia" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">IA</a>
+                            <a href="#how-it-works" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Implantação</a>
+                            <a href="#oferta" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest whitespace-nowrap">2 meses grátis</a>
                             <a href="#contact" className="text-sm font-bold text-[#8FA3C0] hover:text-[#2E9BFF] transition-colors uppercase tracking-widest">Contato</a>
                             <button
                                 onClick={() => navigate('/login')}
@@ -356,7 +235,7 @@ const LandingPage: React.FC = () => {
                                 ACESSAR PAINEL
                             </button>
                         </div>
-                        <div className="lg:hidden flex items-center gap-4">
+                        <div className="xl:hidden flex items-center gap-4">
                             <button onClick={() => navigate('/login')} className="bg-transparent border border-[#2E9BFF] text-[#6FCBFF] px-4 py-2 rounded-lg font-bold text-xs">LOGIN</button>
                             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-[#8FA3C0]">
                                 <div className="w-6 h-5 flex flex-col justify-between">
@@ -369,12 +248,12 @@ const LandingPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className={`lg:hidden overflow-hidden transition-all duration-300 bg-[#101C31] border-b border-[#24344F] ${mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`xl:hidden overflow-hidden transition-all duration-300 bg-[#101C31] border-b border-[#24344F] ${mobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                     <div className="px-4 py-6 space-y-4">
-                        <a href="#erp-features" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">Tecnologia ERP</a>
-                        <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">Como Funciona</a>
-                        <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">Clientes</a>
-                        <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">Planos</a>
+                        <a href="#segmentos" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">Segmentos</a>
+                        <a href="#ia" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">IA que trabalha por você</a>
+                        <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">Implantação</a>
+                        <a href="#oferta" onClick={() => setMobileMenuOpen(false)} className="block text-lg font-bold text-[#DCE8F7]">2 meses grátis</a>
                     </div>
                 </div>
             </nav>
@@ -392,23 +271,24 @@ const LandingPage: React.FC = () => {
                         className="text-center max-w-4xl flex flex-col items-center"
                     >
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#2E9BFF]/10 backdrop-blur-sm border border-[#2E9BFF]/30 text-[#6FCBFF] rounded-full text-xs font-bold tracking-widest uppercase mb-6 shadow-[0_0_15px_rgba(46,155,255,0.2)]">
-                            <Activity className="w-4 h-4" /> ERP SaaS para Mercados e Distribuição
+                            <Activity className="w-4 h-4" /> Gestão com IA para todo tipo de comércio
                         </div>
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] lg:leading-[1.05] mb-8 text-white">
-                            Pare de perder venda, margem e tempo. <br className="hidden sm:block" />
-                            <span className="bg-linear-to-r from-[#2E9BFF] to-[#6FCBFF] bg-clip-text text-transparent">Controle sua operação em um só lugar.</span>
+                            O sistema que <br className="hidden sm:block" />
+                            <span className="text-[#FFD43B]">trabalha por você.</span>
                         </h1>
                         <p className="text-xl lg:text-2xl text-[#8FA3C0] leading-relaxed mb-6 font-medium max-w-3xl">
-                            PDV rápido, estoque confiável, compras organizadas, caixa sob controle e visão clara do negócio para <span className="text-white font-bold">mercados, mercearias, conveniências e distribuidores</span>.
+                            Não é você que trabalha para o sistema. A IA do <span className="text-white font-bold">MercadinhoSys</span> cadastra produtos, acompanha a loja e diz o que fazer.
                         </p>
                         <p className="text-lg text-[#8FA3C0] mb-10 max-w-3xl">
-                            O <strong>MercadinhoSys</strong> reduz fila no caixa, melhora o controle de estoque, organiza o recebimento de mercadorias e transforma dados soltos em decisão operacional.
+                            Caixa, estoque, fiado, financeiro e equipe para <strong className="text-white">mercadinho, loja de roupas, moto peças, tabacaria, supermercado</strong> e muito mais. Sistema 100% brasileiro, com o desenvolvedor do seu lado.
                         </p>
                         <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
                             {[
-                                'Fila no caixa -> PDV ágil',
-                                'Estoque confuso -> controle por produto e lote',
-                                'Gestão no escuro -> visão executiva'
+                                'Bipou, cadastrou',
+                                'Avisa o que repor',
+                                'Fiado sem caderno',
+                                'Lucro de verdade na tela'
                             ].map((item) => (
                                 <div key={item} className="px-4 py-2 rounded-full border border-[#24344F] bg-[#101C31]/80 text-sm font-medium text-[#DCE8F7]">
                                     {item}
@@ -420,10 +300,10 @@ const LandingPage: React.FC = () => {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                                onClick={() => document.getElementById('oferta')?.scrollIntoView({ behavior: 'smooth' })}
                                 className="w-full sm:w-auto px-10 py-4 bg-[#2E9BFF] text-[#0A1220] rounded-[10px] font-bold text-xl hover:bg-[#6FCBFF] transition-all flex items-center justify-center shadow-[0_0_30px_rgba(46,155,255,0.4)] border border-[#2E9BFF]"
                             >
-                                Conhecer Planos
+                                Quero 2 meses grátis
                             </motion.button>
 
                             <motion.button
@@ -432,7 +312,7 @@ const LandingPage: React.FC = () => {
                                 onClick={handleDemoAccess}
                                 className="w-full sm:w-auto px-10 py-4 bg-[#101C31] text-[#DCE8F7] border border-[#24344F] rounded-[10px] font-bold text-xl hover:bg-[#1A2C4D] transition-all text-center flex items-center justify-center gap-3"
                             >
-                                Acessar Demonstração
+                                Ver funcionando
                             </motion.button>
                         </div>
                     </motion.div>
@@ -459,39 +339,53 @@ const LandingPage: React.FC = () => {
                         />
                         <div className="absolute bottom-8 left-8 right-8 z-20 flex justify-between items-end">
                             <div className="flex flex-col gap-2">
-                                <div className="border border-[#2E9BFF]/50 text-[#6FCBFF] font-bold text-xs tracking-wider uppercase rounded-full px-4 py-1.5 w-max bg-[#101C31]/90 backdrop-blur-md">Automação Completa</div>
-                                <div className="text-white font-bold text-3xl md:text-4xl drop-shadow-md">Controle absoluto da <br/>sua operação.</div>
+                                <div className="border border-[#2E9BFF]/50 text-[#6FCBFF] font-bold text-xs tracking-wider uppercase rounded-full px-4 py-1.5 w-max bg-[#101C31]/90 backdrop-blur-md">MercadinhoSys</div>
+                                <div className="text-white font-bold text-2xl md:text-4xl drop-shadow-md">Você atende. <br/>O sistema cuida do resto.</div>
                             </div>
                         </div>
                     </motion.div>
                 </div>
             </section>
 
-            {/* TRUST BAR */}
-            <div className="py-8 border-y border-[#24344F] bg-[#0c1627]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <p className="text-[#4F6A8F] text-sm font-bold uppercase tracking-widest mb-6">A confiança de quem entende de negócio</p>
-                    <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-24 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
-                        {/* Fake logos using text/icons since we don't have images */}
-                        <div className="flex items-center gap-2 font-black text-2xl text-white"><ShoppingCart className="w-8 h-8"/> SuperMais</div>
-                        <div className="flex items-center gap-2 font-black text-2xl text-white"><Truck className="w-8 h-8"/> DistriTech</div>
-                        <div className="flex items-center gap-2 font-black text-2xl text-white"><Briefcase className="w-8 h-8"/> Atacadão Forte</div>
-                        <div className="flex items-center gap-2 font-black text-2xl text-white"><MapPin className="w-8 h-8"/> Lojas Local</div>
+            {/* SEGMENTOS: o lojista toca no tipo de comércio dele */}
+            <section id="segmentos" className="py-16 sm:py-20 border-y border-[#24344F] bg-[#0c1627] scroll-mt-32">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center max-w-3xl mx-auto mb-10">
+                        <h2 className="text-[#6FCBFF] font-bold tracking-[2px] text-xs uppercase mb-4">Feito para o seu tipo de comércio</h2>
+                        <h3 className="text-3xl lg:text-5xl font-bold text-white leading-tight mb-4">Qual é o seu negócio?</h3>
+                        <p className="text-lg text-[#8FA3C0]">Toque no seu segmento e veja como o MercadinhoSys funciona na sua loja.</p>
                     </div>
+                    <SegmentosGrid />
                 </div>
-            </div>
+            </section>
+
+            {/* IA QUE AGE: a conversa do panfleto */}
+            <section id="ia" className="py-20 sm:py-24 bg-[#0A1220] scroll-mt-32">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <h2 className="text-[#FFD43B] font-bold tracking-[2px] text-xs uppercase mb-4">Consultor M-IA</h2>
+                        <h3 className="text-3xl lg:text-5xl font-bold text-white leading-tight mb-6">Você pede. <br />A IA faz.</h3>
+                        <p className="text-lg text-[#8FA3C0] mb-8">
+                            Pergunte sobre vendas, estoque, contas ou equipe e receba a resposta com os números da sua loja.
+                            Peça para cadastrar um produto, gerar o pedido de compra ou criar um lembrete, e ela faz, com a sua confirmação.
+                        </p>
+                        <TrabalhosDoSistema />
+                    </div>
+                    <ChatMIA />
+                </div>
+            </section>
 
             {/* THE "1001 REASONS" / COMPLETE ERP FEATURES */}
             <section id="erp-features" className="py-24 bg-[#101C31] relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center max-w-4xl mx-auto mb-20">
-                        <h2 className="text-red-500 font-bold tracking-[2px] text-xs uppercase mb-4 animate-pulse">Chega de Travar no Horário de Pico</h2>
+                        <h2 className="text-[#6FCBFF] font-bold tracking-[2px] text-xs uppercase mb-4">Chega de caderno, planilha e app separado</h2>
                         <h3 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
-                            Sistema Lento = <br/>
-                            <span className="bg-linear-to-r from-red-500 to-[#FF6A5C] bg-clip-text text-transparent">Cliente na Concorrência.</span>
+                            Você atende. <br/>
+                            <span className="bg-linear-to-r from-[#2E9BFF] to-[#6FCBFF] bg-clip-text text-transparent">O sistema cuida do resto.</span>
                         </h3>
                         <p className="text-xl text-[#8FA3C0]">
-                            Nós entendemos a dor de ver fila crescendo, operador travado e cliente desistindo da compra. O MercadinhoSys foi desenhado para o varejo real: resposta rápida, operação fluida e menos atrito no balcão.
+                            Caixa, estoque, compras, fiado, financeiro, equipe e entregas no mesmo lugar, no celular ou no computador.
                         </p>
                     </div>
 
@@ -501,7 +395,7 @@ const LandingPage: React.FC = () => {
                             <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all"></div>
                             
                             <div className="absolute top-4 right-4 bg-linear-to-r from-emerald-500 to-teal-400 text-white text-[10px] font-black uppercase tracking-widest py-1 px-3 rounded-full shadow-lg shadow-emerald-500/30 animate-pulse">
-                                Exclusividade
+                                Exclusivo
                             </div>
                             
                             <div className="w-14 h-14 bg-[#101C31] border border-emerald-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform">
@@ -509,12 +403,12 @@ const LandingPage: React.FC = () => {
                             </div>
                             
                             <h4 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
-                                Diretor M-IA 360°
+                                Consultor M-IA
                             </h4>
                             <p className="text-[#8FA3C0] leading-relaxed mb-4 text-sm">
-                                O fim dos prejuízos invisíveis. Nossa Inteligência Artificial audita suas <strong>margens de lucro, estoque e folha de pagamento 24h por dia</strong>. Receba alertas precisos de vazamento de caixa antes do mês fechar. 
+                                Pergunte e receba a resposta com os números reais da sua loja: vendas, estoque, contas e equipe. Ele também <strong>cadastra produto, gera pedido de compra e cria lembrete</strong>, e emite relatório em PDF e planilha.
                                 <br/><br/>
-                                <span className="text-emerald-400 font-bold">Gerencie com a frieza dos dados, não com a intuição.</span>
+                                <span className="text-emerald-400 font-bold">Decida com os números, não no achismo.</span>
                             </p>
                         </motion.div>
 
@@ -523,8 +417,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-[#2E9BFF]/10 group-hover:border-[#2E9BFF]/30 transition-all">
                                 <Briefcase className="w-7 h-7 text-[#2E9BFF]" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">Força de Vendas (SFA)</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Ideal para atacadistas. Seus representantes fazem pedidos na rua, de forma offline. O pedido sincroniza, separa no estoque e a nota é gerada automaticamente.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Vendedor Externo</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Para distribuidoras e atacados: o vendedor tira o pedido no celular, na rua. O estoque é reservado, a separação sai em ordem e o cliente empresa tem limite de crédito.</p>
                         </motion.div>
 
                         {/* Feature 2 */}
@@ -532,8 +426,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-[#FF6A5C]/10 group-hover:border-[#FF6A5C]/30 transition-all">
                                 <Users className="w-7 h-7 text-[#FF6A5C]" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">RH Real & Departamento Pessoal</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Gestão completa de funcionários. Emissão de holerites detalhados, controle de descontos, benefícios e faltas. Diga adeus às planilhas de pagamento.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Equipe e Holerite</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Funcionários, holerite, descontos, benefícios e faltas no sistema. Adeus às planilhas de pagamento.</p>
                         </motion.div>
 
                         {/* Feature 3 */}
@@ -541,8 +435,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-emerald-500/10 group-hover:border-emerald-500/30 transition-all">
                                 <MapPin className="w-7 h-7 text-emerald-500" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">Controle de Ponto Inteligente</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Seus colaboradores batem ponto pelo sistema, que exige uma <strong>foto (selfie)</strong> e captura a <strong>geolocalização (GPS)</strong> exata para evitar fraudes.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Ponto pelo Celular</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Seus funcionários batem ponto pelo celular com <strong>foto</strong> e <strong>localização</strong> registradas. Banco de horas e atrasos aparecem sozinhos.</p>
                         </motion.div>
 
                         {/* Feature 4 */}
@@ -550,8 +444,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-amber-500/10 group-hover:border-amber-500/30 transition-all">
                                 <ShieldCheck className="w-7 h-7 text-amber-500" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">Auditoria e Segurança Militar</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Controle de acesso granular: defina o que cada perfil pode ver. Além disso, temos um log de auditoria rastreando tudo que acontece no sistema.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Segurança e Controle</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Cada funcionário só vê o que você liberar. Cancelar ou estornar pede o seu PIN, e tudo fica registrado: quem fez, o quê e quando.</p>
                         </motion.div>
 
                         {/* Feature 5 */}
@@ -559,8 +453,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-[#2E9BFF]/10 group-hover:border-[#2E9BFF]/30 transition-all">
                                 <FileText className="w-7 h-7 text-[#2E9BFF]" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">Fiscal NFe/NFCe Automático</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Homologado na SEFAZ. Importação de XML nativa para entrada de notas, preenchendo o estoque automaticamente. Emissão de NFCe em 8 segundos no balcão.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Nota do Fornecedor sem Digitar</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">A nota do fornecedor entra pelo XML ou pelo QR code e o estoque se atualiza sozinho. Emissão de nota fiscal na venda é módulo à parte, com custo à parte.</p>
                         </motion.div>
 
                         {/* Feature 6 */}
@@ -568,8 +462,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-purple-500/10 group-hover:border-purple-500/30 transition-all">
                                 <Activity className="w-7 h-7 text-purple-500" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">Gestão de Despesas e DRE</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Controle completo de contas a pagar, contas a receber (fiado/crediário), fluxo de caixa real e DRE gerencial para você saber exatamente o seu lucro líquido.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Lucro de Verdade</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Contas a pagar, boletos a vencer, fiado e crediário, fluxo de caixa e o resultado do mês. Você sabe o que sobrou, não só o que entrou.</p>
                         </motion.div>
                         {/* Feature 7 */}
                         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.6 }} className="bg-[#0A1220] p-8 rounded-[20px] border border-[#24344F] hover:border-pink-500 transition-all group">
@@ -577,7 +471,7 @@ const LandingPage: React.FC = () => {
                                 <Truck className="w-7 h-7 text-pink-500" />
                             </div>
                             <h4 className="text-xl font-bold text-white mb-3">Delivery e Logística Integrada</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Gestão completa de entregas, roteirização e controle de motoboys. Seus clientes pedem, o sistema separa no estoque e o entregador já sabe a rota.</p>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Entregas, motoboys e o que falta entregar no mesmo sistema. O pedido sai do estoque e você acompanha cada entrega.</p>
                         </motion.div>
 
                         {/* Feature 7 - Replaced with 8 to fit grid since we added Consultor IA at the top */}
@@ -585,8 +479,8 @@ const LandingPage: React.FC = () => {
                             <div className="w-14 h-14 bg-[#101C31] rounded-2xl flex items-center justify-center mb-6 border border-[#24344F] group-hover:bg-cyan-500/10 group-hover:border-cyan-500/30 transition-all">
                                 <Star className="w-7 h-7 text-cyan-500" />
                             </div>
-                            <h4 className="text-xl font-bold text-white mb-3">Design Premium e UX Intuitiva</h4>
-                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Diga adeus àqueles sistemas feios, cinzas e confusos dos anos 90. Nossa interface é belíssima, fluida e feita para qualquer um aprender a usar em menos de 10 minutos.</p>
+                            <h4 className="text-xl font-bold text-white mb-3">Fácil de Verdade</h4>
+                            <p className="text-[#8FA3C0] leading-relaxed mb-4">Nada de sistema cinza e confuso. A nossa primeira cliente, leiga em sistema, aprendeu a usar em poucos minutos.</p>
                         </motion.div>
                     </div>
                 </div>
@@ -596,13 +490,13 @@ const LandingPage: React.FC = () => {
             <section className="py-24 bg-[#0c1627] border-y border-[#24344F] relative overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-center max-w-4xl mx-auto mb-20">
-                        <h2 className="text-red-500 font-bold tracking-[2px] text-xs uppercase mb-4">Por dentro da Máquina</h2>
+                        <h2 className="text-[#6FCBFF] font-bold tracking-[2px] text-xs uppercase mb-4">Por dentro do sistema</h2>
                         <h3 className="text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
-                            Não vendemos promessas. <br/>
-                            Entregamos <span className="bg-linear-to-r from-red-500 to-[#FF6A5C] bg-clip-text text-transparent">Poder de Controle.</span>
+                            Sua loja inteira <br/>
+                            <span className="bg-linear-to-r from-[#2E9BFF] to-[#6FCBFF] bg-clip-text text-transparent">na palma da mão.</span>
                         </h3>
                         <p className="text-xl text-[#8FA3C0]">
-                            Dê uma olhada no motor do MercadinhoSys. Um painel de comando desenvolvido para quem precisa de dados rápidos, precisos e sem complicação. O seu negócio na palma da sua mão.
+                            Veja as telas que você vai usar todo dia: o painel do dono, o caixa e o estoque.
                         </p>
                     </div>
 
@@ -613,14 +507,14 @@ const LandingPage: React.FC = () => {
                                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/30 text-red-400 rounded-full text-xs font-bold uppercase mb-4">
                                     <Activity className="w-4 h-4" /> Visão 360 Graus
                                 </div>
-                                <h4 className="text-3xl font-bold text-white mb-4">Dashboard Financeiro em Tempo Real</h4>
+                                <h4 className="text-3xl font-bold text-white mb-4">O Painel do Dono</h4>
                                 <p className="text-[#8FA3C0] text-lg leading-relaxed mb-6">
-                                    Acabe com a cegueira financeira. Acompanhe seu faturamento, despesas e DRE (Demonstração do Resultado do Exercício) ao vivo. Saiba exatamente qual é o seu lucro líquido diário. Sem surpresas no fim do mês.
+                                    Faturamento, despesas e o resultado do mês na mesma tela. Saiba quanto sobrou de verdade, sem surpresa no fim do mês.
                                 </p>
                                 <ul className="space-y-3 text-[#DCE8F7]">
                                     <li className="flex items-center gap-3"><Check className="text-red-500 w-5 h-5"/> Fluxo de Caixa Diário</li>
                                     <li className="flex items-center gap-3"><Check className="text-red-500 w-5 h-5"/> Gráficos de Receitas vs Despesas</li>
-                                    <li className="flex items-center gap-3"><Check className="text-red-500 w-5 h-5"/> Alertas automáticos do Gestor M-IA</li>
+                                    <li className="flex items-center gap-3"><Check className="text-red-500 w-5 h-5"/> O que fazer hoje, pelo Consultor M-IA</li>
                                 </ul>
                             </div>
                             <div className="lg:w-1/2 relative group w-full">
@@ -631,7 +525,7 @@ const LandingPage: React.FC = () => {
                                         <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
                                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></div>
                                     </div>
-                                    <img src="/screenshots/dashboard.png" alt="Dashboard do Sistema" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                    <img src="/screenshots/dashboard.png" alt="Painel do dono do MercadinhoSys" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
                                 </div>
                             </div>
                         </div>
@@ -640,16 +534,16 @@ const LandingPage: React.FC = () => {
                         <div className="flex flex-col lg:flex-row-reverse items-center gap-12">
                             <div className="lg:w-1/2">
                                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-xs font-bold uppercase mb-4">
-                                    <ShoppingCart className="w-4 h-4" /> Frente de Caixa Imparável
+                                    <ShoppingCart className="w-4 h-4" /> Frente de Caixa
                                 </div>
-                                <h4 className="text-3xl font-bold text-white mb-4">PDV Offline-First de Alta Velocidade</h4>
+                                <h4 className="text-3xl font-bold text-white mb-4">Caixa Rápido no Balcão</h4>
                                 <p className="text-[#8FA3C0] text-lg leading-relaxed mb-6">
-                                    A internet caiu? A sua loja não para. Nosso PDV continua operando, vendendo e emitindo cupons normalmente. Assim que a rede voltar, o sistema sincroniza tudo com a nuvem em segundos. Venda mais, sem filas e sem stress.
+                                    Bipa com o leitor ou com a câmera do celular, recebe em dinheiro, Pix, cartão ou fiado e fecha o caixa conferido. Cancelamento só com o PIN do dono.
                                 </p>
                                 <ul className="space-y-3 text-[#DCE8F7]">
-                                    <li className="flex items-center gap-3"><Check className="text-emerald-500 w-5 h-5"/> Emissão de NFCe em 8 Segundos</li>
-                                    <li className="flex items-center gap-3"><Check className="text-emerald-500 w-5 h-5"/> Sincronização em Nuvem (Offline-First)</li>
-                                    <li className="flex items-center gap-3"><Check className="text-emerald-500 w-5 h-5"/> Integração com Balança e Leitor de Código</li>
+                                    <li className="flex items-center gap-3"><Check className="text-emerald-500 w-5 h-5"/> Dinheiro, Pix, cartão e fiado</li>
+                                    <li className="flex items-center gap-3"><Check className="text-emerald-500 w-5 h-5"/> Abertura e fechamento de caixa conferido</li>
+                                    <li className="flex items-center gap-3"><Check className="text-emerald-500 w-5 h-5"/> Leitor de código de barras ou câmera do celular</li>
                                 </ul>
                             </div>
                             <div className="lg:w-1/2 relative group w-full">
@@ -660,7 +554,7 @@ const LandingPage: React.FC = () => {
                                         <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
                                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></div>
                                     </div>
-                                    <img src="/screenshots/pdv.png" alt="PDV Offline" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                    <img src="/screenshots/pdv.png" alt="Frente de caixa do MercadinhoSys" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
                                 </div>
                             </div>
                         </div>
@@ -671,14 +565,14 @@ const LandingPage: React.FC = () => {
                                 <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-full text-xs font-bold uppercase mb-4">
                                     <Package className="w-4 h-4" /> Gestão Total
                                 </div>
-                                <h4 className="text-3xl font-bold text-white mb-4">Estoque Milimetricamente Rastreado</h4>
+                                <h4 className="text-3xl font-bold text-white mb-4">Estoque que Avisa</h4>
                                 <p className="text-[#8FA3C0] text-lg leading-relaxed mb-6">
-                                    Gerencie milhares de produtos sem perder um único item. Acompanhe movimentações, custos e saiba exatamente quando repor o estoque antes que acabe. Receba alertas de produtos parados e sem giro de vendas.
+                                    Saiba o que repor antes de faltar, o que está parado ocupando dinheiro e o que está perto de vencer. Etiquetas de preço com código de barras saem do próprio sistema.
                                 </p>
                                 <ul className="space-y-3 text-[#DCE8F7]">
-                                    <li className="flex items-center gap-3"><Check className="text-blue-500 w-5 h-5"/> Tabela de Preço Custo vs Margem</li>
-                                    <li className="flex items-center gap-3"><Check className="text-blue-500 w-5 h-5"/> Alertas de Ruptura de Estoque</li>
-                                    <li className="flex items-center gap-3"><Check className="text-blue-500 w-5 h-5"/> Importação Automática via XML (NFe)</li>
+                                    <li className="flex items-center gap-3"><Check className="text-blue-500 w-5 h-5"/> Custo, preço e margem de cada produto</li>
+                                    <li className="flex items-center gap-3"><Check className="text-blue-500 w-5 h-5"/> Aviso do que repor e do que vence</li>
+                                    <li className="flex items-center gap-3"><Check className="text-blue-500 w-5 h-5"/> Nota do fornecedor pelo XML ou QR code</li>
                                 </ul>
                             </div>
                             <div className="lg:w-1/2 relative group w-full">
@@ -689,7 +583,7 @@ const LandingPage: React.FC = () => {
                                         <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></div>
                                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></div>
                                     </div>
-                                    <img src="/screenshots/products.png" alt="Gestão de Estoque" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                                    <img src="/screenshots/products.png" alt="Controle de estoque do MercadinhoSys" className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700" />
                                 </div>
                             </div>
                         </div>
@@ -697,71 +591,26 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            <section id="how-it-works" className="py-24 bg-[#0A1220] border-y border-[#24344F]">
+            <section id="how-it-works" className="py-24 bg-[#0A1220] border-y border-[#24344F] scroll-mt-32">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center max-w-3xl mx-auto mb-20">
-                        <h2 className="text-red-500 font-bold tracking-[1.5px] text-xs uppercase mb-4">O Relógio está correndo</h2>
-                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">Implantação Expressa. Comece em Minutos.</h3>
-                        <p className="text-xl text-[#8FA3C0]">Sistemas engessados demoram meses e te cobram taxas absurdas de implantação. Nossa nuvem permite que você corte a sangria e comece a lucrar hoje mesmo.</p>
+                    <div className="text-center max-w-3xl mx-auto mb-16">
+                        <h2 className="text-[#6FCBFF] font-bold tracking-[1.5px] text-xs uppercase mb-4">Sem taxa de implantação</h2>
+                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">A gente implanta com você.</h3>
+                        <p className="text-xl text-[#8FA3C0]">Você não fica sozinho com um sistema novo. Quem fez o MercadinhoSys vai até a sua loja, configura tudo e acompanha os 2 primeiros meses.</p>
                     </div>
-
-                    <div className="grid md:grid-cols-3 gap-8 relative">
-                        {/* Connecting Line */}
-                        <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-0.5 bg-linear-to-r from-red-600/20 via-red-500 to-red-600/20 -translate-y-1/2 z-0"></div>
-
-                        <div className="relative z-10 bg-[#101C31] p-10 rounded-[20px] border border-[#24344F] text-center shadow-xl">
-                            <div className="w-16 h-16 bg-[#2E9BFF] text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-[0_0_20px_rgba(46,155,255,0.4)]">1</div>
-                            <h4 className="text-xl font-bold text-white mb-4">Cadastro Rápido</h4>
-                            <p className="text-[#8FA3C0]">Crie sua conta e configure os dados básicos da sua empresa e certificado digital (A1) em minutos, sem burocracia.</p>
-                        </div>
-
-                        <div className="relative z-10 bg-[#101C31] p-10 rounded-[20px] border border-[#24344F] text-center shadow-xl">
-                            <div className="w-16 h-16 bg-[#2E9BFF] text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-[0_0_20px_rgba(46,155,255,0.4)]">2</div>
-                            <h4 className="text-xl font-bold text-white mb-4">Importação Massiva</h4>
-                            <p className="text-[#8FA3C0]">Suba seus produtos, clientes e fornecedores via planilha ou XML. O sistema estrutura sua base instantaneamente.</p>
-                        </div>
-
-                        <div className="relative z-10 bg-[#101C31] p-10 rounded-[20px] border border-[#24344F] text-center shadow-xl">
-                            <div className="w-16 h-16 bg-[#2E9BFF] text-white rounded-full flex items-center justify-center text-2xl font-black mx-auto mb-6 shadow-[0_0_20px_rgba(46,155,255,0.4)]">3</div>
-                            <h4 className="text-xl font-bold text-white mb-4">Venda e Lucre</h4>
-                            <p className="text-[#8FA3C0]">Libere os acessos para o caixa, vendedores externos e RH. Acompanhe tudo em tempo real no seu Dashboard de bolso.</p>
-                        </div>
-                    </div>
+                    <ImplantaComVoce />
+                    <div className="mt-10"><FaleComDesenvolvedor /></div>
                 </div>
             </section>
 
-            {/* TESTIMONIALS SECTION */}
+            {/* PRIMEIRA CLIENTE (real, autorizada) */}
             <section id="testimonials" className="py-24 bg-[#101C31] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-[#2E9BFF]/5 via-[#101C31] to-[#101C31] pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                    <div className="text-center max-w-3xl mx-auto mb-20">
-                        <h2 className="text-[#8FA3C0] font-bold tracking-[1.5px] text-xs uppercase mb-4">Prova Social</h2>
-                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">Quem usa, não troca.</h3>
-                        <p className="text-xl text-[#8FA3C0]">Nossa taxa de retenção é de 99.8%. Veja o que donos de negócios como o seu estão dizendo sobre a nossa tecnologia.</p>
+                    <div className="text-center max-w-3xl mx-auto mb-12">
+                        <h2 className="text-[#8FA3C0] font-bold tracking-[1.5px] text-xs uppercase mb-4">Quem já usa</h2>
+                        <h3 className="text-4xl lg:text-5xl font-bold text-white">Fácil até para quem nunca usou sistema.</h3>
                     </div>
-
-                    <div className="grid md:grid-cols-3 gap-8">
-                        {testimonials.map((test, i) => (
-                            <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="bg-[#0A1220] p-8 rounded-[24px] border border-[#24344F] relative shadow-lg">
-                                <div className="flex gap-1 mb-6">
-                                    {[...Array(5)].map((_, idx) => (
-                                        <Star key={idx} className="w-5 h-5 fill-yellow-500 text-yellow-500" />
-                                    ))}
-                                </div>
-                                <p className="text-white italic leading-relaxed mb-8 text-lg">"{test.text}"</p>
-                                <div className="flex items-center gap-4">
-                                    <div className={`w-12 h-12 rounded-full ${test.color} flex items-center justify-center text-white font-bold text-xl`}>
-                                        {test.initial}
-                                    </div>
-                                    <div>
-                                        <h5 className="font-bold text-white text-lg">{test.name}</h5>
-                                        <p className="text-[#8FA3C0] text-sm">{test.role}</p>
-                                        <span className="inline-block mt-1 px-2 py-0.5 bg-[#101C31] border border-[#24344F] rounded text-xs text-[#6FCBFF]">{test.type}</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
+                    <PrimeiraCliente />
                 </div>
             </section>
 
@@ -770,9 +619,9 @@ const LandingPage: React.FC = () => {
                 <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-red-500/5 via-[#101C31] to-[#101C31] pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                     <div className="text-center max-w-4xl mx-auto mb-16">
-                        <h2 className="text-red-500 font-bold tracking-[2px] text-xs uppercase mb-4">A Verdade Inconveniente do Mercado</h2>
-                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">ERPs tradicionais <span className="text-[#8FA3C0] font-normal text-3xl mx-4">vs</span> MercadinhoSys</h3>
-                        <p className="text-xl text-[#8FA3C0]">Compare o que realmente pesa na decisão: implantação, facilidade de uso, velocidade operacional e custo para crescer sem depender de projeto caro.</p>
+                        <h2 className="text-[#6FCBFF] font-bold tracking-[2px] text-xs uppercase mb-4">Compare antes de decidir</h2>
+                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">O jeito de sempre <span className="text-[#8FA3C0] font-normal text-3xl mx-4">vs</span> MercadinhoSys</h3>
+                        <p className="text-xl text-[#8FA3C0]">Caderno, planilha, app separado ou sistema tradicional: veja o que muda no seu dia a dia.</p>
                     </div>
 
                     <div className="overflow-x-auto custom-scrollbar pb-8 px-4">
@@ -780,40 +629,26 @@ const LandingPage: React.FC = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="p-6 border-b border-[#24344F] text-[#8FA3C0] font-bold text-lg w-1/3">Critério Corporativo</th>
-                                        <th className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-[#8FA3C0] font-bold text-lg bg-[#101C31]/50 w-1/3 text-center">Gigantes Tradicionais <br/><span className="text-xs font-normal opacity-70">(Sankhya, SAP, TOTVS)</span></th>
+                                        <th className="p-6 border-b border-[#24344F] text-[#8FA3C0] font-bold text-lg w-1/3">No dia a dia</th>
+                                        <th className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-[#8FA3C0] font-bold text-lg bg-[#101C31]/50 w-1/3 text-center">Caderno, planilha <br/><span className="text-xs font-normal opacity-70">e sistemas tradicionais</span></th>
                                         <th className="p-6 border-b-2 border-red-500 text-white font-black text-xl bg-linear-to-t from-red-500/10 to-transparent text-center w-1/3">MercadinhoSys</th>
                                     </tr>
                                 </thead>
                                 <tbody className="text-[#DCE8F7]">
-                                    <tr className="hover:bg-[#101C31]/30 transition-colors">
-                                        <td className="p-6 border-b border-[#24344F] font-bold text-lg">Custo de Implantação</td>
-                                        <td className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-amber-500 font-bold bg-[#101C31]/50 text-center">R$ 50.000 a R$ 200.000+</td>
-                                        <td className="p-6 border-b border-[#24344F] text-emerald-400 font-black text-xl bg-red-500/5 text-center">R$ 0 (Setup Automático)</td>
-                                    </tr>
-                                    <tr className="hover:bg-[#101C31]/30 transition-colors">
-                                        <td className="p-6 border-b border-[#24344F] font-bold text-lg">Tempo de Treinamento</td>
-                                        <td className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-amber-500 font-bold bg-[#101C31]/50 text-center">3 a 8 Meses</td>
-                                        <td className="p-6 border-b border-[#24344F] text-emerald-400 font-bold bg-red-500/5 text-center text-xl">Minutos (UX Premium)</td>
-                                    </tr>
-                                    <tr className="hover:bg-[#101C31]/30 transition-colors">
-                                        <td className="p-6 border-b border-[#24344F] font-bold text-lg">Gestão Financeira e Auditoria</td>
-                                        <td className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-amber-500 bg-[#101C31]/50 text-center">Relatórios complexos que demandam analistas</td>
-                                        <td className="p-6 border-b border-[#24344F] text-emerald-400 font-bold bg-red-500/5 text-center text-xl flex flex-col items-center gap-2">
-                                            Diretor M-IA Integrado
-                                            <span className="text-xs border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full w-max mx-auto">Alertas de vazamento 24h</span>
-                                        </td>
-                                    </tr>
-                                    <tr className="hover:bg-[#101C31]/30 transition-colors">
-                                        <td className="p-6 border-b border-[#24344F] font-bold text-lg">Estabilidade em Operação de Caixa</td>
-                                        <td className="p-6 border-b border-[#24344F] border-r border-[#24344F] text-red-500 font-bold bg-[#101C31]/50 text-center">Dependência de servidores ou redes perfeitas</td>
-                                        <td className="p-6 border-b border-[#24344F] text-emerald-400 font-black text-xl bg-red-500/5 text-center">PDV 100% Offline-First</td>
-                                    </tr>
-                                    <tr className="hover:bg-[#101C31]/30 transition-colors">
-                                        <td className="p-6 font-bold text-lg">Contrato e Fidelidade</td>
-                                        <td className="p-6 border-r border-[#24344F] text-red-500 font-bold bg-[#101C31]/50 text-center">1 a 3 anos de amarrações e multas</td>
-                                        <td className="p-6 text-emerald-400 font-black text-xl bg-red-500/5 text-center">SaaS Livre (Cancele Quando Quiser)</td>
-                                    </tr>
+                                    {[
+                                        ['Começar a usar', 'Contrato, taxa de implantação e você configura sozinho', '2 meses grátis, a gente implanta com você'],
+                                        ['Cadastrar produto', 'Digitar tudo à mão', 'Bipou, cadastrou, ou peça para a IA'],
+                                        ['Fiado', 'Caderno que some e cobrança constrangedora', 'Limite por cliente e cobrança pelo WhatsApp'],
+                                        ['Saber o lucro', 'Só no fim do mês, se der', 'Na tela, com despesas e boletos'],
+                                        ['Suporte', 'Central de atendimento e protocolo', 'Direto com o desenvolvedor'],
+                                        ['Contrato', 'Fidelidade e multa', 'Sem fidelidade, cancele quando quiser'],
+                                    ].map(([criterio, antes, agora], i, todas) => (
+                                        <tr key={criterio} className="hover:bg-[#101C31]/30 transition-colors">
+                                            <td className={`p-6 font-bold text-lg ${i < todas.length - 1 ? 'border-b border-[#24344F]' : ''}`}>{criterio}</td>
+                                            <td className={`p-6 border-r border-[#24344F] text-amber-500 font-bold bg-[#101C31]/50 text-center ${i < todas.length - 1 ? 'border-b' : ''}`}>{antes}</td>
+                                            <td className={`p-6 text-emerald-400 font-black text-lg bg-red-500/5 text-center ${i < todas.length - 1 ? 'border-b border-[#24344F]' : ''}`}>{agora}</td>
+                                        </tr>
+                                    ))}
                                 </tbody>
                             </table>
                         </div>
@@ -821,58 +656,20 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* PRICING SECTION */}
-            <section id="pricing" className="py-24 bg-[#0A1220] border-t border-[#24344F]">
+            {/* OFERTA: 2 meses grátis, só paga se fizer sentido */}
+            <section id="oferta" className="py-24 bg-[#0A1220] border-t border-[#24344F] scroll-mt-32">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="text-center max-w-3xl mx-auto mb-16">
-                        <h2 className="text-red-500 font-bold tracking-[1.5px] text-xs uppercase mb-4">Decisão de Sobrevivência</h2>
-                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">Comece simples. Evolua com controle.</h3>
-                        <p className="text-xl text-[#8FA3C0]">Escolha entre testar a operação essencial sem investimento inicial ou liberar a gestão profissional completa. Sem taxas escondidas. Cancele quando quiser.</p>
+                    <div className="text-center max-w-3xl mx-auto mb-12">
+                        <h2 className="text-[#FFD43B] font-bold tracking-[1.5px] text-xs uppercase mb-4">Risco zero</h2>
+                        <h3 className="text-4xl lg:text-5xl font-bold text-white mb-6">Use 2 meses. Depois você decide.</h3>
+                        <p className="text-xl text-[#8FA3C0]">Tudo isso por menos de R$ 3,40 por dia, e só se valer a pena para você.</p>
                     </div>
-
-                    <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                        {tiers.map((tier, i) => (
-                            <motion.div
-                                key={i}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                className={`bg-[#101C31] rounded-[24px] p-10 border ${tier.highlight ? 'border-[#2E9BFF] shadow-[0_0_40px_rgba(46,155,255,0.15)] relative transform md:-translate-y-4' : 'border-[#24344F]'}`}
-                            >
-                                {tier.highlight && (
-                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-linear-to-r from-[#2E9BFF] to-[#1D4ED8] text-white px-6 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg">
-                                        RECOMENDADO PARA ESCALAR
-                                    </div>
-                                )}
-                                <h4 className="text-3xl font-bold text-white mb-3">{tier.name}</h4>
-                                <p className="text-[#8FA3C0] h-14">{tier.description}</p>
-                                
-                                <div className="my-8 pb-8 border-b border-[#24344F]">
-                                    <span className="text-5xl font-black text-white">{tier.price}</span>
-                                    <span className="text-[#8FA3C0] ml-2">{tier.period}</span>
-                                </div>
-
-                                <ul className="space-y-4 mb-10 min-h-[320px]">
-                                    {tier.features.map((feature, idx) => (
-                                        <li key={idx} className="flex items-start gap-4">
-                                            <div className={`mt-1 w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${tier.highlight ? 'bg-[#2E9BFF]/20 text-[#2E9BFF]' : 'bg-gray-800 text-gray-400'}`}>
-                                                <Check className="w-4 h-4" />
-                                            </div>
-                                            <span className="text-[#DCE8F7] font-medium">{feature}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <button
-                                    onClick={() => handlePlanSelect(tier)}
-                                    className={`w-full py-5 rounded-[12px] font-bold text-lg transition-all ${
-                                        tier.highlight 
-                                        ? 'bg-linear-to-r from-[#2E9BFF] to-[#1D4ED8] text-white hover:shadow-[0_0_20px_rgba(46,155,255,0.4)] hover:scale-[1.02]'
-                                        : 'bg-transparent border border-[#2E9BFF] text-[#2E9BFF] hover:bg-[#2E9BFF]/10'
-                                    }`}>
-                                    {tier.cta}
-                                </button>
-                            </motion.div>
+                    <OfertaDoisMeses origem="site" onCadastro={() => navigate('/register')} />
+                    <div className="max-w-4xl mx-auto mt-10 grid sm:grid-cols-2 gap-x-8 gap-y-3 text-[#DCE8F7]">
+                        {['Caixa no computador, tablet ou celular', 'Estoque, validade e o que repor', 'Compras e nota do fornecedor pelo XML', 'Fiado e crediário com cobrança no WhatsApp',
+                          'Financeiro e lucro de verdade', 'Equipe, ponto e holerite', 'Entregas e vendedor externo', 'Consultor M-IA e relatórios em PDF e planilha',
+                          'Mais de uma loja na mesma conta', 'Suporte direto com o desenvolvedor'].map(item => (
+                            <p key={item} className="flex items-start gap-3"><Check className="w-5 h-5 text-[#2E9BFF] shrink-0 mt-0.5" /> {item}</p>
                         ))}
                     </div>
                 </div>
@@ -920,10 +717,10 @@ const LandingPage: React.FC = () => {
                     <div className="bg-linear-to-br from-[#101C31] to-[#0A1220] rounded-[32px] border border-[#24344F] overflow-hidden shadow-2xl relative">
                         <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-[#2E9BFF] via-[#FF6A5C] to-[#2E9BFF]"></div>
                         <div className="grid lg:grid-cols-2">
-                            <div className="p-10 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#24344F] flex flex-col justify-center">
-                                <h3 className="text-4xl font-bold text-white mb-6">Pronto para transformar sua gestão?</h3>
+                            <div className="min-w-0 p-6 sm:p-10 lg:p-16 border-b lg:border-b-0 lg:border-r border-[#24344F] flex flex-col justify-center">
+                                <h3 className="text-3xl sm:text-4xl font-bold text-white mb-6">Quer ver na sua loja?</h3>
                                 <p className="text-[#8FA3C0] text-lg mb-10 leading-relaxed">
-                                    Nossa equipe de especialistas está pronta para entender o seu negócio e realizar a implantação completa. Fale conosco hoje mesmo.
+                                    Chame no WhatsApp ou deixe seu contato. Quem fez o sistema vai até você, mostra funcionando e implanta junto, em Guarulhos, Zona Norte e Zona Leste de São Paulo.
                                 </p>
                                 <div className="space-y-8">
                                     <div className="flex items-center gap-5 group">
@@ -931,7 +728,7 @@ const LandingPage: React.FC = () => {
                                             <Phone className="w-6 h-6 text-[#2E9BFF]" />
                                         </div>
                                         <div>
-                                            <p className="text-[#8FA3C0] text-xs font-bold uppercase tracking-widest mb-1">Central de Vendas</p>
+                                            <p className="text-[#8FA3C0] text-xs font-bold uppercase tracking-widest mb-1">WhatsApp do desenvolvedor</p>
                                             <p className="text-2xl font-black text-white">(11) 91988-9233</p>
                                         </div>
                                     </div>
@@ -941,12 +738,12 @@ const LandingPage: React.FC = () => {
                                         </div>
                                         <div>
                                             <p className="text-[#8FA3C0] text-xs font-bold uppercase tracking-widest mb-1">E-mail Comercial</p>
-                                            <p className="text-xl font-bold text-white">vendas@mercadinhosys.com.br</p>
+                                            <p className="text-lg sm:text-xl font-bold text-white break-all">vendas@mercadinhosys.com.br</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="p-10 lg:p-16 bg-[#101C31]/50 backdrop-blur-sm">
+                            <div className="min-w-0 p-6 sm:p-10 lg:p-16 bg-[#101C31]/50 backdrop-blur-sm">
                                 <form onSubmit={handleLeadSubmit} className="space-y-6">
                                     <div>
                                         <label className="block text-[#8FA3C0] text-sm font-bold mb-2 uppercase tracking-wide">Nome Completo</label>
@@ -958,10 +755,10 @@ const LandingPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <div>
-                                        <label className="block text-[#8FA3C0] text-sm font-bold mb-2 uppercase tracking-wide">E-mail Corporativo</label>
+                                        <label className="block text-[#8FA3C0] text-sm font-bold mb-2 uppercase tracking-wide">E-mail</label>
                                         <div className="relative">
                                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4F6A8F]" />
-                                            <input required type="email" placeholder="exemplo@suaempresa.com.br" value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)}
+                                            <input required type="email" placeholder="seu@email.com" value={leadEmail} onChange={(e) => setLeadEmail(e.target.value)}
                                                 className="w-full bg-[#0A1220] border border-[#24344F] rounded-[12px] py-4 pl-12 pr-4 text-white focus:outline-none focus:border-[#2E9BFF] transition-all placeholder-[#4F6A8F]"
                                             />
                                         </div>
@@ -976,7 +773,7 @@ const LandingPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <button type="submit" disabled={loadingLead} className="w-full py-4 bg-[#2E9BFF] text-[#0A1220] rounded-[12px] font-black text-lg hover:bg-white transition-all flex items-center justify-center mt-4 shadow-[0_0_20px_rgba(46,155,255,0.3)]">
-                                        {loadingLead ? <div className="w-6 h-6 border-2 border-[#0A1220] border-t-transparent rounded-full animate-spin"></div> : 'SOLICITAR DEMONSTRAÇÃO'}
+                                        {loadingLead ? <div className="w-6 h-6 border-2 border-[#0A1220] border-t-transparent rounded-full animate-spin"></div> : 'QUERO 2 MESES GRÁTIS'}
                                     </button>
                                 </form>
                             </div>
@@ -995,115 +792,28 @@ const LandingPage: React.FC = () => {
                                 Mercadinho<span className="text-[#FF6A5C]">Sys</span>
                             </span>
                         </div>
-                        <div className="flex flex-wrap justify-center gap-8 text-sm font-bold text-[#8FA3C0]">
-                            <a href="#erp-features" className="hover:text-[#2E9BFF]">Tecnologia</a>
-                            <a href="#testimonials" className="hover:text-[#2E9BFF]">Clientes</a>
-                            <a href="#pricing" className="hover:text-[#2E9BFF]">Planos</a>
-                            <a href="/ajuda" className="hover:text-[#2E9BFF]">Ajuda / Base de Conhecimento</a>
+                        <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-sm font-bold text-[#8FA3C0]">
+                            <a href="#segmentos" className="hover:text-[#2E9BFF]">Segmentos</a>
+                            <a href="#oferta" className="hover:text-[#2E9BFF]">2 meses grátis</a>
+                            <a href="/ajuda" className="hover:text-[#2E9BFF]">Ajuda</a>
                             <a href="/termos" className="hover:text-[#2E9BFF]">Termos de Uso</a>
                             <a href="/privacidade" className="hover:text-[#2E9BFF]">Privacidade</a>
                             <a href="/login" className="hover:text-white bg-[#101C31] px-3 py-1 rounded-full border border-[#24344F]">Acesso Cliente</a>
                         </div>
                     </div>
+                    <nav aria-label="Sistema por tipo de comércio" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-[#8FA3C0]">
+                        {NICHOS.map(n => (
+                            <a key={n.slug} href={rotaNicho(n.slug)} className="hover:text-white">Sistema para {n.nome.toLowerCase()}</a>
+                        ))}
+                    </nav>
+                    <p className="mt-6 text-center text-sm text-[#8FA3C0]">Atendimento presencial em {REGIOES_ATENDIDAS.join(', ')}.</p>
                     <div className="mt-8 pt-8 border-t border-[#24344F] text-center flex flex-col md:flex-row justify-between items-center gap-4 text-[#4F6A8F] text-sm">
                         <p>&copy; {new Date().getFullYear()} MercadinhoSys Tecnologia. Todos os direitos reservados.</p>
-                        <p>O ERP construído para quem faz o varejo acontecer.</p>
+                        <p>Sistema 100% brasileiro, feito para quem faz o comércio acontecer.</p>
                     </div>
                 </div>
             </footer>
             
-            {/* CONVERSION MODAL */}
-            {conversionModalOpen && (
-                <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-[#0A1220]/90 backdrop-blur-md overflow-y-auto">
-                    <div className="bg-[#101C31] border border-[#2E9BFF]/30 w-full max-w-5xl rounded-[24px] shadow-[0_0_50px_rgba(46,155,255,0.15)] overflow-hidden relative flex flex-col md:flex-row">
-                        <button onClick={() => setConversionModalOpen(false)} className="absolute top-4 right-4 z-10 text-[#8FA3C0] hover:text-white bg-[#0A1220] rounded-full p-2 border border-[#24344F]">
-                            <X className="w-5 h-5" />
-                        </button>
-
-                        <div className="bg-linear-to-b from-[#0A1220] to-[#101C31] border-r border-[#24344F] w-full md:w-5/12 p-10 flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-[#2E9BFF]/5 rounded-full blur-[80px] pointer-events-none"></div>
-                            <div className="relative z-10">
-                                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-[#2E9BFF]/10 border border-[#2E9BFF]/30 text-[#2E9BFF] rounded-full text-xs font-black uppercase mb-6">
-                                    <Star className="w-4 h-4 fill-[#2E9BFF]" /> Escolha Profissional
-                                </div>
-                                <h3 className="text-4xl font-black text-white mb-2">{selectedPlan?.name}</h3>
-                                <div className="flex items-baseline gap-1 mb-10">
-                                    <span className="text-5xl font-black text-white">{selectedPlan?.price}</span>
-                                    <span className="text-[#8FA3C0] font-medium text-lg">/mês</span>
-                                </div>
-
-                                <ul className="space-y-5 mb-8">
-                                    <li className="flex items-start gap-4">
-                                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5"><Check className="w-4 h-4"/></div>
-                                        <p className="text-[#DCE8F7] text-sm leading-relaxed"><strong>Sem fidelidade.</strong> Cancele quando quiser, sem ressentimentos.</p>
-                                    </li>
-                                    <li className="flex items-start gap-4">
-                                        <div className="w-6 h-6 rounded-full bg-[#2E9BFF]/20 text-[#2E9BFF] flex items-center justify-center shrink-0 mt-0.5"><Lock className="w-4 h-4"/></div>
-                                        <p className="text-[#DCE8F7] text-sm leading-relaxed"><strong>Preço travado.</strong> O valor não sofrerá reajustes anuais surpresa.</p>
-                                    </li>
-                                    <li className="flex items-start gap-4">
-                                        <div className="w-6 h-6 rounded-full bg-[#FF6A5C]/20 text-[#FF6A5C] flex items-center justify-center shrink-0 mt-0.5"><ShieldCheck className="w-4 h-4"/></div>
-                                        <p className="text-[#DCE8F7] text-sm leading-relaxed"><strong>Garantia de 7 dias.</strong> Risco zero. Reembolso integral automático.</p>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <div className="w-full md:w-7/12 p-10 bg-[#101C31]">
-                            <h3 className="text-3xl font-black text-white mb-2">Configure seu Acesso</h3>
-                            <p className="text-[#8FA3C0] mb-8 text-lg">Crie sua conta para acessar o checkout seguro.</p>
-
-                            <form onSubmit={handleCheckout} className="space-y-6">
-                                <div>
-                                    <label className="block text-[#8FA3C0] text-sm font-bold mb-2 uppercase tracking-wide">E-mail de Acesso (Administrador)</label>
-                                    <div className="relative">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4F6A8F]" />
-                                        <input required type="email" placeholder="seu@email.com" value={onboardingEmail} onChange={(e) => setOnboardingEmail(e.target.value)}
-                                            className="w-full bg-[#0A1220] border border-[#24344F] rounded-[12px] py-4 pl-12 pr-4 text-white focus:outline-none focus:border-[#2E9BFF] placeholder-[#4F6A8F]"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[#8FA3C0] text-sm font-bold mb-2 uppercase tracking-wide">WhatsApp do Titular</label>
-                                    <div className="relative">
-                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4F6A8F]" />
-                                        <input required type="tel" placeholder="(11) 99999-9999" value={onboardingWhatsApp} onChange={(e) => setOnboardingWhatsApp(e.target.value)}
-                                            className="w-full bg-[#0A1220] border border-[#24344F] rounded-[12px] py-4 pl-12 pr-4 text-white focus:outline-none focus:border-[#2E9BFF] placeholder-[#4F6A8F]"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-[#8FA3C0] text-sm font-bold mb-2 uppercase tracking-wide">Nome da Empresa / Loja</label>
-                                    <div className="relative">
-                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#4F6A8F]" />
-                                        <input required type="text" placeholder="Ex: Supermercado Central" value={onboardingStoreName} onChange={(e) => setOnboardingStoreName(e.target.value)}
-                                            className="w-full bg-[#0A1220] border border-[#24344F] rounded-[12px] py-4 pl-12 pr-4 text-white focus:outline-none focus:border-[#2E9BFF] placeholder-[#4F6A8F]"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="mt-4 flex items-start gap-3 bg-[#0A1220]/50 p-4 rounded-xl border border-[#24344F]">
-                                    <input 
-                                        type="checkbox" 
-                                        id="terms" 
-                                        checked={termsAccepted}
-                                        onChange={(e) => setTermsAccepted(e.target.checked)}
-                                        className="mt-1 w-5 h-5 bg-[#0A1220] border-[#4F6A8F] rounded text-[#2E9BFF] focus:ring-[#2E9BFF] focus:ring-offset-[#101C31] cursor-pointer"
-                                    />
-                                    <label htmlFor="terms" className="text-[#8FA3C0] text-sm leading-relaxed cursor-pointer">
-                                        Li, compreendi e aceito os <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-[#2E9BFF] hover:underline font-bold">Termos de Uso</a> e a <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-[#2E9BFF] hover:underline font-bold">Política de Privacidade</a>.
-                                    </label>
-                                </div>
-                                <button type="submit" disabled={loadingCheckout || !termsAccepted} className={`w-full py-4 mt-8 text-white rounded-[12px] font-black text-lg transition-all flex items-center justify-center ${termsAccepted ? 'bg-linear-to-r from-[#2E9BFF] to-[#1D4ED8] hover:shadow-[0_0_25px_rgba(46,155,255,0.4)] hover:scale-[1.02]' : 'bg-[#24344F] text-[#8FA3C0] cursor-not-allowed'}`}>
-                                    {loadingCheckout ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'IR PARA O PAGAMENTO SEGURO'}
-                                </button>
-                                <p className="text-center text-[#4F6A8F] text-xs font-medium mt-4 flex items-center justify-center gap-1">
-                                    <Lock className="w-3 h-3" /> Transação 100% segura e criptografada
-                                </p>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

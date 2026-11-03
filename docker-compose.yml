@@ -70,11 +70,15 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:5173}
 
       # Email (opcional)
-      MAIL_SERVER: ${MAIL_SERVER:-smtp.gmail.com}
-      MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USE_TLS: ${MAIL_USE_TLS:-true}
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.zoho.com}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-true}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-false}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
     volumes:
       - ./backend:/app
       - backend_uploads:/app/instance/uploads

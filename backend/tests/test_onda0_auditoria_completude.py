@@ -58,6 +58,10 @@ def test_cadastro_sem_senha_e_recusado(client, session):
 def test_cadastro_com_senha_permite_login_e_dashboard_em_trial(client, session):
     r = client.post("/api/onboarding/registrar", json=_payload_cadastro(senha="MinhaSenha1"))
     assert r.status_code == 201, r.get_data(as_text=True)
+    # A oferta da landing e do panfleto é "2 meses grátis": o teste self-service dura 60 dias.
+    trial = r.get_json()["trial"]
+    assert trial["dias"] == 60
+    assert trial["vencimento"].startswith((date.today() + timedelta(days=60)).isoformat())
 
     login = client.post("/api/auth/login", json={"username": "dono_onda0", "senha": "MinhaSenha1"})
     assert login.status_code == 200, login.get_data(as_text=True)

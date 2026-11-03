@@ -167,7 +167,7 @@ def test_onboarding_atomic_flow(client, session):
     with allow_all_tenants():
         stored_est = Est.query.filter_by(email="test@autostore.com").first()
         assert stored_est is not None
-        # Plano default do onboarding agora é TRIAL PRO: 30 dias grátis
+        # Plano default do onboarding é TRIAL PRO (o pedido acima fixa trial_dias=30)
         assert stored_est.plano == "trial"
         assert stored_est.plano_status == "experimental"
         assert stored_est.vencimento_plano is not None

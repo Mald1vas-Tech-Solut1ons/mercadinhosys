@@ -1,0 +1,321 @@
+[
+  {
+    "slug": "mercadinho",
+    "nome": "Mercadinho",
+    "icone": "store",
+    "seoTitle": "Sistema para mercadinho fácil e barato | MercadinhoSys",
+    "seoDescription": "Sistema para mercadinho que avisa validade, controla o fiado e mostra o que repor. Cadastro pelo código de barras e 2 meses grátis com implantação.",
+    "h1": "Sistema para mercadinho: validade, fiado e estoque no controle",
+    "subtitulo": "Ele avisa o que está vencendo, segura o fiado com limite e mostra o que falta repor. Você atende o cliente; o sistema faz a conta.",
+    "dores": [
+      "Produto vence na prateleira porque ninguém viu a data a tempo.",
+      "Fiado no caderno vira prejuízo e a cobrança fica constrangedora.",
+      "Não saber o que tem no estoque nem o que comprar primeiro."
+    ],
+    "recursos": [
+      { "titulo": "Bipou, cadastrou", "texto": "Passou o código de barras no leitor ou na câmera do celular e o produto entra com nome, marca, foto e NCM. Menos digitação no balcão." },
+      { "titulo": "Validade e lote no lugar certo", "texto": "O sistema avisa o que está perto de vencer e mostra qual lote vender primeiro. Menos perda, menos produto jogado fora." },
+      { "titulo": "Fiado com limite e cobrança", "texto": "Cada cliente tem limite e histórico, e a cobrança sai pelo WhatsApp. O caderno sai do balcão." },
+      { "titulo": "Hortifrúti por quilo", "texto": "Produtos pesáveis vendidos por kg, junto com o resto da compra, no mesmo caixa." },
+      { "titulo": "Avisa o que repor", "texto": "Estoque baixo, produtos parados e os que mais vendem aparecem sozinhos. Você compra certo, sem adivinhar." }
+    ],
+    "exemploIA": "Cadastra tomate por quilo, R$ 8,49 o kg",
+    "buscas": ["sistema para mercadinho", "programa para mercadinho", "app para mercadinho", "controle de estoque para mercadinho", "sistema barato para mercadinho", "sistema fácil para mercadinho", "frente de caixa para mercadinho", "sistema para mercadinho com fiado", "sistema para mercadinho em Guarulhos"],
+    "faq": [
+      { "q": "Quanto custa e como funcionam os 2 meses grátis?", "a": "São 2 meses grátis com implantação junto com você: a gente importa os produtos e configura a loja. Depois, só se fizer sentido, fica R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender a usar?", "a": "Não. O caixa funciona com leitor de código de barras ou com a câmera do celular, e o cadastro é bipou, cadastrou. A gente fica do seu lado na implantação até você andar sozinho." },
+      { "q": "O sistema controla validade e fiado?", "a": "Sim. Ele avisa o que está vencendo, mostra qual lote sair primeiro e organiza o fiado com limite, histórico e cobrança pelo WhatsApp." },
+      { "q": "Preciso de computador?", "a": "Não é obrigatório. Funciona no celular, no tablet e no computador." }
+    ]
+  },
+  {
+    "slug": "supermercado",
+    "nome": "Supermercado",
+    "icone": "shopping-cart",
+    "seoTitle": "Sistema para supermercado com vários caixas | MercadinhoSys",
+    "seoDescription": "Sistema para supermercado com vários caixas, validade, pedido de compra, nota do fornecedor por XML e ponto da equipe. Comece com 2 meses grátis.",
+    "h1": "Sistema para supermercado: caixas, compras e equipe num lugar só",
+    "subtitulo": "Cada operador no seu caixa, a nota do fornecedor entrando pelo XML e a equipe batendo ponto pelo celular. Você enxerga a loja inteira sem planilha.",
+    "dores": [
+      "Caixa fecha diferente e ninguém sabe quem cancelou ou estornou.",
+      "Produto vencido na gôndola e compra feita sem olhar o que mais vende.",
+      "Ponto, banco de horas e holerite tomando horas no papel."
+    ],
+    "recursos": [
+      { "titulo": "Vários caixas, cada um no seu acesso", "texto": "Cada operador entra com o próprio usuário e só vê o que for liberado. Cancelar ou estornar pede o PIN do dono, e fica registrado quem fez." },
+      { "titulo": "Nota do fornecedor sem digitar", "texto": "Gere o pedido de compra e dê entrada na nota do fornecedor pelo XML ou pelo QR code. O estoque se atualiza sozinho." },
+      { "titulo": "Validade e lote", "texto": "Avisos do que está vencendo e de qual lote sair primeiro, para a gôndola não virar prejuízo." },
+      { "titulo": "Curva ABC e produtos parados", "texto": "Veja o que mais vende e o que está parado ocupando dinheiro. A compra fica mais certeira." },
+      { "titulo": "Ponto e holerite da equipe", "texto": "A equipe bate ponto pelo celular com foto; banco de horas e holerite saem do sistema." }
+    ],
+    "exemploIA": "Cadastra leite integral 1 L, R$ 4,89",
+    "buscas": ["sistema para supermercado", "programa para supermercado", "sistema de supermercado barato", "controle de estoque para supermercado", "frente de caixa para supermercado", "sistema para supermercado pequeno", "sistema para supermercado com vários caixas", "sistema para supermercado zona leste SP"],
+    "faq": [
+      { "q": "Quanto custa e como funcionam os 2 meses grátis?", "a": "São 2 meses grátis com implantação junto com você: a gente importa os produtos e configura a loja. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "A equipe aprende rápido?", "a": "Sim. O caixa é simples e cada funcionário vê só o que precisa. A implantação é feita junto com você e a sua equipe." },
+      { "q": "Dá para controlar validade e compras do fornecedor?", "a": "Sim. O sistema avisa validade e lote, gera pedido de compra e recebe a nota do fornecedor por XML ou QR code." },
+      { "q": "Emite nota fiscal?", "a": "A emissão de nota fiscal é um módulo à parte, com custo à parte. Consulte as condições no atendimento." }
+    ]
+  },
+  {
+    "slug": "mercearia",
+    "nome": "Mercearia",
+    "icone": "shopping-basket",
+    "seoTitle": "Sistema para mercearia simples e barato | MercadinhoSys",
+    "seoDescription": "Sistema para mercearia com fiado com limite, etiquetas de preço e aviso de validade e reposição. Implantação junto com você e 2 meses grátis.",
+    "h1": "Sistema para mercearia: fiado, etiqueta e reposição sem caderno",
+    "subtitulo": "Etiqueta de preço certa na prateleira, fiado com limite e aviso do que está acabando. A mercearia de sempre, com a conta em dia.",
+    "dores": [
+      "Mercadoria vencendo na prateleira e prejuízo que só aparece no fim do mês.",
+      "Fiado anotado no caderno, cliente atrasa e a cobrança fica difícil.",
+      "Etiqueta de preço desatualizada e falta do produto que o cliente procura."
+    ],
+    "recursos": [
+      { "titulo": "Etiquetas com código de barras", "texto": "Imprima a etiqueta de preço com código de barras direto do sistema. Preço certo na prateleira e caixa mais rápido." },
+      { "titulo": "Fiado com limite e WhatsApp", "texto": "Limite por cliente, histórico e cobrança pelo WhatsApp. Sem caderno, sem esquecer quem deve." },
+      { "titulo": "Validade e o que repor", "texto": "Aviso do que está vencendo e do que está acabando. Você repõe o que vende e perde menos." },
+      { "titulo": "Bipou, cadastrou", "texto": "Pelo leitor ou pela câmera do celular, o produto entra com nome, marca, foto e NCM." },
+      { "titulo": "Lucro de verdade", "texto": "Despesas, contas a pagar e o lucro real do mês, não só o que entrou no caixa." }
+    ],
+    "exemploIA": "Cadastra arroz 5 kg, R$ 24,90",
+    "buscas": ["sistema para mercearia", "programa para mercearia", "app para mercearia", "controle de estoque para mercearia", "sistema barato para mercearia", "sistema fácil para mercearia", "frente de caixa para mercearia", "controle de fiado para mercearia"],
+    "faq": [
+      { "q": "Quanto custa e como funcionam os 2 meses grátis?", "a": "São 2 meses grátis com implantação junto com você: a gente importa os produtos e configura a loja. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender a usar?", "a": "Não. O cadastro é bipou, cadastrou e o caixa é simples. A gente implanta junto com você." },
+      { "q": "O sistema controla fiado e validade?", "a": "Sim. Fiado com limite, histórico e cobrança pelo WhatsApp, e aviso do que está vencendo e do que repor." },
+      { "q": "Preciso de equipamento caro?", "a": "Não. Funciona no celular, no tablet ou no computador, com leitor de código de barras ou com a câmera do celular." }
+    ]
+  },
+  {
+    "slug": "loja-de-roupas",
+    "nome": "Loja de roupas",
+    "icone": "shirt",
+    "seoTitle": "Sistema para loja de roupas fácil e barato | MercadinhoSys",
+    "seoDescription": "Sistema para loja de roupas com grade de tamanho e cor, etiquetas com código de barras e crediário com cobrança no WhatsApp. 2 meses grátis.",
+    "h1": "Sistema para loja de roupas: grade, etiqueta e crediário no jeito",
+    "subtitulo": "Tamanho e cor organizados, etiqueta com código de barras e crediário com limite. Você atende a cliente; o sistema segura a rotina da loja.",
+    "dores": [
+      "Perder venda porque não sabe se tem a peça no tamanho certo.",
+      "Crediário no caderno que some e cobrança que vira constrangimento.",
+      "Fechar o caixa sem saber quanto entrou de dinheiro, Pix e cartão."
+    ],
+    "recursos": [
+      { "titulo": "Grade de tamanho e cor", "texto": "Cadastre a peça com tamanho, cor e coleção e venda por peça, conjunto ou kit sem perder o controle do que saiu." },
+      { "titulo": "Etiqueta com código de barras", "texto": "Gere a etiqueta de preço com código de barras e passe no caixa com leitor ou com a câmera do celular." },
+      { "titulo": "Crediário com cobrança no WhatsApp", "texto": "Limite por cliente, histórico de compras e cobrança pelo WhatsApp, sem planilha paralela." },
+      { "titulo": "A IA cadastra a peça por texto", "texto": "Escreva \"cadastra camiseta preta M, R$ 49,90\" e a peça entra com categoria e NCM preenchidos para você conferir." },
+      { "titulo": "Caixa conferido", "texto": "Abertura e fechamento do caixa com dinheiro, Pix, cartão e crediário separados." }
+    ],
+    "exemploIA": "Cadastra camiseta preta M, R$ 49,90",
+    "buscas": ["sistema para loja de roupas", "programa para loja de roupas", "app para loja de roupas", "controle de estoque para loja de roupas", "sistema barato para loja de roupas", "sistema fácil para loja de roupas", "sistema para boutique", "sistema para outlet de roupas", "crediário para loja de roupas"],
+    "faq": [
+      { "q": "Quanto custa depois dos 2 meses grátis?", "a": "Nos 2 meses a gente implanta junto com você, importa os produtos e configura a loja. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender a usar?", "a": "Não. A nossa primeira cliente, um outlet de roupas, aprendeu a usar em poucos minutos. E a gente fica do seu lado na implantação." },
+      { "q": "Dá para controlar crediário e cobrar pelo WhatsApp?", "a": "Sim. O crediário tem limite, histórico e cobrança pelo WhatsApp, e fica registrado quem fez cada venda." },
+      { "q": "Emite nota fiscal?", "a": "A emissão de nota fiscal é um módulo à parte, com custo à parte. Caixa, estoque e crediário funcionam sem ele." }
+    ]
+  },
+  {
+    "slug": "loja-de-calcados",
+    "nome": "Loja de calçados",
+    "icone": "footprints",
+    "seoTitle": "Sistema para loja de calçados simples | MercadinhoSys",
+    "seoDescription": "Sistema para loja de calçados com numeração, modelo e material de cada par, etiquetas e crediário no WhatsApp. Comece agora com 2 meses grátis.",
+    "h1": "Sistema para loja de calçados: numeração e crediário no lugar",
+    "subtitulo": "Cada par com numeração, modelo e material, fácil de achar na hora da venda. Etiqueta com código de barras e crediário com limite.",
+    "dores": [
+      "Vender o par errado porque a numeração está misturada no estoque.",
+      "Não saber quais modelos encalharam e quais precisam repor.",
+      "Crediário no caderno e caixa sem conferir dinheiro, Pix e cartão."
+    ],
+    "recursos": [
+      { "titulo": "Numeração, tipo e modelo", "texto": "Cadastre cada par com numeração, tipo de calçado, material e modelo, e ache rápido no estoque." },
+      { "titulo": "Etiqueta e leitor no caixa", "texto": "Imprima a etiqueta de preço com código de barras e use leitor ou a câmera do celular no caixa." },
+      { "titulo": "Crediário com limite", "texto": "Limite por cliente, histórico e cobrança pelo WhatsApp, sem caderno paralelo." },
+      { "titulo": "O que gira e o que encalhou", "texto": "Veja os modelos que mais vendem e os parados, e reponha só o que sai." },
+      { "titulo": "A IA cadastra por texto", "texto": "Escreva \"cadastra tênis branco 38, R$ 129,90\" e o par entra pronto para você conferir." }
+    ],
+    "exemploIA": "Cadastra tênis branco 38, R$ 129,90",
+    "buscas": ["sistema para loja de calçados", "programa para loja de calçados", "app para loja de calçados", "controle de estoque para loja de calçados", "sistema barato para loja de calçados", "sistema fácil para loja de calçados", "frente de caixa para loja de calçados", "controle de numeração de calçados"],
+    "faq": [
+      { "q": "Quanto custa depois dos 2 meses grátis?", "a": "Nos 2 meses a gente implanta junto com você, importa os produtos e configura a loja. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender?", "a": "Não. O caixa aceita leitor de código de barras ou a câmera do celular, e a IA cadastra produto por texto. A gente implanta junto com você." },
+      { "q": "Dá para controlar numeração e crediário?", "a": "Sim. Cada par tem numeração, tipo, material e modelo, e o crediário tem limite, histórico e cobrança pelo WhatsApp." },
+      { "q": "Emite nota fiscal?", "a": "A emissão de nota fiscal é um módulo à parte, com custo à parte." }
+    ]
+  },
+  {
+    "slug": "moto-pecas",
+    "nome": "Moto peças",
+    "icone": "wrench",
+    "seoTitle": "Sistema para moto peças e oficina | MercadinhoSys",
+    "seoDescription": "Sistema para moto peças com peça por modelo de moto, serviço e peça no mesmo caixa e busca rápida no balcão. Comece com 2 meses grátis.",
+    "h1": "Sistema para moto peças: peça, serviço e caixa juntos",
+    "subtitulo": "A peça certa aparece rápido no balcão, com medida e para qual moto serve. Troca de óleo e mão de obra entram no mesmo caixa da peça.",
+    "dores": [
+      "Perder tempo procurando peça sem saber para qual moto ela serve.",
+      "Serviço cobrado separado da peça e o caixa não fecha no fim do dia.",
+      "Estoque desencontrado de kit, jogo, par e litro."
+    ],
+    "recursos": [
+      { "titulo": "Peça certa para cada moto", "texto": "Cadastre as peças com medidas e para qual moto servem. No balcão, a busca mostra rápido o que tem na prateleira." },
+      { "titulo": "Serviço e peça no mesmo caixa", "texto": "Troca de óleo, mecânica e reparo entram no mesmo caixa da peça, com dinheiro, Pix, cartão e fiado." },
+      { "titulo": "Kit, jogo, par e litro", "texto": "Venda nas unidades que a peça pede e deixe o estoque avisar o que está acabando." },
+      { "titulo": "Pedido de compra pronto", "texto": "O sistema mostra o que repor e gera o pedido de compra; a nota do fornecedor entra pelo XML." },
+      { "titulo": "Quem vendeu e quem cancelou", "texto": "Cada funcionário no seu acesso; cancelamento só com o PIN do dono, e tudo fica registrado." }
+    ],
+    "exemploIA": "Cadastra kit relação CG 160, R$ 189,90",
+    "buscas": ["sistema para moto peças", "programa para moto peças", "app para moto peças", "controle de estoque para moto peças", "sistema barato para moto peças", "sistema para oficina de moto", "sistema para autopeças", "frente de caixa para moto peças", "sistema para moto peças em Guarulhos"],
+    "faq": [
+      { "q": "Quanto custa depois dos 2 meses grátis?", "a": "Nos 2 meses a gente implanta junto com você, importa os produtos e configura a loja. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender?", "a": "Não. A busca no balcão é rápida e o caixa usa leitor ou a câmera do celular. A gente implanta junto com você." },
+      { "q": "Dá para vender peça e serviço no mesmo caixa?", "a": "Sim. Troca de óleo, mecânica e reparo entram no mesmo caixa da peça vendida." },
+      { "q": "Serve para autopeças de carro?", "a": "Sim. O perfil de peças e oficina vale para moto e carro." }
+    ]
+  },
+  {
+    "slug": "tabacaria",
+    "nome": "Tabacaria",
+    "icone": "flame",
+    "seoTitle": "Sistema para tabacaria: caixa e estoque | MercadinhoSys",
+    "seoDescription": "Sistema para tabacaria com categorias prontas, controle de caixa e registro de quem vendeu. Saiba o que repor. Comece agora com 2 meses grátis.",
+    "h1": "Sistema para tabacaria: giro, caixa e quem vendeu",
+    "subtitulo": "Cigarro, seda, isqueiro, fumo e acessórios de narguilé já entram em categorias prontas. O caixa mostra quem vendeu e o estoque avisa o que repor.",
+    "dores": [
+      "Não saber quais itens giram mais e o que está faltando na prateleira.",
+      "Caixa sem saber quem vendeu e quanto entrou em cada turno.",
+      "Muito item pequeno e parecido, e a conta do estoque se perde."
+    ],
+    "recursos": [
+      { "titulo": "Categorias prontas", "texto": "Cigarros, sedas e filtros, isqueiros, fumo, narguilé e acessórios já separados para achar e vender mais rápido." },
+      { "titulo": "Giro e reposição", "texto": "Veja o que gira e o que precisa repor; o estoque avisa quando está baixo e mostra o que está parado." },
+      { "titulo": "Caixa conferido por turno", "texto": "Abertura e fechamento do caixa com dinheiro, Pix, cartão e fiado separados." },
+      { "titulo": "Quem vendeu e quem cancelou", "texto": "Cada funcionário entra com o próprio acesso; o registro mostra quem vendeu, e cancelar pede o PIN do dono." },
+      { "titulo": "A IA cadastra por texto", "texto": "Escreva o produto e o preço e a IA cadastra; ela também responde com os números reais da loja." }
+    ],
+    "exemploIA": "Cadastra seda king size, R$ 6,50",
+    "buscas": ["sistema para tabacaria", "programa para tabacaria", "app para tabacaria", "controle de estoque para tabacaria", "sistema barato para tabacaria", "sistema fácil para tabacaria", "frente de caixa para tabacaria", "sistema para headshop"],
+    "faq": [
+      { "q": "Quanto custa depois dos 2 meses grátis?", "a": "Nos 2 meses a gente implanta junto com você, importa os produtos e configura a loja. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender?", "a": "Não. O caixa usa leitor de código de barras ou a câmera do celular, e a IA cadastra produto por texto. Atendemos presencialmente em Guarulhos, Zona Norte e Zona Leste de SP." },
+      { "q": "Dá para ver o que gira e o que repor?", "a": "Sim. O sistema mostra o que gira, o que está parado e o que precisa repor." },
+      { "q": "Emite nota fiscal?", "a": "A emissão de nota fiscal é um módulo à parte, com custo à parte." }
+    ]
+  },
+  {
+    "slug": "loja-de-suplementos",
+    "nome": "Suplementos",
+    "icone": "pill",
+    "seoTitle": "Sistema para loja de suplementos | MercadinhoSys",
+    "seoDescription": "Sistema para loja de suplementos com validade e lote obrigatórios, registro Anvisa e aviso do que está vencendo. 2 meses grátis com implantação.",
+    "h1": "Sistema para loja de suplementos: validade e lote no controle",
+    "subtitulo": "Chega de perder suplemento vencido ou vender sem saber o lote. O sistema guarda validade, lote, sabor e dose, e avisa o que está vencendo.",
+    "dores": [
+      "Perder suplemento caro por validade vencida.",
+      "Não saber o lote vendido quando o cliente reclama.",
+      "Não saber o que está acabando, o que está parado e o que repor."
+    ],
+    "recursos": [
+      { "titulo": "Validade e lote obrigatórios", "texto": "Cada produto com validade e lote; o sistema avisa o que está vencendo antes de virar prejuízo." },
+      { "titulo": "Ficha completa do produto", "texto": "Registro Anvisa, sabor, dose, porção e forma (cápsula, pó) no cadastro." },
+      { "titulo": "Bipou, cadastrou", "texto": "Pelo código de barras o produto entra com nome, marca e foto; ou escreva para a IA cadastrar." },
+      { "titulo": "O que repor", "texto": "Estoque baixo, parados e mais vendidos; o pedido de compra sai pronto e a nota do fornecedor entra pelo XML ou QR code." },
+      { "titulo": "Crediário e caixa conferido", "texto": "Limite por cliente, cobrança pelo WhatsApp e fechamento de caixa com dinheiro, Pix e cartão." }
+    ],
+    "exemploIA": "Cadastra whey protein 900 g sabor chocolate, R$ 129,90",
+    "buscas": ["sistema para loja de suplementos", "programa para loja de suplementos", "controle de validade de suplementos", "controle de estoque loja de suplementos", "sistema barato para loja de suplementos", "sistema para loja de produtos naturais", "frente de caixa para loja de suplementos", "app para loja de suplementos"],
+    "faq": [
+      { "q": "Como funcionam os 2 meses grátis e o preço?", "a": "São 2 meses grátis com implantação junto: a gente importa os produtos e configura. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender o sistema?", "a": "Não. Bipou, cadastrou. E você fala direto com o desenvolvedor quando precisar." },
+      { "q": "O sistema controla validade e lote?", "a": "Sim. Validade e lote são obrigatórios nesse tipo de produto, e o sistema avisa o que está vencendo." },
+      { "q": "Emite nota fiscal?", "a": "A emissão de nota fiscal é um módulo à parte, com custo à parte." }
+    ]
+  },
+  {
+    "slug": "material-de-construcao",
+    "nome": "Material de construção",
+    "icone": "hammer",
+    "seoTitle": "Sistema para loja de material de construção | MercadinhoSys",
+    "seoDescription": "Sistema para loja de material de construção com venda por metro, saco, m² e m³, vendedor externo e entregas. 2 meses grátis com implantação.",
+    "h1": "Sistema para material de construção: venda por medida sem erro",
+    "subtitulo": "Saco, metro, m², m³, milheiro, rolo ou barra, cada produto na unidade certa. Vendedor externo, entregas e fiado no mesmo sistema.",
+    "dores": [
+      "Errar a conta vendendo por metro, saco, m² e milheiro.",
+      "Não saber o que acabou, o que está parado e o que repor.",
+      "Entrega e pedido do vendedor externo anotados no papel."
+    ],
+    "recursos": [
+      { "titulo": "A unidade certa em cada produto", "texto": "Saco, metro, m², m³, milheiro, rolo ou barra: cada item com a sua unidade, e a conta sai certa no caixa." },
+      { "titulo": "Elétrica, hidráulica e ferragem", "texto": "Voltagem e amperagem, diâmetro e pressão, rosca e comprimento no cadastro, para achar a peça certa na hora." },
+      { "titulo": "Vendedor externo e entregas", "texto": "O vendedor tira o pedido pelo celular e a entrega fica registrada. Você vê o que saiu e o que falta entregar." },
+      { "titulo": "O que repor", "texto": "Estoque baixo, parados e mais vendidos; o pedido de compra sai pronto e a nota do fornecedor entra pelo XML." },
+      { "titulo": "Fiado com limite", "texto": "Limite por cliente, histórico e cobrança pelo WhatsApp." }
+    ],
+    "exemploIA": "Cadastra cabo flexível 2,5 mm rolo 100 m, R$ 189,90",
+    "buscas": ["sistema para loja de material de construção", "programa para material de construção", "controle de estoque material de construção", "sistema barato para material de construção", "sistema para depósito de construção", "sistema para loja de ferragens", "sistema para casa de material elétrico", "frente de caixa material de construção"],
+    "faq": [
+      { "q": "Como funcionam os 2 meses grátis e o preço?", "a": "São 2 meses grátis com implantação junto: a gente importa os produtos e configura. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender o sistema?", "a": "Não. A gente configura com você e você fala direto com o desenvolvedor quando precisar." },
+      { "q": "Como funciona a venda por metro, saco, m² e m³?", "a": "Cada produto fica com a unidade certa e o caixa usa essa medida na venda." },
+      { "q": "Dá para controlar vendedor externo e entrega?", "a": "Sim. O vendedor tira o pedido pelo celular e a entrega fica registrada para você acompanhar." }
+    ]
+  },
+  {
+    "slug": "adega-e-conveniencia",
+    "nome": "Adega e conveniência",
+    "icone": "wine",
+    "seoTitle": "Sistema para adega e conveniência | MercadinhoSys",
+    "seoDescription": "Sistema para adega e conveniência com caixa rápido no balcão, fiado e entregas com motoboy. Controle bebidas e descartáveis. 2 meses grátis.",
+    "h1": "Sistema para adega e conveniência: caixa rápido e fiado",
+    "subtitulo": "Bebidas, descartáveis, fiado e entregas num lugar só. O caixa fecha conferido por turno e o estoque avisa o que está acabando.",
+    "dores": [
+      "Fiado anotado no caderno some e vira prejuízo no fim do mês.",
+      "No fechamento do turno o caixa não bate e ninguém sabe por quê.",
+      "A bebida que mais vende acaba sem aviso, bem na hora do movimento."
+    ],
+    "recursos": [
+      { "titulo": "Caixa rápido no balcão", "texto": "Bipa com leitor ou com a câmera do celular e recebe em dinheiro, Pix, cartão ou fiado. No fim do turno, fechamento conferido." },
+      { "titulo": "Fiado com cobrança no WhatsApp", "texto": "Limite por cliente e cobrança pelo WhatsApp, sem esquecer quem deve." },
+      { "titulo": "Entregas com motoboy", "texto": "Organize as entregas do dia e acompanhe o que saiu e o que falta entregar." },
+      { "titulo": "Estoque avisa o que repor", "texto": "Produto baixo, parado e os mais vendidos. Você repõe o que vende e não deixa dinheiro parado na prateleira." },
+      { "titulo": "Quem estava no caixa", "texto": "Cada funcionário no seu acesso; cancelar pede o PIN do dono, e tudo fica registrado." }
+    ],
+    "exemploIA": "Cadastra cerveja lata 350 ml, R$ 3,99",
+    "buscas": ["sistema para adega", "sistema para conveniência", "programa para adega e conveniência", "sistema de caixa para adega", "controle de fiado para adega", "sistema para loja de bebidas", "controle de estoque para conveniência", "app para adega"],
+    "faq": [
+      { "q": "Preciso pagar para começar?", "a": "Não. São 2 meses grátis com implantação junto: a gente importa os produtos e configura. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender a usar?", "a": "Não. O dia a dia é bipar, receber e fechar o caixa. Se travar, você fala direto com o desenvolvedor." },
+      { "q": "Serve para fiado e entrega de motoboy?", "a": "Sim. Fiado com limite e cobrança no WhatsApp, e entregas organizadas pelo sistema." },
+      { "q": "Preciso de computador?", "a": "Não é obrigatório. Funciona no celular, no tablet ou no computador, e a câmera do celular serve de leitor." }
+    ]
+  },
+  {
+    "slug": "distribuidora",
+    "nome": "Distribuidora",
+    "icone": "truck",
+    "seoTitle": "Sistema para distribuidora: pedido na rua | MercadinhoSys",
+    "seoDescription": "Sistema para distribuidora com pedido do vendedor externo no celular, estoque reservado e cliente CNPJ com limite de crédito. 2 meses grátis.",
+    "h1": "Sistema para distribuidora: pedido na rua e estoque reservado",
+    "subtitulo": "O vendedor tira o pedido no celular, o estoque reserva e separa, o cliente empresa tem limite de crédito e a entrega sai organizada.",
+    "dores": [
+      "Pedido no papel ou no WhatsApp se perde e o vendedor não sabe o que tem no estoque.",
+      "Cliente CNPJ passa do limite de crédito e você só percebe depois.",
+      "Separação e entrega viram bagunça quando o pedido não reserva o estoque."
+    ],
+    "recursos": [
+      { "titulo": "Pedido na rua pelo celular", "texto": "O vendedor externo tira o pedido no celular dele; o estoque é reservado e a separação fica clara." },
+      { "titulo": "Cliente CNPJ com limite", "texto": "Cadastre o cliente empresa com CNPJ e limite de crédito, e saiba quanto ele já deve antes de fechar o pedido." },
+      { "titulo": "Separação e entrega", "texto": "O pedido entra reservado, a separação sai em ordem e a entrega fica registrada." },
+      { "titulo": "Compra do fornecedor sem digitar", "texto": "Pedido de compra pronto e nota do fornecedor pelo XML ou QR code. O estoque avisa o que repor." },
+      { "titulo": "Números reais na mão", "texto": "Pergunte para a IA sobre vendas, estoque e contas e receba a resposta com os números da sua empresa, em PDF ou planilha." }
+    ],
+    "exemploIA": "Cadastra fardo de refrigerante 2 L com 6 unidades, R$ 29,90",
+    "buscas": ["sistema para distribuidora", "programa para distribuidora", "sistema para vendedor externo", "pedido de venda no celular", "controle de estoque para distribuidora", "sistema para distribuidora de bebidas", "sistema para distribuidora de alimentos", "app para distribuidora"],
+    "faq": [
+      { "q": "Preciso pagar para começar?", "a": "Não. São 2 meses grátis com implantação junto: a gente importa os produtos e configura. Depois, só se fizer sentido, R$ 99,90 por mês com preço travado, sem fidelidade e sem taxa de implantação." },
+      { "q": "É difícil aprender a usar?", "a": "Não. O vendedor tira o pedido no celular e o escritório acompanha. A gente configura com você." },
+      { "q": "Dá para controlar cliente CNPJ com limite?", "a": "Sim. Cliente empresa com CNPJ e limite de crédito, para não passar do combinado." },
+      { "q": "Emite nota fiscal?", "a": "A emissão de nota fiscal é um módulo à parte, com custo à parte. Consulte as condições no atendimento." }
+    ]
+  }
+]

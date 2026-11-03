@@ -11,6 +11,7 @@ allowed = {
     'CLOUDINARY_URL', 'EFI_CLIENT_ID_HOMOL', 'EFI_CLIENT_SECRET_HOMOL',
     'EFI_CLIENT_ID_PROD', 'EFI_CLIENT_SECRET_PROD', 'EFI_PIX_KEY', 'EFI_ENV',
     'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_DEFAULT_SENDER',
+    'MAIL_SERVER', 'MAIL_PORT', 'MAIL_USE_SSL', 'MAIL_USE_TLS', 'EMAIL_FROM', 'MAIL_REPLY_TO',
 }
 values = json.load(sys.stdin)
 assert set(values) <= allowed, 'Variáveis não autorizadas.'

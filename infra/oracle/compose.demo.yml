@@ -67,9 +67,15 @@ services:
       EFI_PIX_KEY: ${EFI_PIX_KEY:-}
       EFI_ENV: ${EFI_ENV:-sandbox}
       BACKEND_URL: https://mercadinhosys-api.144.22.151.18.sslip.io
+      MAIL_SERVER: ${MAIL_SERVER:-smtp.zoho.com}
+      MAIL_PORT: ${MAIL_PORT:-465}
+      MAIL_USE_SSL: ${MAIL_USE_SSL:-true}
+      MAIL_USE_TLS: ${MAIL_USE_TLS:-false}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_DEFAULT_SENDER: ${MAIL_DEFAULT_SENDER:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
       CORS_ORIGINS: ${CORS_ORIGINS:?Configure CORS_ORIGINS}
       DB_POOL_SIZE: "2"
       DB_MAX_OVERFLOW: "1"

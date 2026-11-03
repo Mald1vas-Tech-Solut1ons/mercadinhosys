@@ -13,8 +13,10 @@ import json
 
 onboarding_bp = Blueprint("onboarding", __name__)
 
-# Duração do período de teste gratuito (self-service)
-TRIAL_DIAS = 30
+# Duração do período de teste gratuito: 2 meses, o tempo em que a loja é implantada
+# junto com o lojista e ele passa a andar sozinho no sistema. A oferta comercial
+# (landing e panfleto) promete exatamente isso; mudar aqui muda a promessa.
+TRIAL_DIAS = 60
 
 from app.decorators.rbac import super_admin_required
 from app.utils.timezone import iso_utc

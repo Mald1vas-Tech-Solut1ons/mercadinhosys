@@ -6,6 +6,7 @@ import ModuleGuard from '../components/routes/ModuleGuard';
 import { getDefaultRoute } from '../utils/permissions';
 
 import { SplashLoading } from '../components/common/SplashLoading';
+import { NICHOS, rotaNicho } from '../features/landing/site';
 
 // Lazy loading das páginas
 const MainLayout = lazy(() => import('../components/layout/MainLayout'));
@@ -34,6 +35,7 @@ const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
 const LeadDashboard = lazy(() => import('../features/saas/LeadDashboard'));
 const SystemMonitorPage = lazy(() => import('../features/saas/SystemMonitorPage'));
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
+const NichoPage = lazy(() => import('../features/landing/NichoPage'));
 const EstabelecimentosPage = lazy(() => import('../features/estabelecimentos/EstabelecimentosPage'));
 const DeliveryPage = lazy(() => import('../features/delivery/DeliveryPage'));
 const FiscalPage = lazy(() => import('../features/fiscal/FiscalPage'));
@@ -76,6 +78,10 @@ const AppRoutes: React.FC = () => {
         <Suspense fallback={<SplashLoading />}>
             <Routes>
                 <Route path="/" element={<LandingPage />} />
+                {/* Uma página por tipo de comércio, para o Google ("sistema para tabacaria"...). */}
+                {NICHOS.map(n => (
+                    <Route key={n.slug} path={rotaNicho(n.slug)} element={<NichoPage slug={n.slug} />} />
+                ))}
                 <Route path="/login" element={isAuthenticated ? <Navigate to={getTargetRoute()} replace /> : <LoginPage />} />
                 <Route path="/register" element={isAuthenticated ? <Navigate to={getTargetRoute()} replace /> : <RegisterPage />} />
                 <Route path="/test" element={<ConnectionTest />} />

@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(raiz, 'dist');
-const SITE = (process.env.VITE_SITE_URL || 'https://mercadinhosys.vercel.app').replace(/\/$/, '');
+const SITE = (process.env.VITE_SITE_URL || 'https://mercadinhosys.com.br').replace(/\/$/, '');
 const nichos = JSON.parse(readFileSync(join(raiz, 'src/features/landing/nichos.json'), 'utf-8'));
 const modelo = readFileSync(join(dist, 'index.html'), 'utf-8');
 const hoje = new Date().toISOString().slice(0, 10);

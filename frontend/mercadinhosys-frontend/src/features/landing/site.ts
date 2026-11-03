@@ -28,7 +28,7 @@ export const NICHOS: Nicho[] = nichosJson;
 export const rotaNicho = (slug: string) => `/sistema-para-${slug}`;
 
 // Domínio definitivo entra por VITE_SITE_URL quando estiver apontado na Vercel.
-export const SITE_URL = ((import.meta.env.VITE_SITE_URL as string | undefined) || 'https://mercadinhosys.vercel.app').replace(/\/$/, '');
+export const SITE_URL = ((import.meta.env.VITE_SITE_URL as string | undefined) || 'https://mercadinhosys.com.br').replace(/\/$/, '');
 
 export const WHATSAPP_NUMERO = '5511919889233';
 export const WHATSAPP_EXIBICAO = '(11) 91988-9233';

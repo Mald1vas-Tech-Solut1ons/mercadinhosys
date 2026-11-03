@@ -216,7 +216,7 @@ const HeaderProfessional = () => {
             className="fixed inset-0 z-300 flex items-center justify-center bg-black/50 p-4"
             onClick={(e) => { if (e.target === e.currentTarget) setProfileModalOpen(false); }}
         >
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[90dvh]">
                 {/* Header do modal */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Meu Perfil</h3>

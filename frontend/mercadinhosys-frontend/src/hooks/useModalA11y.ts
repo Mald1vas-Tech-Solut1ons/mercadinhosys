@@ -12,6 +12,12 @@ import { useEffect, useRef } from 'react';
  */
 export function useModalA11y(open: boolean, onClose: () => void) {
     const containerRef = useRef<HTMLDivElement | null>(null);
+    // onClose costuma vir inline (`() => setAberto(false)`) e muda a cada render. Se ele
+    // entrasse nas dependências, cada tecla digitada no formulário refazia o efeito:
+    // o foco voltava para o botão de trás e depois para o 1º campo do modal — no celular
+    // o teclado fechava/pulava de campo no meio da digitação.
+    const onCloseRef = useRef(onClose);
+    useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
     useEffect(() => {
         if (!open) return;
@@ -25,14 +31,16 @@ export function useModalA11y(open: boolean, onClose: () => void) {
             ) ?? [],
         ).filter(el => el.offsetParent !== null);
 
-        // Foco inicial: o primeiro campo/botão útil, não o body da página de trás.
-        const primeiro = focaveis()[0];
-        (primeiro ?? container)?.focus();
+        // Foco inicial: o próprio diálogo (leitor de tela anuncia; Tab entra nele). Focar o
+        // 1º campo abria o teclado do celular sozinho e cobria metade do formulário.
+        const toque = window.matchMedia?.('(pointer: coarse)').matches;
+        const primeiro = toque ? null : focaveis()[0];
+        if (!container?.contains(document.activeElement)) (primeiro ?? container)?.focus({ preventScroll: true });
 
         const aoTeclar = (evento: KeyboardEvent) => {
             if (evento.key === 'Escape') {
                 evento.stopPropagation();
-                onClose();
+                onCloseRef.current();
                 return;
             }
             if (evento.key !== 'Tab') return;
@@ -57,7 +65,7 @@ export function useModalA11y(open: boolean, onClose: () => void) {
             document.removeEventListener('keydown', aoTeclar, true);
             anterior?.focus?.();
         };
-    }, [open, onClose]);
+    }, [open]);
 
     return containerRef;
 }

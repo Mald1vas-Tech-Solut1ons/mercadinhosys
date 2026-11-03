@@ -526,7 +526,7 @@ const SystemMonitorPage: React.FC = () => {
                             </tbody>
                         </table>
                     ) : (
-                        <table className="w-full text-left">
+                        <div className="overflow-x-auto"><table className="w-full text-left">
                             <thead className="bg-gray-50 text-gray-400 text-[10px] uppercase font-black tracking-widest border-b dark:bg-gray-900">
                                 <tr>
                                     <th className="px-6 py-4 text-center">Status</th>
@@ -578,7 +578,7 @@ const SystemMonitorPage: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                            <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                                                 <button
                                                     onClick={() => handleEdit(ten)}
                                                     className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
@@ -605,7 +605,7 @@ const SystemMonitorPage: React.FC = () => {
                                     </tr>
                                 )}
                             </tbody>
-                        </table>
+                        </table></div>
                     )}
                 </div>
             </div>
@@ -796,7 +796,7 @@ const SystemMonitorPage: React.FC = () => {
                             <button onClick={() => setEditModalTab('sistema')} className={`flex-1 py-3 px-1 text-[10px] sm:text-xs font-black uppercase tracking-widest ${editModalTab === 'sistema' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>Sistema</button>
                         </div>
 
-                        <form onSubmit={handleUpdate} className="p-8 space-y-5 max-h-[60vh] overflow-y-auto">
+                        <form onSubmit={handleUpdate} className="p-8 space-y-5 max-h-[60dvh] overflow-y-auto">
                             {editModalTab === 'plano' && (
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">

@@ -262,7 +262,7 @@ const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDeta
                             <History className="w-4 h-4 text-purple-500" /> Histórico de Preços
                         </h3>
                         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-                            <table className="w-full text-left text-xs">
+                            <div className="overflow-x-auto"><table className="w-full text-left text-xs">
                                 <thead className="bg-gray-50 dark:bg-gray-900/50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-200 dark:border-gray-700">
                                     <tr>
                                         <th className="px-4 py-3">Data</th>
@@ -289,7 +289,7 @@ const ProdutoDetalhesModal = ({ produto, onClose, onGradeAlterada }: ProdutoDeta
                                         <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400 font-bold italic">Sem variações registradas</td></tr>
                                     )}
                                 </tbody>
-                            </table>
+                            </table></div>
                         </div>
                     </div>
 

@@ -72,7 +72,7 @@ function SaidaTab() {
                 <h3 className="font-bold text-slate-800 dark:text-white">NFC-e emitidas</h3>
                 <button onClick={carregar} className="text-slate-400 hover:text-slate-600"><RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /></button>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead className="text-xs uppercase text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <tr><th className="text-left px-5 py-2.5">Nº/Série</th><th className="text-left px-4 py-2.5 hidden md:table-cell">Chave</th><th className="text-left px-4 py-2.5">Emissão</th><th className="text-right px-4 py-2.5">Valor</th><th className="text-center px-4 py-2.5">Status</th><th className="text-right px-5 py-2.5">Ações</th></tr>
                 </thead>
@@ -97,7 +97,7 @@ function SaidaTab() {
                                 );
                             })}
                 </tbody>
-            </table>
+            </table></div>
             {docs.some((d) => d.ambiente === 'homologacao' || d.gateway === 'simulado') && (
                 <div className="px-5 py-3 text-xs text-warning-600 bg-warning-50 dark:bg-warning-900/10 border-t border-warning-100">
                     ⚠ Ambiente de homologação/simulado — documentos SEM valor fiscal. Configure o gateway em Configurações › Fiscal para emitir em produção.

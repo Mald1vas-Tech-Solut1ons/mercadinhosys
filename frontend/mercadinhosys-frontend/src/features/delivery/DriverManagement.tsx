@@ -354,7 +354,7 @@ const DriverManagement: React.FC = () => {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden max-h-[92vh] overflow-y-auto"
+                            className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden max-h-[92dvh] overflow-y-auto"
                         >
                             <form onSubmit={handleAddMotorista} className="p-8 space-y-6">
                                 <div className="flex items-center justify-between">
@@ -466,7 +466,7 @@ const DriverManagement: React.FC = () => {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden max-h-[92vh] overflow-y-auto"
+                            className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden max-h-[92dvh] overflow-y-auto"
                         >
                             <form onSubmit={handleAddVeiculo} className="p-8 space-y-6">
                                 <div className="flex items-center justify-between">

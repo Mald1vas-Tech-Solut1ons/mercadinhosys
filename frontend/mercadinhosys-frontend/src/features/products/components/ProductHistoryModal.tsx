@@ -208,7 +208,7 @@ const ProductHistoryModal = ({ produto, onClose }: ProductHistoryModalProps) => 
                     </button>
                 </div>
 
-                <div className="p-4 sm:p-6 overflow-y-auto max-h-[70vh]">
+                <div className="p-4 sm:p-6 overflow-y-auto max-h-[70dvh]">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-4">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>

@@ -158,7 +158,7 @@ const BuscaGlobal: React.FC = () => {
                     </div>
                 )}
 
-                <div className="max-h-[60vh] overflow-y-auto py-2">
+                <div className="max-h-[60dvh] overflow-y-auto py-2">
                     {q.trim().length < 2 && (
                         <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
                             Digite o nome, bipe o código de barras ou use palavras como <b>vencendo</b> e <b>sem estoque</b>.

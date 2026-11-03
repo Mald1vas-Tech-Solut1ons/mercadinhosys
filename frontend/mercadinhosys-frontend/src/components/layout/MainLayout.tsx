@@ -39,17 +39,19 @@ const MainLayout: React.FC = () => {
     const mainRef = React.useRef<HTMLElement>(null);
     const location = useLocation();
     const navigate = useNavigate();
+    const emPdv = location.pathname.startsWith('/pdv');
+    const emConsultor = location.pathname.startsWith('/consultor');
     // PWA standalone não tem "puxar p/ atualizar" nativo — implementamos aqui.
+    // Fora do PDV (recarregar no meio da venda perde o carrinho) e do Consultor (perde a conversa).
     const { distance, refreshing, threshold } = usePullToRefresh(
         mainRef,
         () => window.location.reload(),
+        { enabled: !emPdv && !emConsultor },
     );
     const prontoParaSoltar = distance >= threshold;
-    const emPdv = location.pathname.startsWith('/pdv');
-    const emConsultor = location.pathname.startsWith('/consultor');
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+        <div className="flex h-dvh bg-gray-50 dark:bg-gray-900 overflow-hidden">
             <GlobalShortcuts />
             <BuscaGlobal />
             <TrialNotice />

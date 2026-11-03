@@ -971,7 +971,7 @@ export default function ExpensesPage() {
                                                             {d.forma_pagamento || "—"}
                                                         </td>
                                                         <td className="px-4 py-3">
-                                                            <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex items-center justify-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                                                 <button
                                                                     id={`btn-editar-${d.id}`}
                                                                     onClick={() => abrirEditar(d)}
@@ -1429,7 +1429,7 @@ export default function ExpensesPage() {
             {detalhesCard && (
                 <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setDetalhesCard(null)} />
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col relative z-10 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[85dvh] flex flex-col relative z-10 animate-in fade-in zoom-in-95 duration-200">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
                             <div>
                                 <h2 className="text-xl font-black text-slate-800 dark:text-white flex items-center gap-2">

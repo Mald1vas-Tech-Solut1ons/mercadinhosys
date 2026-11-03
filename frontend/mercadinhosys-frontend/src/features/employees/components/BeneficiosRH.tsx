@@ -315,7 +315,7 @@ export default function BeneficiosRH() {
                   <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
                     <Sparkles className="w-5 h-5" />
                   </div>
-                  <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                  <div className="flex opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity gap-1">
                     <button onClick={() => openEdicaoCatalogo(cat)} className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-md">
                       <Edit className="w-4 h-4" />
                     </button>
@@ -339,7 +339,7 @@ export default function BeneficiosRH() {
 
       {/* MODAL ATRIBUIR */}
       {showModalAtribuir && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
             <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Atribuir Benefício</h3>
@@ -413,7 +413,7 @@ export default function BeneficiosRH() {
 
       {/* MODAL CATÁLOGO */}
       {showModalCatalogo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-200 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-gray-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
             <div className="p-6 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800/50">
               <h3 className="text-lg font-bold text-purple-900 dark:text-purple-300">

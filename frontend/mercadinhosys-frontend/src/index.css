@@ -24,10 +24,21 @@ html, body, #root {
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Sem padding de safe-area aqui: header, barra inferior e modais já somam o
+     inset deles. Aplicado em html, body E #root ele era contado 3x no iPhone e
+     deixava o documento mais alto que a tela — a página inteira passava a rolar
+     e o "puxar para atualizar" do navegador recarregava no meio da rolagem. */
+  padding: 0;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Quem rola é o <main> (e as áreas internas); o documento não. Desliga o
+   "puxar para atualizar"/bounce nativo, que disparava ao rolar listas e o chat
+   do Consultor. O app tem o seu próprio, que respeita áreas roláveis. */
+html, body {
+  overscroll-behavior-y: none;
 }
 
 /* Melhor suporte para toque em dispositivos móveis */

@@ -54,27 +54,34 @@ const LABEL_UNIDADE: Record<string, string> = {
  * Tooltip próprio (não usa `title` nativo: aparece com atraso e não é
  * estilizável, o que destoa do resto do formulário).
  */
-const CampoAjuda = ({ texto }: { texto: string }) => (
-    <span className="relative inline-flex group/ajuda align-middle">
-        <button
-            type="button"
-            tabIndex={-1}
-            className="text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400 transition-colors"
-            aria-label="Ajuda sobre este campo"
-        >
-            <HelpCircle className="w-3.5 h-3.5" />
-        </button>
-        <span
-            className="pointer-events-none absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56
-                       rounded-lg bg-gray-900 dark:bg-gray-700 px-3 py-2 text-[11px] leading-snug text-white
-                       opacity-0 scale-95 origin-bottom transition-all duration-150
-                       group-hover/ajuda:opacity-100 group-hover/ajuda:scale-100 shadow-xl"
-        >
-            {texto}
-            <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
+// No celular não existe hover: o toque abre/fecha a dica.
+const CampoAjuda = ({ texto }: { texto: string }) => {
+    const [aberta, setAberta] = useState(false);
+    return (
+        <span className="relative inline-flex group/ajuda align-middle">
+            <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setAberta(a => !a)}
+                onBlur={() => setAberta(false)}
+                className="p-1 -m-1 text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400 transition-colors"
+                aria-label="Ajuda sobre este campo"
+                aria-expanded={aberta}
+            >
+                <HelpCircle className="w-3.5 h-3.5" />
+            </button>
+            <span
+                className={`pointer-events-none absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 max-w-[70vw]
+                           rounded-lg bg-gray-900 dark:bg-gray-700 px-3 py-2 text-[11px] leading-snug text-white
+                           origin-bottom transition-all duration-150 shadow-xl
+                           ${aberta ? 'opacity-100 scale-100' : 'opacity-0 scale-95 group-hover/ajuda:opacity-100 group-hover/ajuda:scale-100'}`}
+            >
+                {texto}
+                <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700" />
+            </span>
         </span>
-    </span>
-);
+    );
+};
 
 /** GTIN (EAN-8/UPC-A/EAN-13/GTIN-14) completo e com dígito verificador válido. */
 export const gtinValido = (codigo: string): boolean => {
@@ -704,9 +711,9 @@ const ProductFormModal = ({
     // Esc fecha o formulario e devolve o foco (o dono esta bipando 200 itens).
     if (!show) return null;
 
-    const inputClass = 'w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 dark:text-white';
+    const inputClass = 'w-full min-w-0 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-900 dark:text-white';
     const labelClass = 'block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1';
-    const sectionClass = 'p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4';
+    const sectionClass = 'p-3 sm:p-5 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-800 space-y-4';
 
     const regrasFiscais = schema?.regras_fiscais;
     const regrasSt = regrasFiscais?.icms_st;
@@ -908,12 +915,13 @@ const ProductFormModal = ({
                                         {formData.codigo_barras.replace(/\D/g, '').length >= 8 && (
                                             <button type="button" onClick={buscarEanDigitado} disabled={isSearchingCosmos}
                                                 aria-label="Buscar dados pelo código de barras"
-                                                className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700 disabled:opacity-60">
+                                                className="shrink-0 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700 disabled:opacity-60">
                                                 {isSearchingCosmos ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                                             </button>
                                         )}
                                         <button type="button" onClick={() => setShowScanner(true)}
-                                            className="p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700">
+                                            aria-label="Ler código de barras com a câmera"
+                                            className="shrink-0 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 text-blue-600 shadow-sm dark:hover:bg-gray-700">
                                             <Camera className="w-5 h-5" />
                                         </button>
                                     </div>

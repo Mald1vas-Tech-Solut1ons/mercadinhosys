@@ -1043,7 +1043,7 @@ const ReportsPage: React.FC = () => {
                 </div>
 
                 {/* Tabela */}
-                <table className="min-w-full text-sm">
+                <div className="overflow-x-auto"><table className="min-w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
                         <tr>
                             {visibleCols.map(col => (
@@ -1098,7 +1098,7 @@ const ReportsPage: React.FC = () => {
                             ))
                         )}
                     </tbody>
-                </table>
+                </table></div>
                 {/* Paginação Premium UX */}
                 {isPaginated && onPageChange && (
                     <div className="flex items-center justify-between mt-6 px-4 py-3 bg-white/50 dark:bg-gray-800/40 backdrop-blur-sm rounded-xl border border-indigo-100/50 dark:border-indigo-900/20 shadow-sm">
@@ -1255,7 +1255,7 @@ const ReportsPage: React.FC = () => {
                     financeiroData.formas_pagamento.length > 0 && (
                         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
                             <h4 className="font-bold text-gray-800 dark:text-gray-100 mb-3">Receita por Forma de Pagamento</h4>
-                            <table className="min-w-full text-sm">
+                            <div className="overflow-x-auto"><table className="min-w-full text-sm">
                                 <thead className="bg-gray-50 dark:bg-gray-700">
                                     <tr>
                                         <th className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300">Forma</th>
@@ -1274,7 +1274,7 @@ const ReportsPage: React.FC = () => {
                                         </tr>
                                     ))}
                                 </tbody>
-                            </table>
+                            </table></div>
                         </div>
                     )
                 }
@@ -1704,7 +1704,7 @@ const ReportsPage: React.FC = () => {
                                 </div>
                             </div>
                             {/* Conteúdo */}
-                            <div className="rounded-lg border border-gray-100 dark:border-gray-800 max-h-[70vh] overflow-auto bg-white dark:bg-gray-900">
+                            <div className="rounded-lg border border-gray-100 dark:border-gray-800 max-h-[70dvh] overflow-auto bg-white dark:bg-gray-900">
                                 {renderModalContent()}
                             </div>
                         </div>

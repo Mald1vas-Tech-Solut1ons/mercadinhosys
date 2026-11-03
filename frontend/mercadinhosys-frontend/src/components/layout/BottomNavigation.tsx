@@ -103,7 +103,7 @@ const BottomNavigation: React.FC = () => {
                         className="md:hidden fixed inset-0 bg-black/60 z-35 backdrop-blur-sm transition-opacity"
                         onClick={() => setMenuOpen(false)}
                     />
-                    <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-40 p-5 shadow-2xl max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom-full duration-300 ease-out">
+                    <div className="md:hidden fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl z-40 p-5 shadow-2xl max-h-[80dvh] overflow-y-auto animate-in slide-in-from-bottom-full duration-300 ease-out">
                         <div className="flex items-center gap-3 mb-6 p-2 bg-slate-50 dark:bg-gray-800/50 rounded-2xl">
                             {user?.foto_url ? (
                                 <img src={user.foto_url} alt={user.nome || ''} className="w-12 h-12 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm" />

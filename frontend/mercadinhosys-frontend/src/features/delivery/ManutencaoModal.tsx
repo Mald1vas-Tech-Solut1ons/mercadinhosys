@@ -62,7 +62,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4">
+            <div className="fixed inset-0 bg-black/60 z-200 flex items-end sm:items-center justify-center sm:p-4">
                 <motion.div
                     initial={{ opacity: 0, y: '100%' }}
                     animate={{ opacity: 1, y: 0 }}
@@ -78,7 +78,7 @@ export const ManutencaoModal: React.FC<ManutencaoModalProps> = ({ isOpen, onClos
                         <p className="text-sm font-medium text-blue-100">Atualize os dados e despesas do seu veículo.</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                    <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70dvh] overflow-y-auto">
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1 dark:text-gray-400">Categoria de Serviço</label>
                             <select

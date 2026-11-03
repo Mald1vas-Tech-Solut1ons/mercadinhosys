@@ -430,7 +430,7 @@ const PontoHistoricoPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="p-4 sm:p-6 max-h-[calc(100dvh-200px)] overflow-y-auto">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                 <div className="p-2 sm:p-4 bg-blue-50 rounded-lg">
                   <p className="text-xs text-blue-600 font-semibold">📅 Data</p>
@@ -553,7 +553,7 @@ const PontoHistoricoPage: React.FC = () => {
           onClick={() => setFotoExpandida(null)}
         >
           <div 
-            className="relative w-full h-full sm:max-w-4xl sm:max-h-[90vh] flex flex-col items-center justify-center"
+            className="relative w-full h-full sm:max-w-4xl sm:max-h-[90dvh] flex flex-col items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Botão de fechar no topo (mobile first) */}
@@ -570,7 +570,7 @@ const PontoHistoricoPage: React.FC = () => {
             <img 
               src={construirUrlFoto(fotoExpandida)} 
               alt="Foto ampliada" 
-              className="w-full h-full sm:max-w-full sm:max-h-[70vh] object-contain rounded-lg shadow-2xl"
+              className="w-full h-full sm:max-w-full sm:max-h-[70dvh] object-contain rounded-lg shadow-2xl"
               onError={(e) => {
                 console.error('❌ Erro ao carregar foto expandida:', construirUrlFoto(fotoExpandida));
               }}

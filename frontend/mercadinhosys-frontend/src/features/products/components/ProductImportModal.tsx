@@ -159,7 +159,7 @@ const ProductImportModal = ({ show, onClose, onSuccess }: ProductImportModalProp
         >
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
+            <div className="p-6 overflow-y-auto max-h-[70dvh]">
                 {!result ? (
                     <div className="space-y-6">
                         {/* Instructions Guide */}

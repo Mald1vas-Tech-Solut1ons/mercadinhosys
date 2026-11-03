@@ -46,7 +46,7 @@ export default function SFAClientes() {
     );
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 p-4 md:p-6 pb-28">
+        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-slate-950 -m-4 md:-m-6 p-4 md:p-6 pb-28">
             <div className="flex justify-between items-center mb-6 pt-2">
                 <div>
                     <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">

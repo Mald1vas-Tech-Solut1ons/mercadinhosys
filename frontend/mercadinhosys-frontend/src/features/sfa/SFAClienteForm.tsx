@@ -78,7 +78,7 @@ export default function SFAClienteForm() {
 
     if (success) {
         return (
-            <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 items-center justify-center p-6 text-center">
+            <div className="flex flex-col min-h-full bg-slate-50 dark:bg-slate-950 -m-4 md:-m-6 items-center justify-center p-6 text-center">
                 <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-6">
                     <CheckCircle2 className="w-12 h-12 text-emerald-500 animate-bounce" />
                 </div>
@@ -89,7 +89,7 @@ export default function SFAClienteForm() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 relative pb-28">
+        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-slate-950 -m-4 md:-m-6 relative pb-28">
             <div className="sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm z-10 p-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-3">
                     <Button variant="ghost" size="icon" onClick={() => navigate('/sfa/clientes')} className="rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">

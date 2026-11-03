@@ -51,7 +51,7 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
 
     return createPortal(
         <div className="fixed inset-0 z-200 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-gray-900 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-3xl shadow-2xl max-h-[92vh] overflow-y-auto" onClick={ev => ev.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-900 w-full sm:max-w-2xl sm:rounded-2xl rounded-t-3xl shadow-2xl max-h-[92dvh] overflow-y-auto" onClick={ev => ev.stopPropagation()}>
                 {/* Header */}
                 <div className="sticky top-0 bg-linear-to-r from-blue-700 to-indigo-800 text-white p-5 flex items-center justify-between rounded-t-3xl sm:rounded-t-2xl">
                     <div className="flex items-center gap-3">
@@ -111,7 +111,7 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
                         <div>
                             <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-xs font-bold uppercase mb-2"><FileText className="w-4 h-4" /> Itens do pedido ({dados.itens.length})</div>
                             <div className="rounded-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                                <table className="w-full text-sm">
+                                <div className="overflow-x-auto"><table className="w-full text-sm">
                                     <thead className="bg-gray-50 dark:bg-gray-800/60 text-gray-500 dark:text-gray-400">
                                         <tr><th className="text-left px-3 py-2 font-bold text-xs uppercase">Produto</th><th className="text-center px-3 py-2 font-bold text-xs uppercase">Qtd</th><th className="text-right px-3 py-2 font-bold text-xs uppercase">Total</th></tr>
                                     </thead>
@@ -134,7 +134,7 @@ export default function DetalheEntregaModal({ entregaId, onClose }: Props) {
                                             <tr className="text-xs"><td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400" colSpan={2}>Taxa de entrega</td><td className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">+ {fmt(e?.taxa_entrega)}</td></tr>
                                         </tfoot>
                                     )}
-                                </table>
+                                </table></div>
                             </div>
                             {/* Total a cobrar em destaque — inclui a taxa, para o entregador nunca cobrar errado */}
                             {v && (

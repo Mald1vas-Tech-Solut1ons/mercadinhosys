@@ -711,7 +711,7 @@ export default function SalesPage() {
                                 <p className="text-sm text-slate-500 mt-0.5 dark:text-gray-400">Escolha o destino de cada item. O que for para <strong>perda</strong> não volta ao estoque. Esta ação não pode ser desfeita.</p>
                             </div>
                         </div>
-                        <div className="px-6 py-4 space-y-4 max-h-[65vh] overflow-y-auto">
+                        <div className="px-6 py-4 space-y-4 max-h-[65dvh] overflow-y-auto">
                             <div>
                                 <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Destino dos itens</label>
                                 {carregandoItens ? (

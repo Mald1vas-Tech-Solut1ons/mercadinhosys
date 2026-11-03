@@ -12,7 +12,7 @@ export default function DetailsModal({ isOpen, onClose, title, children }: Detai
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-200 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-gray-50 dark:bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200"
@@ -20,7 +20,7 @@ export default function DetailsModal({ isOpen, onClose, title, children }: Detai
       />
       
       {/* Modal */}
-      <div className="relative bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
+      <div className="relative bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700/60 shadow-2xl rounded-2xl w-full max-w-2xl max-h-[85dvh] flex flex-col animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700/60 bg-white dark:bg-slate-800/80 rounded-t-2xl">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
           <button 

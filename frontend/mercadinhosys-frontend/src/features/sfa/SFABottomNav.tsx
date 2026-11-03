@@ -14,7 +14,7 @@ export default function SFABottomNav() {
     ];
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 pb-2 pt-2 px-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-50 rounded-t-3xl transition-colors duration-300">
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border-t border-slate-200/50 dark:border-slate-800/50 pb-2 pt-2 px-6 shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-50 rounded-t-3xl transition-colors duration-300">
             <div className="flex justify-between items-center max-w-md mx-auto relative">
                 {navItems.map((item) => {
                     const isActive = path === item.path || (path.startsWith(item.path) && item.path !== '/sfa' && item.path !== '/ponto');

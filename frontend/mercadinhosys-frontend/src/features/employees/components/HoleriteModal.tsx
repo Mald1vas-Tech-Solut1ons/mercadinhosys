@@ -131,7 +131,7 @@ const HoleriteModal = ({ isOpen, onClose, holerite }: HoleriteModalProps) => {
 
                 {/* Tabela de lançamentos */}
                 <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                    <div className="overflow-x-auto"><table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">
                                 <th className="px-5 py-3 text-xs font-bold uppercase tracking-widest">Descrição</th>
@@ -165,7 +165,7 @@ const HoleriteModal = ({ isOpen, onClose, holerite }: HoleriteModalProps) => {
                                 <td className="px-5 py-4 text-right text-rose-600 dark:text-rose-400 text-base font-black">{formatCurrency(t.descontos)}</td>
                             </tr>
                         </tfoot>
-                    </table>
+                    </table></div>
                 </div>
 
                 {/* Líquido + bases */}

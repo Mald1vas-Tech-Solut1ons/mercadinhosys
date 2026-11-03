@@ -97,7 +97,7 @@ const ResponsiveModal: React.FC<ResponsiveModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6 bg-white dark:bg-gray-800">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 bg-white dark:bg-gray-800">
           {children}
         </div>
 

@@ -133,7 +133,7 @@ export default function SFAPedido() {
     if (!cliente) return null;
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] bg-slate-50 dark:bg-slate-950 -m-6 relative">
+        <div className="flex flex-col h-[calc(100%+1rem)] md:h-[calc(100%+3rem)] bg-slate-50 dark:bg-slate-950 -m-4 md:-m-6 relative">
             {/* Header Fixo */}
             <div className="sticky top-0 bg-white dark:bg-slate-900 shadow-sm z-10 p-4 pb-3">
                 <div className="flex items-center gap-3">

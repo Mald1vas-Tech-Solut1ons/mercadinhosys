@@ -93,7 +93,7 @@ const EstoqueTabela: React.FC<{ estoque: Resposta['estoque'] }> = ({ estoque }) 
                 {estoque.resumo.itens} itens · {formatCurrency(estoque.resumo.valor_custo)} a custo
             </span>
         </div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 <tr>
                     <th className="px-3 py-2 text-left">Categoria</th>
@@ -121,7 +121,7 @@ const EstoqueTabela: React.FC<{ estoque: Resposta['estoque'] }> = ({ estoque }) 
                     </tr>
                 ))}
             </tbody>
-        </table>
+        </table></div>
     </div>
 );
 
@@ -289,7 +289,7 @@ const CategoriasTab: React.FC<{ dias: number }> = ({ dias }) => {
 
             {/* Tabela com drill-down */}
             <div className="overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-700">
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-sm">
                     <thead className="bg-gray-50 text-[11px] uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                         <tr>
                             <th className="px-3 py-2 text-left">Categoria</th>
@@ -354,7 +354,7 @@ const CategoriasTab: React.FC<{ dias: number }> = ({ dias }) => {
                             );
                         })}
                     </tbody>
-                </table>
+                </table></div>
             </div>
 
             {estoque && estoque.categorias.length > 0 && <EstoqueTabela estoque={estoque} />}

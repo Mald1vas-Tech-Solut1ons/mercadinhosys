@@ -432,7 +432,7 @@ export default function RescisaoWizard() {
                         </div>
 
                         <div className="border border-gray-100 dark:border-gray-800 rounded-xl overflow-hidden">
-                            <table className="w-full text-sm">
+                            <div className="overflow-x-auto"><table className="w-full text-sm">
                                 <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-500 dark:text-gray-400">
                                     <tr><th className="text-left px-4 py-2 font-bold uppercase text-xs">Verba</th><th className="text-left px-4 py-2 font-bold uppercase text-xs">Ref.</th><th className="text-right px-4 py-2 font-bold uppercase text-xs">Valor</th></tr>
                                 </thead>
@@ -449,7 +449,7 @@ export default function RescisaoWizard() {
                                     <tr><td colSpan={2} className="px-4 py-3 font-black text-gray-700 dark:text-gray-200 uppercase text-xs">Total bruto estimado</td>
                                         <td className="px-4 py-3 text-right font-black text-lg text-gray-900 dark:text-white">{fmtMoeda(resultado.total_proventos)}</td></tr>
                                 </tfoot>
-                            </table>
+                            </table></div>
                         </div>
 
                         <details className="bg-gray-50 dark:bg-gray-900/40 rounded-xl p-4">

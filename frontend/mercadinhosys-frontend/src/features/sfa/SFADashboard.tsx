@@ -109,7 +109,7 @@ export default function SFADashboard() {
     const isAtrasado = kpi?.realizado?.tendencia < kpi?.meta?.faturamento;
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 -m-6 p-4 md:p-6 pb-24 overflow-y-auto">
+        <div className="flex flex-col min-h-full bg-slate-50 dark:bg-slate-950 -m-4 md:-m-6 p-4 md:p-6 pb-24 overflow-y-auto">
             <div className="flex justify-between items-center mb-6 pt-2">
                 <div>
                     <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -242,7 +242,7 @@ export default function SFADashboard() {
 
             {/* Modal de Detalhes do Cliente */}
             {selectedCliente && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-0">
+                <div className="fixed inset-0 z-200 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-0">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 sm:zoom-in-95">
                         <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800">
                             <div className="flex items-center gap-3">

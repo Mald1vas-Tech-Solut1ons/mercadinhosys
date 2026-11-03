@@ -63,15 +63,34 @@ export const ConsultorPage: React.FC = () => {
   const [executandoKey, setExecutandoKey] = useState<string | null>(null);
   const [acoesConcluidas, setAcoesConcluidas] = useState<Record<string, string>>({});
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Rola SÓ a conversa. O scrollIntoView de antes rolava também a página e o <main>,
+  // o que no celular jogava a tela para cima/baixo e acionava o "puxar para atualizar".
+  // Resposta do consultor chega com o começo à vista (para ler a mensagem inteira
+  // de cima para baixo); pergunta do usuário e "digitando" vão para o fim.
   useEffect(() => {
-    scrollToBottom();
+    const chat = chatRef.current;
+    if (!chat) return;
+    const ultima = mensagens[mensagens.length - 1];
+    requestAnimationFrame(() => {
+      const alvo = chat.querySelector<HTMLElement>(`[data-msg-id="${ultima?.id}"]`);
+      if (!loading && ultima?.isBot && alvo && mensagens.length > 1) {
+        chat.scrollTo({ top: alvo.offsetTop - 8, behavior: 'smooth' });
+      } else {
+        chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' });
+      }
+    });
   }, [mensagens, loading]);
+
+  // Caixa de texto cresce com a mensagem (até o limite) para o usuário ver o que digitou.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [inputValue]);
 
   useEffect(() => {
     let cancelado = false;
@@ -270,16 +289,16 @@ export const ConsultorPage: React.FC = () => {
   ];
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-800">
+    <div className="h-full min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-800 -mx-2 sm:mx-0">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-3 z-10">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md">
-            <Sparkles className="w-6 h-6" />
+      <div className="shrink-0 bg-white dark:bg-gray-800 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-2 sm:gap-3 z-10">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md shrink-0">
+            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white">Consultor da Loja</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white">Consultor da Loja</h2>
+            <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400">
               Copiloto operacional com dados reais, suporte do sistema, cadastro assistido e relatórios
               {metricas?.interacoes_hoje
                 ? ` • Hoje: ${metricas.interacoes_hoje.chat} conversas / ${metricas.interacoes_hoje.acoes} ações`
@@ -288,12 +307,13 @@ export const ConsultorPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 font-medium dark:text-gray-400">Especialidade:</span>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="hidden sm:inline text-sm text-gray-500 font-medium dark:text-gray-400">Especialidade:</span>
           <select
+            aria-label="Especialidade do consultor"
             value={especialista}
             onChange={(e) => setEspecialista(e.target.value as any)}
-            className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2"
+            className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 w-full sm:w-auto"
           >
             <option value="geral">Visão Geral (Master)</option>
             <option value="sistema">Ajuda do Sistema & Cadastros</option>
@@ -310,14 +330,15 @@ export const ConsultorPage: React.FC = () => {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[url('/pattern.svg')] dark:bg-[url('/pattern-dark.svg')] bg-repeat/5">
+      <div ref={chatRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4 space-y-5 sm:space-y-6 bg-[url('/pattern.svg')] dark:bg-[url('/pattern-dark.svg')] bg-repeat/5">
         <AnimatePresence>
           {mensagens.map((msg) => (
             <motion.div
               key={msg.id}
+              data-msg-id={msg.id}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              className={`flex flex-col max-w-[88%] ${msg.isBot ? 'mr-auto items-start' : 'ml-auto items-end'}`}
+              className={`flex flex-col min-w-0 max-w-[94%] sm:max-w-[88%] ${msg.isBot ? 'mr-auto items-start' : 'ml-auto items-end'}`}
             >
               <div className="flex items-center gap-2 mb-1 px-1">
                 <span className="text-xs font-semibold text-gray-500 flex items-center gap-1 dark:text-gray-400">
@@ -334,7 +355,7 @@ export const ConsultorPage: React.FC = () => {
               </div>
 
               <div
-                className={`p-4 rounded-2xl shadow-sm leading-relaxed ${
+                className={`max-w-full min-w-0 p-3 sm:p-4 rounded-2xl shadow-sm leading-relaxed wrap-anywhere ${
                   msg.isBot
                     ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-100 dark:border-gray-700 rounded-tl-none'
                     : 'bg-linear-to-r from-indigo-500 to-purple-600 text-white rounded-tr-none'
@@ -522,11 +543,10 @@ export const ConsultorPage: React.FC = () => {
             </div>
           </motion.div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Sugestoes */}
-      <div className="px-4 py-2.5 bg-white dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex gap-2 overflow-x-auto no-scrollbar">
+      <div className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex gap-2 overflow-x-auto no-scrollbar">
         {sugestoes.map((sug, i) => (
           <button
             key={i}
@@ -541,7 +561,7 @@ export const ConsultorPage: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <div className="shrink-0 p-2 sm:p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -550,6 +570,9 @@ export const ConsultorPage: React.FC = () => {
           className="flex items-end gap-2 bg-gray-50 dark:bg-gray-900 rounded-xl p-2 border border-gray-200 dark:border-gray-700 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-inner"
         >
           <textarea
+            ref={textareaRef}
+            aria-label="Mensagem para o consultor"
+            enterKeyHint="send"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => {
@@ -558,19 +581,20 @@ export const ConsultorPage: React.FC = () => {
                 handleSend();
               }
             }}
-            placeholder="Pergunte como usar o sistema, peça para cadastrar um produto ou emita um relatório..."
-            className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 resize-none text-gray-700 dark:text-gray-200 py-3 px-2"
+            placeholder="Pergunte, peça um cadastro ou um relatório..."
+            className="flex-1 min-w-0 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 resize-none overflow-y-auto text-gray-700 dark:text-gray-200 py-3 px-2"
             rows={1}
           />
           <button
             type="submit"
+            aria-label="Enviar mensagem"
             disabled={!inputValue.trim() || loading}
-            className="p-3 mb-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white transition-colors shadow-md disabled:shadow-none"
+            className="shrink-0 p-3 mb-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white transition-colors shadow-md disabled:shadow-none"
           >
             <Send className="w-5 h-5" />
           </button>
         </form>
-        <p className="text-center text-[10px] text-gray-400 mt-2 font-medium">
+        <p className="hidden sm:block text-center text-[10px] text-gray-400 mt-2 font-medium">
           Respostas baseadas exclusivamente nos indicadores auditáveis e no manual oficial da loja, com dados pessoais pseudonimizados (LGPD).
         </p>
       </div>

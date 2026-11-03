@@ -6,8 +6,9 @@ Atualizado em 07/10/2026. Release e evidências: [relatório modular](../../docs
 
 | Item | Configuração |
 |---|---|
-| Site | https://mercadinhosys.vercel.app |
-| API | https://mercadinhosys-api.144.22.151.18.sslip.io/api |
+| Site | https://mercadinhosys.com.br (`www` redireciona; `mercadinhosys.vercel.app` continua respondendo) |
+| API | https://api.mercadinhosys.com.br/api (o nome antigo `sslip.io` segue ativo no Caddy durante a transição) |
+| DNS | Zona na Vercel (time `maldivastech`); `api` = A `144.22.151.18`; domínio registrado no Registro.br em 03/11/2026 |
 | Saúde | URL da API + `/health` |
 | VM | OCI `VM.Standard.E2.1.Micro`, Ubuntu 24.04 x86/AMD, 1 GB RAM |
 | Região | São Paulo (`sa-saopaulo-1`), AD-1 |
@@ -23,7 +24,7 @@ Atualizado em 07/10/2026. Release e evidências: [relatório modular](../../docs
 
 A A1.Flex inicialmente solicitada falhou por capacidade insuficiente. A Micro foi criada depois, reutilizando a rede da pilha. Pilha “Ativo” não significa VM criada; SSH, containers e API confirmaram esta instalação.
 
-O frontend permanece na Vercel; API e banco estão na Oracle. `vercel.app` é o endereço da hospedagem do frontend; a API usa um nome provisório `sslip.io` associado ao IP, sem domínio comprado. Ao adquirir domínio próprio, ajustar Caddy, Vercel e URLs de retorno.
+O frontend permanece na Vercel; API e banco estão na Oracle. Domínio próprio `mercadinhosys.com.br` desde 03/11/2026: Caddy atende `api.mercadinhosys.com.br` e o nome `sslip.io` antigo; `CORS_ORIGINS` no `.env.demo` inclui `https://mercadinhosys.com.br`; `APP_URL` aponta para o domínio (links de e-mail). O webhook Efí ainda usa o `BACKEND_URL` antigo até ser recadastrado.
 
 ## Ambientes e integrações
 

@@ -441,7 +441,7 @@ def create_app(config_name=None):
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; "
             "media-src 'self' blob:; connect-src 'self' "
-            "https://mercadinhosys-api.144.22.151.18.sslip.io "
+            "https://api.mercadinhosys.com.br https://mercadinhosys-api.144.22.151.18.sslip.io "
             "https://o4511655329923072.ingest.us.sentry.io https://viacep.com.br; "
             "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
         )
@@ -457,7 +457,7 @@ def create_app(config_name=None):
     if not cors_origins:
         # Fallbacks dinâmicos se não houver env
         if os.getenv("VERCEL_URL"):
-            cors_origins = [f"https://{os.getenv('VERCEL_URL')}", "https://mercadinhosys.vercel.app"]
+            cors_origins = [f"https://{os.getenv('VERCEL_URL')}", "https://mercadinhosys.com.br", "https://mercadinhosys.vercel.app"]
         else:
             # Desenvolvimento: origem explícita do dev server. NUNCA ["*"] com
             # supports_credentials=True — o flask-cors 6.x ecoa a origem do pedido

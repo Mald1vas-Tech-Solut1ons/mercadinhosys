@@ -19,7 +19,7 @@ VALIDADE = {ATIVACAO: timedelta(hours=72), REDEFINICAO: timedelta(minutes=60)}
 
 
 def url_app() -> str:
-    return (os.getenv("APP_URL") or "https://mercadinhosys.vercel.app").rstrip("/")
+    return (os.getenv("APP_URL") or "https://mercadinhosys.com.br").rstrip("/")
 
 
 def _hash(token: str) -> str:

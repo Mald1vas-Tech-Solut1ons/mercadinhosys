@@ -145,7 +145,7 @@ export default defineConfig(() => {
           "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
           "font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; " +
           "media-src 'self' blob:; connect-src 'self' ws://localhost:* wss://localhost:* " +
-          "https://mercadinhosys-api.144.22.151.18.sslip.io https://o4511655329923072.ingest.us.sentry.io https://viacep.com.br; " +
+          "https://api.mercadinhosys.com.br https://mercadinhosys-api.144.22.151.18.sslip.io https://o4511655329923072.ingest.us.sentry.io https://viacep.com.br; " +
           "worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'",
       },
       // Detecta mudanças de arquivo dentro do Docker (Windows/WSL precisa de polling)

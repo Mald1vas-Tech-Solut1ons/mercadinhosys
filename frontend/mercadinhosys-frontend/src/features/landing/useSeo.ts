@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { SITE_URL } from './site';
+import { rastrearPagina } from './telemetria';
 
 function definirMeta(atributo: 'name' | 'property', chave: string, valor: string) {
     let tag = document.head.querySelector<HTMLMetaElement>(`meta[${atributo}="${chave}"]`);
@@ -18,6 +19,7 @@ function definirMeta(atributo: 'name' | 'property', chave: string, valor: string
  */
 export function useSeo(titulo: string, descricao: string, caminho: string, imagem?: string) {
     useEffect(() => {
+        rastrearPagina(caminho);
         document.title = titulo;
         definirMeta('name', 'description', descricao);
         definirMeta('property', 'og:title', titulo);

@@ -34,7 +34,7 @@ const allMenuItems = [
 const superAdminItems = [
     { to: '/estabelecimentos', icon: Building2, label: 'SaaS Lojas' },
     { to: '/monitor', icon: Activity, label: 'Monitor' },
-    { to: '/leads', icon: Target, label: 'Leads' },
+    { to: '/leads', icon: Target, label: 'Site e Leads' },
 ];
 
 const BottomNavigation: React.FC = () => {

@@ -19,7 +19,7 @@ const MapaDoSite: React.FC = () => (
             <p className="font-black text-white uppercase tracking-widest text-xs mb-3">Sistema por tipo de comércio</p>
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-[#8FA3C0]">
                 {NICHOS.map(n => (
-                    <li key={n.slug}><Link to={rotaNicho(n.slug)} className="hover:text-white">Sistema para {n.nome.toLowerCase()}</Link></li>
+                    <li key={n.slug}><Link to={rotaNicho(n.slug)} data-evento="segmento" data-rotulo={n.slug} className="hover:text-white">Sistema para {n.nome.toLowerCase()}</Link></li>
                 ))}
             </ul>
         </div>
@@ -27,10 +27,10 @@ const MapaDoSite: React.FC = () => (
             <p className="font-black text-white uppercase tracking-widest text-xs mb-3">Atendimento presencial</p>
             <ul className="space-y-2 text-[#8FA3C0]">
                 {REGIOES.map(r => (
-                    <li key={r.slug}><Link to={rotaRegiao(r.slug)} className="hover:text-white">{r.nome}</Link></li>
+                    <li key={r.slug}><Link to={rotaRegiao(r.slug)} data-evento="regiao" data-rotulo={r.slug} className="hover:text-white">{r.nome}</Link></li>
                 ))}
             </ul>
-            <p className="mt-4 text-[#8FA3C0]">WhatsApp <a className="text-white font-bold" href={linkWhatsApp('Olá! Quero conhecer o MercadinhoSys.')} target="_blank" rel="noreferrer">{WHATSAPP_EXIBICAO}</a></p>
+            <p className="mt-4 text-[#8FA3C0]">WhatsApp <a data-evento="whatsapp" data-rotulo="rodape" className="text-white font-bold" href={linkWhatsApp('Olá! Quero conhecer o MercadinhoSys.')} target="_blank" rel="noreferrer">{WHATSAPP_EXIBICAO}</a></p>
             <p className="mt-1 text-xs text-[#8FA3C0]">{PRAZO_RESPOSTA}</p>
             <p className="mt-2 flex gap-4 text-[#8FA3C0]"><a href="/termos" className="hover:text-white">Termos</a><a href="/privacidade" className="hover:text-white">Privacidade</a></p>
         </div>

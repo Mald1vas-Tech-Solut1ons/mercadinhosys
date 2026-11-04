@@ -51,13 +51,20 @@ def registrar_lead():
         # Por enquanto, apenas registramos
         
         novo_lead = Lead(
-            nome=data.get("nome", "Interessado"),
-            email=data.get("email"),
-            whatsapp=data.get("whatsapp", ""),
-            origem=data.get("origem", "landing_page"),
-            observacao=data.get("mensagem", "")
+            nome=str(data.get("nome") or "Interessado")[:150],
+            email=str(data.get("email"))[:100],
+            whatsapp=str(data.get("whatsapp") or "")[:30],
+            origem=str(data.get("origem") or "landing_page")[:100],
+            observacao=data.get("mensagem", ""),
+            segmento=(str(data["segmento"])[:60] if data.get("segmento") else None),
+            nome_loja=(str(data["nome_loja"])[:150] if data.get("nome_loja") else None),
         )
         db.session.add(novo_lead)
+        db.session.flush()
+        # Liga o lead ao aparelho que navegou no site: origem e jornada aparecem no CRM.
+        from app.routes.site_crm import vincular_visitante, registrar_historico
+        vincular_visitante(novo_lead, data.get("visitante_id"))
+        registrar_historico(novo_lead.id, "sistema", f"Lead pelo site ({novo_lead.origem}).")
         db.session.commit()
         
         logger.info(f"🆕 NOVO LEAD: {novo_lead.email} ({novo_lead.nome})")

@@ -4,6 +4,7 @@ import { MessageCircle, SearchX } from 'lucide-react';
 import SegmentosGrid from './SegmentosGrid';
 import MapaDoSite from './MapaDoSite';
 import { linkWhatsApp, PRAZO_RESPOSTA } from './site';
+import { rastrearPagina } from './telemetria';
 
 /**
  * 404 das páginas públicas. A Vercel entrega o index.html (status 200) para qualquer
@@ -11,6 +12,7 @@ import { linkWhatsApp, PRAZO_RESPOSTA } from './site';
  */
 const NaoEncontradaPage: React.FC = () => {
     useEffect(() => {
+        rastrearPagina(window.location.pathname);
         document.title = 'Página não encontrada | MercadinhoSys';
         const robots = document.createElement('meta');
         robots.name = 'robots';
@@ -37,7 +39,7 @@ const NaoEncontradaPage: React.FC = () => {
                     <p className="text-lg text-[#8FA3C0] mb-8">O endereço pode ter mudado ou foi digitado errado. Escolha o seu tipo de comércio abaixo ou fale com a gente.</p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <Link to="/" className="px-7 py-4 rounded-xl bg-[#2E9BFF] text-[#0A1220] font-bold text-lg">Ir para a página inicial</Link>
-                        <a href={linkWhatsApp('Olá! Cheguei por um link que não abriu e quero conhecer o MercadinhoSys.')} target="_blank" rel="noreferrer"
+                        <a data-evento="whatsapp" data-rotulo="404" href={linkWhatsApp('Olá! Cheguei por um link que não abriu e quero conhecer o MercadinhoSys.')} target="_blank" rel="noreferrer"
                             className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-emerald-500 text-white font-bold text-lg">
                             <MessageCircle className="w-5 h-5" /> Falar no WhatsApp
                         </a>

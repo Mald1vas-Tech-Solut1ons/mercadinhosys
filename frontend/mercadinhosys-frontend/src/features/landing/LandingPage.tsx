@@ -10,6 +10,7 @@ import { CalculadoraPerdas, DemoInterativa } from './SecoesVenda';
 import MapaDoSite from './MapaDoSite';
 import BannerCookies from './BannerCookies';
 import { useSeo } from './useSeo';
+import { idVisitante, rastrearEvento } from './telemetria';
 import {
     ShoppingCart,
     ShieldCheck,
@@ -155,10 +156,11 @@ const LandingPage: React.FC = () => {
             const response = await fetch(`${API_CONFIG.BASE_URL}/saas/leads/registrar`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome: leadName, email: leadEmail, whatsapp: leadWhatsApp, origem: 'landing_page' }),
+                body: JSON.stringify({ nome: leadName, email: leadEmail, whatsapp: leadWhatsApp, origem: 'landing_page', visitante_id: idVisitante() }),
             });
             const result = await response.json();
             if (response.ok && result.success) {
+                rastrearEvento('formulario_enviado', 'contato');
                 showToast.info('Informações enviadas! Entraremos em contato em breve.');
                 setLeadName(''); setLeadEmail(''); setLeadWhatsApp('');
                 setTimeout(() => {
@@ -190,7 +192,7 @@ const LandingPage: React.FC = () => {
     ];
 
     return (
-        <div className="h-screen overflow-y-auto overflow-x-hidden bg-[#0A1220] font-['Space_Grotesk',sans-serif] text-[#DCE8F7] selection:bg-[#2E9BFF] selection:text-[#06101F] custom-scrollbar relative scroll-smooth">
+        <div data-rolagem className="h-screen overflow-y-auto overflow-x-hidden bg-[#0A1220] font-['Space_Grotesk',sans-serif] text-[#DCE8F7] selection:bg-[#2E9BFF] selection:text-[#06101F] custom-scrollbar relative scroll-smooth">
             
             <AnimatePresence>
                 {showSplash && <SplashIntro onComplete={() => setShowSplash(false)} />}
@@ -204,6 +206,8 @@ const LandingPage: React.FC = () => {
             {/* WhatsApp Floating Button */}
             <a
                 href={linkWhatsApp('Olá! Vi o site do MercadinhoSys e quero saber mais.')}
+                data-evento="whatsapp"
+                data-rotulo="botao-flutuante"
                 aria-label="Falar no WhatsApp"
                 target="_blank"
                 rel="noreferrer"
@@ -289,7 +293,7 @@ const LandingPage: React.FC = () => {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.98 }}
-                                onClick={() => document.getElementById('oferta')?.scrollIntoView({ behavior: 'smooth' })}
+                                onClick={() => { rastrearEvento('oferta_vista', 'topo'); document.getElementById('oferta')?.scrollIntoView({ behavior: 'smooth' }); }}
                                 className="w-full sm:w-auto px-10 py-4 bg-[#2E9BFF] text-[#0A1220] rounded-[10px] font-bold text-xl hover:bg-[#6FCBFF] transition-all flex items-center justify-center shadow-[0_0_30px_rgba(46,155,255,0.4)] border border-[#2E9BFF]"
                             >
                                 Quero 2 meses grátis
@@ -717,7 +721,7 @@ const LandingPage: React.FC = () => {
                             <div key={index} className="bg-[#0A1220] border border-[#24344F] rounded-2xl overflow-hidden transition-all">
                                 <button 
                                     className="w-full px-6 py-5 text-left flex justify-between items-center focus:outline-none"
-                                    onClick={() => setOpenFaq(openFaq === index ? null : index)}
+                                    onClick={() => { if (openFaq !== index) rastrearEvento('faq', faq.q); setOpenFaq(openFaq === index ? null : index); }}
                                 >
                                     <span className="font-bold text-white text-lg">{faq.q}</span>
                                     {openFaq === index ? <ChevronUp className="w-6 h-6 text-[#2E9BFF] shrink-0" /> : <ChevronDown className="w-6 h-6 text-[#8FA3C0] shrink-0" />}

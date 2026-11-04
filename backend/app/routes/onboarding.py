@@ -177,6 +177,21 @@ def registrar_conta():
                 detalhes={"estabelecimento": nome_fantasia, "admin": username, "email": email_admin}
             )
 
+            # Todo cadastro de teste vira lead no CRM (etapa "teste"), ligado à loja e,
+            # se o visitante aceitou cookies, à origem e à jornada dele no site.
+            from app.models import Lead
+            from app.routes.site_crm import vincular_visitante, registrar_historico
+            lead = Lead(
+                nome=str(data.get("nome_admin") or nome_fantasia)[:150], email=str(email_admin or "")[:100],
+                whatsapp=str(celular_admin or "")[:30], origem="cadastro_teste", etapa="teste",
+                nome_loja=str(nome_fantasia)[:150], loja_criada_id=novo_estabelecimento.id,
+                segmento=(str(data["segmento"])[:60] if data.get("segmento") else None),
+            )
+            db.session.add(lead)
+            db.session.flush()
+            vincular_visitante(lead, data.get("visitante_id"))
+            registrar_historico(lead.id, "sistema", f"Criou a conta de teste ({TRIAL_DIAS} dias).")
+
             # Confirmar tudo!
             db.session.commit()
 

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, ChevronDown, ChevronUp, MessageCircle, Play } from 'lucide-react';
 import { NICHOS, VENDAS, rotaNicho, linkWhatsApp, imagemOg, PRAZO_RESPOSTA } from './site';
 import Trilha from './Trilha';
+import { rastrearEvento } from './telemetria';
 import { useSeo } from './useSeo';
 import SegmentosGrid, { IconeNicho } from './SegmentosGrid';
 import MapaDoSite from './MapaDoSite';
@@ -39,7 +40,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
                     </Link>
                     <div className="flex items-center gap-2">
                         <a href="#demo" className="hidden sm:inline-flex px-4 py-2 rounded-xl text-sm font-bold text-[#DCE8F7] hover:text-white">Ver funcionando</a>
-                        <a href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm">
+                        <a data-evento="whatsapp" data-rotulo="nicho-menu" href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm">
                             <MessageCircle className="w-4 h-4" /> <span className="hidden sm:inline">Falar no</span> WhatsApp
                         </a>
                     </div>
@@ -64,7 +65,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
                                 ))}
                             </ul>
                             <div className="flex flex-col sm:flex-row gap-3">
-                                <a href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black text-lg hover:brightness-95 transition">
+                                <a data-evento="whatsapp" data-rotulo="nicho-topo" href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black text-lg hover:brightness-95 transition">
                                     Quero 2 meses grátis
                                 </a>
                                 <a href="#demo" className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#101C31] border border-[#24344F] text-white font-bold text-lg hover:bg-[#1A2C4D] transition-colors">
@@ -187,7 +188,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <div className="space-y-3">
                         {nicho.faq.map((f, i) => (
                             <div key={f.q} className="rounded-2xl bg-[#101C31] border border-[#24344F] overflow-hidden">
-                                <button type="button" onClick={() => setFaqAberta(faqAberta === i ? null : i)} aria-expanded={faqAberta === i} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
+                                <button type="button" onClick={() => { if (faqAberta !== i) rastrearEvento('faq', f.q); setFaqAberta(faqAberta === i ? null : i); }} aria-expanded={faqAberta === i} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
                                     <span className="font-bold text-white">{f.q}</span>
                                     {faqAberta === i ? <ChevronUp className="w-5 h-5 text-[#2E9BFF] shrink-0" /> : <ChevronDown className="w-5 h-5 text-[#8FA3C0] shrink-0" />}
                                 </button>

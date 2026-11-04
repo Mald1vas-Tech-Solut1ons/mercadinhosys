@@ -22,6 +22,8 @@ const SegmentosGrid: React.FC<{ excluir?: string }> = ({ excluir }) => (
             <Link
                 key={n.slug}
                 to={rotaNicho(n.slug)}
+                data-evento="segmento"
+                data-rotulo={n.slug}
                 className="group flex items-center gap-3 p-4 rounded-2xl bg-[#0A1220] border border-[#24344F] hover:border-[#2E9BFF] hover:bg-[#2E9BFF]/5 transition-all"
             >
                 <span className="w-10 h-10 shrink-0 rounded-xl bg-[#101C31] border border-[#24344F] flex items-center justify-center group-hover:border-[#2E9BFF]/40">

@@ -162,7 +162,8 @@ def init_access_control(app):
                 plano = _plano_do_estabelecimento(tid)
             except Exception:
                 plano = claims.get("plano", "Gratuito")
-            if normalize_plan(plano) == "Gratuito" and _free_plan_blocks_path(path):
+            # Demonstração (somente leitura) mostra o produto completo, mesmo em vitrine Gratuita.
+            if normalize_plan(plano) == "Gratuito" and not claims.get("is_demo") and _free_plan_blocks_path(path):
                 return jsonify({
                     "success": False,
                     "error": "Este módulo não está incluído no Plano Grátis. Faça upgrade para desbloquear.",

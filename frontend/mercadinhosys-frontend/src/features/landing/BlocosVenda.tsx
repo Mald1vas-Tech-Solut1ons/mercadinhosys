@@ -122,6 +122,7 @@ export const OfertaDoisMeses: React.FC<{ origem: string; onCadastro: () => void 
         </ul>
         <div className="flex flex-col sm:flex-row gap-3">
             <a
+                data-evento="whatsapp" data-rotulo="oferta"
                 href={linkWhatsApp(`Olá! Vi o MercadinhoSys (${origem}) e quero os 2 meses grátis com implantação.`)}
                 target="_blank" rel="noreferrer"
                 className="flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-[#0A1220] text-white font-bold text-lg hover:bg-[#101C31] transition-colors"
@@ -129,7 +130,7 @@ export const OfertaDoisMeses: React.FC<{ origem: string; onCadastro: () => void 
                 <MessageCircle className="w-5 h-5" /> Chamar no WhatsApp
             </a>
             <button
-                type="button" onClick={onCadastro}
+                type="button" onClick={onCadastro} data-evento="cadastro" data-rotulo="oferta"
                 className="flex-1 px-6 py-4 rounded-xl border-2 border-[#0A1220] font-bold text-lg hover:bg-[#0A1220]/5 transition-colors"
             >
                 Criar minha conta grátis

@@ -55,7 +55,7 @@ const menuItems = [
     { to: '/settings', icon: Settings, label: 'Configurações' },
     { to: '/estabelecimentos', icon: Building2, label: 'Estabelecimentos' },
     { to: '/monitor', icon: Activity, label: 'Monitor Sistema' },
-    { to: '/leads', icon: Target, label: 'Leads SaaS' },
+    { to: '/leads', icon: Target, label: 'Site e Leads (CRM)' },
     { to: '/catalogo-mestre', icon: Database, label: 'Catálogo Mestre' },
 ];
 

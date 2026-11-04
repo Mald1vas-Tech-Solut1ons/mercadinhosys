@@ -475,7 +475,11 @@ def after_flush_listener(session, flush_context):
 # Modelos de Negócio
 # ------------------------------------------------------------------------------
 
+LEAD_ETAPAS = ("novo", "contatado", "demonstracao", "implantacao", "teste", "cliente", "perdido")
+
+
 class Lead(db.Model):
+    """Lead do MercadinhoSys (CRM do super admin): do site, do cadastro ou do porta a porta."""
     __tablename__ = "leads"
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(150), nullable=False)
@@ -484,10 +488,101 @@ class Lead(db.Model):
     origem = db.Column(db.String(100), default="landing_page")
     observacao = db.Column(db.Text)
     data_cadastro = db.Column(db.DateTime, default=utcnow)
+    # CRM
+    etapa = db.Column(db.String(20), nullable=False, default="novo", server_default="novo")
+    nome_loja = db.Column(db.String(150))
+    segmento = db.Column(db.String(60))
+    cidade = db.Column(db.String(80))
+    bairro = db.Column(db.String(80))
+    valor_mensal = db.Column(db.Numeric(10, 2))  # só quando alguém digita: nada de estimativa
+    proximo_contato = db.Column(db.Date)
+    motivo_perda = db.Column(db.String(200))
+    # Loja criada por este lead. NÃO chamar de estabelecimento_id: o TenantQuery filtraria
+    # os leads pela loja de quem consulta e o super admin deixaria de ver o CRM.
+    loja_criada_id = db.Column(db.Integer, db.ForeignKey("estabelecimentos.id", ondelete="SET NULL"))
+    # Rastreio: de onde veio (primeira e última origem do aparelho, se aceitou cookies)
+    visitante_id = db.Column(db.String(36), index=True)
+    origem_primeira = db.Column(db.JSON)
+    origem_ultima = db.Column(db.JSON)
+    atualizado_em = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     def to_dict(self):
-        return {"id": self.id, "nome": self.nome, "email": self.email, "whatsapp": self.whatsapp,
-                "origem": self.origem, "data_cadastro": iso_utc(self.data_cadastro) if self.data_cadastro else None}
+        return {
+            "id": self.id, "nome": self.nome, "email": self.email, "whatsapp": self.whatsapp,
+            "origem": self.origem, "observacao": self.observacao,
+            "data_cadastro": iso_utc(self.data_cadastro) if self.data_cadastro else None,
+            "etapa": self.etapa or "novo", "nome_loja": self.nome_loja, "segmento": self.segmento,
+            "cidade": self.cidade, "bairro": self.bairro,
+            "valor_mensal": float(self.valor_mensal) if self.valor_mensal is not None else None,
+            "proximo_contato": self.proximo_contato.isoformat() if self.proximo_contato else None,
+            "motivo_perda": self.motivo_perda, "loja_criada_id": self.loja_criada_id,
+            "visitante_id": self.visitante_id, "origem_primeira": self.origem_primeira,
+            "origem_ultima": self.origem_ultima,
+            "atualizado_em": iso_utc(self.atualizado_em) if self.atualizado_em else None,
+        }
+
+
+class LeadHistorico(db.Model):
+    """Linha do tempo do lead: mudança de etapa, nota, ligação, visita."""
+    __tablename__ = "lead_historico"
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo = db.Column(db.String(20), nullable=False)  # etapa | nota | contato | sistema
+    texto = db.Column(db.Text, nullable=False)
+    autor = db.Column(db.String(100))
+    criado_em = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+    def to_dict(self):
+        return {"id": self.id, "lead_id": self.lead_id, "tipo": self.tipo, "texto": self.texto,
+                "autor": self.autor, "criado_em": iso_utc(self.criado_em)}
+
+
+class SiteVisitante(db.Model):
+    """Aparelho anônimo que aceitou cookies de medição no site público (sem nome, sem IP)."""
+    __tablename__ = "site_visitantes"
+    id = db.Column(db.String(36), primary_key=True)  # UUID gerado no navegador
+    criado_em = db.Column(db.DateTime, default=utcnow, nullable=False)
+    visto_em = db.Column(db.DateTime, default=utcnow, nullable=False)
+    origem_primeira = db.Column(db.JSON)
+    origem_ultima = db.Column(db.JSON)
+    dispositivo = db.Column(db.String(20))
+    interno = db.Column(db.Boolean, nullable=False, default=False, server_default="false")
+    lead_id = db.Column(db.Integer, db.ForeignKey("leads.id", ondelete="SET NULL"))
+
+
+class SiteAcesso(db.Model):
+    """Uma página vista: duração real (medida na saída) e quanto da página foi rolado."""
+    __tablename__ = "site_acessos"
+    id = db.Column(db.BigInteger().with_variant(db.Integer, "sqlite"), primary_key=True)
+    visitante_id = db.Column(db.String(36), nullable=False, index=True)
+    sessao_id = db.Column(db.String(36), nullable=False, index=True)
+    rota = db.Column(db.String(300), nullable=False)
+    referrer = db.Column(db.String(300))
+    utm_source = db.Column(db.String(120))
+    utm_medium = db.Column(db.String(120))
+    utm_campaign = db.Column(db.String(120))
+    dispositivo = db.Column(db.String(20))
+    duracao_seg = db.Column(db.Integer)
+    rolagem_pct = db.Column(db.Integer)
+    criado_em = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
+
+
+SITE_EVENTOS = (
+    "whatsapp", "cadastro", "demo_entrar", "demo_aba", "demo_produto", "segmento", "regiao",
+    "calculadora", "faq", "cookies_aceitos", "formulario_inicio", "formulario_enviado", "oferta_vista",
+)
+
+
+class SiteEvento(db.Model):
+    """Uma ação do visitante: clique no WhatsApp, demonstração, segmento, formulário..."""
+    __tablename__ = "site_eventos"
+    id = db.Column(db.BigInteger().with_variant(db.Integer, "sqlite"), primary_key=True)
+    visitante_id = db.Column(db.String(36), nullable=False, index=True)
+    sessao_id = db.Column(db.String(36), nullable=False, index=True)
+    rota = db.Column(db.String(300), nullable=False)
+    evento = db.Column(db.String(30), nullable=False, index=True)
+    rotulo = db.Column(db.String(120))
+    criado_em = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
 
 class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     __tablename__ = "configuracoes"

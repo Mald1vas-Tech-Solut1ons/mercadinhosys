@@ -5,6 +5,7 @@ import {
 import type { NichoVenda } from './site';
 import { linkWhatsApp } from './site';
 import { entrarNaDemo } from './entrarNaDemo';
+import { rastrearEvento } from './telemetria';
 
 /*
  * Seções de venda das páginas públicas. Cada uma ataca um ponto da decisão do
@@ -74,7 +75,7 @@ export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string; segme
                 <div className="flex border-b border-[#24344F] overflow-x-auto [scrollbar-width:none]">
                     {abas.map(({ id, rotulo, icone: Icone }) => (
                         <button
-                            key={id} type="button" onClick={() => setAba(id)}
+                            key={id} type="button" onClick={() => { setAba(id); rastrearEvento('demo_aba', id); }}
                             className={`flex-1 min-w-[84px] flex items-center justify-center gap-2 px-3 py-4 text-sm font-bold transition-colors ${aba === id ? 'text-white bg-[#101C31] border-b-2 border-[#2E9BFF]' : 'text-[#8FA3C0] hover:text-white'}`}
                         >
                             <Icone className="w-4 h-4" /> {rotulo}
@@ -88,7 +89,7 @@ export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string; segme
                             <p className="text-xs text-[#8FA3C0] mb-3">Toque nos produtos para bipar:</p>
                             <div className="flex flex-wrap gap-2 mb-5">
                                 {venda.produtosDemo.map((p, i) => (
-                                    <button key={p.nome} type="button" onClick={() => setCarrinho(c => [...c, i])}
+                                    <button key={p.nome} type="button" onClick={() => { setCarrinho(c => [...c, i]); rastrearEvento('demo_produto', p.nome); }}
                                         className="px-3 py-2 rounded-xl bg-[#101C31] border border-[#24344F] hover:border-[#2E9BFF] text-sm text-white text-left">
                                         {p.nome}
                                     </button>
@@ -175,7 +176,7 @@ export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string; segme
                 <button type="button" onClick={() => entrarNaDemo(segmento)} className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-[#2E9BFF] text-[#0A1220] font-bold text-lg hover:bg-[#6FCBFF] transition-colors">
                     <Play className="w-5 h-5" /> Entrar na demonstração ao vivo
                 </button>
-                <a href={linkWhatsApp(`Olá! Quero uma demonstração do MercadinhoSys na minha loja (${origem}).`)} target="_blank" rel="noreferrer"
+                <a data-evento="whatsapp" data-rotulo="demo-na-loja" href={linkWhatsApp(`Olá! Quero uma demonstração do MercadinhoSys na minha loja (${origem}).`)} target="_blank" rel="noreferrer"
                     className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-[#101C31] border border-[#24344F] text-white font-bold text-lg hover:bg-[#1A2C4D] transition-colors">
                     <MessageCircle className="w-5 h-5" /> Demonstração na minha loja
                 </a>
@@ -186,6 +187,7 @@ export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string; segme
 
 /** "Quanto você perde por mês?": o custo de NÃO ter controle, ao lado da mensalidade. */
 export const CalculadoraPerdas: React.FC = () => {
+    const [mexeu, setMexeu] = useState(false);
     const [fiado, setFiado] = useState(300);
     const [vencido, setVencido] = useState(200);
     const [falta, setFalta] = useState(300);
@@ -203,7 +205,7 @@ export const CalculadoraPerdas: React.FC = () => {
                         <span className="flex justify-between gap-3 text-sm text-[#DCE8F7] mb-2">
                             <span>{l.rotulo}</span><strong className="text-white shrink-0">{moeda(l.valor)}/mês</strong>
                         </span>
-                        <input type="range" min={0} max={l.max} step={50} value={l.valor} onChange={e => l.set(Number(e.target.value))} className="w-full accent-[#2E9BFF]" />
+                        <input type="range" min={0} max={l.max} step={50} value={l.valor} onChange={e => { l.set(Number(e.target.value)); if (!mexeu) { setMexeu(true); rastrearEvento('calculadora'); } }} className="w-full accent-[#2E9BFF]" />
                     </label>
                 ))}
             </div>
@@ -232,11 +234,11 @@ export const QuebraObjecao: React.FC<{ objecao: string; resposta: string }> = ({
 /** Barra fixa no celular: o próximo passo sempre a um toque. */
 export const BarraFixaCelular: React.FC<{ origem: string; onCadastro: () => void }> = ({ origem, onCadastro }) => (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-50 flex gap-2 p-3 bg-[#0A1220]/95 backdrop-blur border-t border-[#24344F]" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
-        <a href={linkWhatsApp(`Olá! Vi o MercadinhoSys (${origem}) e quero os 2 meses grátis.`)} target="_blank" rel="noreferrer"
+        <a data-evento="whatsapp" data-rotulo="barra-fixa" href={linkWhatsApp(`Olá! Vi o MercadinhoSys (${origem}) e quero os 2 meses grátis.`)} target="_blank" rel="noreferrer"
             className="flex-1 inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 text-white font-bold">
             <MessageCircle className="w-5 h-5" /> WhatsApp
         </a>
-        <button type="button" onClick={onCadastro} className="flex-1 py-3 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black">
+        <button type="button" onClick={onCadastro} data-evento="cadastro" data-rotulo="barra-fixa" className="flex-1 py-3 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black">
             2 meses grátis
         </button>
     </div>

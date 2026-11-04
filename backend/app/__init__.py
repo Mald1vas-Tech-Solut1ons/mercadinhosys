@@ -895,6 +895,15 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar saas: {e}")
 
+    # Rastreio do site público e CRM de leads do super admin
+    try:
+        from app.routes.site_crm import site_bp, crm_bp
+        app.register_blueprint(site_bp, url_prefix="/api/site")
+        app.register_blueprint(crm_bp, url_prefix="/api/saas/crm")
+        logger.info("✅ Blueprints site/crm registrados em /api/site e /api/saas/crm")
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar site/crm: {e}")
+
     # Despesas
     try:
         from app.routes.despesas import despesas_bp

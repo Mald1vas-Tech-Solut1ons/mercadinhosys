@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp, MapPin, MessageCircle, Play } from 'lucide-react';
 import { REGIOES, VENDAS, rotaRegiao, linkWhatsApp, imagemOg, naRegiao, PRAZO_RESPOSTA } from './site';
 import Trilha from './Trilha';
+import { rastrearEvento } from './telemetria';
 import { useSeo } from './useSeo';
 import SegmentosGrid from './SegmentosGrid';
 import MapaDoSite from './MapaDoSite';
@@ -32,7 +33,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
                         <img src="/assets/logo.png" alt="MercadinhoSys" className="w-9 h-9 rounded-lg" />
                         <span className="text-xl font-bold text-white tracking-tighter truncate">Mercadinho<span className="text-[#FF6A5C]">Sys</span></span>
                     </Link>
-                    <a href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm">
+                    <a data-evento="whatsapp" data-rotulo="regiao-menu" href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500 text-white font-bold text-sm">
                         <MessageCircle className="w-4 h-4" /> <span className="hidden sm:inline">Falar no</span> WhatsApp
                     </a>
                 </div>
@@ -46,7 +47,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-[1.08] mb-5 max-w-4xl">{regiao.h1}</h1>
                 <p className="text-lg sm:text-xl text-[#8FA3C0] mb-8 max-w-3xl">{regiao.subtitulo}</p>
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <a href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center px-7 py-4 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black text-lg">Agendar visita na minha loja</a>
+                    <a data-evento="whatsapp" data-rotulo="regiao-topo" href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center px-7 py-4 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black text-lg">Agendar visita na minha loja</a>
                     <a href="#demo" className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#101C31] border border-[#24344F] text-white font-bold text-lg"><Play className="w-5 h-5" /> Ver funcionando</a>
                 </div>
                 <p className="text-sm text-[#8FA3C0] mt-4">{PRAZO_RESPOSTA}</p>
@@ -119,7 +120,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <div className="space-y-3">
                         {regiao.faq.map((f, i) => (
                             <div key={f.q} className="rounded-2xl bg-[#101C31] border border-[#24344F] overflow-hidden">
-                                <button type="button" onClick={() => setFaqAberta(faqAberta === i ? null : i)} aria-expanded={faqAberta === i} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
+                                <button type="button" onClick={() => { if (faqAberta !== i) rastrearEvento('faq', f.q); setFaqAberta(faqAberta === i ? null : i); }} aria-expanded={faqAberta === i} className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left">
                                     <span className="font-bold text-white">{f.q}</span>
                                     {faqAberta === i ? <ChevronUp className="w-5 h-5 text-[#2E9BFF] shrink-0" /> : <ChevronDown className="w-5 h-5 text-[#8FA3C0] shrink-0" />}
                                 </button>

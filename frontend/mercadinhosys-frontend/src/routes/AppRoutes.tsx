@@ -32,7 +32,7 @@ const RelatoriosPontoPage = lazy(() => import('../features/ponto/RelatoriosPonto
 const DiagnosticoFotos = lazy(() => import('../features/ponto/DiagnosticoFotos'));
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage'));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage'));
-const LeadDashboard = lazy(() => import('../features/saas/LeadDashboard'));
+const SiteLeadsPage = lazy(() => import('../features/saas/SiteLeadsPage'));
 const SystemMonitorPage = lazy(() => import('../features/saas/SystemMonitorPage'));
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
 const NichoPage = lazy(() => import('../features/landing/NichoPage'));
@@ -136,7 +136,7 @@ const AppRoutes: React.FC = () => {
 
                     <Route path="estabelecimentos" element={<SuperAdminRoute><EstabelecimentosPage /></SuperAdminRoute>} />
                     <Route path="monitor" element={<SuperAdminRoute><SystemMonitorPage /></SuperAdminRoute>} />
-                    <Route path="leads" element={<SuperAdminRoute><LeadDashboard /></SuperAdminRoute>} />
+                    <Route path="leads" element={<SuperAdminRoute><SiteLeadsPage /></SuperAdminRoute>} />
                     <Route path="catalogo-mestre" element={<SuperAdminRoute><MasterCatalogPage /></SuperAdminRoute>} />
                 </Route>
 

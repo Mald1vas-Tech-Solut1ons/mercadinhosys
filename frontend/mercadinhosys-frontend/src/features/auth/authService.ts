@@ -128,7 +128,7 @@ class AuthService {
         try {
             const response = await axios.post(
                 `${API_URL}/onboarding/registrar`,
-                payload,
+                { ...payload, visitante_id: (await import('../landing/telemetria')).idVisitante() },
                 {
                     headers: { 'Content-Type': 'application/json' },
                     timeout: API_CONFIG.TIMEOUT

@@ -1,5 +1,6 @@
 import { showToast } from '../../utils/toast';
 import { API_CONFIG } from '../../api/apiConfig';
+import { rastrearEvento } from './telemetria';
 
 /**
  * Entra na demonstração (somente leitura). Com o segmento, cai na loja-vitrine dele
@@ -7,6 +8,7 @@ import { API_CONFIG } from '../../api/apiConfig';
  * então o argumento pode ser o evento do clique: só string vale como segmento.
  */
 export async function entrarNaDemo(segmento?: unknown) {
+    rastrearEvento('demo_entrar', typeof segmento === 'string' ? segmento : 'inicio');
     try {
         showToast.loading('Preparando ambiente de demonstração...');
         const response = await fetch(`${API_CONFIG.BASE_URL}/auth/demo`, {

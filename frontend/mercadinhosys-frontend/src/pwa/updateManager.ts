@@ -74,6 +74,8 @@ export interface ManagerDeps {
   fetchVersion?: () => Promise<string | null>;
   now?: () => number;
   isSafe?: () => boolean;
+  /** Visitante do site público (ninguém logado): sem venda a perder, atualiza na hora. */
+  ehVisitante?: () => boolean;
   hardReload?: () => Promise<void>;
 }
 
@@ -105,6 +107,7 @@ export async function hardReload(): Promise<void> {
 export function createUpdateManager(deps: ManagerDeps) {
   const now = deps.now ?? Date.now;
   const isSafe = deps.isSafe ?? (() => isSafeToApply());
+  const ehVisitante = deps.ehVisitante ?? (() => false);
   const getRemote = deps.fetchVersion ?? fetchRemoteVersion;
   const bootAt = now();
   let registration: ServiceWorkerRegistration | undefined;
@@ -133,7 +136,9 @@ export function createUpdateManager(deps: ManagerDeps) {
   function maybeAutoApply(hidden: boolean) {
     if (state.status !== 'available' && state.status !== 'stale') return;
     if (!isSafe()) return;
-    if (hidden || now() - bootAt < BOOT_APPLY_WINDOW_MS) void apply();
+    // Visitante do site público: ficar na versão velha mostra página que não existe mais
+    // (segmento novo caía na 404) e CSS antigo; sem caixa aberto, recarregar não custa nada.
+    if (hidden || now() - bootAt < BOOT_APPLY_WINDOW_MS || ehVisitante()) void apply();
   }
 
   async function check(): Promise<void> {
@@ -212,6 +217,9 @@ export function getUpdateManager() {
   if (!instance) {
     instance = createUpdateManager({
       currentVersion: APP_VERSION,
+      ehVisitante: () => {
+        try { return !sessionStorage.getItem('access_token'); } catch { return false; }
+      },
       registerSW: (cb) => {
         let fn: (reload?: boolean) => Promise<void> = async () => {};
         import('virtual:pwa-register')

@@ -94,6 +94,23 @@ describe('createUpdateManager', () => {
     expect(updateSW).not.toHaveBeenCalled()
   })
 
+  it('visitante do site público (sem login): aplica a versão nova mesmo depois da janela de boot', () => {
+    const m = createUpdateManager({
+      currentVersion: 'v1',
+      registerSW: cb => { needRefresh = cb.onNeedRefresh; return updateSW },
+      fetchVersion: async () => remote,
+      now: () => t,
+      isSafe: () => safe,
+      ehVisitante: () => true,
+      hardReload,
+    })
+    m.start()
+    t += BOOT_APPLY_WINDOW_MS + 1
+    needRefresh()
+    expect(m.getState().status).toBe('applying')
+    expect(updateSW).toHaveBeenCalledWith(true)
+  })
+
   it('carrinho em andamento nunca é interrompido, nem em segundo plano', () => {
     const m = make()
     t += BOOT_APPLY_WINDOW_MS + 1

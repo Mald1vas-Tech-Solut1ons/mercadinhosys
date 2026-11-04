@@ -1,44 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Cookie } from 'lucide-react';
+import { CHAVE_CONSENTIMENTO, VERSAO_CONSENTIMENTO, lerEscolhaCookies } from './consentimento';
 
 /*
  * Consentimento de cookies (LGPD) das páginas públicas.
  * Essenciais (login, preferências) sempre ligados; medição de uso do site só com o "Aceitar".
- * Quem lê a escolha é a telemetria: `podeMedirUso()` precisa dar true antes de qualquer envio.
+ * Quem lê a escolha é a telemetria: `podeMedirUso()` (consentimento.ts) precisa dar true antes de qualquer envio.
  */
-const CHAVE = 'mercadinhosys_consentimento_cookies';
-const VERSAO = 1;
-
-type Escolha = { medicao: boolean; em: string; versao: number };
-
-function lerEscolha(): Escolha | null {
-    try {
-        const bruto = localStorage.getItem(CHAVE);
-        if (!bruto) return null;
-        const e = JSON.parse(bruto) as Escolha;
-        return e.versao === VERSAO ? e : null;
-    } catch {
-        return null;
-    }
-}
-
-/** true só quando o visitante aceitou a medição de uso. */
-export function podeMedirUso(): boolean {
-    return lerEscolha()?.medicao === true;
-}
-
 const BannerCookies: React.FC = () => {
     const [aberto, setAberto] = useState(false);
 
     useEffect(() => {
         // Depois da vinheta da landing, para não cobrir a abertura.
-        const t = setTimeout(() => setAberto(lerEscolha() === null), 3200);
+        const t = setTimeout(() => setAberto(lerEscolhaCookies() === null), 3200);
         return () => clearTimeout(t);
     }, []);
 
     const salvar = (medicao: boolean) => {
         try {
-            localStorage.setItem(CHAVE, JSON.stringify({ medicao, em: new Date().toISOString(), versao: VERSAO }));
+            localStorage.setItem(CHAVE_CONSENTIMENTO, JSON.stringify({ medicao, em: new Date().toISOString(), versao: VERSAO_CONSENTIMENTO }));
         } catch { /* navegador sem armazenamento: só fecha */ }
         window.dispatchEvent(new CustomEvent('consentimento-cookies', { detail: { medicao } }));
         setAberto(false);

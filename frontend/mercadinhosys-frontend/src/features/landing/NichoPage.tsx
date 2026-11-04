@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, ChevronDown, ChevronUp, MessageCircle, Play } from 'lucide-react';
-import { NICHOS, VENDAS, rotaNicho, linkWhatsApp } from './site';
+import { Check, ChevronDown, ChevronUp, MessageCircle, Play } from 'lucide-react';
+import { NICHOS, VENDAS, rotaNicho, linkWhatsApp, imagemOg, PRAZO_RESPOSTA } from './site';
+import Trilha from './Trilha';
 import { useSeo } from './useSeo';
 import SegmentosGrid, { IconeNicho } from './SegmentosGrid';
 import MapaDoSite from './MapaDoSite';
@@ -20,7 +21,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
     const nicho = NICHOS.find(n => n.slug === slug)!;
     const venda = VENDAS[slug];
     const [faqAberta, setFaqAberta] = useState<number | null>(0);
-    useSeo(nicho.seoTitle, nicho.seoDescription, rotaNicho(slug));
+    useSeo(nicho.seoTitle, nicho.seoDescription, rotaNicho(slug), imagemOg(slug));
 
     const nomeMinusculo = nicho.nome.toLowerCase();
     const whats = linkWhatsApp(`Olá! Tenho ${nomeMinusculo} e quero conhecer o MercadinhoSys com os 2 meses grátis.`);
@@ -49,9 +50,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
             <header className="relative overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-[#1D4ED8]/20 rounded-full blur-[120px] pointer-events-none" />
                 <div className={`${secao} relative pt-8 pb-16 sm:pt-14 sm:pb-24`}>
-                    <Link to="/#segmentos" className="inline-flex items-center gap-1 text-sm text-[#8FA3C0] hover:text-white mb-6">
-                        <ArrowLeft className="w-4 h-4" /> Outros tipos de comércio
-                    </Link>
+                    <Trilha itens={[{ nome: 'Início', para: '/' }, { nome: 'Segmentos', para: '/#segmentos' }, { nome: nicho.nome }]} />
                     <div className="grid lg:grid-cols-2 gap-10 items-center">
                         <div>
                             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2E9BFF]/10 border border-[#2E9BFF]/30 text-[#6FCBFF] text-xs font-bold uppercase tracking-widest mb-5">
@@ -72,7 +71,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
                                     <Play className="w-5 h-5" /> Ver funcionando
                                 </a>
                             </div>
-                            <p className="text-sm text-[#8FA3C0] mt-4">Só paga se gostar e se fizer sentido para o seu negócio.</p>
+                            <p className="text-sm text-[#8FA3C0] mt-4">Só paga se gostar e se fizer sentido para o seu negócio. {PRAZO_RESPOSTA}</p>
                         </div>
                         <ChatMIA exemplo={nicho.exemploIA} />
                     </div>

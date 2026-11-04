@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { NICHOS, REGIOES, rotaNicho, rotaRegiao, linkWhatsApp, WHATSAPP_EXIBICAO } from './site';
+import { NICHOS, REGIOES, rotaNicho, rotaRegiao, linkWhatsApp, WHATSAPP_EXIBICAO, PRAZO_RESPOSTA, EMPRESA } from './site';
 
 /** Mapa do site visível: todos os segmentos e regiões a um clique (e links internos para o Google). */
 const MapaDoSite: React.FC = () => (
@@ -31,8 +31,12 @@ const MapaDoSite: React.FC = () => (
                 ))}
             </ul>
             <p className="mt-4 text-[#8FA3C0]">WhatsApp <a className="text-white font-bold" href={linkWhatsApp('Olá! Quero conhecer o MercadinhoSys.')} target="_blank" rel="noreferrer">{WHATSAPP_EXIBICAO}</a></p>
+            <p className="mt-1 text-xs text-[#8FA3C0]">{PRAZO_RESPOSTA}</p>
             <p className="mt-2 flex gap-4 text-[#8FA3C0]"><a href="/termos" className="hover:text-white">Termos</a><a href="/privacidade" className="hover:text-white">Privacidade</a></p>
         </div>
+        <p className="sm:col-span-2 lg:col-span-4 pt-6 border-t border-[#24344F] text-center text-[#8FA3C0]">
+            MercadinhoSys é um produto da <a href={EMPRESA.url} target="_blank" rel="noopener" className="text-white font-bold hover:text-[#6FCBFF]">{EMPRESA.nome}</a>: software sob medida, sistemas e IA para empresas.
+        </p>
     </nav>
 );
 

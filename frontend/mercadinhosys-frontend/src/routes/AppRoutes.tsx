@@ -37,6 +37,7 @@ const SystemMonitorPage = lazy(() => import('../features/saas/SystemMonitorPage'
 const LandingPage = lazy(() => import('../features/landing/LandingPage'));
 const NichoPage = lazy(() => import('../features/landing/NichoPage'));
 const RegiaoPage = lazy(() => import('../features/landing/RegiaoPage'));
+const NaoEncontradaPage = lazy(() => import('../features/landing/NaoEncontradaPage'));
 const EstabelecimentosPage = lazy(() => import('../features/estabelecimentos/EstabelecimentosPage'));
 const DeliveryPage = lazy(() => import('../features/delivery/DeliveryPage'));
 const FiscalPage = lazy(() => import('../features/fiscal/FiscalPage'));
@@ -139,7 +140,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="catalogo-mestre" element={<SuperAdminRoute><MasterCatalogPage /></SuperAdminRoute>} />
                 </Route>
 
-                <Route path="*" element={<Navigate to={isAuthenticated ? getTargetRoute() : "/"} replace />} />
+                <Route path="*" element={isAuthenticated ? <Navigate to={getTargetRoute()} replace /> : <NaoEncontradaPage />} />
             </Routes>
         </Suspense>
     );

@@ -40,6 +40,7 @@ const ORGANIZACAO = {
     url: `${SITE}/`,
     logo: `${SITE}/assets/logo.png`,
     contactPoint: { '@type': 'ContactPoint', telephone: '+55-11-91988-9233', contactType: 'sales', availableLanguage: 'Portuguese' },
+    parentOrganization: { '@type': 'Organization', name: 'Maldivas Tech', url: 'https://maldivastech.dev' },
 };
 const AREAS = regioes.map(r => ({ '@type': r.slug === 'guarulhos' ? 'City' : 'AdministrativeArea', name: r.nome }));
 
@@ -49,15 +50,18 @@ function substituirMeta(html, chave, valor) {
     return html.replace(re, `$1${esc(valor)}$2`);
 }
 
-function pagina({ caminho, titulo, descricao, corpo = '', jsonLd = null }) {
+function pagina({ caminho, titulo, descricao, corpo = '', jsonLd = null, og = 'inicio' }) {
     let html = modelo.replace(/<title>[^<]*<\/title>/, `<title>${esc(titulo)}</title>`);
     html = substituirMeta(html, 'description', descricao);
     html = substituirMeta(html, 'og:title', titulo);
     html = substituirMeta(html, 'og:description', descricao);
-    html = substituirMeta(html, 'og:image', `${SITE}/screenshots/dashboard.png`);
+    html = substituirMeta(html, 'og:image', `${SITE}/og/${og}.png`);
     const extra = [
         `<link rel="canonical" href="${SITE}${caminho}" />`,
         `<meta property="og:url" content="${SITE}${caminho}" />`,
+        '<meta property="og:image:width" content="1200" />',
+        '<meta property="og:image:height" content="630" />',
+        `<meta property="og:image:alt" content="${esc(titulo)}" />`,
         jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : '',
     ].join('\n    ');
     html = html.replace('</head>', `    ${extra}\n  </head>`);
@@ -81,7 +85,8 @@ const trilha = (nome, caminho) => ({
 });
 const listaNichos = (excluir) => nichos.filter(o => o.slug !== excluir)
     .map(o => `<li><a href="${rotaNicho(o.slug)}">Sistema para ${esc(o.nome.toLowerCase())}</a></li>`).join('');
-const listaRegioes = () => regioes.map(r => `<li><a href="${rotaRegiao(r.slug)}">Sistema para comércio em ${esc(r.nome)}</a></li>`).join('');
+const naRegiao = (r) => `${r.preposicao} ${r.nome}`;
+const listaRegioes = () => regioes.map(r => `<li><a href="${rotaRegiao(r.slug)}">Sistema para comércio ${esc(naRegiao(r))}</a></li>`).join('');
 
 // ---------- Página inicial ----------
 const FAQ_HOME = [
@@ -130,7 +135,7 @@ for (const n of nichos) {
 <h2>Atendimento presencial</h2><ul>${listaRegioes()}</ul>
 </main>`;
     salvar(caminho, pagina({
-        caminho, titulo: n.seoTitle, descricao: n.seoDescription, corpo,
+        caminho, titulo: n.seoTitle, descricao: n.seoDescription, corpo, og: n.slug,
         jsonLd: {
             '@context': 'https://schema.org',
             '@graph': [
@@ -154,15 +159,15 @@ for (const r of regioes) {
 <h1>${esc(r.h1)}</h1>
 <p>${esc(r.subtitulo)}</p>
 ${r.intro.map(p => `<p>${esc(p)}</p>`).join('')}
-<h2>Bairros atendidos em ${esc(r.nome)}</h2><ul>${r.bairros.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
-<h2>Como funciona a implantação em ${esc(r.nome)}</h2>${r.comoFunciona.map(p => `<h3>${esc(p.titulo)}</h3><p>${esc(p.texto)}</p>`).join('')}
+<h2>Bairros atendidos ${esc(naRegiao(r))}</h2><ul>${r.bairros.map(b => `<li>${esc(b)}</li>`).join('')}</ul>
+<h2>Como funciona a implantação ${esc(naRegiao(r))}</h2>${r.comoFunciona.map(p => `<h3>${esc(p.titulo)}</h3><p>${esc(p.texto)}</p>`).join('')}
 <h2>Para todo tipo de comércio</h2><ul>${listaNichos()}</ul>
 <h2>Quem já usa</h2><blockquote>${esc(VERA)}</blockquote>
 <h2>2 meses grátis</h2><p>${esc(OFERTA)}</p>
 <h2>Perguntas frequentes</h2>${r.faq.map(f => `<h3>${esc(f.q)}</h3><p>${esc(f.a)}</p>`).join('')}
 </main>`;
     salvar(caminho, pagina({
-        caminho, titulo: r.seoTitle, descricao: r.seoDescription, corpo,
+        caminho, titulo: r.seoTitle, descricao: r.seoDescription, corpo, og: `comercio-${r.slug}`,
         jsonLd: {
             '@context': 'https://schema.org',
             '@graph': [
@@ -181,7 +186,7 @@ ${r.intro.map(p => `<p>${esc(p)}</p>`).join('')}
                     ],
                 },
                 faqLd(r.faq),
-                trilha(`Sistema para comércio em ${r.nome}`, caminho),
+                trilha(`Sistema para comércio ${naRegiao(r)}`, caminho),
             ],
         },
     }));

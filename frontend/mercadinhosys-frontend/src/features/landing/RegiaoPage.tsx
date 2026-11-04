@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronUp, MapPin, MessageCircle, Play } from 'lucide-react';
-import { REGIOES, VENDAS, rotaRegiao, linkWhatsApp } from './site';
+import { REGIOES, VENDAS, rotaRegiao, linkWhatsApp, imagemOg, naRegiao, PRAZO_RESPOSTA } from './site';
+import Trilha from './Trilha';
 import { useSeo } from './useSeo';
 import SegmentosGrid from './SegmentosGrid';
 import MapaDoSite from './MapaDoSite';
@@ -17,9 +18,9 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
     const navigate = useNavigate();
     const regiao = REGIOES.find(r => r.slug === slug)!;
     const [faqAberta, setFaqAberta] = useState<number | null>(0);
-    useSeo(regiao.seoTitle, regiao.seoDescription, rotaRegiao(slug));
+    useSeo(regiao.seoTitle, regiao.seoDescription, rotaRegiao(slug), imagemOg(`comercio-${slug}`));
 
-    const whats = linkWhatsApp(`Olá! Tenho um comércio em ${regiao.nome} e quero a implantação do MercadinhoSys com os 2 meses grátis.`);
+    const whats = linkWhatsApp(`Olá! Tenho um comércio ${naRegiao(regiao)} e quero a implantação do MercadinhoSys com os 2 meses grátis.`);
     const secao = 'max-w-6xl mx-auto px-4 sm:px-6 lg:px-8';
     const titulo = 'text-3xl sm:text-4xl font-bold text-white leading-tight';
 
@@ -37,7 +38,8 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
                 </div>
             </nav>
 
-            <header className={`${secao} pt-10 pb-16 sm:pt-16 sm:pb-20`}>
+            <header className={`${secao} pt-8 pb-16 sm:pt-14 sm:pb-20`}>
+                <Trilha itens={[{ nome: 'Início', para: '/' }, { nome: 'Atendimento presencial' }, { nome: regiao.nome }]} />
                 <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold uppercase tracking-widest mb-5">
                     <MapPin className="w-4 h-4" /> Atendimento presencial · {regiao.nome}
                 </span>
@@ -47,6 +49,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
                     <a href={whats} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center px-7 py-4 rounded-xl bg-[#FFD43B] text-[#0A1220] font-black text-lg">Agendar visita na minha loja</a>
                     <a href="#demo" className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-[#101C31] border border-[#24344F] text-white font-bold text-lg"><Play className="w-5 h-5" /> Ver funcionando</a>
                 </div>
+                <p className="text-sm text-[#8FA3C0] mt-4">{PRAZO_RESPOSTA}</p>
             </header>
 
             <section className="py-16 bg-[#101C31] border-y border-[#24344F]">
@@ -55,7 +58,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
                         {regiao.intro.map(p => <p key={p.slice(0, 30)}>{p}</p>)}
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-white mb-4">Bairros atendidos em {regiao.nome}</h2>
+                        <h2 className="text-xl font-bold text-white mb-4">Bairros atendidos {naRegiao(regiao)}</h2>
                         <ul className="flex flex-wrap gap-2">
                             {regiao.bairros.map(b => (
                                 <li key={b} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0A1220] border border-[#24344F] text-sm"><MapPin className="w-3.5 h-3.5 text-emerald-400" /> {b}</li>
@@ -68,7 +71,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
 
             <section className="py-16">
                 <div className={secao}>
-                    <h2 className={`${titulo} text-center mb-10`}>Como funciona a implantação em {regiao.nome}</h2>
+                    <h2 className={`${titulo} text-center mb-10`}>Como funciona a implantação {naRegiao(regiao)}</h2>
                     <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
                         {regiao.comoFunciona.map((p, i) => (
                             <div key={p.titulo} className="p-6 sm:p-8 rounded-[20px] bg-[#101C31] border border-[#24344F]">
@@ -112,7 +115,7 @@ const RegiaoPage: React.FC<{ slug: string }> = ({ slug }) => {
 
             <section className="py-16">
                 <div className="max-w-3xl mx-auto px-4 sm:px-6">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 text-center">Perguntas de quem tem comércio em {regiao.nome}</h2>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 text-center">Perguntas de quem tem comércio {naRegiao(regiao)}</h2>
                     <div className="space-y-3">
                         {regiao.faq.map((f, i) => (
                             <div key={f.q} className="rounded-2xl bg-[#101C31] border border-[#24344F] overflow-hidden">

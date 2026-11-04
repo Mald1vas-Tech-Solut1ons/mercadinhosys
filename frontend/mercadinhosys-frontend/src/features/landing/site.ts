@@ -47,6 +47,7 @@ export const VENDAS: Record<string, NichoVenda> = nichosVendaJson;
 export interface Regiao {
     slug: string;
     nome: string;
+    preposicao: string;
     seoTitle: string;
     seoDescription: string;
     h1: string;
@@ -60,6 +61,18 @@ export interface Regiao {
 export const REGIOES: Regiao[] = regioesJson;
 
 export const rotaRegiao = (slug: string) => `/sistema-para-comercio-${slug}`;
+
+/** "em Guarulhos" / "na Zona Leste de São Paulo". */
+export const naRegiao = (r: Regiao) => `${r.preposicao} ${r.nome}`;
+
+/** Prazo de resposta prometido ao lado de todo botão de contato. */
+export const PRAZO_RESPOSTA = 'Respondemos em até 24 h, quase sempre no mesmo dia.';
+
+/** Empresa responsável pelo MercadinhoSys. */
+export const EMPRESA = { nome: 'Maldivas Tech', url: 'https://maldivastech.dev' };
+
+/** Imagem de compartilhamento (WhatsApp, redes) de cada página: public/og/<nome>.png. */
+export const imagemOg = (nome: string) => `${SITE_URL}/og/${nome}.png`;
 
 /** Depoimento autorizado da primeira cliente, na voz dela. */
 export const DEPOIMENTO_VERA = {

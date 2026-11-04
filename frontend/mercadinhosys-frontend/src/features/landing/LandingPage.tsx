@@ -4,7 +4,8 @@ import { authService } from '../auth/authService';
 import SegmentosGrid from './SegmentosGrid';
 import { ChatMIA, FaleComDesenvolvedor, ImplantaComVoce, OfertaDoisMeses, PrimeiraCliente, TrabalhosDoSistema } from './BlocosVenda';
 import { entrarNaDemo } from './entrarNaDemo';
-import { linkWhatsApp, VENDAS } from './site';
+import { linkWhatsApp, VENDAS, imagemOg, PRAZO_RESPOSTA } from './site';
+import { BarraFixaCelular } from './SecoesVenda';
 import { CalculadoraPerdas, DemoInterativa } from './SecoesVenda';
 import MapaDoSite from './MapaDoSite';
 import BannerCookies from './BannerCookies';
@@ -114,6 +115,7 @@ const LandingPage: React.FC = () => {
         'MercadinhoSys: sistema de gestão com IA para todo tipo de comércio',
         'Sistema com IA para mercadinho, loja de roupas, moto peças, tabacaria e mais. Caixa, estoque, fiado e lucro real. 2 meses grátis com implantação.',
         '/',
+        imagemOg('inicio'),
     );
     const [leadName, setLeadName] = useState('');
     const [leadEmail, setLeadEmail] = useState('');
@@ -205,7 +207,7 @@ const LandingPage: React.FC = () => {
                 aria-label="Falar no WhatsApp"
                 target="_blank"
                 rel="noreferrer"
-                className="fixed bottom-5 right-5 sm:bottom-8 sm:right-8 z-100 bg-emerald-500 text-white p-4 rounded-full shadow-2xl shadow-emerald-400/30 hover:scale-110 active:scale-95 transition-all flex items-center justify-center group"
+                className="hidden md:flex fixed bottom-8 right-8 z-100 bg-emerald-500 text-white p-4 rounded-full shadow-2xl shadow-emerald-400/30 hover:scale-110 active:scale-95 transition-all items-center justify-center group"
             >
                 <MessageCircle className="w-8 h-8" />
                 <span className="max-w-0 overflow-hidden group-hover:max-w-xs group-hover:ml-2 transition-all duration-500 font-bold whitespace-nowrap">
@@ -262,7 +264,7 @@ const LandingPage: React.FC = () => {
             </nav>
 
             {/* HERO SECTION - THE DEFINITIVE ERP */}
-            <section className="relative pt-40 pb-20 lg:pt-56 lg:pb-32 overflow-hidden">
+            <section className="relative pt-32 sm:pt-40 pb-20 lg:pt-56 lg:pb-32 overflow-hidden">
                 <div className="absolute top-0 right-0 -z-10 w-[900px] h-[900px] bg-[#1D4ED8]/20 rounded-full blur-[140px] translate-x-1/3 -translate-y-1/3"></div>
                 <div className="absolute bottom-0 left-0 -z-10 w-[700px] h-[700px] bg-[#FF6A5C]/10 rounded-full blur-[120px] -translate-x-1/4 translate-y-1/4"></div>
 
@@ -273,33 +275,17 @@ const LandingPage: React.FC = () => {
                         transition={{ duration: 0.8, ease: "easeOut" }}
                         className="text-center max-w-4xl flex flex-col items-center"
                     >
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#2E9BFF]/10 backdrop-blur-sm border border-[#2E9BFF]/30 text-[#6FCBFF] rounded-full text-xs font-bold tracking-widest uppercase mb-6 shadow-[0_0_15px_rgba(46,155,255,0.2)]">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#2E9BFF]/10 backdrop-blur-sm border border-[#2E9BFF]/30 text-[#6FCBFF] rounded-full text-xs font-bold tracking-widest uppercase mb-4 sm:mb-6 shadow-[0_0_15px_rgba(46,155,255,0.2)]">
                             <Activity className="w-4 h-4" /> Gestão com IA para todo tipo de comércio
                         </div>
-                        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] lg:leading-[1.05] mb-8 text-white">
+                        <h1 className="text-[42px] sm:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] lg:leading-[1.05] mb-5 sm:mb-8 text-white">
                             O sistema que <br className="hidden sm:block" />
                             <span className="text-[#FFD43B]">trabalha por você.</span>
                         </h1>
-                        <p className="text-xl lg:text-2xl text-[#8FA3C0] leading-relaxed mb-6 font-medium max-w-3xl">
+                        <p className="text-lg sm:text-xl lg:text-2xl text-[#8FA3C0] leading-relaxed mb-6 font-medium max-w-3xl">
                             Não é você que trabalha para o sistema. A IA do <span className="text-white font-bold">MercadinhoSys</span> cadastra produtos, acompanha a loja e diz o que fazer.
                         </p>
-                        <p className="text-lg text-[#8FA3C0] mb-10 max-w-3xl">
-                            Caixa, estoque, fiado, financeiro e equipe para <strong className="text-white">mercadinho, loja de roupas, moto peças, tabacaria, supermercado</strong> e muito mais. Sistema 100% brasileiro, com o desenvolvedor do seu lado.
-                        </p>
-                        <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
-                            {[
-                                'Bipou, cadastrou',
-                                'Avisa o que repor',
-                                'Fiado sem caderno',
-                                'Lucro de verdade na tela'
-                            ].map((item) => (
-                                <div key={item} className="px-4 py-2 rounded-full border border-[#24344F] bg-[#101C31]/80 text-sm font-medium text-[#DCE8F7]">
-                                    {item}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-16">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-3">
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.98 }}
@@ -318,6 +304,23 @@ const LandingPage: React.FC = () => {
                                 Ver funcionando
                             </motion.button>
                         </div>
+                        <p className="text-sm text-[#8FA3C0] mb-10">Sem cartão, sem fidelidade. {PRAZO_RESPOSTA}</p>
+                        <p className="text-lg text-[#8FA3C0] mb-10 max-w-3xl">
+                            Caixa, estoque, fiado, financeiro e equipe para <strong className="text-white">mercadinho, loja de roupas, moto peças, tabacaria, supermercado</strong> e muito mais. Sistema 100% brasileiro, com o desenvolvedor do seu lado.
+                        </p>
+                        <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
+                            {[
+                                'Bipou, cadastrou',
+                                'Avisa o que repor',
+                                'Fiado sem caderno',
+                                'Lucro de verdade na tela'
+                            ].map((item) => (
+                                <div key={item} className="px-4 py-2 rounded-full border border-[#24344F] bg-[#101C31]/80 text-sm font-medium text-[#DCE8F7]">
+                                    {item}
+                                </div>
+                            ))}
+                        </div>
+
                     </motion.div>
 
                     <motion.div
@@ -837,6 +840,7 @@ const LandingPage: React.FC = () => {
                 </div>
             </footer>
             <BannerCookies />
+            <BarraFixaCelular origem="site" onCadastro={() => navigate('/register')} />
         </div>
     );
 };

@@ -16,13 +16,14 @@ function definirMeta(atributo: 'name' | 'property', chave: string, valor: string
  * no build já vem com esses valores (é o que o Google e o WhatsApp leem); aqui
  * só mantemos a aba certa quando o visitante navega entre páginas sem recarregar.
  */
-export function useSeo(titulo: string, descricao: string, caminho: string) {
+export function useSeo(titulo: string, descricao: string, caminho: string, imagem?: string) {
     useEffect(() => {
         document.title = titulo;
         definirMeta('name', 'description', descricao);
         definirMeta('property', 'og:title', titulo);
         definirMeta('property', 'og:description', descricao);
         definirMeta('property', 'og:url', `${SITE_URL}${caminho}`);
+        if (imagem) definirMeta('property', 'og:image', imagem);
         let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
         if (!canonical) {
             canonical = document.createElement('link');
@@ -30,5 +31,5 @@ export function useSeo(titulo: string, descricao: string, caminho: string) {
             document.head.appendChild(canonical);
         }
         canonical.href = `${SITE_URL}${caminho}`;
-    }, [titulo, descricao, caminho]);
+    }, [titulo, descricao, caminho, imagem]);
 }

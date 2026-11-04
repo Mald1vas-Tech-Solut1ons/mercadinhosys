@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Check, MessageCircle, ShieldCheck, Sparkles, ShoppingCart, ScanBarcode, UserCheck, Wrench, Store, Star } from 'lucide-react';
-import { linkWhatsApp, WHATSAPP_EXIBICAO, REGIOES_ATENDIDAS, DEPOIMENTO_VERA } from './site';
+import { linkWhatsApp, WHATSAPP_EXIBICAO, REGIOES_ATENDIDAS, DEPOIMENTO_VERA, PRAZO_RESPOSTA } from './site';
 
 /*
  * Blocos de venda compartilhados entre a landing e as páginas de nicho.
@@ -135,7 +135,8 @@ export const OfertaDoisMeses: React.FC<{ origem: string; onCadastro: () => void 
                 Criar minha conta grátis
             </button>
         </div>
-        <p className="text-xs mt-5 opacity-80">*Emissão de nota fiscal com custo à parte. Consulte as condições no atendimento.</p>
+        <p className="text-sm font-semibold mt-5">{PRAZO_RESPOSTA}</p>
+        <p className="text-xs mt-2 opacity-80">*Emissão de nota fiscal com custo à parte. Consulte as condições no atendimento.</p>
     </div>
 );
 

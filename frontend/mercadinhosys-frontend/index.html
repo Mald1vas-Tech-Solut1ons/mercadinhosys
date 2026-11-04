@@ -12,8 +12,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <title>MercadinhoSys: sistema de gestão com IA para todo tipo de comércio</title>
-    <meta name="description" content="Sistema com IA para mercadinho, loja de roupas, moto peças, tabacaria e mais. Caixa, estoque, fiado e lucro real. 2 meses grátis com implantação." />
+    <title>MercadinhoSys | Sistema com IA para o seu comércio</title>
+    <meta name="description" content="Caixa, estoque, fiado e lucro real com IA para mercadinho, loja de roupas, celulares, moto peças e mais. 2 meses grátis, com implantação na sua loja." />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="pt_BR" />
     <meta property="og:site_name" content="MercadinhoSys" />
@@ -26,9 +26,22 @@
         "@context": "https://schema.org",
         "@graph": [
           {
-            "@type": "Organization",
+            "@type": "WebSite",
+            "@id": "https://mercadinhosys.com.br/#site",
             "name": "MercadinhoSys",
-            "logo": "/assets/logo.png",
+            "alternateName": ["Mercadinho Sys", "MercadinhoSys - Gestão com IA"],
+            "url": "https://mercadinhosys.com.br/",
+            "inLanguage": "pt-BR",
+            "publisher": { "@id": "https://mercadinhosys.com.br/#organizacao" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://mercadinhosys.com.br/#organizacao",
+            "name": "MercadinhoSys",
+            "url": "https://mercadinhosys.com.br/",
+            "logo": { "@type": "ImageObject", "url": "https://mercadinhosys.com.br/assets/logo.png", "width": 321, "height": 324 },
+            "image": "https://mercadinhosys.com.br/og/inicio.png",
+            "parentOrganization": { "@type": "Organization", "name": "Maldivas Tech", "url": "https://maldivastech.dev" },
             "contactPoint": { "@type": "ContactPoint", "telephone": "+55-11-91988-9233", "contactType": "sales", "availableLanguage": "Portuguese" },
             "areaServed": [
               { "@type": "City", "name": "Guarulhos" },
@@ -39,6 +52,9 @@
           {
             "@type": "SoftwareApplication",
             "name": "MercadinhoSys",
+            "url": "https://mercadinhosys.com.br/",
+            "image": "https://mercadinhosys.com.br/og/inicio.png",
+            "publisher": { "@id": "https://mercadinhosys.com.br/#organizacao" },
             "applicationCategory": "BusinessApplication",
             "operatingSystem": "Web, Android, iOS",
             "description": "Sistema de gestão com inteligência artificial para pequeno comércio: frente de caixa, estoque, compras, fiado, financeiro, equipe e entregas.",

@@ -113,8 +113,8 @@ const LandingPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     useSeo(
-        'MercadinhoSys: sistema de gestão com IA para todo tipo de comércio',
-        'Sistema com IA para mercadinho, loja de roupas, moto peças, tabacaria e mais. Caixa, estoque, fiado e lucro real. 2 meses grátis com implantação.',
+        'MercadinhoSys | Sistema com IA para o seu comércio',
+        'Caixa, estoque, fiado e lucro real com IA para mercadinho, loja de roupas, celulares, moto peças e mais. 2 meses grátis, com implantação na sua loja.',
         '/',
         imagemOg('inicio'),
     );

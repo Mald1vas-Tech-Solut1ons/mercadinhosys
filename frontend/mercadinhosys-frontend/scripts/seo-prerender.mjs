@@ -38,7 +38,7 @@ const ORGANIZACAO = {
     '@id': `${SITE}/#organizacao`,
     name: 'MercadinhoSys',
     url: `${SITE}/`,
-    logo: `${SITE}/assets/logo.png`,
+    logo: { '@type': 'ImageObject', url: `${SITE}/assets/logo.png`, width: 321, height: 324 },
     contactPoint: { '@type': 'ContactPoint', telephone: '+55-11-91988-9233', contactType: 'sales', availableLanguage: 'Portuguese' },
     parentOrganization: { '@type': 'Organization', name: 'Maldivas Tech', url: 'https://maldivastech.dev' },
 };
@@ -98,8 +98,8 @@ const FAQ_HOME = [
 ];
 salvar('/', pagina({
     caminho: '/',
-    titulo: 'MercadinhoSys: sistema de gestão com IA para todo tipo de comércio',
-    descricao: 'Sistema com IA para mercadinho, loja de roupas, moto peças, tabacaria e mais. Caixa, estoque, fiado e lucro real. 2 meses grátis com implantação.',
+    titulo: 'MercadinhoSys | Sistema com IA para o seu comércio',
+    descricao: 'Caixa, estoque, fiado e lucro real com IA para mercadinho, loja de roupas, celulares, moto peças e mais. 2 meses grátis, com implantação na sua loja.',
     jsonLd: { '@context': 'https://schema.org', '@graph': [ORGANIZACAO, faqLd(FAQ_HOME)] },
     corpo: `<main>
 <h1>O sistema que trabalha por você.</h1>

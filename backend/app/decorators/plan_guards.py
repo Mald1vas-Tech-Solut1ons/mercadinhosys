@@ -40,8 +40,8 @@ def plan_required(min_plan='Gratuito'):
             verify_jwt_in_request()
             claims = get_jwt()
             
-            # 1. Super Admin Bypass (Total)
-            if claims.get('is_super_admin'):
+            # 1. Super Admin e demonstração (somente leitura) veem o sistema completo
+            if claims.get('is_super_admin') or claims.get('is_demo'):
                 current_app.logger.debug(f"SUPER ADMIN BYPASS PLANO ATIVADO PARA: {claims.get('sub')}")
                 return f(*args, **kwargs)
             

@@ -109,7 +109,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
                         <h2 className={titulo}>Toque e veja funcionando</h2>
                         <p className="text-[#8FA3C0] mt-3">Caixa, estoque, IA e fiado com produtos de {nomeMinusculo}.</p>
                     </div>
-                    <DemoInterativa venda={venda} origem={nicho.nome} />
+                    <DemoInterativa venda={venda} origem={nicho.nome} segmento={slug} />
                 </div>
             </section>
 
@@ -127,7 +127,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
                                 <p className="text-[#8FA3C0]">{r.texto}</p>
                             </div>
                         ))}
-                        <button type="button" onClick={entrarNaDemo} className="p-6 rounded-2xl bg-[#2E9BFF]/10 border border-[#2E9BFF]/40 text-left hover:bg-[#2E9BFF]/15 transition-colors">
+                        <button type="button" onClick={() => entrarNaDemo(slug)} className="p-6 rounded-2xl bg-[#2E9BFF]/10 border border-[#2E9BFF]/40 text-left hover:bg-[#2E9BFF]/15 transition-colors">
                             <p className="text-lg font-bold text-white mb-2 flex items-center gap-2"><Play className="w-5 h-5" /> Prefere ver de verdade?</p>
                             <p className="text-[#8FA3C0]">Entre na loja de demonstração e use o sistema completo agora, sem cadastro.</p>
                         </button>

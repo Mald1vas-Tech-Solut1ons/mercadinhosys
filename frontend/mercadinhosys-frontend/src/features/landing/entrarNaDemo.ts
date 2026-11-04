@@ -1,13 +1,18 @@
 import { showToast } from '../../utils/toast';
 import { API_CONFIG } from '../../api/apiConfig';
 
-/** Entra na loja de demonstração (landing e páginas de nicho usam o mesmo botão). */
-export async function entrarNaDemo() {
+/**
+ * Entra na demonstração (somente leitura). Com o segmento, cai na loja-vitrine dele
+ * (moto peças, roupas, construção...); sem, no mercado. Chamado direto por onClick,
+ * então o argumento pode ser o evento do clique: só string vale como segmento.
+ */
+export async function entrarNaDemo(segmento?: unknown) {
     try {
         showToast.loading('Preparando ambiente de demonstração...');
         const response = await fetch(`${API_CONFIG.BASE_URL}/auth/demo`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(typeof segmento === 'string' ? { segmento } : {}),
         });
         const result = await response.json();
         if (response.ok && result.success) {

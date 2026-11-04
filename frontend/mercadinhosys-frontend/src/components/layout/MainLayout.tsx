@@ -34,6 +34,18 @@ const MirrorReadOnlyBanner: React.FC = () => {
     );
 };
 
+/** Faixa da demonstração da landing: o visitante vê tudo, mas não altera (bloqueio no backend). */
+const DemoBanner: React.FC = () => {
+    const { user } = useAuth();
+    if (!(user as { is_demo?: boolean } | null)?.is_demo) return null;
+    return (
+        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-[#FFD43B] text-[#0A1220] text-xs sm:text-sm font-semibold shadow-sm">
+            <span className="min-w-0 truncate">Você está na demonstração: dá para ver tudo, mas não para alterar.</span>
+            <a href="/register" className="shrink-0 px-3 py-1 rounded-lg bg-[#0A1220] text-white font-bold">Criar conta grátis</a>
+        </div>
+    );
+};
+
 const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = React.useState(false);
     const mainRef = React.useRef<HTMLElement>(null);
@@ -62,6 +74,7 @@ const MainLayout: React.FC = () => {
             <div className="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 min-w-0 min-h-0">
                 <HeaderProfessional />
                 <MirrorReadOnlyBanner />
+                <DemoBanner />
                 {/* On mobile, add padding bottom equal to the bottom navigation height (approx 4rem = 64px) plus safe area */}
                 <main ref={mainRef} className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6 min-h-0">
                     {/* Indicador de pull-to-refresh (mobile) */}

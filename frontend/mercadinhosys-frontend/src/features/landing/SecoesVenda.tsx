@@ -54,7 +54,7 @@ export const DiaNaLoja: React.FC<{ dia: NichoVenda['diaNaLoja'] }> = ({ dia }) =
 type Aba = 'caixa' | 'estoque' | 'ia' | 'fiado';
 
 /** Demonstração com os produtos do nicho: o lojista toca e vê o sistema reagir. */
-export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string }> = ({ venda, origem }) => {
+export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string; segmento?: string }> = ({ venda, origem, segmento }) => {
     const [aba, setAba] = useState<Aba>('caixa');
     const [carrinho, setCarrinho] = useState<number[]>([0, 2]);
     const itens = carrinho.map(i => venda.produtosDemo[i]);
@@ -172,7 +172,7 @@ export const DemoInterativa: React.FC<{ venda: NichoVenda; origem: string }> = (
             <div className="lg:col-span-2 space-y-4">
                 <p className="text-2xl font-bold text-white">Quer ver com a sua loja?</p>
                 <p className="text-[#8FA3C0]">Entre agora na loja de demonstração, com o sistema de verdade, ou peça para o desenvolvedor mostrar funcionando com os seus produtos.</p>
-                <button type="button" onClick={entrarNaDemo} className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-[#2E9BFF] text-[#0A1220] font-bold text-lg hover:bg-[#6FCBFF] transition-colors">
+                <button type="button" onClick={() => entrarNaDemo(segmento)} className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-[#2E9BFF] text-[#0A1220] font-bold text-lg hover:bg-[#6FCBFF] transition-colors">
                     <Play className="w-5 h-5" /> Entrar na demonstração ao vivo
                 </button>
                 <a href={linkWhatsApp(`Olá! Quero uma demonstração do MercadinhoSys na minha loja (${origem}).`)} target="_blank" rel="noreferrer"

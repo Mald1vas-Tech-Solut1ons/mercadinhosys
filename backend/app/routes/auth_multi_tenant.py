@@ -536,6 +536,24 @@ def list_tenants():
             'error': 'Erro ao listar tenants'
         }), 500
 
+# Demonstração da landing: cada segmento entra numa loja-vitrine com dados de verdade
+# (vendas, estoque, clientes). Sem vitrine para o segmento, cai no mercado; sem nenhuma,
+# na loja demo antiga (vazia). O acesso é somente leitura (ver app/__init__.py).
+CNPJ_VITRINE_PADRAO = "11222333000144"  # Mercado Maldivas Elite
+CNPJ_VITRINE_POR_SEGMENTO = {
+    "loja-de-roupas": "66777888000199",       # Boutique Estrela Moda
+    "loja-de-calcados": "66777888000199",
+    "moto-pecas": "77888999000111",           # Centro Moto Peças Giro Certo
+    "material-de-construcao": "88999000000122",  # Constrular Materiais de Construção
+}
+
+
+def _loja_vitrine(segmento):
+    cnpj = CNPJ_VITRINE_POR_SEGMENTO.get(str(segmento or "").strip().lower(), CNPJ_VITRINE_PADRAO)
+    return (Estabelecimento.query.filter_by(cnpj=cnpj, ativo=True).first()
+            or Estabelecimento.query.filter_by(cnpj=CNPJ_VITRINE_PADRAO, ativo=True).first())
+
+
 @auth_bp.route("/demo", methods=["POST"])
 def guest_demo():
     """Access the system in demo mode with a single click (Multi-tenant compatible)"""
@@ -544,9 +562,10 @@ def guest_demo():
         import secrets
         from werkzeug.security import generate_password_hash
         import traceback
-        
-        # 1. Encontrar ou criar o estabelecimento demo
-        demo_est = Estabelecimento.query.filter_by(cnpj="00000000000191").first()
+
+        segmento = (request.get_json(silent=True) or {}).get("segmento")
+        # 1. Loja-vitrine do segmento; sem vitrine, a loja demo antiga
+        demo_est = _loja_vitrine(segmento) or Estabelecimento.query.filter_by(cnpj="00000000000191").first()
         if not demo_est:
             demo_est = Estabelecimento(
                 nome_fantasia="Supermercado Fictício (Demo)",
@@ -635,6 +654,7 @@ def guest_demo():
                     "status": "ativo",
                     "estabelecimento_id": demo_est.id,
                     "estabelecimento_nome": demo_est.nome_fantasia,
+                    "is_demo": True,
                 },
                 "session": {
                     "login_time": iso_utc(datetime.now(timezone.utc)),
@@ -648,11 +668,10 @@ def guest_demo():
                     "cnpj": demo_est.cnpj,
                     "telefone": demo_est.telefone,
                     "email": demo_est.email,
-                    "endereco": "Praça da Sé, 1 - Sé, São Paulo - SP",
                     "cidade": demo_est.cidade,
                     "estado": demo_est.estado,
-                    "plano": "Advanced",
-                    "plano_status": "active",
+                    "plano": "Pro",
+                    "plano_status": "ativo",
                 },
             }
         }), 200

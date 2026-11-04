@@ -330,6 +330,14 @@ def create_app(config_name=None):
                 abort(403, description="Modo espelho do super admin é somente leitura. Saia do espelho (selecione 'Todos') para alterar dados.")
         elif tid is not None:
             g.estabelecimento_id = tid
+            # DEMONSTRAÇÃO É SOMENTE LEITURA: o visitante da landing entra numa loja-vitrine
+            # e não pode alterar os dados dela. Só a conversa com o Consultor fica liberada.
+            if (
+                claims.get("is_demo")
+                and request.method not in ("GET", "HEAD", "OPTIONS")
+                and not request.path.startswith(("/api/auth", "/api/consultor/chat", "/api/consultor/insights"))
+            ):
+                abort(403, description="Esta é uma demonstração: dá para ver tudo, mas não para alterar. Crie sua conta grátis para usar com a sua loja.")
             # Bloqueio Global de Inadimplência (Fase 1 Comercial)
             if request.path.startswith("/api/"):
                 allowed_prefixes = ("/api/auth", "/api/billing", "/api/onboarding", "/api/saas", "/api/health", "/api/ready")

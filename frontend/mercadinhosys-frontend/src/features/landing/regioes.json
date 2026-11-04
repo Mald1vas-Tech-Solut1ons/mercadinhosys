@@ -1,0 +1,74 @@
+[
+  {
+    "slug": "guarulhos",
+    "nome": "Guarulhos",
+    "seoTitle": "Sistema para comércio em Guarulhos | MercadinhoSys",
+    "seoDescription": "Sistema para comércio em Guarulhos com implantação presencial: vamos até a sua loja, importamos os produtos e configuramos tudo. 2 meses grátis.",
+    "h1": "Sistema para comércio em Guarulhos, com implantação na sua loja",
+    "subtitulo": "Caixa com leitor ou câmera do celular, estoque que avisa o que repor, fiado com cobrança no WhatsApp e lucro real, com o desenvolvedor indo até a sua loja.",
+    "bairros": ["Centro", "Vila Galvão", "Macedo", "Gopoúva", "Vila Augusta", "Picanço", "Taboão", "Cocaia", "Bonsucesso", "Pimentas", "Cumbica", "Jardim Presidente Dutra"],
+    "intro": [
+      "Do Centro à Vila Galvão, do Macedo ao Picanço, Guarulhos vive de comércio de bairro: mercadinho, adega, loja de roupa, moto peças, material de construção. Quem toca esses negócios precisa de caixa rápido, estoque em ordem e fiado controlado, sem depender de caderno e planilha.",
+      "A implantação é presencial: o desenvolvedor vai até a sua loja, seja no Taboão, no Cocaia, no Bonsucesso, nos Pimentas, em Cumbica ou no Jardim Presidente Dutra. Importa os produtos, cadastra os preços e configura o caixa junto com a sua equipe. Você não fica sozinho na frente da tela."
+    ],
+    "comoFunciona": [
+      { "titulo": "Visita na loja", "texto": "O desenvolvedor marca um horário e vai até a sua loja. A conversa é no balcão, olhando a rotina real do seu negócio." },
+      { "titulo": "Configuração junto", "texto": "Produtos, preços, formas de pagamento, fiado e estoque mínimo são ajustados ali, com a sua equipe testando o caixa no mesmo dia." },
+      { "titulo": "Acompanhamento nos 2 meses", "texto": "Nos 2 meses grátis você fala direto com o desenvolvedor pelo WhatsApp para ajustar o que aparecer e treinar a equipe." }
+    ],
+    "faq": [
+      { "q": "Vocês atendem presencialmente em Guarulhos?", "a": "Sim. O desenvolvedor vai até a sua loja em Guarulhos para implantar o sistema, importar os produtos e configurar o caixa junto com você." },
+      { "q": "Quais bairros de Guarulhos são atendidos?", "a": "Centro, Vila Galvão, Macedo, Gopoúva, Vila Augusta, Picanço, Taboão, Cocaia, Bonsucesso, Pimentas, Cumbica, Jardim Presidente Dutra e região. Se o seu bairro não estiver na lista, chame no WhatsApp para confirmar." },
+      { "q": "Quanto custa?", "a": "A implantação presencial não tem taxa e os 2 primeiros meses são grátis. Depois, só se fizer sentido para a loja, R$ 99,90/mês com preço travado e sem fidelidade. Nota fiscal é módulo à parte." },
+      { "q": "Serve para qual tipo de comércio?", "a": "Mercadinho, mercearia, supermercado, loja de roupas, calçados, moto peças, tabacaria, suplementos, material de construção, adega e conveniência e distribuidora." }
+    ]
+  },
+  {
+    "slug": "zona-norte-sp",
+    "nome": "Zona Norte de São Paulo",
+    "seoTitle": "Sistema para comércio na Zona Norte de SP | MercadinhoSys",
+    "seoDescription": "Sistema para comércio na Zona Norte de SP com visita à loja: implantação presencial, produtos importados e tudo já configurado. 2 meses grátis.",
+    "h1": "Sistema para comércio na Zona Norte de SP, com a gente na sua loja",
+    "subtitulo": "De Santana à Vila Medeiros: o sistema chega com visita marcada, produtos importados e equipe treinada dentro da sua loja.",
+    "bairros": ["Santana", "Tucuruvi", "Vila Maria", "Vila Guilherme", "Casa Verde", "Freguesia do Ó", "Brasilândia", "Mandaqui", "Jaçanã", "Tremembé", "Vila Medeiros"],
+    "intro": [
+      "Santana, Tucuruvi, Vila Maria, Vila Guilherme, Casa Verde, Freguesia do Ó e Brasilândia têm um comércio de bairro que atende o dia inteiro e conhece o cliente pelo nome. É esse jeito de vender, com fiado, Pix e balcão cheio, que o MercadinhoSys organiza sem mudar a sua rotina.",
+      "A implantação acontece dentro da loja: o desenvolvedor marca o dia, vai até o seu endereço no Mandaqui, no Jaçanã, no Tremembé ou na Vila Medeiros, importa a lista de produtos e ajusta o caixa, o estoque e o fiado do jeito que o seu balcão funciona."
+    ],
+    "comoFunciona": [
+      { "titulo": "Visita marcada na loja", "texto": "O desenvolvedor combina o melhor dia e vai até a sua loja. A análise é feita no balcão, com a loja funcionando normalmente." },
+      { "titulo": "Sistema montado no local", "texto": "Os produtos são importados, o caixa é testado com leitor ou celular e o fiado com cobrança no WhatsApp fica pronto para usar." },
+      { "titulo": "Dois meses de acompanhamento", "texto": "Nos 2 meses grátis o contato é direto com o desenvolvedor: dúvida do dia a dia, ajuste de relatório e treino da equipe." }
+    ],
+    "faq": [
+      { "q": "Tem atendimento presencial na Zona Norte?", "a": "Tem. O desenvolvedor vai até a loja para importar os produtos e configurar o sistema com a sua equipe, sem você sair do bairro." },
+      { "q": "Quais bairros vocês atendem?", "a": "Santana, Tucuruvi, Vila Maria, Vila Guilherme, Casa Verde, Freguesia do Ó, Brasilândia, Mandaqui, Jaçanã, Tremembé, Vila Medeiros e região. Bairro vizinho? Confirme no WhatsApp." },
+      { "q": "Como funciona o preço?", "a": "Dois meses grátis com a implantação presencial inclusa, sem taxa de implantação. Depois, R$ 99,90/mês com preço travado e sem fidelidade. Só continua se fizer sentido." },
+      { "q": "Serve para qual tipo de loja?", "a": "Mercadinho, mercearia, supermercado, distribuidora, adega e conveniência, loja de roupas, calçados, moto peças, tabacaria, suplementos e material de construção." }
+    ]
+  },
+  {
+    "slug": "zona-leste-sp",
+    "nome": "Zona Leste de São Paulo",
+    "seoTitle": "Sistema para comércio na Zona Leste de SP | MercadinhoSys",
+    "seoDescription": "Sistema para comércio na Zona Leste de SP: implantação presencial na sua loja, com produtos importados e equipe configurada. 2 meses grátis.",
+    "h1": "Sistema para comércio na Zona Leste de SP, com visita à sua loja",
+    "subtitulo": "Do Tatuapé a Cidade Tiradentes: caixa com leitor ou celular, estoque que avisa a reposição, fiado cobrado no WhatsApp e o Consultor M-IA, implantados dentro da sua loja.",
+    "bairros": ["Tatuapé", "Penha", "Vila Matilde", "Mooca", "Aricanduva", "Itaquera", "São Miguel Paulista", "Ermelino Matarazzo", "Guaianases", "Itaim Paulista", "Cidade Tiradentes"],
+    "intro": [
+      "A Zona Leste é feita de muitos centros de bairro, do Tatuapé e da Penha à Vila Matilde, à Mooca e ao Aricanduva. Em cada um, o comerciante fecha caixa de noite, compra mercadoria de manhã e ainda precisa lembrar quem deve no fiado. O MercadinhoSys tira essa conta da cabeça e coloca na tela.",
+      "Em Itaquera, São Miguel Paulista, Ermelino Matarazzo, Guaianases, Itaim Paulista ou Cidade Tiradentes, a implantação é feita com o dono do lado: o desenvolvedor vai até a loja, importa os produtos e configura caixa, fiado e financeiro com a equipe presente."
+    ],
+    "comoFunciona": [
+      { "titulo": "Visita na sua loja", "texto": "O desenvolvedor vai até a sua loja, senta com você e a equipe e entende como o caixa e o estoque funcionam hoje." },
+      { "titulo": "Produtos e caixa configurados", "texto": "Importação dos produtos, cadastro de preços e teste do caixa com leitor ou câmera do celular, tudo feito dentro da loja." },
+      { "titulo": "Acompanhamento nos 2 meses", "texto": "Nos 2 meses sem mensalidade o desenvolvedor acompanha pelo WhatsApp, ajuda a equipe e ajusta o que a rotina pedir." }
+    ],
+    "faq": [
+      { "q": "Vocês vão até a loja na Zona Leste?", "a": "Sim, a implantação é presencial. O desenvolvedor vai até a sua loja, importa os produtos e configura caixa, estoque, fiado e financeiro." },
+      { "q": "Quais bairros são atendidos?", "a": "Tatuapé, Penha, Vila Matilde, Mooca, Aricanduva, Itaquera, São Miguel Paulista, Ermelino Matarazzo, Guaianases, Itaim Paulista, Cidade Tiradentes e região." },
+      { "q": "Quanto custa depois do período grátis?", "a": "São 2 meses grátis com implantação presencial inclusa. Depois, R$ 99,90/mês com preço travado e sem fidelidade. Nota fiscal é módulo à parte, com custo próprio." },
+      { "q": "Que tipos de comércio usam o sistema?", "a": "Mercadinho, mercearia, supermercado, loja de roupas, calçados, moto peças, tabacaria, suplementos, material de construção, adega e conveniência e distribuidora." }
+    ]
+  }
+]

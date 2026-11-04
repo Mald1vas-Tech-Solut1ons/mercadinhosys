@@ -4,7 +4,10 @@ import { authService } from '../auth/authService';
 import SegmentosGrid from './SegmentosGrid';
 import { ChatMIA, FaleComDesenvolvedor, ImplantaComVoce, OfertaDoisMeses, PrimeiraCliente, TrabalhosDoSistema } from './BlocosVenda';
 import { entrarNaDemo } from './entrarNaDemo';
-import { NICHOS, rotaNicho, REGIOES_ATENDIDAS, linkWhatsApp } from './site';
+import { linkWhatsApp, VENDAS } from './site';
+import { CalculadoraPerdas, DemoInterativa } from './SecoesVenda';
+import MapaDoSite from './MapaDoSite';
+import BannerCookies from './BannerCookies';
 import { useSeo } from './useSeo';
 import {
     ShoppingCart,
@@ -372,6 +375,29 @@ const LandingPage: React.FC = () => {
                         <TrabalhosDoSistema />
                     </div>
                     <ChatMIA />
+                </div>
+            </section>
+
+            {/* DEMONSTRAÇÃO: o lojista toca e vê funcionando */}
+            <section id="demo" className="py-20 sm:py-24 bg-[#101C31] border-y border-[#24344F] scroll-mt-32">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center max-w-3xl mx-auto mb-12">
+                        <h2 className="text-[#FFD43B] font-bold tracking-[2px] text-xs uppercase mb-4">Demonstração</h2>
+                        <h3 className="text-3xl lg:text-5xl font-bold text-white leading-tight mb-4">Toque e veja funcionando</h3>
+                        <p className="text-lg text-[#8FA3C0]">Caixa, estoque, IA e fiado. Ou entre na loja de demonstração e use o sistema de verdade.</p>
+                    </div>
+                    <DemoInterativa venda={VENDAS.mercadinho} origem="site" />
+                </div>
+            </section>
+
+            {/* QUANTO VOCÊ PERDE: o custo de não ter controle */}
+            <section className="py-20 sm:py-24 bg-[#0A1220]">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="text-center max-w-3xl mx-auto mb-12">
+                        <h2 className="text-red-400 font-bold tracking-[2px] text-xs uppercase mb-4">Faça a conta</h2>
+                        <h3 className="text-3xl lg:text-5xl font-bold text-white leading-tight">Quanto a sua loja perde por mês sem controle?</h3>
+                    </div>
+                    <CalculadoraPerdas />
                 </div>
             </section>
 
@@ -801,19 +827,16 @@ const LandingPage: React.FC = () => {
                             <a href="/login" className="hover:text-white bg-[#101C31] px-3 py-1 rounded-full border border-[#24344F]">Acesso Cliente</a>
                         </div>
                     </div>
-                    <nav aria-label="Sistema por tipo de comércio" className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-[#8FA3C0]">
-                        {NICHOS.map(n => (
-                            <a key={n.slug} href={rotaNicho(n.slug)} className="hover:text-white">Sistema para {n.nome.toLowerCase()}</a>
-                        ))}
-                    </nav>
-                    <p className="mt-6 text-center text-sm text-[#8FA3C0]">Atendimento presencial em {REGIOES_ATENDIDAS.join(', ')}.</p>
+                </div>
+                <div className="mt-12"><MapaDoSite /></div>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="mt-8 pt-8 border-t border-[#24344F] text-center flex flex-col md:flex-row justify-between items-center gap-4 text-[#4F6A8F] text-sm">
                         <p>&copy; {new Date().getFullYear()} MercadinhoSys Tecnologia. Todos os direitos reservados.</p>
                         <p>Sistema 100% brasileiro, feito para quem faz o comércio acontecer.</p>
                     </div>
                 </div>
             </footer>
-            
+            <BannerCookies />
         </div>
     );
 };

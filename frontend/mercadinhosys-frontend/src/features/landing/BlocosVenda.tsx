@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Check, MessageCircle, ShieldCheck, Sparkles, ShoppingCart, ScanBarcode, UserCheck, Wrench, Store } from 'lucide-react';
-import { linkWhatsApp, WHATSAPP_EXIBICAO, REGIOES_ATENDIDAS } from './site';
+import { Check, MessageCircle, ShieldCheck, Sparkles, ShoppingCart, ScanBarcode, UserCheck, Wrench, Store, Star } from 'lucide-react';
+import { linkWhatsApp, WHATSAPP_EXIBICAO, REGIOES_ATENDIDAS, DEPOIMENTO_VERA } from './site';
 
 /*
  * Blocos de venda compartilhados entre a landing e as páginas de nicho.
@@ -83,21 +83,25 @@ export const FaleComDesenvolvedor: React.FC = () => (
     </div>
 );
 
-/** Primeira cliente real (autorizada). Nada de depoimento inventado. */
+/** Primeira cliente real, com depoimento autorizado na voz dela. */
 export const PrimeiraCliente: React.FC = () => (
-    <div className="max-w-3xl mx-auto p-6 sm:p-10 rounded-[24px] bg-[#0A1220] border border-[#24344F] text-center">
-        <span className="inline-block px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold uppercase tracking-widest mb-5">Primeira cliente</span>
-        <p className="text-xl sm:text-2xl font-bold text-white leading-snug mb-5">
-            Leiga em sistema, aprendeu a usar em poucos minutos e hoje controla a loja inteira pelo MercadinhoSys.
-        </p>
-        <div className="flex items-center justify-center gap-3">
-            <span className="w-12 h-12 rounded-full bg-emerald-500 text-white font-bold text-xl flex items-center justify-center">V</span>
-            <div className="text-left">
-                <p className="font-bold text-white">Vera Moreti Felipe</p>
-                <p className="text-sm text-[#8FA3C0]">Saldão Capraro Outlet</p>
-            </div>
+    <figure className="relative max-w-3xl mx-auto p-8 sm:p-12 rounded-[28px] bg-[#0A1220] border border-[#24344F] text-center overflow-hidden">
+        <span aria-hidden className="absolute -top-6 left-6 text-[140px] leading-none font-serif text-[#2E9BFF]/15 select-none">&ldquo;</span>
+        <div className="flex justify-center gap-1 mb-6" aria-label="5 estrelas">
+            {[0, 1, 2, 3, 4].map(i => <Star key={i} className="w-5 h-5 fill-[#FFD43B] text-[#FFD43B]" />)}
         </div>
-    </div>
+        <blockquote className="relative text-2xl sm:text-3xl font-bold text-white leading-snug mb-8">
+            &ldquo;{DEPOIMENTO_VERA.texto}&rdquo;
+        </blockquote>
+        <figcaption className="flex items-center justify-center gap-4">
+            <span className="w-14 h-14 rounded-full bg-linear-to-br from-emerald-400 to-emerald-600 text-white font-black text-2xl flex items-center justify-center">V</span>
+            <span className="text-left">
+                <span className="block font-bold text-white text-lg">{DEPOIMENTO_VERA.nome}</span>
+                <span className="block text-sm text-[#8FA3C0]">{DEPOIMENTO_VERA.loja} · {DEPOIMENTO_VERA.cidade}</span>
+                <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-bold uppercase tracking-wide">Primeira cliente</span>
+            </span>
+        </figcaption>
+    </figure>
 );
 
 /** Oferta do panfleto, com a promessa por extenso. */

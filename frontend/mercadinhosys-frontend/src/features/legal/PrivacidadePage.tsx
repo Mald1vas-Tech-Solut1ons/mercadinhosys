@@ -62,7 +62,7 @@ const PrivacidadePage: React.FC = () => {
                 com parceiros técnicos necessários para a viabilidade do Software, sob rigorosos contratos de sigilo:
             </p>
             <ul className="list-disc pl-5 space-y-2">
-                <li><strong>Infraestrutura e Nuvem:</strong> Provedores de banco de dados e hospedagem (Ex: Neon/PostgreSQL, Render, Vercel, AWS).</li>
+                <li><strong>Infraestrutura e Nuvem:</strong> Servidores e banco de dados na Oracle Cloud (região São Paulo) e hospedagem do site na Vercel.</li>
                 <li><strong>Emissão Fiscal:</strong> Gateways homologados (FocusNFe/PlugNotas), apenas quando o Lojista opta por transmitir Notas Fiscais para a SEFAZ.</li>
                 <li><strong>Processamento de Pagamento:</strong> Empresas de faturamento recorrente para a cobrança da assinatura mensal do sistema.</li>
                 <li><strong>Provedores de Inteligência Artificial (Consultor da Loja):</strong> APIs de inferência (DeepSeek e Groq) recebem exclusivamente indicadores financeiros e operacionais agregados e <strong>pseudonimizados</strong> (sem nomes, CPFs, telefones ou e-mails de funcionários ou clientes).</li>
@@ -78,7 +78,19 @@ const PrivacidadePage: React.FC = () => {
                 <li><strong>Controle de Desativação (Opt-Out):</strong> O Lojista pode desligar o Consultor da Loja a qualquer instante em <strong>Configurações &gt; Sistema &gt; Consultor da Loja (IA) Ativo (LGPD)</strong>, bloqueando imediatamente qualquer envio de contexto para provedores de IA.</li>
             </ul>
 
-            <SecaoTitulo numero={6}>Como Protegemos os Dados</SecaoTitulo>
+            <SecaoTitulo numero={6}>Cookies e Medição de Uso do Site</SecaoTitulo>
+            <p>
+                No site público (página inicial, páginas por tipo de comércio e por região), usamos:
+            </p>
+            <ul className="list-disc pl-5 space-y-2">
+                <li><strong>Essenciais (sempre ligados):</strong> guardam a sua escolha sobre cookies, o login e preferências do sistema. Sem eles o site não funciona.</li>
+                <li><strong>Medição de uso (só com o seu "Aceitar todos"):</strong> um identificador aleatório do aparelho (sem nome, telefone, e-mail ou IP), as páginas visitadas, o tempo em cada página, quanto da página foi rolado, cliques em botões (como WhatsApp, demonstração e cadastro) e a origem da visita (ex.: Google, link de campanha, QR code do panfleto). Serve para entender o que ajuda o lojista a conhecer o sistema e melhorar o site.</li>
+                <li><strong>Se você enviar o formulário de contato ou criar uma conta</strong>, essa navegação fica ligada ao seu cadastro, para atendermos você sabendo o que você já viu.</li>
+                <li>Não usamos cookies de publicidade de terceiros nem vendemos esses dados. A medição fica guardada por até 24 meses.</li>
+                <li>Para mudar a escolha, limpe os dados do site no navegador: o aviso de cookies aparece de novo. Ao escolher "Só os essenciais", o identificador de medição é apagado do aparelho.</li>
+            </ul>
+
+            <SecaoTitulo numero={7}>Como Protegemos os Dados</SecaoTitulo>
             <p>
                 Utilizamos as melhores práticas de mercado, incluindo:
             </p>
@@ -88,7 +100,7 @@ const PrivacidadePage: React.FC = () => {
                 <li>Hashing seguro (BCrypt/Argon2) irreversível para o armazenamento de todas as senhas de usuários e PINs de estorno.</li>
             </ul>
 
-            <SecaoTitulo numero={7}>Seus Direitos como Titular</SecaoTitulo>
+            <SecaoTitulo numero={8}>Seus Direitos como Titular</SecaoTitulo>
             <p>
                 O Lojista (Contratante) tem o direito de solicitar a qualquer momento:
             </p>

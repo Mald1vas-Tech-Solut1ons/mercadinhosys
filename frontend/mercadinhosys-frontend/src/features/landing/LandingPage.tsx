@@ -181,7 +181,7 @@ const LandingPage: React.FC = () => {
     const faqs = [
         { q: "Como funcionam os 2 meses grátis?", a: "Você usa o sistema completo por 2 meses, sem cartão e sem pagar nada. Nesse tempo a gente implanta junto com você: importa seus produtos, configura a loja e acompanha até você andar sozinho. <strong>Só continua pagando se gostar e se fizer sentido para o seu negócio.</strong>" },
         { q: "E depois dos 2 meses, quanto custa?", a: "R$ 99,90 por mês no Plano Pro, com preço travado: menos de R$ 3,40 por dia. Sem taxa de implantação, sem fidelidade e sem multa para cancelar." },
-        { q: "Serve para o meu tipo de comércio?", a: "Sim. O MercadinhoSys atende mercadinho, mercearia, supermercado, loja de roupas, calçados, moto peças, tabacaria, suplementos, material de construção, adega e conveniência e distribuidora. Cada tipo de loja tem cadastro próprio: grade de tamanho e cor, numeração, validade e lote, unidades por metro ou saco, peças por moto." },
+        { q: "Serve para o meu tipo de comércio?", a: "Sim. O MercadinhoSys atende mercadinho, mercearia, supermercado, magazine e loja de variedades, armarinho, loja de roupas, calçados, celulares e eletrônicos, moto peças, tabacaria, suplementos, floricultura e jardinagem, material de construção, adega e conveniência e distribuidora. Cada tipo de produto tem cadastro próprio: grade de tamanho e cor, numeração, validade e lote, unidades por metro ou saco, peças por moto, voltagem e garantia, espécie da planta. E a mesma loja pode vender de tudo um pouco." },
         { q: "Por que o nome é MercadinhoSys se atende outros comércios?", a: "Porque é fácil como o caixa do mercadinho do bairro. Por trás do nome está um sistema completo: caixa, estoque, compras, fiado, financeiro, equipe, entregas e inteligência artificial." },
         { q: "Meus dados ficam seguros?", a: "Sim. Os dados de cada loja ficam separados, cada funcionário só vê o que você liberar e tudo o que acontece no sistema fica registrado. E você sabe quem fez o sistema: fala direto com o desenvolvedor." },
         { q: "Preciso de computador?", a: "Não é obrigatório. Funciona no celular, no tablet e no computador. A câmera do celular serve de leitor de código de barras." },
@@ -310,7 +310,7 @@ const LandingPage: React.FC = () => {
                         </div>
                         <p className="text-sm text-[#8FA3C0] mb-10">Sem cartão, sem fidelidade. {PRAZO_RESPOSTA}</p>
                         <p className="text-lg text-[#8FA3C0] mb-10 max-w-3xl">
-                            Caixa, estoque, fiado, financeiro e equipe para <strong className="text-white">mercadinho, loja de roupas, moto peças, tabacaria, supermercado</strong> e muito mais. Sistema 100% brasileiro, com o desenvolvedor do seu lado.
+                            Caixa, estoque, fiado, financeiro e equipe para <strong className="text-white">mercadinho, magazine, loja de roupas, celulares, moto peças, floricultura</strong> e muito mais. Sistema 100% brasileiro, com o desenvolvedor do seu lado.
                         </p>
                         <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
                             {[

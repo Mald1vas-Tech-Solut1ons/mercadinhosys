@@ -15,11 +15,11 @@ export const legalInfo = {
     // Contato e suporte
     emailContato: 'contato@mercadinhosys.com.br', // troque pelo e-mail profissional real
     emailPrivacidade: 'privacidade@mercadinhosys.com.br',
-    whatsapp: '', // ex.: '5584999999999' (só dígitos, com DDI 55). Vazio = oculta o botão.
+    whatsapp: '5511919889233', // só dígitos, com DDI 55. Vazio = oculta o botão.
 
     // Datas — atualize quando revisar os textos
     vigenciaDesde: '26 de junho de 2026',
-    ultimaAtualizacao: '26 de junho de 2026',
+    ultimaAtualizacao: '4 de novembro de 2026',
 
     // Domínio (após registrar no registro.br)
     site: 'mercadinhosys.com.br',

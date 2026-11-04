@@ -2,12 +2,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import {
     Store, ShoppingCart, ShoppingBasket, Shirt, Footprints, Wrench, Flame, Pill, Hammer, Wine, Truck, ArrowRight,
+    Smartphone, Flower2, ShoppingBag,
 } from 'lucide-react';
 import { NICHOS, rotaNicho } from './site';
 
 const ICONES: Record<string, React.ElementType> = {
     store: Store, 'shopping-cart': ShoppingCart, 'shopping-basket': ShoppingBasket, shirt: Shirt,
     footprints: Footprints, wrench: Wrench, flame: Flame, pill: Pill, hammer: Hammer, wine: Wine, truck: Truck,
+    smartphone: Smartphone, flower: Flower2, 'shopping-bag': ShoppingBag,
 };
 
 export const IconeNicho: React.FC<{ icone: string; className?: string }> = ({ icone, className }) => {

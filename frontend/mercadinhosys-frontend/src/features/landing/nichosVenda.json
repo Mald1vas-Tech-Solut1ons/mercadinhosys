@@ -1,167 +1,912 @@
 {
   "mercadinho": {
-    "depois": ["Avisa a validade antes de vencer e mostra o lote que deve sair primeiro.", "Controla o fiado com limite e cobra pelo WhatsApp, sem constrangimento.", "Mostra o estoque real e o que comprar primeiro, com o pedido de compra pronto."],
-    "diaNaLoja": [
-      { "hora": "08:00", "titulo": "Abertura conferida", "texto": "Confere o troco inicial no sistema e abre o caixa com o leitor ou com a câmera do celular." },
-      { "hora": "10:30", "titulo": "Venda no balcão", "texto": "Bipa o arroz e o leite, recebe Pix e dinheiro. O caixa separa fiado, cartão e dinheiro sozinho." },
-      { "hora": "15:00", "titulo": "Reposição e fiado", "texto": "O sistema avisa sabão em pó com 2 unidades: o pedido de compra sai pronto e o fiado do João é cobrado pelo WhatsApp." },
-      { "hora": "19:00", "titulo": "Fechamento e lucro", "texto": "Fecha o caixa conferido e vê o lucro real do dia e as contas a pagar. Sem caderno." }
+    "depois": [
+      "Avisa a validade antes de vencer e mostra o lote que deve sair primeiro.",
+      "Controla o fiado com limite e cobra pelo WhatsApp, sem constrangimento.",
+      "Mostra o estoque real e o que comprar primeiro, com o pedido de compra pronto."
     ],
-    "produtosDemo": [{ "nome": "Arroz branco 5 kg", "preco": 28.9, "estoque": 12 }, { "nome": "Feijão carioca 1 kg", "preco": 8.49, "estoque": 9 }, { "nome": "Leite integral 1 L", "preco": 5.29, "estoque": 15 }, { "nome": "Pão de forma", "preco": 7.99, "estoque": 4 }, { "nome": "Sabão em pó 1 kg", "preco": 14.9, "estoque": 2 }],
-    "alertas": ["Sabão em pó 1 kg com 2 unidades: repor hoje.", "Leite integral 1 L do lote 22 vence em 3 dias.", "Fiado do João atrasado há 8 dias: R$ 47,50."],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abertura conferida",
+        "texto": "Confere o troco inicial no sistema e abre o caixa com o leitor ou com a câmera do celular."
+      },
+      {
+        "hora": "10:30",
+        "titulo": "Venda no balcão",
+        "texto": "Bipa o arroz e o leite, recebe Pix e dinheiro. O caixa separa fiado, cartão e dinheiro sozinho."
+      },
+      {
+        "hora": "15:00",
+        "titulo": "Reposição e fiado",
+        "texto": "O sistema avisa sabão em pó com 2 unidades: o pedido de compra sai pronto e o fiado do João é cobrado pelo WhatsApp."
+      },
+      {
+        "hora": "19:00",
+        "titulo": "Fechamento e lucro",
+        "texto": "Fecha o caixa conferido e vê o lucro real do dia e as contas a pagar. Sem caderno."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Arroz branco 5 kg",
+        "preco": 28.9,
+        "estoque": 12
+      },
+      {
+        "nome": "Feijão carioca 1 kg",
+        "preco": 8.49,
+        "estoque": 9
+      },
+      {
+        "nome": "Leite integral 1 L",
+        "preco": 5.29,
+        "estoque": 15
+      },
+      {
+        "nome": "Pão de forma",
+        "preco": 7.99,
+        "estoque": 4
+      },
+      {
+        "nome": "Sabão em pó 1 kg",
+        "preco": 14.9,
+        "estoque": 2
+      }
+    ],
+    "alertas": [
+      "Sabão em pó 1 kg com 2 unidades: repor hoje.",
+      "Leite integral 1 L do lote 22 vence em 3 dias.",
+      "Fiado do João atrasado há 8 dias: R$ 47,50."
+    ],
     "perguntaIA": "O que preciso repor e quanto vendi hoje?",
     "respostaIA": "Hoje você vendeu R$ 1.240,00. Reponha sabão em pó (2 un.) e arroz (8 un.). O fiado do João está em R$ 47,50.",
     "objecao": "Tenho medo de pagar mensalidade e não usar. O caderno já resolve.",
     "respostaObjecao": "A implantação é feita junto com você e são 2 meses grátis. Só paga R$ 99,90/mês se fizer sentido, sem fidelidade. E o caderno não avisa validade nem fiado atrasado."
   },
   "supermercado": {
-    "depois": ["Cancelamento e estorno só com o PIN do dono, registrados, e o caixa fecha conferido.", "Aponta a validade da gôndola e mostra o que mais vende para a compra sair certa.", "Organiza ponto por foto e holerite sem papel, cada funcionário no seu acesso."],
-    "diaNaLoja": [
-      { "hora": "08:00", "titulo": "Abertura dos caixas", "texto": "Cada operador abre o seu caixa conferido e vê só o que foi liberado para ele." },
-      { "hora": "10:00", "titulo": "Movimento no caixa", "texto": "Leitor no balcão, Pix, cartão e dinheiro. Estorno só com o PIN do dono, e fica registrado quem pediu." },
-      { "hora": "15:00", "titulo": "Compra e validade", "texto": "O Consultor M-IA mostra o que mais vende e o que vence. O pedido de compra sai e a nota do fornecedor entra pelo XML." },
-      { "hora": "20:00", "titulo": "Fechamento e lucro", "texto": "Fecha cada caixa conferido e vê o lucro real do dia e o ponto da equipe. Sem papel." }
+    "depois": [
+      "Cancelamento e estorno só com o PIN do dono, registrados, e o caixa fecha conferido.",
+      "Aponta a validade da gôndola e mostra o que mais vende para a compra sair certa.",
+      "Organiza ponto por foto e holerite sem papel, cada funcionário no seu acesso."
     ],
-    "produtosDemo": [{ "nome": "Arroz branco 5 kg", "preco": 27.9, "estoque": 120 }, { "nome": "Óleo de soja 900 ml", "preco": 7.49, "estoque": 80 }, { "nome": "Leite integral 1 L", "preco": 4.99, "estoque": 200 }, { "nome": "Café torrado 500 g", "preco": 18.9, "estoque": 45 }, { "nome": "Detergente 500 ml", "preco": 2.79, "estoque": 3 }],
-    "alertas": ["Detergente 500 ml com 3 unidades: entra no próximo pedido.", "Café torrado 500 g do lote 19 vence em 5 dias.", "Fiado da Marta atrasado há 6 dias: R$ 89,90."],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abertura dos caixas",
+        "texto": "Cada operador abre o seu caixa conferido e vê só o que foi liberado para ele."
+      },
+      {
+        "hora": "10:00",
+        "titulo": "Movimento no caixa",
+        "texto": "Leitor no balcão, Pix, cartão e dinheiro. Estorno só com o PIN do dono, e fica registrado quem pediu."
+      },
+      {
+        "hora": "15:00",
+        "titulo": "Compra e validade",
+        "texto": "O Consultor M-IA mostra o que mais vende e o que vence. O pedido de compra sai e a nota do fornecedor entra pelo XML."
+      },
+      {
+        "hora": "20:00",
+        "titulo": "Fechamento e lucro",
+        "texto": "Fecha cada caixa conferido e vê o lucro real do dia e o ponto da equipe. Sem papel."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Arroz branco 5 kg",
+        "preco": 27.9,
+        "estoque": 120
+      },
+      {
+        "nome": "Óleo de soja 900 ml",
+        "preco": 7.49,
+        "estoque": 80
+      },
+      {
+        "nome": "Leite integral 1 L",
+        "preco": 4.99,
+        "estoque": 200
+      },
+      {
+        "nome": "Café torrado 500 g",
+        "preco": 18.9,
+        "estoque": 45
+      },
+      {
+        "nome": "Detergente 500 ml",
+        "preco": 2.79,
+        "estoque": 3
+      }
+    ],
+    "alertas": [
+      "Detergente 500 ml com 3 unidades: entra no próximo pedido.",
+      "Café torrado 500 g do lote 19 vence em 5 dias.",
+      "Fiado da Marta atrasado há 6 dias: R$ 89,90."
+    ],
     "perguntaIA": "O que mais vendeu e o que preciso comprar?",
     "respostaIA": "O arroz 5 kg puxou a venda: 96 unidades. O detergente está com 3: peça 60. O café 500 g tem 45 unidades e vence em 5 dias.",
     "objecao": "Meu sistema atual já tem caixa. Trocar vai dar trabalho.",
     "respostaObjecao": "A implantação é feita junto pelo desenvolvedor e são 2 meses grátis. Você testa o caixa com PIN e o fechamento conferido antes de decidir. Depois, R$ 99,90/mês, sem fidelidade."
   },
   "mercearia": {
-    "depois": ["Avisa validade e lote antes de vencer, para tirar da prateleira a tempo.", "Controla o fiado com limite e cobra pelo WhatsApp, sem caderno.", "Imprime a etiqueta certa com código de barras e avisa o que está faltando."],
-    "diaNaLoja": [
-      { "hora": "08:00", "titulo": "Abertura da mercearia", "texto": "Abre o caixa conferido e usa a câmera do celular para bipar. As etiquetas novas saem com código de barras." },
-      { "hora": "11:00", "titulo": "Venda no balcão", "texto": "Bipa o queijo e o café e recebe dinheiro, Pix e cartão. Fiado só dentro do limite do cliente." },
-      { "hora": "16:00", "titulo": "Reposição e cobrança", "texto": "O sistema avisa presunto com 1 unidade e queijo vencendo. Sai o pedido de compra e a cobrança da Maria pelo WhatsApp." },
-      { "hora": "19:30", "titulo": "Fechamento do dia", "texto": "Fecha o caixa conferido e vê o lucro real e as contas a pagar. Sem caderno e sem etiqueta velha." }
+    "depois": [
+      "Avisa validade e lote antes de vencer, para tirar da prateleira a tempo.",
+      "Controla o fiado com limite e cobra pelo WhatsApp, sem caderno.",
+      "Imprime a etiqueta certa com código de barras e avisa o que está faltando."
     ],
-    "produtosDemo": [{ "nome": "Queijo muçarela kg", "preco": 39.9, "estoque": 6 }, { "nome": "Presunto fatiado kg", "preco": 34.9, "estoque": 1 }, { "nome": "Pão francês kg", "preco": 14.9, "estoque": 20 }, { "nome": "Leite integral 1 L", "preco": 5.19, "estoque": 12 }, { "nome": "Café torrado 500 g", "preco": 17.9, "estoque": 8 }],
-    "alertas": ["Presunto fatiado com 1 kg: repor hoje.", "Queijo muçarela do lote 7 vence em 2 dias.", "Fiado da Maria atrasado há 10 dias: R$ 62,30."],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abertura da mercearia",
+        "texto": "Abre o caixa conferido e usa a câmera do celular para bipar. As etiquetas novas saem com código de barras."
+      },
+      {
+        "hora": "11:00",
+        "titulo": "Venda no balcão",
+        "texto": "Bipa o queijo e o café e recebe dinheiro, Pix e cartão. Fiado só dentro do limite do cliente."
+      },
+      {
+        "hora": "16:00",
+        "titulo": "Reposição e cobrança",
+        "texto": "O sistema avisa presunto com 1 unidade e queijo vencendo. Sai o pedido de compra e a cobrança da Maria pelo WhatsApp."
+      },
+      {
+        "hora": "19:30",
+        "titulo": "Fechamento do dia",
+        "texto": "Fecha o caixa conferido e vê o lucro real e as contas a pagar. Sem caderno e sem etiqueta velha."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Queijo muçarela kg",
+        "preco": 39.9,
+        "estoque": 6
+      },
+      {
+        "nome": "Presunto fatiado kg",
+        "preco": 34.9,
+        "estoque": 1
+      },
+      {
+        "nome": "Pão francês kg",
+        "preco": 14.9,
+        "estoque": 20
+      },
+      {
+        "nome": "Leite integral 1 L",
+        "preco": 5.19,
+        "estoque": 12
+      },
+      {
+        "nome": "Café torrado 500 g",
+        "preco": 17.9,
+        "estoque": 8
+      }
+    ],
+    "alertas": [
+      "Presunto fatiado com 1 kg: repor hoje.",
+      "Queijo muçarela do lote 7 vence em 2 dias.",
+      "Fiado da Maria atrasado há 10 dias: R$ 62,30."
+    ],
     "perguntaIA": "O que vence primeiro e o que devo comprar?",
     "respostaIA": "O queijo muçarela vence em 2 dias (6 kg). O presunto está com 1 kg: compre 5 kg. Hoje você vendeu R$ 780,00.",
     "objecao": "Sou pequeno. Sistema é caro e complicado para mim.",
     "respostaObjecao": "São 2 meses grátis e depois R$ 99,90/mês, sem fidelidade. A implantação é feita junto, com leitor ou com a câmera do celular. Só continua se fizer sentido."
   },
   "loja-de-roupas": {
-    "depois": ["Mostra a peça por tamanho e cor na hora, sem perder venda.", "Controla o crediário com limite e cobra pelo WhatsApp, sem constrangimento.", "Fecha o caixa separando dinheiro, Pix e cartão e mostra o lucro real."],
-    "diaNaLoja": [
-      { "hora": "09:00", "titulo": "Abertura da loja", "texto": "Confere o caixa inicial no tablet. Cada vendedora vê só o que foi liberado para ela." },
-      { "hora": "11:00", "titulo": "Venda com grade", "texto": "Procura a camiseta por tamanho e cor, bipa a etiqueta e recebe Pix, cartão ou dinheiro." },
-      { "hora": "15:00", "titulo": "Crediário e reposição", "texto": "Bermuda M com 1 peça: o pedido de compra sai pronto e a cobrança da Ana vai pelo WhatsApp." },
-      { "hora": "19:00", "titulo": "Fechamento e lucro", "texto": "Fecha o caixa separando dinheiro, Pix e cartão e vê o lucro real do dia." }
+    "depois": [
+      "Mostra a peça por tamanho e cor na hora, sem perder venda.",
+      "Controla o crediário com limite e cobra pelo WhatsApp, sem constrangimento.",
+      "Fecha o caixa separando dinheiro, Pix e cartão e mostra o lucro real."
     ],
-    "produtosDemo": [{ "nome": "Camiseta básica", "preco": 39.9, "estoque": 22 }, { "nome": "Calça jeans", "preco": 119.9, "estoque": 15 }, { "nome": "Vestido floral", "preco": 89.9, "estoque": 8 }, { "nome": "Bermuda masculina M", "preco": 59.9, "estoque": 1 }, { "nome": "Kit 3 pares de meia", "preco": 24.9, "estoque": 40 }],
-    "alertas": ["Bermuda masculina M com 1 peça: repor.", "Camiseta básica P parada há 45 dias.", "Crediário da Ana atrasado há 7 dias: R$ 119,90."],
+    "diaNaLoja": [
+      {
+        "hora": "09:00",
+        "titulo": "Abertura da loja",
+        "texto": "Confere o caixa inicial no tablet. Cada vendedora vê só o que foi liberado para ela."
+      },
+      {
+        "hora": "11:00",
+        "titulo": "Venda com grade",
+        "texto": "Procura a camiseta por tamanho e cor, bipa a etiqueta e recebe Pix, cartão ou dinheiro."
+      },
+      {
+        "hora": "15:00",
+        "titulo": "Crediário e reposição",
+        "texto": "Bermuda M com 1 peça: o pedido de compra sai pronto e a cobrança da Ana vai pelo WhatsApp."
+      },
+      {
+        "hora": "19:00",
+        "titulo": "Fechamento e lucro",
+        "texto": "Fecha o caixa separando dinheiro, Pix e cartão e vê o lucro real do dia."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Camiseta básica",
+        "preco": 39.9,
+        "estoque": 22
+      },
+      {
+        "nome": "Calça jeans",
+        "preco": 119.9,
+        "estoque": 15
+      },
+      {
+        "nome": "Vestido floral",
+        "preco": 89.9,
+        "estoque": 8
+      },
+      {
+        "nome": "Bermuda masculina M",
+        "preco": 59.9,
+        "estoque": 1
+      },
+      {
+        "nome": "Kit 3 pares de meia",
+        "preco": 24.9,
+        "estoque": 40
+      }
+    ],
+    "alertas": [
+      "Bermuda masculina M com 1 peça: repor.",
+      "Camiseta básica P parada há 45 dias.",
+      "Crediário da Ana atrasado há 7 dias: R$ 119,90."
+    ],
     "perguntaIA": "Que tamanho está faltando e quanto vendi?",
     "respostaIA": "A bermuda masculina M tem 1 peça: peça 6. A camiseta básica vendeu 4 hoje. No total, R$ 1.560,00.",
     "objecao": "Minha loja é de roupa. Sistema de mercado não serve.",
     "respostaObjecao": "Não é sistema de mercado: tem grade de tamanho e cor, etiqueta com código de barras e crediário com cobrança no WhatsApp. A nossa primeira cliente é um outlet de roupas."
   },
   "loja-de-calcados": {
-    "depois": ["Mostra a numeração e o modelo na venda, sem trocar o par.", "Aponta os modelos parados e o que repor pelo que realmente vende.", "Fecha o caixa conferindo dinheiro, Pix, cartão e crediário."],
-    "diaNaLoja": [
-      { "hora": "08:30", "titulo": "Abrir o caixa", "texto": "Confere o troco, o Pix e o cartão antes de abrir a loja." },
-      { "hora": "09:15", "titulo": "Numeração certa", "texto": "Bipa o Tênis Runner Preto e o sistema mostra a numeração e os pares disponíveis." },
-      { "hora": "14:00", "titulo": "Conferir e repor", "texto": "O estoque avisa a Sandália Verão Bege com 3 pares e o pedido de compra sai pronto." },
-      { "hora": "18:30", "titulo": "Fechar caixa e crediário", "texto": "Fecha o caixa com dinheiro, Pix, cartão e o crediário do dia batendo." }
+    "depois": [
+      "Mostra a numeração e o modelo na venda, sem trocar o par.",
+      "Aponta os modelos parados e o que repor pelo que realmente vende.",
+      "Fecha o caixa conferindo dinheiro, Pix, cartão e crediário."
     ],
-    "produtosDemo": [{ "nome": "Tênis Runner Preto", "preco": 199.9, "estoque": 12 }, { "nome": "Sandália Verão Bege", "preco": 129.9, "estoque": 3 }, { "nome": "Sapato Social Marrom", "preco": 249.9, "estoque": 6 }, { "nome": "Chinelo Comfort", "preco": 59.9, "estoque": 40 }, { "nome": "Bota de couro", "preco": 289.9, "estoque": 8 }],
-    "alertas": ["Sandália Verão Bege com 3 pares no estoque.", "Crediário do Carlos atrasado há 12 dias: R$ 180,00.", "Bota de couro parada há 38 dias."],
+    "diaNaLoja": [
+      {
+        "hora": "08:30",
+        "titulo": "Abrir o caixa",
+        "texto": "Confere o troco, o Pix e o cartão antes de abrir a loja."
+      },
+      {
+        "hora": "09:15",
+        "titulo": "Numeração certa",
+        "texto": "Bipa o Tênis Runner Preto e o sistema mostra a numeração e os pares disponíveis."
+      },
+      {
+        "hora": "14:00",
+        "titulo": "Conferir e repor",
+        "texto": "O estoque avisa a Sandália Verão Bege com 3 pares e o pedido de compra sai pronto."
+      },
+      {
+        "hora": "18:30",
+        "titulo": "Fechar caixa e crediário",
+        "texto": "Fecha o caixa com dinheiro, Pix, cartão e o crediário do dia batendo."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Tênis Runner Preto",
+        "preco": 199.9,
+        "estoque": 12
+      },
+      {
+        "nome": "Sandália Verão Bege",
+        "preco": 129.9,
+        "estoque": 3
+      },
+      {
+        "nome": "Sapato Social Marrom",
+        "preco": 249.9,
+        "estoque": 6
+      },
+      {
+        "nome": "Chinelo Comfort",
+        "preco": 59.9,
+        "estoque": 40
+      },
+      {
+        "nome": "Bota de couro",
+        "preco": 289.9,
+        "estoque": 8
+      }
+    ],
+    "alertas": [
+      "Sandália Verão Bege com 3 pares no estoque.",
+      "Crediário do Carlos atrasado há 12 dias: R$ 180,00.",
+      "Bota de couro parada há 38 dias."
+    ],
     "perguntaIA": "Quais modelos devo repor e o que está parado?",
     "respostaIA": "Reponha o Tênis Runner Preto: 12 vendidos no mês. A Sandália Verão Bege tem 3 pares: peça 9. A bota de couro está parada há 38 dias.",
     "objecao": "Meu estoque de numeração é bagunçado. Tenho medo de o sistema não dar conta.",
     "respostaObjecao": "Cada par entra com numeração e modelo, e a etiqueta sai com código de barras. A implantação é feita junto com você: a gente organiza o estoque no sistema com você."
   },
   "moto-pecas": {
-    "depois": ["Mostra a peça pela medida e pela moto na hora do balcão.", "Junta peça e serviço no mesmo caixa, e a conta fecha.", "Controla kit, jogo, par e litro sem misturar unidade."],
-    "diaNaLoja": [
-      { "hora": "08:00", "titulo": "Abrir o caixa", "texto": "Confere dinheiro, Pix e cartão e deixa o caixa pronto antes do primeiro cliente." },
-      { "hora": "09:30", "titulo": "Peça para a moto certa", "texto": "Busca o Kit Relação Titan 150 e vê a medida, a moto e o estoque na hora." },
-      { "hora": "14:30", "titulo": "Serviço junto com a peça", "texto": "Lança a troca de óleo e a pastilha de freio da CG 160 no mesmo caixa." },
-      { "hora": "18:00", "titulo": "Fechar e cobrar", "texto": "Fecha o caixa, confere os serviços do dia e cobra o fiado do Anderson pelo WhatsApp." }
+    "depois": [
+      "Mostra a peça pela medida e pela moto na hora do balcão.",
+      "Junta peça e serviço no mesmo caixa, e a conta fecha.",
+      "Controla kit, jogo, par e litro sem misturar unidade."
     ],
-    "produtosDemo": [{ "nome": "Pastilha de freio CG 160", "preco": 89.9, "estoque": 15 }, { "nome": "Kit relação Titan 150", "preco": 129, "estoque": 2 }, { "nome": "Óleo de motor 20W50 1 L", "preco": 38.9, "estoque": 24 }, { "nome": "Câmara de ar 90/90-18", "preco": 45.5, "estoque": 10 }, { "nome": "Cabo de embreagem Fan 125", "preco": 29.9, "estoque": 6 }],
-    "alertas": ["Kit relação Titan 150 com 2 kits no estoque.", "Fiado do Anderson atrasado há 7 dias: R$ 210,00.", "Cabo de embreagem Fan 125 parado há 52 dias."],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abrir o caixa",
+        "texto": "Confere dinheiro, Pix e cartão e deixa o caixa pronto antes do primeiro cliente."
+      },
+      {
+        "hora": "09:30",
+        "titulo": "Peça para a moto certa",
+        "texto": "Busca o Kit Relação Titan 150 e vê a medida, a moto e o estoque na hora."
+      },
+      {
+        "hora": "14:30",
+        "titulo": "Serviço junto com a peça",
+        "texto": "Lança a troca de óleo e a pastilha de freio da CG 160 no mesmo caixa."
+      },
+      {
+        "hora": "18:00",
+        "titulo": "Fechar e cobrar",
+        "texto": "Fecha o caixa, confere os serviços do dia e cobra o fiado do Anderson pelo WhatsApp."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Pastilha de freio CG 160",
+        "preco": 89.9,
+        "estoque": 15
+      },
+      {
+        "nome": "Kit relação Titan 150",
+        "preco": 129,
+        "estoque": 2
+      },
+      {
+        "nome": "Óleo de motor 20W50 1 L",
+        "preco": 38.9,
+        "estoque": 24
+      },
+      {
+        "nome": "Câmara de ar 90/90-18",
+        "preco": 45.5,
+        "estoque": 10
+      },
+      {
+        "nome": "Cabo de embreagem Fan 125",
+        "preco": 29.9,
+        "estoque": 6
+      }
+    ],
+    "alertas": [
+      "Kit relação Titan 150 com 2 kits no estoque.",
+      "Fiado do Anderson atrasado há 7 dias: R$ 210,00.",
+      "Cabo de embreagem Fan 125 parado há 52 dias."
+    ],
     "perguntaIA": "O que preciso repor e o que está parado?",
     "respostaIA": "Reponha o kit relação Titan 150: só 2 kits e sai 6 por semana. O cabo de embreagem Fan 125 está parado há 52 dias, com 6 peças.",
     "objecao": "Peça de moto tem medida e serviço. Sistema simples não organiza isso.",
     "respostaObjecao": "O cadastro tem medida e para qual moto a peça serve, o serviço entra no mesmo caixa e as unidades kit, jogo, par e litro são separadas. A implantação é feita junto com você."
   },
   "tabacaria": {
-    "depois": ["Mostra o que mais gira e o que faltou na prateleira.", "Fecha cada turno sabendo quem vendeu e quanto entrou.", "Conta cada item pequeno pelo código e mantém o estoque certo."],
-    "diaNaLoja": [
-      { "hora": "08:00", "titulo": "Abrir o turno", "texto": "Abre o caixa do turno da manhã e confere dinheiro, Pix e cartão." },
-      { "hora": "10:00", "titulo": "Repor com aviso", "texto": "O sistema avisa isqueiro com 2 unidades e a reposição é separada na hora." },
-      { "hora": "15:00", "titulo": "Venda por funcionário", "texto": "Vê no caixa quanto cada funcionário vendeu no turno e o que entrou." },
-      { "hora": "19:00", "titulo": "Fechar e cobrar", "texto": "Fecha o caixa, confere as formas de pagamento e cobra a Bruna pelo WhatsApp." }
+    "depois": [
+      "Mostra o que mais gira e o que faltou na prateleira.",
+      "Fecha cada turno sabendo quem vendeu e quanto entrou.",
+      "Conta cada item pequeno pelo código e mantém o estoque certo."
     ],
-    "produtosDemo": [{ "nome": "Seda king size", "preco": 8.5, "estoque": 45 }, { "nome": "Isqueiro", "preco": 6, "estoque": 2 }, { "nome": "Carvão para narguilé 40 mm", "preco": 15, "estoque": 18 }, { "nome": "Piteira longa", "preco": 9.9, "estoque": 25 }, { "nome": "Fumo para narguilé 50 g", "preco": 22, "estoque": 30 }],
-    "alertas": ["Isqueiro com só 2 unidades.", "Fiado da Bruna atrasado há 5 dias: R$ 65,00.", "Piteira longa parada há 35 dias."],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abrir o turno",
+        "texto": "Abre o caixa do turno da manhã e confere dinheiro, Pix e cartão."
+      },
+      {
+        "hora": "10:00",
+        "titulo": "Repor com aviso",
+        "texto": "O sistema avisa isqueiro com 2 unidades e a reposição é separada na hora."
+      },
+      {
+        "hora": "15:00",
+        "titulo": "Venda por funcionário",
+        "texto": "Vê no caixa quanto cada funcionário vendeu no turno e o que entrou."
+      },
+      {
+        "hora": "19:00",
+        "titulo": "Fechar e cobrar",
+        "texto": "Fecha o caixa, confere as formas de pagamento e cobra a Bruna pelo WhatsApp."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Seda king size",
+        "preco": 8.5,
+        "estoque": 45
+      },
+      {
+        "nome": "Isqueiro",
+        "preco": 6,
+        "estoque": 2
+      },
+      {
+        "nome": "Carvão para narguilé 40 mm",
+        "preco": 15,
+        "estoque": 18
+      },
+      {
+        "nome": "Piteira longa",
+        "preco": 9.9,
+        "estoque": 25
+      },
+      {
+        "nome": "Fumo para narguilé 50 g",
+        "preco": 22,
+        "estoque": 30
+      }
+    ],
+    "alertas": [
+      "Isqueiro com só 2 unidades.",
+      "Fiado da Bruna atrasado há 5 dias: R$ 65,00.",
+      "Piteira longa parada há 35 dias."
+    ],
     "perguntaIA": "O que mais vende e o que está faltando?",
     "respostaIA": "A seda king size saiu 48 no dia e restam 45. O isqueiro está com 2: peça 24. A piteira longa está parada há 35 dias.",
     "objecao": "Tenho muito item pequeno. Cadastrar tudo vai dar trabalho.",
     "respostaObjecao": "Cadastro pelo código de barras ou pela câmera do celular, com categorias prontas de tabacaria. E a implantação é feita junto com você: a gente cadastra com você."
   },
   "loja-de-suplementos": {
-    "depois": ["Avisa validade e lote antes de o suplemento vencer.", "Mostra o lote vendido na hora em que o cliente reclama.", "Aponta o que acabou, o que está parado e o que repor."],
-    "diaNaLoja": [
-      { "hora": "08:30", "titulo": "Abrir e ver validade", "texto": "Abre o caixa e o sistema já mostra o que está com validade chegando." },
-      { "hora": "10:30", "titulo": "Venda com lote", "texto": "Bipa a creatina e o lote fica registrado na venda para consulta depois." },
-      { "hora": "14:00", "titulo": "Parados e reposição", "texto": "Vê o BCAA parado há 47 dias e monta o pedido de whey protein." },
-      { "hora": "18:30", "titulo": "Fechar e cobrar", "texto": "Fecha dinheiro, Pix, cartão e fiado e cobra a Juliana pelo WhatsApp." }
+    "depois": [
+      "Avisa validade e lote antes de o suplemento vencer.",
+      "Mostra o lote vendido na hora em que o cliente reclama.",
+      "Aponta o que acabou, o que está parado e o que repor."
     ],
-    "produtosDemo": [{ "nome": "Whey protein 900 g", "preco": 189.9, "estoque": 2 }, { "nome": "Creatina 300 g", "preco": 129.9, "estoque": 22 }, { "nome": "Pré-treino 300 g", "preco": 149.9, "estoque": 14 }, { "nome": "Multivitamínico 60 cáps.", "preco": 79.9, "estoque": 30 }, { "nome": "BCAA 100 g", "preco": 89.9, "estoque": 9 }],
-    "alertas": ["Whey protein 900 g com só 2 unidades.", "Creatina 300 g do lote C12 vence em 21 dias.", "Fiado da Juliana atrasado há 9 dias: R$ 145,00."],
+    "diaNaLoja": [
+      {
+        "hora": "08:30",
+        "titulo": "Abrir e ver validade",
+        "texto": "Abre o caixa e o sistema já mostra o que está com validade chegando."
+      },
+      {
+        "hora": "10:30",
+        "titulo": "Venda com lote",
+        "texto": "Bipa a creatina e o lote fica registrado na venda para consulta depois."
+      },
+      {
+        "hora": "14:00",
+        "titulo": "Parados e reposição",
+        "texto": "Vê o BCAA parado há 47 dias e monta o pedido de whey protein."
+      },
+      {
+        "hora": "18:30",
+        "titulo": "Fechar e cobrar",
+        "texto": "Fecha dinheiro, Pix, cartão e fiado e cobra a Juliana pelo WhatsApp."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Whey protein 900 g",
+        "preco": 189.9,
+        "estoque": 2
+      },
+      {
+        "nome": "Creatina 300 g",
+        "preco": 129.9,
+        "estoque": 22
+      },
+      {
+        "nome": "Pré-treino 300 g",
+        "preco": 149.9,
+        "estoque": 14
+      },
+      {
+        "nome": "Multivitamínico 60 cáps.",
+        "preco": 79.9,
+        "estoque": 30
+      },
+      {
+        "nome": "BCAA 100 g",
+        "preco": 89.9,
+        "estoque": 9
+      }
+    ],
+    "alertas": [
+      "Whey protein 900 g com só 2 unidades.",
+      "Creatina 300 g do lote C12 vence em 21 dias.",
+      "Fiado da Juliana atrasado há 9 dias: R$ 145,00."
+    ],
     "perguntaIA": "O que vence primeiro e o que devo repor?",
     "respostaIA": "A creatina do lote C12 vence em 21 dias, com 22 unidades. O whey protein tem 2: peça 10. O BCAA está parado há 47 dias, com 9.",
     "objecao": "Suplemento tem lote e validade. Tenho medo de o sistema não controlar.",
     "respostaObjecao": "Validade e lote são obrigatórios nesse tipo de produto, com registro Anvisa, sabor e dose no cadastro. O sistema avisa o que vence antes de virar prejuízo."
   },
   "material-de-construcao": {
-    "depois": ["Vende por metro, saco, m² e milheiro com a conta certa na hora.", "Mostra o que acabou, o que está parado e o que repor.", "O pedido do vendedor externo entra pelo celular e reserva o estoque."],
-    "diaNaLoja": [
-      { "hora": "07:30", "titulo": "Abertura conferida", "texto": "Abre o caixa com o leitor ou a câmera do celular e confere o troco." },
-      { "hora": "09:00", "titulo": "Pedido no balcão", "texto": "Cliente leva 30 sacos de cimento e 12 m² de piso: o sistema calcula e baixa do estoque." },
-      { "hora": "13:00", "titulo": "Vendedor externo", "texto": "O pedido tirado no celular reserva o estoque e já vira lista de separação." },
-      { "hora": "17:30", "titulo": "Fechamento e cobrança", "texto": "Confere o caixa do turno, vê o fiado em aberto e manda a cobrança no WhatsApp." }
+    "depois": [
+      "Vende por metro, saco, m² e milheiro com a conta certa na hora.",
+      "Mostra o que acabou, o que está parado e o que repor.",
+      "O pedido do vendedor externo entra pelo celular e reserva o estoque."
     ],
-    "produtosDemo": [{ "nome": "Cimento CP II 50 kg", "preco": 38.9, "estoque": 120 }, { "nome": "Areia média (m³)", "preco": 145, "estoque": 8 }, { "nome": "Piso cerâmico 60x60 (m²)", "preco": 39.9, "estoque": 45 }, { "nome": "Tijolo baiano (milheiro)", "preco": 890, "estoque": 3 }, { "nome": "Tubo PVC 100 mm (barra)", "preco": 78.5, "estoque": 22 }],
-    "alertas": ["Tijolo baiano com 3 milheiros: repor hoje.", "Areia média com 8 m³: o pedido do Marcos leva 2.", "Piso cerâmico 60x60 parado há 40 dias."],
+    "diaNaLoja": [
+      {
+        "hora": "07:30",
+        "titulo": "Abertura conferida",
+        "texto": "Abre o caixa com o leitor ou a câmera do celular e confere o troco."
+      },
+      {
+        "hora": "09:00",
+        "titulo": "Pedido no balcão",
+        "texto": "Cliente leva 30 sacos de cimento e 12 m² de piso: o sistema calcula e baixa do estoque."
+      },
+      {
+        "hora": "13:00",
+        "titulo": "Vendedor externo",
+        "texto": "O pedido tirado no celular reserva o estoque e já vira lista de separação."
+      },
+      {
+        "hora": "17:30",
+        "titulo": "Fechamento e cobrança",
+        "texto": "Confere o caixa do turno, vê o fiado em aberto e manda a cobrança no WhatsApp."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Cimento CP II 50 kg",
+        "preco": 38.9,
+        "estoque": 120
+      },
+      {
+        "nome": "Areia média (m³)",
+        "preco": 145,
+        "estoque": 8
+      },
+      {
+        "nome": "Piso cerâmico 60x60 (m²)",
+        "preco": 39.9,
+        "estoque": 45
+      },
+      {
+        "nome": "Tijolo baiano (milheiro)",
+        "preco": 890,
+        "estoque": 3
+      },
+      {
+        "nome": "Tubo PVC 100 mm (barra)",
+        "preco": 78.5,
+        "estoque": 22
+      }
+    ],
+    "alertas": [
+      "Tijolo baiano com 3 milheiros: repor hoje.",
+      "Areia média com 8 m³: o pedido do Marcos leva 2.",
+      "Piso cerâmico 60x60 parado há 40 dias."
+    ],
     "perguntaIA": "Quanto vendi de cimento na semana e quanto sobrou de areia?",
     "respostaIA": "Foram 340 sacos de cimento CP II, R$ 13.226,00, e sobraram 120. De areia média restam 8 m³. O tijolo baiano está com 3 milheiros, abaixo do mínimo.",
     "objecao": "Uso caderneta e o vendedor anota no papel. Vou ter que cadastrar tudo de novo?",
     "respostaObjecao": "A implantação é feita junto com você, pelo desenvolvedor, nos 2 meses grátis. Comece pelos itens que mais giram e o resto entra pelo código de barras."
   },
   "adega-e-conveniencia": {
-    "depois": ["Fiado com limite e cobrança no WhatsApp: nada some no caderno.", "Abre e fecha o caixa por turno, conferido, e o valor bate.", "Avisa quando a bebida que mais vende está acabando."],
-    "diaNaLoja": [
-      { "hora": "08:00", "titulo": "Abertura do turno", "texto": "Abre o caixa com o leitor ou a câmera do celular e confere o troco." },
-      { "hora": "11:00", "titulo": "Fiado conferido", "texto": "O João pede fiado e o sistema confere o limite antes de liberar." },
-      { "hora": "19:00", "titulo": "Movimento da noite", "texto": "A cerveja gelada está saindo: o aviso de estoque baixo aparece na tela." },
-      { "hora": "23:30", "titulo": "Fechamento do turno", "texto": "Fecha o turno, confere dinheiro, Pix e cartão e manda as cobranças no WhatsApp." }
+    "depois": [
+      "Fiado com limite e cobrança no WhatsApp: nada some no caderno.",
+      "Abre e fecha o caixa por turno, conferido, e o valor bate.",
+      "Avisa quando a bebida que mais vende está acabando."
     ],
-    "produtosDemo": [{ "nome": "Cerveja lata 350 ml", "preco": 4.5, "estoque": 240 }, { "nome": "Refrigerante 2 L", "preco": 9.9, "estoque": 60 }, { "nome": "Gelo 5 kg", "preco": 12, "estoque": 2 }, { "nome": "Whisky 1 L", "preco": 129.9, "estoque": 12 }, { "nome": "Carvão 3 kg", "preco": 15.5, "estoque": 35 }],
-    "alertas": ["Gelo 5 kg com 2 unidades: repor antes das 18h.", "Fiado da Ana em R$ 187,00, acima do limite.", "Cerveja lata 350 ml é a mais vendida e está saindo rápido."],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abertura do turno",
+        "texto": "Abre o caixa com o leitor ou a câmera do celular e confere o troco."
+      },
+      {
+        "hora": "11:00",
+        "titulo": "Fiado conferido",
+        "texto": "O João pede fiado e o sistema confere o limite antes de liberar."
+      },
+      {
+        "hora": "19:00",
+        "titulo": "Movimento da noite",
+        "texto": "A cerveja gelada está saindo: o aviso de estoque baixo aparece na tela."
+      },
+      {
+        "hora": "23:30",
+        "titulo": "Fechamento do turno",
+        "texto": "Fecha o turno, confere dinheiro, Pix e cartão e manda as cobranças no WhatsApp."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Cerveja lata 350 ml",
+        "preco": 4.5,
+        "estoque": 240
+      },
+      {
+        "nome": "Refrigerante 2 L",
+        "preco": 9.9,
+        "estoque": 60
+      },
+      {
+        "nome": "Gelo 5 kg",
+        "preco": 12,
+        "estoque": 2
+      },
+      {
+        "nome": "Whisky 1 L",
+        "preco": 129.9,
+        "estoque": 12
+      },
+      {
+        "nome": "Carvão 3 kg",
+        "preco": 15.5,
+        "estoque": 35
+      }
+    ],
+    "alertas": [
+      "Gelo 5 kg com 2 unidades: repor antes das 18h.",
+      "Fiado da Ana em R$ 187,00, acima do limite.",
+      "Cerveja lata 350 ml é a mais vendida e está saindo rápido."
+    ],
     "perguntaIA": "Qual bebida mais vendeu hoje e quanto tem de gelo?",
     "respostaIA": "A cerveja lata lidera: 96 unidades, R$ 432,00. O gelo 5 kg está com 2 unidades e o whisky vendeu 3 (restam 12).",
     "objecao": "Meu caderno de fiado funciona. Meus clientes são conhecidos.",
     "respostaObjecao": "O fiado continua do mesmo jeito, só que com limite por cliente e cobrança no WhatsApp. O costume fica; o prejuízo de fim de mês some."
   },
   "distribuidora": {
-    "depois": ["O pedido do vendedor entra pelo celular, reserva o estoque e não se perde.", "Avisa quando o cliente CNPJ passa do limite de crédito.", "Separação e entrega saem do pedido que já reservou o estoque."],
-    "diaNaLoja": [
-      { "hora": "07:00", "titulo": "Rota do vendedor", "texto": "O vendedor externo tira o pedido no celular e vê o estoque disponível na hora." },
-      { "hora": "10:00", "titulo": "Limite de crédito", "texto": "O cliente CNPJ pede 40 caixas e o sistema mostra quanto ele já deve e o limite dele." },
-      { "hora": "14:00", "titulo": "Separação", "texto": "O pedido reservado vira lista de separação: ninguém vende o mesmo item duas vezes." },
-      { "hora": "17:00", "titulo": "Entrega e nota", "texto": "A nota do fornecedor entra pelo XML e a entrega sai organizada." }
+    "depois": [
+      "O pedido do vendedor entra pelo celular, reserva o estoque e não se perde.",
+      "Avisa quando o cliente CNPJ passa do limite de crédito.",
+      "Separação e entrega saem do pedido que já reservou o estoque."
     ],
-    "produtosDemo": [{ "nome": "Arroz 5 kg (fardo c/ 6)", "preco": 138, "estoque": 80 }, { "nome": "Óleo de soja (cx. 20 un.)", "preco": 189.9, "estoque": 2 }, { "nome": "Açúcar 1 kg (fardo 10)", "preco": 42.5, "estoque": 150 }, { "nome": "Leite integral (cx. 12)", "preco": 58.9, "estoque": 60 }, { "nome": "Feijão 1 kg (fardo 10)", "preco": 89.9, "estoque": 35 }],
-    "alertas": ["Óleo de soja com 2 caixas: repor antes da rota.", "Padaria do Carlos passou do limite de crédito.", "Açúcar 1 kg parado há 30 dias."],
+    "diaNaLoja": [
+      {
+        "hora": "07:00",
+        "titulo": "Rota do vendedor",
+        "texto": "O vendedor externo tira o pedido no celular e vê o estoque disponível na hora."
+      },
+      {
+        "hora": "10:00",
+        "titulo": "Limite de crédito",
+        "texto": "O cliente CNPJ pede 40 caixas e o sistema mostra quanto ele já deve e o limite dele."
+      },
+      {
+        "hora": "14:00",
+        "titulo": "Separação",
+        "texto": "O pedido reservado vira lista de separação: ninguém vende o mesmo item duas vezes."
+      },
+      {
+        "hora": "17:00",
+        "titulo": "Entrega e nota",
+        "texto": "A nota do fornecedor entra pelo XML e a entrega sai organizada."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Arroz 5 kg (fardo c/ 6)",
+        "preco": 138,
+        "estoque": 80
+      },
+      {
+        "nome": "Óleo de soja (cx. 20 un.)",
+        "preco": 189.9,
+        "estoque": 2
+      },
+      {
+        "nome": "Açúcar 1 kg (fardo 10)",
+        "preco": 42.5,
+        "estoque": 150
+      },
+      {
+        "nome": "Leite integral (cx. 12)",
+        "preco": 58.9,
+        "estoque": 60
+      },
+      {
+        "nome": "Feijão 1 kg (fardo 10)",
+        "preco": 89.9,
+        "estoque": 35
+      }
+    ],
+    "alertas": [
+      "Óleo de soja com 2 caixas: repor antes da rota.",
+      "Padaria do Carlos passou do limite de crédito.",
+      "Açúcar 1 kg parado há 30 dias."
+    ],
     "perguntaIA": "Quanto a Padaria do Carlos deve e o que falta repor?",
     "respostaIA": "A Padaria do Carlos tem R$ 2.340,00 em aberto, com limite de R$ 3.000,00. O óleo de soja está com 2 caixas e o açúcar com 150 fardos.",
     "objecao": "Meu vendedor já manda pedido no WhatsApp. Para que mudar?",
     "respostaObjecao": "No WhatsApp o pedido não reserva estoque e ninguém vê o saldo. No sistema o vendedor tira no celular, vê o estoque, e o pedido reserva e separa."
+  },
+  "celulares-e-eletronicos": {
+    "depois": [
+      "Mostra o estoque de cada acessório e avisa o que repor antes de faltar.",
+      "Acha a venda e a garantia do produto ou do conserto em segundos.",
+      "Controla o fiado com limite e cobra pelo WhatsApp com um toque."
+    ],
+    "diaNaLoja": [
+      {
+        "hora": "09:00",
+        "titulo": "Abertura do caixa",
+        "texto": "Confere o troco, abre o caixa e já bipa os acessórios que chegaram do fornecedor."
+      },
+      {
+        "hora": "11:00",
+        "titulo": "Acessório e conserto",
+        "texto": "Cliente leva película e deixa o aparelho para trocar o conector. Tudo no mesmo caixa, com garantia."
+      },
+      {
+        "hora": "15:00",
+        "titulo": "Reposição na tela",
+        "texto": "O sistema mostra o cabo USB-C acabando. O pedido de compra sai pronto para o fornecedor."
+      },
+      {
+        "hora": "19:00",
+        "titulo": "Fechamento e fiado",
+        "texto": "Confere o caixa, vê o lucro do dia e manda a cobrança do fiado no WhatsApp."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Película de vidro iPhone 13",
+        "preco": 29.9,
+        "estoque": 40
+      },
+      {
+        "nome": "Carregador turbo USB-C 20W",
+        "preco": 79.9,
+        "estoque": 25
+      },
+      {
+        "nome": "Cabo USB-C 1 m",
+        "preco": 34.9,
+        "estoque": 2
+      },
+      {
+        "nome": "Fone Bluetooth TWS",
+        "preco": 129.9,
+        "estoque": 18
+      },
+      {
+        "nome": "Capinha transparente Galaxy A54",
+        "preco": 39.9,
+        "estoque": 30
+      }
+    ],
+    "alertas": [
+      "Cabo USB-C 1 m com 2 unidades: repor antes do fim de semana.",
+      "Fone Bluetooth TWS parado há 30 dias.",
+      "Fiado do Marcos em R$ 180,00, atrasado: cobrar no WhatsApp."
+    ],
+    "perguntaIA": "Quanto vendi hoje e o que está acabando?",
+    "respostaIA": "Hoje o caixa fechou em R$ 1.284,50, com 18 vendas. O cabo USB-C está com 2 unidades e o fone TWS vendeu 5.",
+    "objecao": "Já tenho caderno e planilha. Não vou perder tempo com sistema.",
+    "respostaObjecao": "O caderno não avisa estoque baixo nem cobra fiado. Aqui você bipa o produto, vê o lucro real e cobra no WhatsApp. São 2 meses grátis e a implantação é feita junto com você."
+  },
+  "floricultura-e-jardinagem": {
+    "depois": [
+      "Avisa a validade e mostra o que precisa sair primeiro.",
+      "Registra cada entrega com motoboy e acompanha o que falta entregar.",
+      "Controla o fiado com limite por cliente e cobra pelo WhatsApp."
+    ],
+    "diaNaLoja": [
+      {
+        "hora": "07:30",
+        "titulo": "Chegada das flores",
+        "texto": "Confere as flores de corte que chegaram, registra a validade e separa o que sai primeiro."
+      },
+      {
+        "hora": "09:00",
+        "titulo": "Balcão e vasos",
+        "texto": "Bipa o vaso e a planta e recebe no Pix ou no cartão, com o caixa conferido."
+      },
+      {
+        "hora": "13:00",
+        "titulo": "Entrega com motoboy",
+        "texto": "Registra a entrega, separa o buquê e o motoboy sai com o endereço."
+      },
+      {
+        "hora": "17:30",
+        "titulo": "Fiado e fechamento",
+        "texto": "Manda a cobrança do fiado no WhatsApp e confere o lucro real no fechamento."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Orquídea phalaenopsis branca",
+        "preco": 89.9,
+        "estoque": 12
+      },
+      {
+        "nome": "Suculenta pequena",
+        "preco": 19.9,
+        "estoque": 35
+      },
+      {
+        "nome": "Vaso de cerâmica médio",
+        "preco": 59.9,
+        "estoque": 3
+      },
+      {
+        "nome": "Terra adubada 5 kg",
+        "preco": 24.9,
+        "estoque": 20
+      },
+      {
+        "nome": "Buquê de rosas vermelhas",
+        "preco": 79.9,
+        "estoque": 8
+      }
+    ],
+    "alertas": [
+      "Vaso de cerâmica médio com 3 unidades: repor antes do fim de semana.",
+      "Rosas vermelhas do lote de hoje vencem em 2 dias.",
+      "Fiado da Ana em R$ 150,00, atrasado: cobrar no WhatsApp."
+    ],
+    "perguntaIA": "O que vendeu mais hoje e o que está perto de passar?",
+    "respostaIA": "Hoje o caixa está em R$ 946,30, com 22 vendas. O buquê de rosas saiu 9 vezes e a suculenta 7. O vaso de cerâmica médio está com 3 unidades.",
+    "objecao": "Minha floricultura é pequena. Sistema é coisa de loja grande.",
+    "respostaObjecao": "Loja pequena sente mais quando a flor passa ou o fiado não entra. O MercadinhoSys cuida de caixa, estoque, validade, entrega e fiado no celular. São 2 meses grátis, com implantação junto."
+  },
+  "loja-de-variedades": {
+    "depois": [
+      "Mostra por categoria o que vende e o que dá lucro.",
+      "Controla o fiado com limite e cobra pelo WhatsApp.",
+      "Cadastra pelo código de barras ou por texto, com a IA."
+    ],
+    "diaNaLoja": [
+      {
+        "hora": "08:00",
+        "titulo": "Abertura do caixa",
+        "texto": "Abre o caixa conferido e começa a vender pelo leitor ou pela câmera do celular."
+      },
+      {
+        "hora": "10:30",
+        "titulo": "Venda de tudo um pouco",
+        "texto": "Zíper, carregador e jogo de potes na mesma venda, no Pix, no cartão ou no crediário."
+      },
+      {
+        "hora": "14:00",
+        "titulo": "Pergunta para a IA",
+        "texto": "Pergunta o que vendeu por categoria e o que repor. A resposta vem com os números da loja."
+      },
+      {
+        "hora": "18:30",
+        "titulo": "Fechamento e reposição",
+        "texto": "O caixa fecha conferido e o pedido de compra dos itens baixos sai pronto."
+      }
+    ],
+    "produtosDemo": [
+      {
+        "nome": "Panela elétrica 4 L",
+        "preco": 189.9,
+        "estoque": 8
+      },
+      {
+        "nome": "Carregador USB-C 20W",
+        "preco": 39.9,
+        "estoque": 24
+      },
+      {
+        "nome": "Zíper 20 cm",
+        "preco": 2.5,
+        "estoque": 3
+      },
+      {
+        "nome": "Jogo de potes 3 peças",
+        "preco": 34.9,
+        "estoque": 15
+      },
+      {
+        "nome": "Quebra-cabeça 100 peças",
+        "preco": 24.9,
+        "estoque": 12
+      }
+    ],
+    "alertas": [
+      "Zíper 20 cm com só 3 unidades: repor.",
+      "Panela elétrica 4 L parada há 40 dias.",
+      "Crediário da Maria com parcela vencida: cobrar no WhatsApp."
+    ],
+    "perguntaIA": "Quanto vendi por categoria hoje e o que preciso repor?",
+    "respostaIA": "Hoje você vendeu R$ 1.842,30. Utilidades deram R$ 410,20 de lucro e acessórios de celular R$ 238,50. Repor zíper 20 cm e carregador USB-C.",
+    "objecao": "Minha loja vende coisa demais para um sistema só.",
+    "respostaObjecao": "É exatamente para isso: cada produto tem o cadastro do seu tipo, as categorias já vêm prontas e você vê o lucro de cada uma. A gente implanta junto com você."
   }
 }

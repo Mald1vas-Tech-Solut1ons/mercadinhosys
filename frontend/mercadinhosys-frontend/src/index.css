@@ -29,15 +29,22 @@ html, body, #root {
      deixava o documento mais alto que a tela — a página inteira passava a rolar
      e o "puxar para atualizar" do navegador recarregava no meio da rolagem. */
   padding: 0;
-  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Quem rola é o <main> (e as áreas internas); o documento não. Desliga o
-   "puxar para atualizar"/bounce nativo, que disparava ao rolar listas e o chat
-   do Consultor. O app tem o seu próprio, que respeita áreas roláveis. */
-html, body {
+/* Corta o estouro horizontal sem virar "caixa de rolagem". Com overflow-x: hidden,
+   body e #root ganhavam overflow-y: auto: viravam rolagem vazia no caminho do dedo
+   e, com o overscroll travado, a rolagem não passava para o documento — as páginas
+   públicas (segmentos, regiões, 404) simplesmente não rolavam. `hidden` fica de
+   reserva para navegador sem `clip`. */
+html { overflow-x: hidden; }
+body, #root { overflow-x: hidden; overflow-x: clip; }
+
+/* No app quem rola é o <main> (e as áreas internas). Desliga o "puxar para
+   atualizar"/bounce nativo, que disparava ao rolar listas e o chat do Consultor;
+   o app tem o seu próprio. SÓ no html: no body ele bloqueava a rolagem da página. */
+html {
   overscroll-behavior-y: none;
 }
 

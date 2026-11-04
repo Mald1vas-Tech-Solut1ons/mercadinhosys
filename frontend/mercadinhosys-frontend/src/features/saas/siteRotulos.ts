@@ -46,5 +46,6 @@ export const ROTULOS_ETAPA: Record<string, string> = {
 
 export const SEGMENTOS_CRM = [
     'mercadinho', 'supermercado', 'mercearia', 'loja-de-roupas', 'loja-de-calcados', 'moto-pecas',
-    'tabacaria', 'loja-de-suplementos', 'material-de-construcao', 'adega-e-conveniencia', 'distribuidora', 'outro',
+    'tabacaria', 'loja-de-suplementos', 'material-de-construcao', 'adega-e-conveniencia', 'distribuidora',
+    'celulares-e-eletronicos', 'floricultura-e-jardinagem', 'loja-de-variedades', 'outro',
 ];

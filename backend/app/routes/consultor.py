@@ -22,10 +22,10 @@ from app.models import Configuracao, ConsultorInteracao, Funcionario
 from app.services.consultor.rag import recuperar_evidencias, mensagens_rag
 from app.services.consultor.acoes import (
     executar_acao_confirmada,
-    obter_resumo_diario_cache,
-    salvar_resumo_diario_cache,
     sugerir_acoes,
 )
+from app.services.consultor.resumo_diario import montar_resumo_diario
+from app.services.consultor.insights_parser import para_exibir
 
 # Mantém referência pública para testes que fazem monkeypatch de `routes.gerar_resposta`
 gerar_resposta = _gerar_resposta_original
@@ -654,11 +654,12 @@ def gerar_insights():
             .first()
         )
 
-        if ultima:
+        ultimos_itens = para_exibir(ultima.resposta) if ultima else None
+        if ultimos_itens:
             return (
                 jsonify({
                     "success": True,
-                    "insights": ultima.resposta,
+                    "insights": ultimos_itens,
                     "aviso": "Limite diário de atualizações atingido. Mostrando última análise.",
                     "acoes_sugeridas": sugerir_acoes(registro_est_id, especialista=especialista, is_manager=is_manager),
                 }),
@@ -683,10 +684,12 @@ def gerar_insights():
         "\"tipo\" (\"excecao\"|\"risco\"|\"oportunidade\"), \"texto\" (1-2 frases), "
         "e opcionalmente \"acao\" com {\"tipo\": \"repor\"|\"cobrar\"|\"promocionar\"|\"ver_contagem\", \"payload\": {...}}. "
         "Para cada insight, deixe claro: o que está fora do normal (exceção), por que acontece (porquê) e a ação recomendada. "
-        "Cite as fontes e os períodos. Não invente números. Responda SOMENTE o JSON, sem markdown.",
+        "Diga o período de cada número (hoje, mês atual etc.). Não invente números. "
+        "Não use colchetes no texto. Liste no máximo 3 produtos por insight. "
+        "Responda SOMENTE o JSON, sem markdown.",
     )
 
-    meta = _chamar_llm(mensagens, provider_solicitado, max_tokens=512)
+    meta = _chamar_llm(mensagens, provider_solicitado, max_tokens=1200)
     duracao_ms = int((time.time() - start_time) * 1000)
 
     if not meta or not meta.get("texto"):
@@ -694,25 +697,10 @@ def gerar_insights():
 
     resposta_texto = meta["texto"]
 
-    # O prompt pede JSON; se o LLM devolver um array válido, entregamos
-    # estruturado (o front renderiza a ação). Caso contrário, cai no texto bruto
-    # (compatível com o formato antigo) — nunca fabricamos estrutura.
-    insights_payload = resposta_texto
-    formato = "texto"
-    try:
-        import json as _json
-        _txt = resposta_texto.strip()
-        if _txt.startswith("```"):
-            _txt = _txt.strip("`")
-            if _txt.lower().startswith("json"):
-                _txt = _txt[4:]
-            _txt = _txt.strip()
-        _parsed = _json.loads(_txt)
-        if isinstance(_parsed, list):
-            insights_payload = _parsed
-            formato = "json"
-    except Exception:
-        pass
+    # A tela só recebe itens completos: JSON cortado ou fora do formato nunca vira
+    # texto cru (colchetes e frase pela metade) no card do lojista.
+    insights_payload = para_exibir(resposta_texto)
+    formato = "json" if isinstance(insights_payload, list) else "texto"
 
     provider_efetivo = meta.get("provider") or provider_solicitado
     prompt_tokens = int(meta.get("prompt_tokens") or 0)
@@ -735,6 +723,9 @@ def gerar_insights():
     )
     db.session.add(interacao)
     db.session.commit()
+
+    if insights_payload is None:
+        return jsonify({"success": True, "insights": None, "aviso": "Análise indisponível agora. Tente atualizar."}), 200
 
     lista_fontes = [s["fonte"] for s in context_data["fontes"]]
     payload = {
@@ -781,80 +772,21 @@ def resumo_diario_proativo():
             200,
         )
 
-    force_refresh = str(request.args.get("force", "")).lower() in ("1", "true", "sim")
-
-    if not force_refresh:
-        cached = obter_resumo_diario_cache(registro_est_id)
-        if cached:
-            retorno = dict(cached)
-            retorno["cached"] = True
-            retorno["acoes_sugeridas"] = sugerir_acoes(registro_est_id, especialista="geral", is_manager=True)
-            return jsonify(retorno), 200
-
-    if not llm_disponivel():
-        return (
-            jsonify({
-                "success": True,
-                "resumo": None,
-                "aviso": "IA não configurada",
-                "acoes_sugeridas": sugerir_acoes(registro_est_id, especialista="geral", is_manager=True),
-            }),
-            200,
-        )
-
+    # Montado direto do banco a cada abertura (consultas agregadas, baratas): nunca
+    # contradiz a tela nem fica preso num cache da manhã depois das vendas do dia.
     start_time = time.time()
-    context_data = _recuperar("geral", estabelecimento_id, True, "resumo diário vendas financeiro estoque compras")
-    if not context_data["fontes"]:
-        return jsonify({"success": True, "resumo": None, "aviso": "Dados indisponíveis para o resumo."}), 200
-
-    mensagens = mensagens_rag(
-        SYSTEM_PROMPTS["geral"],
-        context_data,
-        "Comece com 'Bom dia!' e entregue um resumo matinal em até 120 palavras com: "
-        "1) pulso das vendas e caixa, 2) principal alerta de boletos ou ruptura de estoque, "
-        "3) prioridade prática de hoje para o dono da loja.",
-    )
-    meta = _chamar_llm(mensagens, "groq", max_tokens=380)
-    duracao_ms = int((time.time() - start_time) * 1000)
-
-    if not meta or not meta.get("texto"):
-        return jsonify({"success": True, "resumo": None, "aviso": "Falha ao gerar resumo do dia."}), 200
-
-    resposta_texto = meta["texto"]
-    provider_efetivo = meta.get("provider") or "groq"
-    prompt_tokens = int(meta.get("prompt_tokens") or 0)
-    completion_tokens = int(meta.get("completion_tokens") or 0)
-    custo_usd = Decimal(str(meta.get("custo_estimado_usd") or 0))
-
-    interacao = ConsultorInteracao(
-        estabelecimento_id=registro_est_id,
-        funcionario_id=_funcionario_id_atual(),
-        especialista="insight_resumo_diario",
-        pergunta="Resumo diário proativo",
-        resposta=resposta_texto,
-        provider=provider_efetivo,
-        duracao_ms=duracao_ms,
-        prompt_tokens=prompt_tokens,
-        completion_tokens=completion_tokens,
-        custo_estimado_usd=custo_usd,
-    )
-    db.session.add(interacao)
-    db.session.commit()
-
-    fontes = [s["fonte"] for s in context_data["fontes"]]
-    acoes = sugerir_acoes(registro_est_id, especialista="geral", is_manager=True)
+    resumo = montar_resumo_diario(int(registro_est_id))
+    fontes = ["vendas", "estoque", "financeiro"]
     payload = {
         "success": True,
-        "resumo": resposta_texto,
+        **resumo,
         "fontes": fontes,
         "fontes_detalhadas": _detalhar_fontes(fontes),
-        "mapa_entidades": _mapa_entidades(registro_est_id),
-        "provider": provider_efetivo,
-        "duracao_ms": duracao_ms,
+        "provider": "sistema",
+        "duracao_ms": int((time.time() - start_time) * 1000),
         "cached": False,
-        "acoes_sugeridas": acoes,
+        "acoes_sugeridas": sugerir_acoes(registro_est_id, especialista="geral", is_manager=True),
     }
-    salvar_resumo_diario_cache(registro_est_id, payload)
     return jsonify(payload), 200
 
 

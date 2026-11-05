@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw, AlertCircle, CheckCircle, TrendingUp, HelpCircle, Play, Check, AlertTriangle, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { consultorService, AcaoSugerida, FonteDetalhada, InsightItem, MapaEntidades, AcaoInsight, ExecutarAcaoResponse } from '../../services/consultorService';
+import { consultorService, AcaoSugerida, FonteDetalhada, InsightItem, MapaEntidades, AcaoInsight, ExecutarAcaoResponse, ResumoDiarioResponse } from '../../services/consultorService';
 import { showToast } from '../../utils/toast';
 import { authService } from '../../features/auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
@@ -143,6 +143,17 @@ const parseInsights = (
     return itens;
   }
 
+  // JSON que chegou como texto (resposta cortada/antiga): nunca exibir cru.
+  const bruto = insights.trim();
+  if (bruto.startsWith('[') || bruto.startsWith('{') || bruto.startsWith('```')) {
+    try {
+      const parsed = JSON.parse(bruto.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, ''));
+      return Array.isArray(parsed) ? parseInsights(parsed as InsightItem[], mapa) : [];
+    } catch {
+      return [];
+    }
+  }
+
   // Formato antigo (string): preserva a estrutura de 3 linhas (bom / atenção / ação)
   // e tolera strings com mais ou menos linhas sem fabricar o que faltou.
   const linhas = insights.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
@@ -174,7 +185,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({
   const navigate = useNavigate();
   const [insights, setInsights] = useState<string | InsightItem[] | null>(null);
   const [mapaEntidades, setMapaEntidades] = useState<MapaEntidades | undefined>(undefined);
-  const [resumoMatinal, setResumoMatinal] = useState<string | null>(null);
+  const [resumoMatinal, setResumoMatinal] = useState<ResumoDiarioResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   // Servidor sem chave de IA ou opt-out LGPD ativo: o card não aparece.
@@ -249,9 +260,8 @@ export const InsightCard: React.FC<InsightCardProps> = ({
     fetchInsights();
     if (especialista === 'geral') {
       consultorService.obterResumoDiario(false).then((res) => {
-        if (res.success && res.resumo) {
-          setResumoMatinal(res.resumo);
-          if (res.mapa_entidades) setMapaEntidades(res.mapa_entidades);
+        if (res.success && res.itens && res.itens.length > 0) {
+          setResumoMatinal(res);
         }
       });
     }
@@ -331,12 +341,39 @@ export const InsightCard: React.FC<InsightCardProps> = ({
           </button>
         </div>
 
-        {resumoMatinal && especialista === 'geral' && (
+        {resumoMatinal?.itens && especialista === 'geral' && (
           <div className="mb-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-indigo-950 dark:border-indigo-900/50 dark:bg-indigo-950/30 dark:text-indigo-200">
-            <span className="font-bold text-indigo-600 dark:text-indigo-400 block text-xs uppercase tracking-wider mb-1">
-              Resumo Diário da Loja
+            <span className="font-bold text-indigo-600 dark:text-indigo-400 block text-xs uppercase tracking-wider mb-2">
+              Resumo do dia
             </span>
-            <p className="leading-relaxed">{resolverNomes(resumoMatinal, mapaEntidades)}</p>
+            <ul className="flex flex-col gap-1.5">
+              {resumoMatinal.itens.map((item) => (
+                <li key={item.chave} className="leading-relaxed">
+                  <span className="font-semibold">{item.titulo}:</span> {item.texto}
+                </li>
+              ))}
+            </ul>
+            {resumoMatinal.prioridade && (
+              <div
+                className={`mt-3 rounded-lg px-3 py-2 ${
+                  resumoMatinal.prioridade.tipo === 'risco'
+                    ? 'bg-red-50 text-red-800 border border-red-100 dark:bg-red-950/30 dark:text-red-200 dark:border-red-900/50'
+                    : 'bg-white/70 text-indigo-900 border border-indigo-100 dark:bg-indigo-950/40 dark:text-indigo-100 dark:border-indigo-900/50'
+                }`}
+              >
+                <span className="font-bold">Prioridade de hoje:</span> {resumoMatinal.prioridade.texto}
+                {resumoMatinal.prioridade.rota && resumoMatinal.prioridade.rotulo && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(resumoMatinal.prioridade!.rota as string)}
+                    className="mt-2 flex items-center gap-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors"
+                  >
+                    {resumoMatinal.prioridade.rotulo}
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 

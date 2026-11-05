@@ -90,9 +90,26 @@ export interface ChatResponse {
   duracao_ms?: number;
 }
 
+export interface ResumoDiarioItem {
+  chave: string;
+  titulo: string;
+  tipo: 'info' | 'ok' | 'alerta';
+  texto: string;
+}
+
+export interface ResumoDiarioPrioridade {
+  tipo: 'risco' | 'oportunidade' | 'ok';
+  texto: string;
+  rota: string | null;
+  rotulo: string | null;
+}
+
 export interface ResumoDiarioResponse {
   success: boolean;
   resumo?: string | null;
+  data?: string;
+  itens?: ResumoDiarioItem[];
+  prioridade?: ResumoDiarioPrioridade;
   fontes?: string[];
   fontes_detalhadas?: FonteDetalhada[];
   acoes_sugeridas?: AcaoSugerida[];

@@ -170,9 +170,7 @@ def test_resumo_diario_proativo_cacheia_no_dia_e_traz_acoes_sugeridas(
     client, session, monkeypatch
 ):
     import app.routes.consultor as routes
-    from app.services.consultor.acoes import limpar_cache_resumo_diario
 
-    limpar_cache_resumo_diario()
     estab = session.query(Estabelecimento).first()
     admin = session.query(Funcionario).first()
 
@@ -208,36 +206,62 @@ def test_resumo_diario_proativo_cacheia_no_dia_e_traz_acoes_sugeridas(
     session.add(prod_ruptura)
     session.commit()
 
-    chamadas_llm = []
-    monkeypatch.setattr(routes, "llm_disponivel", lambda: True)
+    # O resumo é montado do banco: não pode chamar LLM nenhum.
+    def llm_proibido(*args, **kwargs):
+        raise AssertionError("resumo diário não deve chamar o LLM")
 
-    def fake_meta(*args, **kwargs):
-        chamadas_llm.append(1)
-        return {
-            "texto": "Bom dia! Vendas estáveis, mas atenção à reposição de Arroz Tipo 1 5kg [estoque].",
-            "provider": "groq",
-            "prompt_tokens": 180,
-            "completion_tokens": 42,
-            "custo_estimado_usd": 0.00003,
-        }
-
-    monkeypatch.setattr(routes, "gerar_resposta_com_meta", fake_meta)
+    monkeypatch.setattr(routes, "gerar_resposta_com_meta", llm_proibido)
 
     headers = _headers_para(admin, "ADMIN")
     r1 = client.get("/api/consultor/resumo-diario", headers=headers)
     assert r1.status_code == 200, r1.get_data(as_text=True)
     b1 = r1.get_json()
     assert b1["success"] is True
-    assert "Bom dia!" in b1["resumo"]
-    assert b1["cached"] is False
+    assert [i["chave"] for i in b1["itens"]] == ["vendas", "estoque", "contas"]
+    estoque_txt = next(i["texto"] for i in b1["itens"] if i["chave"] == "estoque")
+    # O produto abaixo do mínimo aparece com nome e números: nada de "não há ruptura".
+    assert "Arroz Tipo 1 5kg (1 de mín. 12)" in estoque_txt
+    assert b1["numeros"]["produtos_abaixo_minimo"] >= 1
     assert any(a["acao"] == "gerar_pedido_compra" for a in b1["acoes_sugeridas"])
-    assert len(chamadas_llm) == 1
+    # Nenhum colchete, chave ou tag de fonte vaza para o texto do lojista.
+    for item in b1["itens"]:
+        assert "[" not in item["texto"] and "{" not in item["texto"]
 
-    # 2ª chamada no mesmo dia: deve vir do cache sem acionar o LLM novamente
-    r2 = client.get("/api/consultor/resumo-diario", headers=headers)
-    assert r2.status_code == 200
-    b2 = r2.get_json()
-    assert b2["success"] is True
-    assert b2["resumo"] == b1["resumo"]
-    assert b2["cached"] is True
-    assert len(chamadas_llm) == 1
+
+def test_resumo_diario_sem_vendas_prioriza_registrar_no_pdv(client, session):
+    from datetime import datetime, timedelta
+    from app.models import Venda
+    from app.services.consultor.resumo_diario import montar_resumo_diario
+
+    estab = session.query(Estabelecimento).first()
+    session.query(Venda).filter(Venda.estabelecimento_id == estab.id).delete()
+    session.commit()
+
+    r = montar_resumo_diario(estab.id)
+    assert r["numeros"]["vendas_mes"]["qtd"] == 0
+    assert r["prioridade"]["rota"] == "/pdv"
+    assert "Nenhuma venda registrada" in r["prioridade"]["texto"]
+    assert "sincroniz" not in r["resumo"].lower()
+
+
+def test_normalizar_insights_aproveita_json_cortado_e_tira_tags():
+    from app.services.consultor.insights_parser import normalizar_insights
+
+    cortado = (
+        '[{"tipo":"excecao","texto":"Caixa do mês zerado [geral].","acao":{"tipo":"ver_contagem","payload":{}}},'
+        '{"tipo":"risco","texto":"15 alertas de estoque [geral]."},'
+        '{"tipo":"oportunidade","texto":"Dois produtos têm margem baixa: PARAFUSADEIRA com 25,56% (custo 133,'
+    )
+    itens = normalizar_insights(cortado)
+    assert [i["tipo"] for i in itens] == ["excecao", "risco"]
+    assert itens[0]["texto"] == "Caixa do mês zerado."
+    assert itens[0]["acao"]["tipo"] == "ver_contagem"
+
+    assert normalizar_insights("```json\n[{\"tipo\":\"risco\",\"texto\":\"ok\"}]\n```") == [{"tipo": "risco", "texto": "ok"}]
+    assert normalizar_insights('[{"tipo":"risco","texto":"cort') is None
+    assert normalizar_insights("texto solto sem json") is None
+
+    from app.services.consultor.insights_parser import para_exibir
+
+    assert para_exibir("1. Vendas boas [vendas]\n2. Sem riscos") == "1. Vendas boas\n2. Sem riscos"
+    assert para_exibir('[{"tipo":"risco","texto":"cort') is None

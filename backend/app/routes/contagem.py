@@ -14,7 +14,7 @@ Regra que não abre exceção: aplicar grava UMA MovimentacaoEstoque por diverge
 com motivo "Contagem cíclica — <seção>". Não existe tabela paralela de perdas —
 o DRE e o relatório de perdas já leem movimentacoes_estoque.
 """
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 
 from flask import Blueprint, current_app, jsonify, request
@@ -401,12 +401,15 @@ def relatorio():
         except ValueError:
             return default
 
-    hoje = date.today()
+    # Dia e mês são os da LOJA: created_at é UTC; date.today() do servidor (UTC) virava o dia às 21h de
+    # Brasília e a contagem feita à noite caía fora do período (ou no mês seguinte).
+    from app.utils.timezone import hoje_local, local_date_to_utc_naive
+    hoje = hoje_local()
     de = _data("de", hoje.replace(day=1))
     ate = _data("ate", hoje)
 
-    inicio = datetime.combine(de, datetime.min.time())
-    fim = datetime.combine(ate, datetime.max.time())
+    inicio = local_date_to_utc_naive(de)
+    fim = local_date_to_utc_naive(ate, fim_do_dia=True)
 
     movimentacoes = MovimentacaoEstoque.query.filter(
         MovimentacaoEstoque.estabelecimento_id == estab_id,

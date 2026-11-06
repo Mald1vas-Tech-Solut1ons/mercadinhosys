@@ -2,6 +2,7 @@
 
 Leitura: qualquer funcionário da loja. Escrita: gerente ou admin. Toda consulta é filtrada pela
 loja do token (get_authorized_establishment_id); id de outra loja responde 404.
+Módulo do plano Pro: o bloqueio vale na API, não só no menu.
 """
 from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import get_jwt_identity
@@ -9,12 +10,20 @@ from sqlalchemy import or_
 
 from app import db
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
+from app.decorators.plan_guards import pro_required
 from app.models import Produto
 from app.models_producao import PAPEIS_PRODUCAO, FichaTecnica, OrdemProducao
 from app.services import producao_service as svc
 from app.utils.query_helpers import get_authorized_establishment_id
 
 producao_bp = Blueprint("producao", __name__)
+
+
+@producao_bp.before_request
+def _exige_plano_pro():
+    if request.method == "OPTIONS":
+        return None
+    return pro_required(lambda: None)()
 
 
 def _estab():
@@ -41,6 +50,13 @@ def _ordem(estab_id, ordem_id):
     return OrdemProducao.query.filter_by(id=ordem_id, estabelecimento_id=estab_id).first()
 
 
+def _func():
+    try:
+        return int(get_jwt_identity())
+    except (TypeError, ValueError):
+        return None
+
+
 def _sem_loja():
     return jsonify({"success": False, "error": "Escolha uma loja"}), 400
 
@@ -61,6 +77,9 @@ def listar_itens():
         termo = f"%{busca}%"
         q = q.filter(or_(Produto.nome.ilike(termo), Produto.codigo_barras.ilike(termo),
                          Produto.codigo_interno.ilike(termo)))
+    pai = request.args.get("pai", type=int)
+    if pai:  # variações da mesma grade (para copiar a ficha)
+        q = q.filter(Produto.produto_pai_id == pai)
     papel = (request.args.get("papel") or "").strip()
     if papel == "revenda":
         q = q.filter(Produto.papel_producao.is_(None))
@@ -69,6 +88,7 @@ def listar_itens():
     itens = q.order_by(Produto.nome).limit(min(request.args.get("limite", 50, type=int), 200)).all()
     return jsonify({"success": True, "itens": [{
         "id": p.id, "nome": p.nome, "unidade": p.unidade_medida or "UN", "papel": p.papel_producao or "revenda",
+        "unidades": svc.unidades_compativeis(p.unidade_medida), "produto_pai_id": p.produto_pai_id,
         "quantidade": float(p.quantidade or 0), "preco_custo": float(p.preco_custo or 0),
         "preco_venda": float(p.preco_venda or 0)} for p in itens]})
 
@@ -83,7 +103,7 @@ def definir_papel(produto_id):
     if not produto:
         return jsonify({"success": False, "error": "Produto não encontrado"}), 404
     try:
-        svc.definir_papel(produto, (request.get_json() or {}).get("papel"))
+        svc.definir_papel(produto, (request.get_json(silent=True) or {}).get("papel"))
         db.session.commit()
     except svc.ProducaoError as erro:
         return _erro(erro)
@@ -110,7 +130,7 @@ def criar_ficha():
     if not estab_id:
         return _sem_loja()
     try:
-        ficha = svc.salvar_ficha(estab_id, request.get_json() or {})
+        ficha = svc.salvar_ficha(estab_id, request.get_json(silent=True) or {}, funcionario_id=_func())
         db.session.commit()
     except (svc.ProducaoError, ValueError) as erro:
         return _erro(erro)
@@ -135,13 +155,41 @@ def atualizar_ficha(ficha_id):
     if not ficha:
         return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
     try:
-        dados = dict(request.get_json() or {})
+        dados = dict(request.get_json(silent=True) or {})
         dados["produto_id"] = ficha.produto_id  # o produto da ficha não muda
-        svc.salvar_ficha(estab_id, dados, ficha=ficha)
+        svc.salvar_ficha(estab_id, dados, ficha=ficha, funcionario_id=_func())
         db.session.commit()
     except (svc.ProducaoError, ValueError) as erro:
         return _erro(erro)
     return jsonify({"success": True, "ficha": svc.ficha_dict(ficha)})
+
+
+@producao_bp.route("/fichas/<int:ficha_id>/versoes", methods=["GET"])
+@funcionario_required
+def versoes_ficha(ficha_id):
+    estab_id = _estab()
+    ficha = _ficha(estab_id, ficha_id) if estab_id else None
+    if not ficha:
+        return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
+    return jsonify({"success": True, "versoes": svc.versoes_dict(ficha)})
+
+
+@producao_bp.route("/fichas/<int:ficha_id>/copiar", methods=["POST"])
+@gerente_ou_admin_required
+def copiar_ficha(ficha_id):
+    """Grade: copia a receita para outras variações (tamanho/cor) do mesmo produto."""
+    estab_id = _estab()
+    ficha = _ficha(estab_id, ficha_id) if estab_id else None
+    if not ficha:
+        return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
+    try:
+        criadas, ignoradas = svc.copiar_ficha(estab_id, ficha, (request.get_json(silent=True) or {}).get("produto_ids"),
+                                              funcionario_id=_func())
+        db.session.commit()
+    except (svc.ProducaoError, ValueError) as erro:
+        return _erro(erro)
+    return jsonify({"success": True, "criadas": [svc.ficha_dict(f, com_capacidade=False) for f in criadas],
+                    "ignoradas": ignoradas})
 
 
 # ── Ordens de produção ────────────────────────────────────────────────────
@@ -166,7 +214,7 @@ def criar_ordem():
     estab_id = _estab()
     if not estab_id:
         return _sem_loja()
-    dados = request.get_json() or {}
+    dados = request.get_json(silent=True) or {}
     ficha = _ficha(estab_id, int(dados.get("ficha_id") or 0))
     if not ficha:
         return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
@@ -219,8 +267,23 @@ def iniciar_ordem(ordem_id):
 @producao_bp.route("/ordens/<int:ordem_id>/encerrar", methods=["POST"])
 @gerente_ou_admin_required
 def encerrar_ordem(ordem_id):
-    dados = request.get_json() or {}
+    dados = request.get_json(silent=True) or {}
     return _acao(ordem_id, lambda op: svc.encerrar_ordem(op, dados, int(get_jwt_identity())))
+
+
+@producao_bp.route("/ordens/<int:ordem_id>/apontar", methods=["POST"])
+@gerente_ou_admin_required
+def apontar_ordem(ordem_id):
+    """Produção parcial: entrega uma parte (turno, fornada) sem encerrar a ordem."""
+    dados = request.get_json(silent=True) or {}
+    return _acao(ordem_id, lambda op: svc.apontar(op, dados, int(get_jwt_identity())))
+
+
+@producao_bp.route("/ordens/<int:ordem_id>/estornar", methods=["POST"])
+@gerente_ou_admin_required
+def estornar_ordem(ordem_id):
+    dados = request.get_json(silent=True) or {}
+    return _acao(ordem_id, lambda op: svc.estornar_ordem(op, int(get_jwt_identity()), dados.get("motivo")))
 
 
 @producao_bp.route("/ordens/<int:ordem_id>/cancelar", methods=["POST"])

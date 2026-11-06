@@ -3,14 +3,28 @@
 Estoque só se move pelo caminho único: insumo sai por estoque_service.registrar_saida (FIFO dos
 lotes, quarentena de vencido, reservas) e o acabado entra com lote, custo médio ponderado e
 movimento, igual ao recebimento de compra. Nada aqui faz commit: a rota decide.
+
+Recursos para qualquer tipo de produto fabricado:
+- Unidade da receita: o insumo pode ser digitado em g/ml/cm mesmo estocado em kg/L/m.
+- Receita em vários níveis: semiacabado com ficha própria entra como insumo de outra ficha;
+  ciclo (A usa B que usa A) é recusado; a necessidade explode os níveis (produzir x comprar).
+- Grade: cada variação (tamanho/cor) tem a sua ficha; uma ficha pode ser copiada para as irmãs.
+- Versões: cada edição da ficha guarda uma foto (quem, quando, como era) e a OP grava a versão.
+- Apontamento parcial: a OP entrega aos poucos (turno, fornada), cada entrega com lote próprio.
+- Estorno: OP apontada/encerrada volta inteira (insumos aos lotes de origem, acabado sai).
 """
 import json
-from datetime import timedelta
+from collections import defaultdict
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 
-from app.models import Produto, ProdutoLote, db
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
+
+from app.models import MovimentacaoEstoque, Produto, ProdutoLote, db
 from app.models_producao import (
-    PAPEIS_PRODUCAO, FichaTecnica, FichaTecnicaItem, OrdemProducao, OrdemProducaoItem,
+    PAPEIS_PRODUCAO, ApontamentoProducao, FichaTecnica, FichaTecnicaItem, FichaTecnicaVersao,
+    OrdemProducao, OrdemProducaoItem,
 )
 from app.services import estoque_service
 from app.utils.timezone import agora_local, hoje_local, now_utc
@@ -18,6 +32,8 @@ from app.utils.timezone import agora_local, hoje_local, now_utc
 CENT = Decimal("0.01")
 Q4 = Decimal("0.0001")
 CEM = Decimal("100")
+ZERO = Decimal("0")
+PROFUNDIDADE_MAXIMA = 12  # níveis de receita (semiacabado dentro de semiacabado...)
 
 
 class ProducaoError(ValueError):
@@ -28,7 +44,7 @@ class ProducaoError(ValueError):
         self.faltas = faltas or []
 
 
-def _dec(valor, rotulo, minimo=Decimal("0"), permitir_zero=True):
+def _dec(valor, rotulo, minimo=ZERO, permitir_zero=True):
     try:
         numero = Decimal(str(valor if valor not in (None, "") else 0).replace(",", "."))
     except Exception:
@@ -36,6 +52,10 @@ def _dec(valor, rotulo, minimo=Decimal("0"), permitir_zero=True):
     if not numero.is_finite() or numero < minimo or (not permitir_zero and numero == 0):
         raise ProducaoError(f"{rotulo} inválido")
     return numero
+
+
+def _d(valor):
+    return Decimal(str(valor or 0))
 
 
 def _produto_da_loja(produto_id, estab_id, rotulo="Produto"):
@@ -53,16 +73,98 @@ def definir_papel(produto, papel):
     produto.papel_producao = None if papel == "revenda" else papel
 
 
+# ── Unidades ──────────────────────────────────────────────────────────────
+# família -> {unidade exibida: fator para a base da família}
+_FAMILIAS = {
+    "massa": {"mg": Decimal("0.000001"), "g": Decimal("0.001"), "kg": Decimal("1"), "t": Decimal("1000")},
+    "volume": {"ml": Decimal("0.001"), "L": Decimal("1"), "m3": Decimal("1000")},
+    "comprimento": {"mm": Decimal("0.001"), "cm": Decimal("0.01"), "m": Decimal("1")},
+    "area": {"cm2": Decimal("0.0001"), "m2": Decimal("1")},
+    "unidade": {"UN": Decimal("1")},
+}
+_APELIDOS = {
+    "MG": "mg", "G": "g", "GR": "g", "GRS": "g", "GRAMA": "g", "GRAMAS": "g",
+    "KG": "kg", "KGS": "kg", "KILO": "kg", "KILOS": "kg", "QUILO": "kg", "QUILOS": "kg",
+    "T": "t", "TON": "t", "TONELADA": "t",
+    "ML": "ml", "L": "L", "LT": "L", "LTS": "L", "LITRO": "L", "LITROS": "L", "M3": "m3",
+    "MM": "mm", "CM": "cm", "M": "m", "MT": "m", "MTS": "m", "METRO": "m", "METROS": "m",
+    "CM2": "cm2", "M2": "m2",
+    "UN": "UN", "UND": "UN", "UNID": "UN", "UNIDADE": "UN", "UNIDADES": "UN", "U": "UN",
+    "PC": "UN", "PCS": "UN", "PÇ": "UN", "PÇS": "UN", "PECA": "UN", "PEÇA": "UN", "PECAS": "UN", "PEÇAS": "UN",
+}
+
+
+def _unidade(codigo):
+    """(família, unidade canônica, fator) ou família própria para unidade desconhecida (CX, PCT...)."""
+    bruto = (codigo or "UN").strip().replace(".", "")
+    canonica = _APELIDOS.get(bruto.upper())
+    if canonica:
+        for familia, unidades in _FAMILIAS.items():
+            if canonica in unidades:
+                return familia, canonica, unidades[canonica]
+    return f"_{bruto.upper()}", bruto.upper(), Decimal("1")
+
+
+def unidades_compativeis(unidade_estoque):
+    """Unidades em que a receita pode pedir este insumo (a de estoque vem primeiro)."""
+    familia, canonica, _ = _unidade(unidade_estoque)
+    if familia.startswith("_"):
+        return [canonica]
+    return [canonica] + [u for u in _FAMILIAS[familia] if u != canonica]
+
+
+def converter(quantidade, de, para):
+    """Converte `quantidade` da unidade `de` para `para`; famílias diferentes = erro."""
+    fam_de, can_de, fator_de = _unidade(de)
+    fam_para, can_para, fator_para = _unidade(para)
+    if fam_de != fam_para:
+        raise ProducaoError(f"Não dá para converter {can_de} em {can_para}")
+    return Decimal(str(quantidade)) * fator_de / fator_para
+
+
 # ── Ficha técnica ─────────────────────────────────────────────────────────
 
-def salvar_ficha(estab_id, dados, ficha=None):
-    """Cria ou substitui a ficha (cabeçalho + itens). OPs já criadas guardam a própria cópia."""
+def _fichas_ativas(estab_id):
+    fichas = FichaTecnica.query.filter_by(estabelecimento_id=estab_id, ativa=True) \
+        .options(selectinload(FichaTecnica.itens)).all()
+    return {f.produto_id: f for f in fichas}
+
+
+def _usa(produto_id, alvo_id, fichas, profundidade=0):
+    """True se a receita de `produto_id` (em qualquer nível) consome `alvo_id`."""
+    if profundidade > PROFUNDIDADE_MAXIMA:
+        return True  # profundidade absurda = trate como ciclo
+    ficha = fichas.get(produto_id)
+    if not ficha:
+        return False
+    for item in ficha.itens:
+        if item.insumo_id == alvo_id or _usa(item.insumo_id, alvo_id, fichas, profundidade + 1):
+            return True
+    return False
+
+
+def _foto(ficha, funcionario_id=None):
+    dados = ficha_dict(ficha, com_capacidade=False)
+    db.session.add(FichaTecnicaVersao(estabelecimento_id=ficha.estabelecimento_id, ficha_id=ficha.id,
+                                      versao=ficha.versao, funcionario_id=funcionario_id,
+                                      dados=json.dumps(dados, ensure_ascii=False, default=str)))
+
+
+def salvar_ficha(estab_id, dados, ficha=None, funcionario_id=None):
+    """Cria ou substitui a ficha (cabeçalho + itens) e grava a versão. OPs já criadas guardam a cópia."""
     produto = _produto_da_loja(int(dados.get("produto_id") or (ficha.produto_id if ficha else 0)), estab_id)
-    if ficha is None:
+    if getattr(produto, "eh_grade_modelo", False):
+        raise ProducaoError(f"{produto.nome} é o modelo da grade: faça a ficha de cada variação "
+                            "(e copie para as outras)")
+    nova = ficha is None
+    if nova:
         if FichaTecnica.query.filter_by(estabelecimento_id=estab_id, produto_id=produto.id).first():
             raise ProducaoError(f"{produto.nome} já tem ficha técnica: edite a existente")
-        ficha = FichaTecnica(estabelecimento_id=estab_id, produto_id=produto.id)
+        ficha = FichaTecnica(estabelecimento_id=estab_id, produto_id=produto.id, versao=1)
+        ficha.produto = produto
         db.session.add(ficha)
+    else:
+        ficha.versao = int(ficha.versao or 1) + 1
     ficha.rendimento = _dec(dados.get("rendimento"), "Rendimento", permitir_zero=False)
     ficha.minutos_mao_de_obra = _dec(dados.get("minutos_mao_de_obra"), "Minutos de mão de obra")
     ficha.custo_hora_mao_de_obra = _dec(dados.get("custo_hora_mao_de_obra"), "Custo/hora")
@@ -74,6 +176,7 @@ def salvar_ficha(estab_id, dados, ficha=None):
     itens = dados.get("itens") or []
     if not itens:
         raise ProducaoError("A ficha precisa de pelo menos um insumo")
+    fichas = _fichas_ativas(estab_id)
     vistos = set()
     novos = []
     for bruto in itens:
@@ -82,31 +185,75 @@ def salvar_ficha(estab_id, dados, ficha=None):
             raise ProducaoError("O produto não pode ser insumo dele mesmo")
         if insumo.id in vistos:
             raise ProducaoError(f"{insumo.nome} aparece duas vezes na ficha")
+        if getattr(insumo, "eh_grade_modelo", False):
+            raise ProducaoError(f"{insumo.nome} é o modelo da grade: escolha a variação usada")
+        if _usa(insumo.id, produto.id, fichas):
+            raise ProducaoError(f"Ciclo na receita: {insumo.nome} já leva {produto.nome}")
         vistos.add(insumo.id)
         perda = _dec(bruto.get("perda_percentual"), f"Perda de {insumo.nome}")
         if perda >= CEM:
             raise ProducaoError(f"Perda de {insumo.nome} precisa ser menor que 100%")
-        novos.append(FichaTecnicaItem(insumo_id=insumo.id,
-                                      quantidade=_dec(bruto.get("quantidade"), f"Quantidade de {insumo.nome}",
-                                                      permitir_zero=False),
-                                      perda_percentual=perda))
+        digitada = _dec(bruto.get("quantidade"), f"Quantidade de {insumo.nome}", permitir_zero=False)
+        unidade_estoque = insumo.unidade_medida or "UN"
+        unidade = (bruto.get("unidade") or "").strip() or None
+        quantidade = converter(digitada, unidade, unidade_estoque) if unidade else digitada
+        quantidade = quantidade.quantize(Q4, rounding=ROUND_HALF_UP)
+        if quantidade <= 0:
+            raise ProducaoError(f"Quantidade de {insumo.nome} some na conversão para {unidade_estoque}: "
+                                f"cadastre o insumo numa unidade menor")
+        item = FichaTecnicaItem(insumo_id=insumo.id, quantidade=quantidade, perda_percentual=perda,
+                                quantidade_receita=digitada if unidade else None,
+                                unidade_receita=_unidade(unidade)[1] if unidade else None)
+        item.insumo = insumo
+        novos.append(item)
     ficha.itens = novos
     if not produto.papel_producao or produto.papel_producao == "revenda":
         produto.papel_producao = "fabricado"
+    db.session.flush()
+    _foto(ficha, funcionario_id)
     return ficha
 
 
+def copiar_ficha(estab_id, ficha, produto_ids, funcionario_id=None):
+    """Grade: replica a receita para outras variações (tamanho/cor) que ainda não têm ficha."""
+    criadas, ignoradas = [], []
+    base = {
+        "rendimento": ficha.rendimento, "minutos_mao_de_obra": ficha.minutos_mao_de_obra,
+        "custo_hora_mao_de_obra": ficha.custo_hora_mao_de_obra,
+        "custo_indireto_percentual": ficha.custo_indireto_percentual,
+        "markup_percentual": ficha.markup_percentual, "observacoes": ficha.observacoes,
+        "itens": [{"insumo_id": i.insumo_id,
+                   "quantidade": i.quantidade_receita if i.unidade_receita else i.quantidade,
+                   "unidade": i.unidade_receita, "perda_percentual": i.perda_percentual} for i in ficha.itens],
+    }
+    for produto_id in dict.fromkeys(int(p) for p in (produto_ids or [])):
+        produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=estab_id).filter(
+            Produto.deleted_at.is_(None)).first()
+        if not produto or produto.id == ficha.produto_id:
+            continue
+        if FichaTecnica.query.filter_by(estabelecimento_id=estab_id, produto_id=produto.id).first():
+            ignoradas.append({"produto_id": produto.id, "produto_nome": produto.nome, "motivo": "já tem ficha"})
+            continue
+        try:
+            with db.session.begin_nested():
+                criadas.append(salvar_ficha(estab_id, dict(base, produto_id=produto.id),
+                                            funcionario_id=funcionario_id))
+        except ProducaoError as erro:
+            ignoradas.append({"produto_id": produto.id, "produto_nome": produto.nome, "motivo": str(erro)})
+    return criadas, ignoradas
+
+
 def _consumo_com_perda(quantidade, perda_percentual):
-    return Decimal(str(quantidade)) * (1 + Decimal(str(perda_percentual or 0)) / CEM)
+    return _d(quantidade) * (1 + _d(perda_percentual) / CEM)
 
 
 def custo_padrao(ficha):
     """Custo da receita pelo custo médio atual dos insumos, por unidade, e preço sugerido."""
     linhas = []
-    material = Decimal("0")
+    material = ZERO
     for item in ficha.itens:
         consumo = _consumo_com_perda(item.quantidade, item.perda_percentual)
-        custo_insumo = Decimal(str(item.insumo.preco_custo or 0))
+        custo_insumo = _d(item.insumo.preco_custo)
         total = consumo * custo_insumo
         material += total
         linhas.append({
@@ -116,13 +263,13 @@ def custo_padrao(ficha):
             "consumo_com_perda": float(consumo.quantize(Q4)), "custo_unitario_insumo": float(custo_insumo),
             "custo_total": float(total.quantize(CENT, rounding=ROUND_HALF_UP)),
         })
-    mao_de_obra = Decimal(str(ficha.minutos_mao_de_obra or 0)) / 60 * Decimal(str(ficha.custo_hora_mao_de_obra or 0))
-    indireto = (material + mao_de_obra) * Decimal(str(ficha.custo_indireto_percentual or 0)) / CEM
+    mao_de_obra = _d(ficha.minutos_mao_de_obra) / 60 * _d(ficha.custo_hora_mao_de_obra)
+    indireto = (material + mao_de_obra) * _d(ficha.custo_indireto_percentual) / CEM
     total_receita = material + mao_de_obra + indireto
-    rendimento = Decimal(str(ficha.rendimento))
+    rendimento = _d(ficha.rendimento)
     unitario = total_receita / rendimento
-    preco = unitario * (1 + Decimal(str(ficha.markup_percentual or 0)) / CEM)
-    preco_atual = Decimal(str(ficha.produto.preco_venda or 0))
+    preco = unitario * (1 + _d(ficha.markup_percentual) / CEM)
+    preco_atual = _d(ficha.produto.preco_venda)
     return {
         "itens": linhas,
         "material_receita": float(material.quantize(CENT, rounding=ROUND_HALF_UP)),
@@ -140,19 +287,19 @@ def custo_padrao(ficha):
 
 def _disponivel(insumo):
     """Saldo utilizável do insumo: estoque - vencido em quarentena - reservado."""
-    return (Decimal(str(insumo.quantidade or 0)) - estoque_service.quantidade_em_quarentena(insumo)
+    return (_d(insumo.quantidade) - estoque_service.quantidade_em_quarentena(insumo)
             - estoque_service.reservado_no_produto(insumo))
 
 
 def capacidade(ficha):
     """Quantas unidades dá para fazer com o insumo que há, e qual insumo é o gargalo."""
-    rendimento = Decimal(str(ficha.rendimento))
+    rendimento = _d(ficha.rendimento)
     melhor, gargalo = None, None
     for item in ficha.itens:
         por_unidade = _consumo_com_perda(item.quantidade, item.perda_percentual) / rendimento
         if por_unidade <= 0:
             continue
-        possivel = (max(_disponivel(item.insumo), Decimal("0")) / por_unidade).to_integral_value(rounding=ROUND_DOWN)
+        possivel = (max(_disponivel(item.insumo), ZERO) / por_unidade).to_integral_value(rounding=ROUND_DOWN)
         if melhor is None or possivel < melhor:
             melhor, gargalo = possivel, item.insumo
     return {"unidades": int(melhor or 0), "gargalo_id": gargalo.id if gargalo else None,
@@ -175,37 +322,48 @@ def criar_ordem(estab_id, ficha, quantidade, funcionario_id, observacoes=None):
     if not ficha.ativa:
         raise ProducaoError("Ficha técnica inativa")
     quantidade = _dec(quantidade, "Quantidade a produzir", permitir_zero=False)
-    rendimento = Decimal(str(ficha.rendimento))
+    rendimento = _d(ficha.rendimento)
     padrao = custo_padrao(ficha)
     fator = quantidade / rendimento
-    op = OrdemProducao(
-        estabelecimento_id=estab_id, numero=_proximo_numero(estab_id), ficha_id=ficha.id,
-        produto_id=ficha.produto_id, status="planejada", quantidade_planejada=quantidade,
-        rendimento_ficha=rendimento,
-        minutos_mao_de_obra=(Decimal(str(ficha.minutos_mao_de_obra or 0)) * fator).quantize(CENT),
-        custo_hora_mao_de_obra=ficha.custo_hora_mao_de_obra or 0,
-        custo_indireto_percentual=ficha.custo_indireto_percentual or 0,
-        custo_unitario_padrao=Decimal(str(padrao["custo_unitario"])),
-        funcionario_id=funcionario_id, observacoes=observacoes or None,
-    )
-    op.itens = [OrdemProducaoItem(insumo_id=item.insumo_id,
-                                  quantidade_prevista=(_consumo_com_perda(item.quantidade, item.perda_percentual)
-                                                       * fator).quantize(Q4, rounding=ROUND_HALF_UP))
-                for item in ficha.itens]
-    db.session.add(op)
-    return op
+    # Duas OPs criadas no mesmo instante disputam o número: a unique (loja, número) decide e a
+    # perdedora tenta o próximo, sem derrubar a requisição com 500.
+    for _ in range(5):
+        op = OrdemProducao(
+            estabelecimento_id=estab_id, numero=_proximo_numero(estab_id), ficha_id=ficha.id,
+            ficha_versao=ficha.versao, produto_id=ficha.produto_id, status="planejada",
+            quantidade_planejada=quantidade, rendimento_ficha=rendimento,
+            minutos_mao_de_obra=(_d(ficha.minutos_mao_de_obra) * fator).quantize(CENT),
+            custo_hora_mao_de_obra=ficha.custo_hora_mao_de_obra or 0,
+            custo_indireto_percentual=ficha.custo_indireto_percentual or 0,
+            custo_unitario_padrao=Decimal(str(padrao["custo_unitario"])),
+            funcionario_id=funcionario_id, observacoes=observacoes or None,
+        )
+        op.itens = [OrdemProducaoItem(insumo_id=item.insumo_id,
+                                      quantidade_prevista=(_consumo_com_perda(item.quantidade, item.perda_percentual)
+                                                           * fator).quantize(Q4, rounding=ROUND_HALF_UP))
+                    for item in ficha.itens]
+        try:
+            with db.session.begin_nested():
+                db.session.add(op)
+                db.session.flush()
+            return op
+        except IntegrityError:
+            continue
+    raise ProducaoError("Não foi possível numerar a ordem agora: tente de novo")
 
 
 def faltas_da_ordem(op):
     faltas = []
     for item in op.itens:
         disponivel = _disponivel(item.insumo)
-        precisa = Decimal(str(item.quantidade_prevista))
+        precisa = _d(item.quantidade_prevista) - _d(item.quantidade_consumida)
+        if precisa <= 0:
+            continue
         if disponivel < precisa:
             faltas.append({"insumo_id": item.insumo_id, "insumo_nome": item.insumo.nome,
                            "unidade": item.insumo.unidade_medida or "UN",
-                           "precisa": float(precisa), "disponivel": float(max(disponivel, Decimal("0"))),
-                           "falta": float((precisa - max(disponivel, Decimal("0"))).quantize(Q4))})
+                           "precisa": float(precisa), "disponivel": float(max(disponivel, ZERO)),
+                           "falta": float((precisa - max(disponivel, ZERO)).quantize(Q4))})
     return faltas
 
 
@@ -219,73 +377,111 @@ def iniciar_ordem(op):
     op.data_inicio = now_utc()
 
 
-def encerrar_ordem(op, dados, funcionario_id):
-    """Baixa os insumos, dá entrada no acabado com lote e custo real. Tudo ou nada (a rota faz commit)."""
+def _ativos(op):
+    return [a for a in op.apontamentos if not a.estornado]
+
+
+def apontar(op, dados, funcionario_id, final=False):
+    """Entrega da OP: baixa o consumo desta etapa e dá entrada nas peças boas com lote próprio.
+
+    Parcial (final=False): o consumo e a mão de obra saem proporcionais ao que foi feito
+    (boas + refugo) sobre o planejado. Final: sai o que falta do previsto e a OP encerra.
+    O consumo real pode ser informado por insumo. Tudo ou nada (a rota faz commit).
+    """
     if op.status not in ("planejada", "em_producao"):
-        raise ProducaoError("Esta ordem já foi encerrada ou cancelada")
+        raise ProducaoError("Esta ordem já foi encerrada, estornada ou cancelada")
     boa = _dec(dados.get("quantidade_produzida"), "Quantidade produzida (boa)")
     refugo = _dec(dados.get("quantidade_refugo"), "Refugo")
-    if boa == 0 and refugo == 0:
+    anteriores = _ativos(op)
+    if boa == 0 and refugo == 0 and not (final and anteriores):
         raise ProducaoError("Informe a quantidade produzida ou o refugo")
-    if refugo > 0 and not (dados.get("motivo_refugo") or "").strip():
+    motivo_refugo = (dados.get("motivo_refugo") or "").strip()[:200] or None
+    if refugo > 0 and not motivo_refugo:
         raise ProducaoError("Informe o motivo do refugo (bolha, rachadura, quebra...)")
 
+    feito = boa + refugo
+    planejada = _d(op.quantidade_planejada)
+    proporcao = (feito / planejada) if planejada > 0 else ZERO
     consumo_real = {int(c.get("insumo_id")): c.get("quantidade")
                     for c in (dados.get("consumo") or []) if c.get("insumo_id") is not None}
-    motivo = f"Consumo {op.numero}"[:100]
-    material = Decimal("0")
-    lotes_insumo = []
+    sequencia = max([a.sequencia for a in op.apontamentos] or [0]) + 1
+    motivo = f"Consumo {op.numero}" + (f" #{sequencia}" if sequencia > 1 else "")
+    material = ZERO
+    consumo, lotes_insumo = [], []
     for item in op.itens:
         insumo = Produto.query.filter_by(id=item.insumo_id, estabelecimento_id=op.estabelecimento_id) \
             .populate_existing().with_for_update().first()
-        quantidade = (_dec(consumo_real[item.insumo_id], f"Consumo de {insumo.nome}")
-                      if item.insumo_id in consumo_real else Decimal(str(item.quantidade_prevista)))
+        restante = max(_d(item.quantidade_prevista) - _d(item.quantidade_consumida), ZERO)
+        if item.insumo_id in consumo_real:
+            quantidade = _dec(consumo_real[item.insumo_id], f"Consumo de {insumo.nome}")
+        elif final:
+            quantidade = restante if feito > 0 else ZERO
+        else:
+            quantidade = min((_d(item.quantidade_prevista) * proporcao).quantize(Q4, rounding=ROUND_HALF_UP),
+                             restante)
         if quantidade == 0:
-            item.quantidade_consumida, item.custo_unitario = Decimal("0"), Decimal(str(insumo.preco_custo or 0))
+            if item.custo_unitario is None:
+                item.custo_unitario = _d(insumo.preco_custo)
             continue
         try:
             movimento, custo = estoque_service.registrar_saida(
-                insumo, quantidade, venda_id=None, funcionario_id=funcionario_id, motivo=motivo)
+                insumo, quantidade, venda_id=None, funcionario_id=funcionario_id, motivo=motivo[:100])
         except estoque_service.EstoqueIndisponivelError as erro:
             raise ProducaoError(f"Insumo insuficiente: {insumo.nome}",
                                 faltas=[{"insumo_id": insumo.id, "insumo_nome": insumo.nome,
+                                         "unidade": insumo.unidade_medida or "UN",
                                          "precisa": float(quantidade)}]) from erro
         except estoque_service.ProdutoVencidoError as erro:
             raise ProducaoError(f"{insumo.nome} está vencido: não pode entrar na produção") from erro
-        item.quantidade_consumida = quantidade
+        item.quantidade_consumida = _d(item.quantidade_consumida) + quantidade
         item.custo_unitario = custo
         material += custo * quantidade
+        movimento_id = None
         if movimento is not None:
             db.session.flush()
-            item.movimentacao_id = movimento.id
+            movimento_id = item.movimentacao_id = movimento.id
             lotes_insumo.append({"insumo_id": insumo.id, "rastro": json.loads(movimento.observacoes or "{}")})
+        consumo.append({"insumo_id": insumo.id, "quantidade": str(quantidade), "custo_unitario": str(custo),
+                        "movimentacao_id": movimento_id})
 
-    mao_de_obra = Decimal(str(op.minutos_mao_de_obra or 0)) / 60 * Decimal(str(op.custo_hora_mao_de_obra or 0))
-    indireto = (material + mao_de_obra) * Decimal(str(op.custo_indireto_percentual or 0)) / CEM
-    op.custo_material_real = material.quantize(Q4)
-    op.custo_mao_de_obra_real = mao_de_obra.quantize(Q4)
-    op.custo_indireto_real = indireto.quantize(Q4)
-    op.quantidade_produzida = boa
-    op.quantidade_refugo = refugo
-    op.motivo_refugo = (dados.get("motivo_refugo") or "").strip()[:200] or None
+    if dados.get("minutos_mao_de_obra") not in (None, ""):
+        minutos = _dec(dados.get("minutos_mao_de_obra"), "Minutos de mão de obra")
+    elif final:
+        ja = sum((_d(a.minutos_mao_de_obra) for a in anteriores), ZERO)
+        minutos = max(_d(op.minutos_mao_de_obra) - ja, ZERO) if feito > 0 else ZERO
+    else:
+        minutos = (_d(op.minutos_mao_de_obra) * proporcao).quantize(CENT, rounding=ROUND_HALF_UP)
+    mao_de_obra = minutos / 60 * _d(op.custo_hora_mao_de_obra)
+    indireto = (material + mao_de_obra) * _d(op.custo_indireto_percentual) / CEM
+
+    ap = ApontamentoProducao(
+        estabelecimento_id=op.estabelecimento_id, sequencia=sequencia, final=final,
+        quantidade_boa=boa, quantidade_refugo=refugo, motivo_refugo=motivo_refugo,
+        minutos_mao_de_obra=minutos, custo_material=material.quantize(Q4),
+        custo_mao_de_obra=mao_de_obra.quantize(Q4), custo_indireto=indireto.quantize(Q4),
+        consumo=json.dumps(consumo), funcionario_id=funcionario_id,
+    )
+    op.apontamentos.append(ap)
 
     if boa > 0:
         # O refugo não vira estoque: o custo dele recai sobre as peças boas (custo real).
         unitario = ((material + mao_de_obra + indireto) / boa).quantize(Q4, rounding=ROUND_HALF_UP)
-        op.custo_unitario_real = unitario
+        ap.custo_unitario = unitario
         produto = Produto.query.filter_by(id=op.produto_id, estabelecimento_id=op.estabelecimento_id) \
             .populate_existing().with_for_update().first()
         validade = dados.get("data_validade")
         if validade:
-            from datetime import datetime
-            validade = datetime.strptime(str(validade)[:10], "%Y-%m-%d").date()
+            try:
+                validade = datetime.strptime(str(validade)[:10], "%Y-%m-%d").date()
+            except ValueError:
+                raise ProducaoError("Validade inválida") from None
         elif produto.controlar_validade:
             raise ProducaoError(f"Informe a validade do lote de {produto.nome}")
         else:
             validade = hoje_local() + timedelta(days=365 * 5)
-        numero_lote = op.numero
+        numero_lote = op.numero if sequencia == 1 else f"{op.numero}-{sequencia}"
         if ProdutoLote.query.filter_by(estabelecimento_id=op.estabelecimento_id, numero_lote=numero_lote).first():
-            numero_lote = f"{op.numero}-{op.id}"
+            numero_lote = f"{numero_lote}-{op.id}"
         lote = ProdutoLote(estabelecimento_id=op.estabelecimento_id, produto_id=produto.id,
                            numero_lote=numero_lote[:50], quantidade=boa, quantidade_inicial=boa,
                            data_fabricacao=hoje_local(), data_validade=validade, data_entrada=hoje_local(),
@@ -300,65 +496,215 @@ def encerrar_ordem(op, dados, funcionario_id):
         movimento.custo_unitario = unitario
         movimento.valor_total = (unitario * boa).quantize(CENT, rounding=ROUND_HALF_UP)
         # Rastreabilidade: o lote do acabado aponta para os lotes de insumo consumidos.
-        movimento.observacoes = json.dumps({"ordem_producao_id": op.id, "insumos": lotes_insumo})
+        movimento.observacoes = json.dumps({"ordem_producao_id": op.id, "apontamento": sequencia,
+                                            "insumos": lotes_insumo})
         db.session.add(movimento)
         db.session.flush()
-        op.lote_id = lote.id
-    op.status = "encerrada"
-    op.data_encerramento = now_utc()
+        ap.lote_id = lote.id
+        ap.movimentacao_id = movimento.id
+        if not op.lote_id:
+            op.lote_id = lote.id
+
+    _totalizar(op)
+    if op.status == "planejada":
+        op.status = "em_producao"
+        op.data_inicio = op.data_inicio or now_utc()
+    if final:
+        op.status = "encerrada"
+        op.data_encerramento = now_utc()
     return op
+
+
+def _totalizar(op):
+    """Soma dos apontamentos válidos na OP (custo real = tudo que entrou / peças boas)."""
+    ativos = _ativos(op)
+    boa = sum((_d(a.quantidade_boa) for a in ativos), ZERO)
+    material = sum((_d(a.custo_material) for a in ativos), ZERO)
+    mao = sum((_d(a.custo_mao_de_obra) for a in ativos), ZERO)
+    indireto = sum((_d(a.custo_indireto) for a in ativos), ZERO)
+    op.quantidade_produzida = boa
+    op.quantidade_refugo = sum((_d(a.quantidade_refugo) for a in ativos), ZERO)
+    motivos = list(dict.fromkeys(a.motivo_refugo for a in ativos if a.motivo_refugo))
+    op.motivo_refugo = "; ".join(motivos)[:200] or None
+    op.custo_material_real = material.quantize(Q4)
+    op.custo_mao_de_obra_real = mao.quantize(Q4)
+    op.custo_indireto_real = indireto.quantize(Q4)
+    op.custo_unitario_real = ((material + mao + indireto) / boa).quantize(Q4, rounding=ROUND_HALF_UP) if boa > 0 else None
+
+
+def encerrar_ordem(op, dados, funcionario_id):
+    """Última entrega: baixa o que falta do previsto, dá entrada nas boas e encerra a OP."""
+    return apontar(op, dados, funcionario_id, final=True)
 
 
 def cancelar_ordem(op):
     if op.status not in ("planejada", "em_producao"):
-        raise ProducaoError("Ordem encerrada não pode ser cancelada: o estoque já foi movimentado "
-                            "(corrija por ajuste/descarte de estoque)")
+        raise ProducaoError("Ordem encerrada não pode ser cancelada: use Estornar para desfazer o estoque")
+    if _ativos(op):
+        raise ProducaoError("Esta ordem já tem produção apontada: use Estornar para desfazer o estoque")
     op.status = "cancelada"
 
 
-def necessidade_insumos(estab_id):
-    """O que comprar para cumprir as ordens abertas (planejadas + em produção).
+def estornar_ordem(op, funcionario_id, motivo=None):
+    """Desfaz a OP inteira: o acabado sai dos lotes que ela criou e os insumos voltam aos lotes de origem.
 
-    Necessidade líquida por insumo = soma do previsto nas OPs abertas - saldo utilizável
-    (estoque - vencido - reservado) - o que já está pedido ao fornecedor e não chegou.
+    Só estorna se as peças ainda estão no lote (nada vendido/ajustado): senão diz quantas saíram.
+    Custo médio do acabado e do insumo é recomposto. Tudo ou nada (a rota faz commit).
     """
-    from collections import defaultdict
+    ativos = _ativos(op)
+    if op.status not in ("encerrada", "em_producao") or not ativos:
+        raise ProducaoError("Só ordem com produção apontada pode ser estornada (sem apontamento, cancele)")
+    texto = f"Estorno {op.numero}"[:100]
+
+    # 1) Acabado sai primeiro: se algo já foi vendido, nada se move.
+    for ap in ativos:
+        boa = _d(ap.quantidade_boa)
+        if boa <= 0 or not ap.lote_id:
+            continue
+        produto = Produto.query.filter_by(id=op.produto_id, estabelecimento_id=op.estabelecimento_id) \
+            .populate_existing().with_for_update().first()
+        lote = ProdutoLote.query.filter_by(id=ap.lote_id, estabelecimento_id=op.estabelecimento_id) \
+            .populate_existing().with_for_update().first()
+        no_lote = _d(lote.quantidade) if lote else ZERO
+        if no_lote < boa or _d(produto.quantidade) < boa:
+            saiu = boa - min(no_lote, _d(produto.quantidade))
+            raise ProducaoError(f"{saiu.normalize():f} {produto.unidade_medida or 'UN'} do lote "
+                                f"{lote.numero_lote if lote else ''} já saíram (venda ou ajuste): "
+                                "estorne essas saídas ou faça ajuste de estoque")
+        anterior = _d(produto.quantidade)
+        unitario = _d(ap.custo_unitario)
+        restante = anterior - boa
+        if restante > 0:
+            custo = (anterior * _d(produto.preco_custo) - boa * unitario) / restante
+            produto.preco_custo = max(custo, ZERO).quantize(Q4, rounding=ROUND_HALF_UP)
+        produto.quantidade = restante
+        lote.quantidade = no_lote - boa
+        if lote.quantidade <= 0:
+            lote.ativo = False
+            lote.motivo_inativacao = texto
+        db.session.add(MovimentacaoEstoque(
+            estabelecimento_id=op.estabelecimento_id, produto_id=produto.id, lote_id=lote.id,
+            funcionario_id=funcionario_id, tipo="saida", quantidade=boa, quantidade_anterior=anterior,
+            quantidade_atual=produto.quantidade, custo_unitario=unitario,
+            valor_total=(unitario * boa).quantize(CENT, rounding=ROUND_HALF_UP), motivo=texto,
+            observacoes=json.dumps({"estorno_ordem_producao_id": op.id, "apontamento": ap.sequencia})))
+
+    # 2) Insumos voltam como saíram (lotes do rastro, custo da saída).
+    for ap in ativos:
+        for linha in json.loads(ap.consumo or "[]"):
+            quantidade = _d(linha.get("quantidade"))
+            if quantidade <= 0 or not linha.get("movimentacao_id"):
+                continue  # insumo sem controle de estoque: nada saiu
+            insumo = Produto.query.filter_by(id=linha["insumo_id"], estabelecimento_id=op.estabelecimento_id) \
+                .populate_existing().with_for_update().first()
+            saida = MovimentacaoEstoque.query.filter_by(id=linha["movimentacao_id"],
+                                                        estabelecimento_id=op.estabelecimento_id).first()
+            custo = _d(linha.get("custo_unitario"))
+            anterior = _d(insumo.quantidade)
+            insumo.recalcular_preco_custo_ponderado(quantidade_entrada=quantidade, custo_unitario_entrada=custo,
+                                                    estoque_atual=max(anterior, ZERO), registrar_historico=False)
+            insumo.quantidade = anterior + quantidade
+            for lote_id, consumida in (estoque_service._lotes_do_rastro(saida) if saida else []):
+                lote = ProdutoLote.query.filter_by(id=lote_id, produto_id=insumo.id,
+                                                   estabelecimento_id=op.estabelecimento_id).with_for_update().first()
+                if lote:
+                    lote.quantidade = _d(lote.quantidade) + Decimal(consumida)
+                    lote.ativo = True
+            db.session.add(MovimentacaoEstoque(
+                estabelecimento_id=op.estabelecimento_id, produto_id=insumo.id,
+                lote_id=saida.lote_id if saida else None, funcionario_id=funcionario_id, tipo="entrada",
+                quantidade=quantidade, quantidade_anterior=anterior, quantidade_atual=insumo.quantidade,
+                custo_unitario=custo, valor_total=(custo * quantidade).quantize(CENT, rounding=ROUND_HALF_UP),
+                motivo=texto, observacoes=saida.observacoes if saida else None))
+            for item in op.itens:
+                if item.insumo_id == insumo.id:
+                    item.quantidade_consumida = max(_d(item.quantidade_consumida) - quantidade, ZERO)
+        ap.estornado = True
+
+    op.status = "estornada"
+    op.data_encerramento = now_utc()
+    nota = f"Estornada: {motivo.strip()}" if (motivo or "").strip() else "Estornada"
+    op.observacoes = f"{op.observacoes}\n{nota}" if op.observacoes else nota
+    return op
+
+
+# ── Necessidade (MRP simples, vários níveis) ──────────────────────────────
+
+def necessidade_insumos(estab_id):
+    """O que comprar e o que produzir para cumprir as ordens abertas (planejadas + em produção).
+
+    Por item: necessidade líquida = previsto - saldo utilizável (estoque - vencido - reservado)
+    - pedido de compra a caminho. Item com ficha ativa (semiacabado) vira "produzir" e a
+    necessidade líquida dele explode na receita dele; o resto vira "comprar". Os níveis são
+    processados do mais alto para o mais baixo, então cada item é calculado uma vez só.
+    """
     from app.models import PedidoCompra, PedidoCompraItem
     abertas = OrdemProducao.query.filter(OrdemProducao.estabelecimento_id == estab_id,
-                                         OrdemProducao.status.in_(("planejada", "em_producao"))).all()
-    previsto = defaultdict(Decimal)
-    ordens_por_insumo = defaultdict(list)
+                                         OrdemProducao.status.in_(("planejada", "em_producao"))) \
+        .options(selectinload(OrdemProducao.itens)).all()
+    bruto = defaultdict(Decimal)
+    ordens_por_item = defaultdict(set)
     for op in abertas:
         for item in op.itens:
-            previsto[item.insumo_id] += Decimal(str(item.quantidade_prevista))
-            ordens_por_insumo[item.insumo_id].append(op.numero)
-    if not previsto:
+            falta = max(_d(item.quantidade_prevista) - _d(item.quantidade_consumida), ZERO)
+            if falta > 0:
+                bruto[item.insumo_id] += falta
+                ordens_por_item[item.insumo_id].add(op.numero)
+    if not bruto:
         return []
+
+    fichas = _fichas_ativas(estab_id)
+    nivel = {pid: 0 for pid in bruto}
+    pilha = list(bruto)
+    while pilha:  # nível = caminho mais longo a partir das OPs (ordem de processamento)
+        pid = pilha.pop()
+        ficha = fichas.get(pid)
+        if not ficha or nivel[pid] >= PROFUNDIDADE_MAXIMA:
+            continue
+        for item in ficha.itens:
+            if nivel.get(item.insumo_id, -1) < nivel[pid] + 1:
+                nivel[item.insumo_id] = nivel[pid] + 1
+                pilha.append(item.insumo_id)
+
+    ids = list(nivel)
+    produtos = {p.id: p for p in Produto.query.filter(Produto.estabelecimento_id == estab_id,
+                                                      Produto.id.in_(ids)).all()}
     a_caminho = defaultdict(Decimal)
     pendentes = db.session.query(PedidoCompraItem).join(PedidoCompra, PedidoCompraItem.pedido_id == PedidoCompra.id).filter(
         PedidoCompra.estabelecimento_id == estab_id,
         PedidoCompra.status.in_(("pendente", "parcial", "aprovado", "enviado")),
-        PedidoCompraItem.produto_id.in_(list(previsto))).all()
+        PedidoCompraItem.produto_id.in_(ids)).all()
     for item in pendentes:
-        saldo = (Decimal(str(item.quantidade_solicitada or 0)) - Decimal(str(item.quantidade_recebida or 0))
-                 - Decimal(str(item.quantidade_faltante or 0)))
+        saldo = (_d(item.quantidade_solicitada) - _d(item.quantidade_recebida) - _d(item.quantidade_faltante))
         if saldo > 0:
             a_caminho[item.produto_id] += saldo
+
     linhas = []
-    for insumo_id, precisa in previsto.items():
-        insumo = Produto.query.filter_by(id=insumo_id, estabelecimento_id=estab_id).first()
-        if not insumo:
+    for pid in sorted(ids, key=lambda i: nivel[i]):
+        produto = produtos.get(pid)
+        precisa = bruto.get(pid, ZERO)
+        if not produto or precisa <= 0:
             continue
-        disponivel = max(_disponivel(insumo), Decimal("0"))
-        comprar = precisa - disponivel - a_caminho[insumo_id]
+        disponivel = max(_disponivel(produto), ZERO)
+        liquido = max(precisa - disponivel - a_caminho[pid], ZERO)
+        ficha = fichas.get(pid)
+        produzir = liquido if ficha else ZERO
+        comprar = ZERO if ficha else liquido
+        if ficha and liquido > 0:
+            fator = liquido / _d(ficha.rendimento)
+            for item in ficha.itens:
+                bruto[item.insumo_id] += _consumo_com_perda(item.quantidade, item.perda_percentual) * fator
+                ordens_por_item[item.insumo_id] |= ordens_por_item[pid]
         linhas.append({
-            "insumo_id": insumo.id, "insumo_nome": insumo.nome, "unidade": insumo.unidade_medida or "UN",
+            "insumo_id": produto.id, "insumo_nome": produto.nome, "unidade": produto.unidade_medida or "UN",
+            "nivel": nivel[pid], "acao": "produzir" if ficha else "comprar",
             "previsto_ordens": float(precisa.quantize(Q4)), "disponivel": float(disponivel),
-            "a_caminho": float(a_caminho[insumo_id]), "comprar": float(max(comprar, Decimal("0")).quantize(Q4)),
-            "custo_estimado": float((max(comprar, Decimal("0")) * Decimal(str(insumo.preco_custo or 0))).quantize(CENT)),
-            "ordens": sorted(set(ordens_por_insumo[insumo_id])),
+            "a_caminho": float(a_caminho[pid]),
+            "comprar": float(comprar.quantize(Q4)), "produzir": float(produzir.quantize(Q4)),
+            "custo_estimado": float((comprar * _d(produto.preco_custo)).quantize(CENT)),
+            "ordens": sorted(ordens_por_item[pid]),
         })
-    return sorted(linhas, key=lambda x: (-x["comprar"], x["insumo_nome"]))
+    return sorted(linhas, key=lambda x: (-(x["comprar"] + x["produzir"]), x["insumo_nome"]))
 
 
 # ── Serialização ──────────────────────────────────────────────────────────
@@ -367,29 +713,52 @@ def _f(valor):
     return float(valor) if valor is not None else None
 
 
-def ficha_dict(ficha, com_custo=True):
+def ficha_dict(ficha, com_custo=True, com_capacidade=True):
     dados = {
         "id": ficha.id, "produto_id": ficha.produto_id, "produto_nome": ficha.produto.nome,
-        "unidade_produto": ficha.produto.unidade_medida or "UN",
+        "produto_pai_id": getattr(ficha.produto, "produto_pai_id", None),
+        "unidade_produto": ficha.produto.unidade_medida or "UN", "versao": ficha.versao or 1,
         "rendimento": _f(ficha.rendimento), "minutos_mao_de_obra": _f(ficha.minutos_mao_de_obra),
         "custo_hora_mao_de_obra": _f(ficha.custo_hora_mao_de_obra),
         "custo_indireto_percentual": _f(ficha.custo_indireto_percentual),
         "markup_percentual": _f(ficha.markup_percentual), "observacoes": ficha.observacoes, "ativa": ficha.ativa,
         "itens": [{"insumo_id": i.insumo_id, "insumo_nome": i.insumo.nome,
                    "unidade": i.insumo.unidade_medida or "UN", "quantidade": _f(i.quantidade),
+                   "quantidade_receita": _f(i.quantidade_receita), "unidade_receita": i.unidade_receita,
+                   "unidades": unidades_compativeis(i.insumo.unidade_medida),
+                   "papel": i.insumo.papel_producao or "revenda",
                    "perda_percentual": _f(i.perda_percentual)} for i in ficha.itens],
     }
     if com_custo:
         dados["custo"] = custo_padrao(ficha)
+    if com_capacidade:
         dados["capacidade"] = capacidade(ficha)
     return dados
+
+
+def versoes_dict(ficha):
+    from app.utils.timezone import iso_utc
+    versoes = FichaTecnicaVersao.query.filter_by(ficha_id=ficha.id, estabelecimento_id=ficha.estabelecimento_id) \
+        .order_by(FichaTecnicaVersao.versao.desc()).all()
+    saida = []
+    for v in versoes:
+        dados = json.loads(v.dados or "{}")
+        saida.append({"versao": v.versao, "criada_em": iso_utc(v.created_at), "funcionario_id": v.funcionario_id,
+                      "rendimento": dados.get("rendimento"), "itens": dados.get("itens", []),
+                      "custo_unitario": (dados.get("custo") or {}).get("custo_unitario"),
+                      "minutos_mao_de_obra": dados.get("minutos_mao_de_obra"),
+                      "custo_hora_mao_de_obra": dados.get("custo_hora_mao_de_obra"),
+                      "custo_indireto_percentual": dados.get("custo_indireto_percentual"),
+                      "markup_percentual": dados.get("markup_percentual")})
+    return saida
 
 
 def ordem_dict(op):
     from app.utils.timezone import iso_utc
     return {
         "id": op.id, "numero": op.numero, "status": op.status, "ficha_id": op.ficha_id,
-        "produto_id": op.produto_id, "produto_nome": op.produto.nome,
+        "ficha_versao": op.ficha_versao, "produto_id": op.produto_id, "produto_nome": op.produto.nome,
+        "unidade_produto": op.produto.unidade_medida or "UN",
         "quantidade_planejada": _f(op.quantidade_planejada), "quantidade_produzida": _f(op.quantidade_produzida),
         "quantidade_refugo": _f(op.quantidade_refugo), "motivo_refugo": op.motivo_refugo,
         "custo_unitario_padrao": _f(op.custo_unitario_padrao), "custo_unitario_real": _f(op.custo_unitario_real),
@@ -400,4 +769,8 @@ def ordem_dict(op):
         "itens": [{"insumo_id": i.insumo_id, "insumo_nome": i.insumo.nome, "unidade": i.insumo.unidade_medida or "UN",
                    "quantidade_prevista": _f(i.quantidade_prevista), "quantidade_consumida": _f(i.quantidade_consumida),
                    "custo_unitario": _f(i.custo_unitario)} for i in op.itens],
+        "apontamentos": [{"sequencia": a.sequencia, "final": a.final, "estornado": a.estornado,
+                          "quantidade_boa": _f(a.quantidade_boa), "quantidade_refugo": _f(a.quantidade_refugo),
+                          "motivo_refugo": a.motivo_refugo, "custo_unitario": _f(a.custo_unitario),
+                          "lote_id": a.lote_id, "criado_em": iso_utc(a.created_at)} for a in op.apontamentos],
     }

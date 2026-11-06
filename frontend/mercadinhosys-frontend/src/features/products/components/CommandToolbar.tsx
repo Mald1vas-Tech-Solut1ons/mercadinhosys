@@ -29,6 +29,8 @@ interface CommandToolbarProps {
   onSearchChange: (val: string) => void;
   onToggleFilters: () => void;
   showFilters: boolean;
+  /** Rolando a lista: uma linha só (busca + ícones), atalhos recolhidos. */
+  compacta?: boolean;
 }
 
 /** Ação secundária: mesmo tamanho e estilo para todas; a cor fica só no ícone. */
@@ -59,7 +61,8 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
   search,
   onSearchChange,
   onToggleFilters,
-  showFilters
+  showFilters,
+  compacta = false,
 }) => {
   const navigate = useNavigate();
   const podeDarEntrada = canAccessRoute('/entrada-nfe', authService.getCurrentUser());
@@ -69,8 +72,8 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
     // "Novo Produto" saía da tela no celular.
     <div className="w-full min-w-0 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-sm">
       {/* Linha 1: busca + filtros + ação principal (nunca quebra o texto do botão). */}
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-3 sm:p-4">
-        <div className="relative flex-1 min-w-0 basis-full sm:basis-auto">
+      <div className={`flex items-center gap-2 sm:gap-3 transition-[padding] ${compacta ? 'flex-nowrap p-2 sm:p-2.5' : 'flex-wrap p-3 sm:p-4'}`}>
+        <div className={`relative flex-1 min-w-0 ${compacta ? 'basis-auto' : 'basis-full sm:basis-auto'}`}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-slate-500 pointer-events-none" />
           <input
             type="text"
@@ -102,8 +105,8 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
-          Filtros
-          <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+          <span className={compacta ? 'sr-only' : ''}>Filtros</span>
+          {!compacta && <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />}
         </button>
 
         <button
@@ -111,7 +114,7 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
           onClick={onRefresh}
           aria-label="Atualizar lista"
           title="Atualizar lista"
-          className="shrink-0 inline-flex items-center justify-center h-11 w-11 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+          className={`shrink-0 inline-flex items-center justify-center h-11 w-11 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors ${compacta ? 'max-sm:hidden' : ''}`}
         >
           <RefreshCw className="w-4 h-4" />
         </button>
@@ -122,13 +125,13 @@ const CommandToolbar: React.FC<CommandToolbarProps> = ({
           className="ml-auto shrink-0 inline-flex items-center gap-2 h-11 px-4 sm:px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold whitespace-nowrap shadow-sm transition-colors"
         >
           <Plus className="w-5 h-5" />
-          <span className="sm:hidden">Novo</span>
+          <span className={compacta ? 'sr-only sm:not-sr-only' : 'sm:hidden'}>Novo</span>
           <span className="hidden sm:inline">Novo Produto</span>
         </button>
       </div>
 
       {/* Linha 2: ações secundárias. No celular rola na horizontal em vez de estourar a tela. */}
-      <div className="min-w-0 border-t border-gray-100 dark:border-slate-800 px-3 sm:px-4 py-2.5">
+      <div className={`min-w-0 border-t border-gray-100 dark:border-slate-800 px-3 sm:px-4 py-2.5 ${compacta ? 'hidden' : ''}`}>
         <div className="flex items-center gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-1 px-1">
           {podeDarEntrada && (
             <Acao icon={<QrCode className="w-4 h-4" />} label="Ler nota" cor="text-amber-500"

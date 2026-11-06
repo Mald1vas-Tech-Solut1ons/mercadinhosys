@@ -37,7 +37,7 @@ const superAdminItems = [
     { to: '/leads', icon: Target, label: 'Site e Leads' },
 ];
 
-const BottomNavigation: React.FC = () => {
+const BottomNavigation: React.FC<{ recolhida?: boolean }> = ({ recolhida = false }) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const { logout, user } = useAuth();
     const navigate = useNavigate();
@@ -60,7 +60,7 @@ const BottomNavigation: React.FC = () => {
             {/* Espaçador para não cobrir o conteúdo (pb-20 é adicionado no MainLayout) */}
             
             {/* Bottom Nav Bar */}
-            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.1)]">
+            <div className={`md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 z-40 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-5px_15px_-5px_rgba(0,0,0,0.1)] transition-transform duration-300 ${recolhida && !menuOpen ? 'translate-y-full' : ''}`}>
                 <div className="flex justify-around items-center h-16">
                     {visibleMainTabs.map((tab) => (
                         <NavLink

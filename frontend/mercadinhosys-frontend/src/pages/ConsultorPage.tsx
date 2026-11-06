@@ -11,7 +11,11 @@ import {
   FileDown,
   FileSpreadsheet,
   Copy,
+  ArrowLeft,
+  Lightbulb,
+  ShieldCheck,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -66,6 +70,11 @@ export const ConsultorPage: React.FC = () => {
 
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
+  // Sugestões aparecem como cartões enquanto a conversa não começou; depois ficam a um toque
+  // (lâmpada ao lado do campo), sem ocupar uma faixa fixa da tela.
+  const [sugestoesAbertas, setSugestoesAbertas] = useState(false);
+  const conversaIniciada = mensagens.some((m) => !m.isBot);
 
   // Rola SÓ a conversa. O scrollIntoView de antes rolava também a página e o <main>,
   // o que no celular jogava a tela para cima/baixo e acionava o "puxar para atualizar".
@@ -234,6 +243,7 @@ export const ConsultorPage: React.FC = () => {
     if (!textoDireto) {
       setInputValue('');
     }
+    setSugestoesAbertas(false);
 
     setMensagens((prev) => [
       ...prev,
@@ -289,49 +299,59 @@ export const ConsultorPage: React.FC = () => {
     'Faturamento vs Despesas deste mês',
   ];
 
-  return (
-    <div className="h-full min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900 rounded-2xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-800 -mx-2 sm:mx-0">
-      {/* Header */}
-      <div className="shrink-0 bg-white dark:bg-gray-800 p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap justify-between items-center gap-2 sm:gap-3 z-10">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-2 sm:p-2.5 rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md shrink-0">
-            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white">Consultor da Loja</h2>
-            <p className="hidden sm:block text-xs text-gray-500 dark:text-gray-400">
-              Copiloto operacional com dados reais, suporte do sistema, cadastro assistido e relatórios
-              {metricas?.interacoes_hoje
-                ? ` • Hoje: ${metricas.interacoes_hoje.chat} conversas / ${metricas.interacoes_hoje.acoes} ações`
-                : ''}
-            </p>
-          </div>
-        </div>
+  const LGPD =
+    'Respostas baseadas exclusivamente nos indicadores auditáveis e no manual oficial da loja, com dados pessoais pseudonimizados (LGPD).';
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="hidden sm:inline text-sm text-gray-500 font-medium dark:text-gray-400">Especialidade:</span>
-          <select
-            aria-label="Especialidade do consultor"
-            value={especialista}
-            onChange={(e) => setEspecialista(e.target.value as any)}
-            className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 w-full sm:w-auto"
-          >
-            <option value="geral">Visão Geral (Master)</option>
-            <option value="sistema">Ajuda do Sistema & Cadastros</option>
-            <option value="financeiro">Financeiro & Caixa</option>
-            <option value="vendas">Vendas & PDV</option>
-            <option value="estoque">Estoque & Giro</option>
-            <option value="compras">Compras & Reposição</option>
-            <option value="fornecedores">Fornecedores & Prazos</option>
-            <option value="clientes">Clientes & Crediário</option>
-            <option value="rh">Equipe & Ponto</option>
-            <option value="auditoria">Auditoria & Prevenção de Perdas</option>
-          </select>
+  return (
+    <div className="h-full min-h-0 flex flex-col bg-gray-50 dark:bg-gray-900 md:rounded-2xl overflow-hidden md:shadow-lg md:border border-gray-100 dark:border-gray-800">
+      {/* Cabeçalho numa linha: voltar (celular), título, especialidade e privacidade. */}
+      <div className="shrink-0 flex items-center gap-2 sm:gap-3 bg-white dark:bg-gray-800 px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-200 dark:border-gray-700 z-10">
+        <button
+          type="button"
+          onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
+          aria-label="Voltar"
+          className="md:hidden shrink-0 rounded-lg p-2 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="hidden sm:flex p-2 rounded-xl bg-linear-to-br from-indigo-500 to-purple-600 text-white shadow-md shrink-0">
+          <Sparkles className="w-5 h-5" />
         </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base sm:text-lg font-bold text-gray-800 dark:text-white">Consultor da Loja</h2>
+          <p className="hidden md:block truncate text-xs text-gray-500 dark:text-gray-400">
+            Copiloto com os dados reais da loja: análise, ajuda do sistema, cadastro assistido e relatórios
+            {metricas?.interacoes_hoje
+              ? ` • Hoje: ${metricas.interacoes_hoje.chat} conversas / ${metricas.interacoes_hoje.acoes} ações`
+              : ''}
+          </p>
+        </div>
+        <select
+          aria-label="Especialidade do consultor"
+          value={especialista}
+          onChange={(e) => setEspecialista(e.target.value as any)}
+          className="min-w-0 max-w-[48%] sm:max-w-none shrink bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-xs sm:text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 py-1.5 sm:py-2 pl-2"
+        >
+          <option value="geral">Visão Geral (Master)</option>
+          <option value="sistema">Ajuda do Sistema & Cadastros</option>
+          <option value="financeiro">Financeiro & Caixa</option>
+          <option value="vendas">Vendas & PDV</option>
+          <option value="estoque">Estoque & Giro</option>
+          <option value="compras">Compras & Reposição</option>
+          <option value="fornecedores">Fornecedores & Prazos</option>
+          <option value="clientes">Clientes & Crediário</option>
+          <option value="rh">Equipe & Ponto</option>
+          <option value="auditoria">Auditoria & Prevenção de Perdas</option>
+        </select>
+        <span title={LGPD} aria-label={LGPD} className="hidden sm:inline-flex shrink-0 p-1.5 text-emerald-600 dark:text-emerald-400">
+          <ShieldCheck className="h-5 w-5" />
+        </span>
       </div>
 
       {/* Chat Area */}
-      <div ref={chatRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4 space-y-5 sm:space-y-6 bg-[url('/pattern.svg')] dark:bg-[url('/pattern-dark.svg')] bg-repeat/5">
+      <div ref={chatRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain px-3 py-4 sm:px-6 sm:py-6 bg-[url('/pattern.svg')] dark:bg-[url('/pattern-dark.svg')] bg-repeat/5">
+        {/* Coluna de leitura: em tela larga a conversa não se espalha de ponta a ponta. */}
+        <div className="mx-auto w-full max-w-3xl space-y-5 sm:space-y-6">
         <AnimatePresence>
           {mensagens.map((msg) => (
             <motion.div
@@ -544,60 +564,94 @@ export const ConsultorPage: React.FC = () => {
             </div>
           </motion.div>
         )}
+
+        {!conversaIniciada && (
+          <div>
+            <p className="mb-2 px-1 text-xs font-bold uppercase tracking-wide text-gray-400">Comece por aqui</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {sugestoes.map((sug) => (
+                <button
+                  key={sug}
+                  type="button"
+                  onClick={() => handleSend(sug)}
+                  disabled={loading}
+                  className="rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-left text-sm font-medium text-gray-700 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-indigo-500 dark:hover:bg-gray-700"
+                >
+                  {sug}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        </div>
       </div>
 
-      {/* Sugestoes */}
-      <div className="shrink-0 px-3 sm:px-4 py-2 sm:py-2.5 bg-white dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex gap-2 overflow-x-auto no-scrollbar">
-        {sugestoes.map((sug, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => handleSend(sug)}
-            disabled={loading}
-            className="whitespace-nowrap px-3.5 py-1.5 bg-gray-50 hover:bg-indigo-50 dark:bg-gray-700 dark:hover:bg-gray-600 border border-gray-200 dark:border-gray-600 hover:border-indigo-200 dark:hover:border-indigo-500 text-xs font-medium text-gray-600 dark:text-gray-300 rounded-full transition-all shrink-0 disabled:opacity-50"
-          >
-            {sug}
-          </button>
-        ))}
-      </div>
-
-      {/* Input Area */}
-      <div className="shrink-0 p-2 sm:p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSend();
-          }}
-          className="flex items-end gap-2 bg-gray-50 dark:bg-gray-900 rounded-xl p-2 border border-gray-200 dark:border-gray-700 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-inner"
-        >
-          <textarea
-            ref={textareaRef}
-            aria-label="Mensagem para o consultor"
-            enterKeyHint="send"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
+      {/* Campo de mensagem: a lâmpada abre as sugestões quando a conversa já começou. */}
+      <div
+        className="shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-2 pt-2 sm:px-4 sm:pt-3"
+        style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+      >
+        <div className="mx-auto w-full max-w-3xl">
+          {conversaIniciada && sugestoesAbertas && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {sugestoes.map((sug) => (
+                <button
+                  key={sug}
+                  type="button"
+                  onClick={() => handleSend(sug)}
+                  disabled={loading}
+                  className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-left text-xs font-medium text-gray-600 transition-colors hover:border-indigo-200 hover:bg-indigo-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                >
+                  {sug}
+                </button>
+              ))}
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
             }}
-            placeholder="Pergunte, peça um cadastro ou um relatório..."
-            className="flex-1 min-w-0 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 resize-none overflow-y-auto text-gray-700 dark:text-gray-200 py-3 px-2"
-            rows={1}
-          />
-          <button
-            type="submit"
-            aria-label="Enviar mensagem"
-            disabled={!inputValue.trim() || loading}
-            className="shrink-0 p-3 mb-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white transition-colors shadow-md disabled:shadow-none"
+            className="flex items-end gap-1.5 sm:gap-2 bg-gray-50 dark:bg-gray-900 rounded-xl p-1.5 sm:p-2 border border-gray-200 dark:border-gray-700 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all shadow-inner"
           >
-            <Send className="w-5 h-5" />
-          </button>
-        </form>
-        <p className="hidden sm:block text-center text-[10px] text-gray-400 mt-2 font-medium">
-          Respostas baseadas exclusivamente nos indicadores auditáveis e no manual oficial da loja, com dados pessoais pseudonimizados (LGPD).
-        </p>
+            {conversaIniciada && (
+              <button
+                type="button"
+                onClick={() => setSugestoesAbertas((v) => !v)}
+                aria-label="Sugestões de pergunta"
+                aria-expanded={sugestoesAbertas}
+                title="Sugestões de pergunta"
+                className={`shrink-0 p-2.5 mb-0.5 rounded-lg transition-colors ${sugestoesAbertas ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'}`}
+              >
+                <Lightbulb className="w-5 h-5" />
+              </button>
+            )}
+            <textarea
+              ref={textareaRef}
+              aria-label="Mensagem para o consultor"
+              enterKeyHint="send"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Pergunte, peça um cadastro ou um relatório..."
+              className="flex-1 min-w-0 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 resize-none overflow-y-auto text-gray-700 dark:text-gray-200 py-3 px-2"
+              rows={1}
+            />
+            <button
+              type="submit"
+              aria-label="Enviar mensagem"
+              disabled={!inputValue.trim() || loading}
+              className="shrink-0 p-3 mb-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white transition-colors shadow-md disabled:shadow-none"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

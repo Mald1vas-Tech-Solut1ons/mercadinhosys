@@ -157,6 +157,10 @@ def _tributacao_item(prod, estab: Estabelecimento) -> Dict[str, str]:
         cfop, codigo_icms = icms["cfop"], icms["icms_situacao_tributaria"]
     else:
         cfop = (getattr(prod, "cfop_padrao", None) or "5102")
+        # Produção própria não é revenda: com o CFOP padrão de revenda, a nota sai 5101
+        # (venda de produção do estabelecimento). CFOP escolhido à mão é respeitado.
+        if cfop == "5102" and getattr(prod, "papel_producao", None) in ("fabricado", "semiacabado"):
+            cfop = "5101"
         codigo_icms = _codigo_icms_payload(prod, estab) or "102"
     cst_pis_cofins = tributacao.cst_pis_cofins_saida(getattr(prod, "ncm", None), regime)
     return {"cfop": cfop, "icms": codigo_icms, "pis_cofins": cst_pis_cofins}

@@ -1,4 +1,4 @@
-"""Migração b8d4f0a2c3e5: aditiva, idempotente e reversível (SQLite com as tabelas de produção antigas)."""
+"""Migrações b8d4f0a2c3e5 e c3e9a5f1b7d2: aditivas, idempotentes e reversíveis (SQLite, tabelas antigas)."""
 import importlib.util
 from pathlib import Path
 
@@ -14,6 +14,17 @@ CAMINHO = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
 @pytest.fixture
 def migracao():
     spec = importlib.util.spec_from_file_location("migracao_producao_prof", CAMINHO)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+VALIDADE = CAMINHO.parent / "c3e9a5f1b7d2_producao_validade_e_estorno.py"
+
+
+@pytest.fixture
+def migracao_validade():
+    spec = importlib.util.spec_from_file_location("migracao_producao_validade", VALIDADE)
     modulo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modulo)
     return modulo
@@ -82,4 +93,20 @@ def test_revisao_e_a_cabeca_unica():
     from alembic.script import ScriptDirectory
     config = Config()
     config.set_main_option("script_location", str(CAMINHO.parent.parent))
-    assert ScriptDirectory.from_config(config).get_heads() == ["b8d4f0a2c3e5"]
+    script = ScriptDirectory.from_config(config)
+    assert script.get_heads() == ["c3e9a5f1b7d2"]
+    assert script.get_revision("c3e9a5f1b7d2").down_revision == "b8d4f0a2c3e5"
+    assert script.get_revision("b8d4f0a2c3e5").down_revision == "a7c3e9f1b2d4"
+
+
+def test_validade_e_estorno_encadeia_e_reverte(migracao, migracao_validade, banco_antigo):
+    _rodar(banco_antigo, migracao.upgrade)
+    _rodar(banco_antigo, migracao_validade.upgrade)
+    _rodar(banco_antigo, migracao_validade.upgrade)
+    assert "validade_dias" in _colunas(banco_antigo, "fichas_tecnicas")
+    assert {"data_estorno", "motivo_estorno", "estornada_por_id"} <= _colunas(banco_antigo, "ordens_producao")
+    _rodar(banco_antigo, migracao_validade.downgrade)
+    assert "validade_dias" not in _colunas(banco_antigo, "fichas_tecnicas")
+    assert "versao" in _colunas(banco_antigo, "fichas_tecnicas")   # a anterior fica intacta
+    _rodar(banco_antigo, migracao_validade.upgrade)
+    assert "motivo_estorno" in _colunas(banco_antigo, "ordens_producao")

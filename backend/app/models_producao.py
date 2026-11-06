@@ -28,6 +28,7 @@ class FichaTecnica(db.Model, MultiTenantMixin, AuditMixin):
     custo_hora_mao_de_obra = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     custo_indireto_percentual = db.Column(db.Numeric(6, 2), nullable=False, default=0)
     markup_percentual = db.Column(db.Numeric(7, 2), nullable=False, default=100)
+    validade_dias = db.Column(db.Integer, nullable=True)  # prazo de validade do lote produzido
     observacoes = db.Column(db.Text)
     ativa = db.Column(db.Boolean, nullable=False, default=True)
     versao = db.Column(db.Integer, nullable=False, default=1)  # sobe a cada edição (histórico em FichaTecnicaVersao)
@@ -95,6 +96,10 @@ class OrdemProducao(db.Model, MultiTenantMixin, AuditMixin):
     data_inicio = db.Column(db.DateTime)
     data_encerramento = db.Column(db.DateTime)
     observacoes = db.Column(db.Text)
+    # Estorno de OP encerrada por apontamento errado: devolve insumos e retira o acabado.
+    data_estorno = db.Column(db.DateTime)
+    motivo_estorno = db.Column(db.String(200))
+    estornada_por_id = db.Column(db.Integer, db.ForeignKey("funcionarios.id"), nullable=True)
 
     produto = db.relationship("Produto", foreign_keys=[produto_id])
     itens = db.relationship("OrdemProducaoItem", backref="ordem", cascade="all, delete-orphan",

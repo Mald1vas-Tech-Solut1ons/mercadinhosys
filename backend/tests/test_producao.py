@@ -230,7 +230,7 @@ def test_semiacabado_explode_na_necessidade_e_ciclo_e_recusado(client, session, 
     # Ciclo: a base não pode levar a vela.
     r = client.put(f"/api/producao/fichas/{_id_ficha(client, fab, base.id)}", headers=fab["h"], json={
         "rendimento": 10, "itens": [{"insumo_id": fab["vela"].id, "quantidade": 1}]})
-    assert r.status_code == 400 and "Ciclo" in r.get_json()["error"]
+    assert r.status_code == 400 and "círculo" in r.get_json()["error"]
 
     client.post("/api/producao/ordens", headers=fab["h"], json={"ficha_id": ficha_vela, "quantidade": 380})
     por_nome = {i["insumo_nome"]: i for i in client.get("/api/producao/necessidade-insumos",
@@ -327,7 +327,10 @@ def test_estorno_devolve_insumos_e_tira_o_acabado(client, session, fab):
     assert client.post(f"/api/producao/ordens/{op['id']}/cancelar", headers=fab["h"]).status_code == 400
     assert client.post(f"/api/producao/ordens/{op['id']}/encerrar", headers=fab["h"],
                        json={"quantidade_produzida": 95}).status_code == 200
-    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"], json={"motivo": "receita errada"})
+    session.get(Funcionario, fab["admin"].id).set_pin("4321")
+    session.commit()
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"],
+                    json={"pin": "4321", "motivo": "receita errada"})
     assert r.status_code == 200, r.get_data(as_text=True)
     assert r.get_json()["ordem"]["status"] == "estornada"
     session.expire_all()
@@ -339,7 +342,8 @@ def test_estorno_devolve_insumos_e_tira_o_acabado(client, session, fab):
     assert vela.quantidade == Decimal("0")
     assert all(l.quantidade == 0 and not l.ativo for l in session.query(ProdutoLote).filter_by(produto_id=vela.id))
     # Estornar de novo não move nada.
-    assert client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"]).status_code == 400
+    assert client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"],
+                       json={"pin": "4321", "motivo": "de novo por engano"}).status_code == 400
 
 
 def test_estorno_bloqueia_quando_o_acabado_ja_saiu(client, session, fab):
@@ -351,8 +355,10 @@ def test_estorno_bloqueia_quando_o_acabado_ja_saiu(client, session, fab):
     vela = session.get(Produto, fab["vela"].id)
     lote.quantidade = Decimal("180")   # 10 vendidas
     vela.quantidade = Decimal("180")
+    session.get(Funcionario, fab["admin"].id).set_pin("4321")
     session.commit()
-    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"])
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"],
+                    json={"pin": "4321", "motivo": "apontei errado"})
     assert r.status_code == 400 and "já saíram" in r.get_json()["error"]
     session.expire_all()
     assert session.get(Produto, fab["parafina"].id).quantidade == Decimal("49")   # nada voltou
@@ -364,3 +370,165 @@ def test_plano_gratis_nao_usa_a_api_de_producao(client, session, fab):
     session.commit()
     r = client.get("/api/producao/fichas", headers=fab["h"])
     assert r.status_code == 403 and r.get_json()["code"] == "PLAN_RESTRICTED"
+
+
+# ── Exigências de fábrica (auditoria "sou fabricante, o que preciso achar?") ──
+
+def _op(client, fab, ficha_id, qtd=190):
+    return client.post("/api/producao/ordens", headers=fab["h"],
+                       json={"ficha_id": ficha_id, "quantidade": qtd}).get_json()["ordem"]
+
+
+def test_ficha_multinivel_recusa_receita_em_circulo(client, session, fab):
+    base = Produto(estabelecimento_id=fab["estab"].id, categoria_id=fab["vela"].categoria_id, nome="BASE PERFUMADA", unidade_medida="KG",
+                   preco_custo=Decimal("0"), preco_venda=Decimal("0"), quantidade=Decimal("0"))
+    session.add(base)
+    session.commit()
+    r = client.post("/api/producao/fichas", headers=fab["h"], json={
+        "produto_id": base.id, "rendimento": 10, "itens": [{"insumo_id": fab["parafina"].id, "quantidade": 10}]})
+    assert r.status_code == 201
+    ficha_base = r.get_json()["ficha"]["id"]
+    # Vela usa a base (semiacabado): ok.
+    assert _ficha(client, fab, itens=[{"insumo_id": base.id, "quantidade": 50}]).status_code == 201
+    # Base passar a usar vela fecharia o círculo base -> vela -> base.
+    r = client.put(f"/api/producao/fichas/{ficha_base}", headers=fab["h"], json={
+        "rendimento": 10, "itens": [{"insumo_id": fab["vela"].id, "quantidade": 1}]})
+    assert r.status_code == 400 and "círculo" in r.get_json()["error"]
+
+
+def test_ordem_em_producao_segura_o_insumo_dela(client, session, fab):
+    ficha_id = _ficha(client, fab).get_json()["ficha"]["id"]
+    op1, op2 = _op(client, fab, ficha_id), _op(client, fab, ficha_id)
+    assert client.post(f"/api/producao/ordens/{op1['id']}/iniciar", headers=fab["h"]).status_code == 200
+    # Sobram 49 kg de parafina e 110 copos livres: a segunda ordem não pode contar com o material da primeira.
+    r = client.post(f"/api/producao/ordens/{op2['id']}/iniciar", headers=fab["h"])
+    assert r.status_code == 409
+    assert {f["insumo_nome"] for f in r.get_json()["faltas"]} == {"PARAFINA 140/145", "COPO VELA 7 DIAS"}
+    r = client.post(f"/api/producao/ordens/{op2['id']}/encerrar", headers=fab["h"], json={"quantidade_produzida": 190})
+    assert r.status_code == 409
+    # Capacidade mostra só o que está livre: 110 copos.
+    ficha = client.get(f"/api/producao/fichas/{ficha_id}", headers=fab["h"]).get_json()["ficha"]
+    assert ficha["capacidade"]["unidades"] == 110
+    # A primeira encerra normalmente.
+    assert client.post(f"/api/producao/ordens/{op1['id']}/encerrar", headers=fab["h"],
+                       json={"quantidade_produzida": 190}).status_code == 200
+
+
+def _encerrada(client, fab, **extra):
+    ficha_id = _ficha(client, fab, **extra).get_json()["ficha"]["id"]
+    op = _op(client, fab, ficha_id)
+    r = client.post(f"/api/producao/ordens/{op['id']}/encerrar", headers=fab["h"], json={
+        "quantidade_produzida": 185, "quantidade_refugo": 5, "motivo_refugo": "bolha no envase"})
+    assert r.status_code == 200, r.get_data(as_text=True)
+    return r.get_json()["ordem"]
+
+
+def test_estorno_de_ordem_encerrada_devolve_tudo_com_pin(client, session, fab):
+    from app.models import Auditoria
+    op = _encerrada(client, fab)
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"], json={"motivo": "apontei errado"})
+    assert r.status_code == 403  # sem PIN
+    admin = session.get(Funcionario, fab["admin"].id)
+    admin.set_pin("4321")
+    session.commit()
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"], json={"pin": "4321", "motivo": "x"})
+    assert r.status_code == 400 and "motivo" in r.get_json()["error"]
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"],
+                    json={"pin": "4321", "motivo": "apontei 185, eram 150"})
+    assert r.status_code == 200, r.get_data(as_text=True)
+    assert r.get_json()["ordem"]["status"] == "estornada"
+    session.expire_all()
+    assert session.get(Produto, fab["parafina"].id).quantidade == Decimal("100")
+    assert session.get(Produto, fab["pavio"].id).quantidade == Decimal("500")
+    assert session.get(Produto, fab["copo"].id).quantidade == Decimal("300")
+    assert session.get(Produto, fab["parafina"].id).preco_custo == Decimal("12.0000")
+    assert session.get(Produto, fab["vela"].id).quantidade == Decimal("0")
+    lote = session.get(ProdutoLote, op["lote_id"])
+    assert lote.quantidade == 0 and lote.ativo is False
+    assert session.query(Auditoria).filter_by(tipo_evento="producao_estorno").count() == 1
+    # Não estorna duas vezes.
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"],
+                    json={"pin": "4321", "motivo": "de novo por engano"})
+    assert r.status_code == 400
+
+
+def test_estorno_recusado_quando_o_lote_ja_vendeu(client, session, fab):
+    from app.services import estoque_service
+    op = _encerrada(client, fab)
+    vela = session.get(Produto, fab["vela"].id)
+    estoque_service.registrar_saida(vela, 3, venda_id=None, funcionario_id=fab["admin"].id, motivo="Venda balcão")
+    admin = session.get(Funcionario, fab["admin"].id)
+    admin.set_pin("4321")
+    session.commit()
+    r = client.post(f"/api/producao/ordens/{op['id']}/estornar", headers=fab["h"],
+                    json={"pin": "4321", "motivo": "apontei errado"})
+    assert r.status_code == 400 and "já saíram" in r.get_json()["error"]
+    session.expire_all()
+    assert session.get(Produto, fab["parafina"].id).quantidade == Decimal("49")  # nada voltou
+
+
+def test_validade_do_lote_vem_do_prazo_da_ficha(client, session, fab):
+    from datetime import timedelta
+    from app.utils.timezone import hoje_local
+    vela = session.get(Produto, fab["vela"].id)
+    vela.controlar_validade = True
+    session.commit()
+    ficha_id = _ficha(client, fab, validade_dias=180).get_json()["ficha"]["id"]
+    op = _op(client, fab, ficha_id)
+    r = client.post(f"/api/producao/ordens/{op['id']}/encerrar", headers=fab["h"],
+                    json={"quantidade_produzida": 10, "data_validade": "2020-01-01"})
+    assert r.status_code == 400 and "anterior a hoje" in r.get_json()["error"]
+    r = client.post(f"/api/producao/ordens/{op['id']}/encerrar", headers=fab["h"], json={"quantidade_produzida": 190})
+    assert r.status_code == 200
+    fechada = r.get_json()["ordem"]
+    assert fechada["lote_validade"] == (hoje_local() + timedelta(days=180)).isoformat()
+    assert fechada["lote_numero"] == fechada["numero"]
+    assert fechada["variacao_custo_percentual"] == 0.0
+
+
+def test_rastreio_do_lote_para_tras_e_para_frente(client, session, fab):
+    from datetime import date
+    lote_parafina = ProdutoLote(estabelecimento_id=fab["estab"].id, produto_id=fab["parafina"].id,
+                                numero_lote="PAR-2026-11", quantidade=Decimal("100"), quantidade_inicial=Decimal("100"),
+                                data_validade=date(2030, 1, 1), preco_custo_unitario=Decimal("12"), ativo=True)
+    session.add(lote_parafina)
+    session.commit()
+    op = _encerrada(client, fab)
+    r = client.get(f"/api/producao/rastreio/lote/{op['lote_id']}", headers=fab["h"])
+    assert r.status_code == 200
+    corpo = r.get_json()
+    assert corpo["produzido_por"]["numero"] == op["numero"]
+    parafina = next(i for i in corpo["produzido_por"]["insumos"] if i["insumo_nome"] == "PARAFINA 140/145")
+    assert parafina["lotes"][0]["numero_lote"] == "PAR-2026-11" and parafina["lotes"][0]["quantidade_usada"] == 51.0
+    # Recall do insumo: o lote de parafina foi parar na ordem e no lote de vela.
+    r = client.get(f"/api/producao/rastreio/lote/{lote_parafina.id}", headers=fab["h"])
+    usado = r.get_json()["usado_em"]
+    assert usado[0]["numero"] == op["numero"] and usado[0]["lote_produzido"]["lote_id"] == op["lote_id"]
+    lotes = client.get("/api/producao/lotes?busca=PAR-2026", headers=fab["h"]).get_json()["lotes"]
+    assert lotes[0]["numero_lote"] == "PAR-2026-11"
+
+
+def test_nfce_de_produto_fabricado_sai_com_cfop_5101(session, fab):
+    from app.services.fiscal.emissao_service import _tributacao_item
+    estab = fab["estab"]
+    vela = session.get(Produto, fab["vela"].id)
+    pavio = session.get(Produto, fab["pavio"].id)
+    vela.papel_producao = "fabricado"
+    assert _tributacao_item(vela, estab)["cfop"] == "5101"
+    assert _tributacao_item(pavio, estab)["cfop"] == "5102"   # revenda continua 5102
+    vela.cfop_padrao = "5103"
+    assert _tributacao_item(vela, estab)["cfop"] == "5103"    # escolha manual respeitada
+
+
+def test_rastreio_de_cada_entrega_parcial(client, session, fab):
+    ficha_id = _ficha(client, fab).get_json()["ficha"]["id"]
+    op = _op(client, fab, ficha_id)
+    client.post(f"/api/producao/ordens/{op['id']}/apontar", headers=fab["h"], json={"quantidade_produzida": 95})
+    fim = client.post(f"/api/producao/ordens/{op['id']}/encerrar", headers=fab["h"],
+                      json={"quantidade_produzida": 95}).get_json()["ordem"]
+    segundo = next(l for l in session.query(ProdutoLote).filter_by(produto_id=fab["vela"].id)
+                   if l.numero_lote.endswith("-2"))
+    corpo = client.get(f"/api/producao/rastreio/lote/{segundo.id}", headers=fab["h"]).get_json()
+    assert corpo["produzido_por"]["numero"] == fim["numero"] and corpo["produzido_por"]["entrega"] == 2
+    parafina = next(i for i in corpo["produzido_por"]["insumos"] if i["insumo_nome"] == "PARAFINA 140/145")
+    assert parafina["quantidade_consumida"] == 25.5   # a segunda metade do tacho

@@ -499,6 +499,7 @@ def create_app(config_name=None):
                 logger.info("VERIFICANDO: Tabelas no banco de dados...")
                 # Garante que os modelos sejam carregados para o metadata do SQLAlchemy
                 from app.models import FuncionarioPreferencias
+                from app import models_producao  # noqa: F401  (fichas/ordens nascem junto no banco novo)
                 db.create_all()
                 
                 # Garantir que a tabela de histórico de login também seja criada explicitamente se omitida

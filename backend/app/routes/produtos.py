@@ -434,15 +434,17 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
         erros.append(MENSAGEM_ST_SEM_CEST)
 
     if estabelecimento is not None:
-        mix_permitido = mix_permitido_para_estabelecimento(estabelecimento)
+        from app.services.view_schema_service import FAMILIAS_PRODUTO
         familia_informada = str(data.get("familia_produto") or "").strip().lower()
         familia_resolvida = normalizar_familia_produto(
             familia_produto=familia_informada,
             estabelecimento=estabelecimento,
             tipo_item=tipo_item,
         )
-        if familia_informada and familia_informada not in mix_permitido:
-            erros.append("Família de produto não é permitida para este estabelecimento")
+        # Departamentos (05/11/2026): os departamentos ligados organizam a tela; não proíbem cadastrar
+        # uma família que existe no sistema (outlet vende de tudo). Só família inexistente é recusada.
+        if familia_informada and familia_informada not in FAMILIAS_PRODUTO:
+            erros.append("Família de produto inexistente")
         if tipo_item == "servico" and familia_resolvida != "servico":
             erros.append("Serviços devem usar a família de produto 'servico'")
 
@@ -766,8 +768,20 @@ def _sugestoes_cadastro(item, familia_escolhida=None) -> dict:
         # traz só vale se casar, por chave canônica, com uma subcategoria da taxonomia; sem casar
         # devolve None e o formulário pede a escolha (nunca adivinha por semelhança).
         chaves_taxonomia = resolver_subcategoria(familia, item.categoria) if familia else None
+        subcategoria = chaves_taxonomia[1] if chaves_taxonomia else None
+        # Ficha sem família ou com categoria que não casa com a lista oficial: o classificador lê o NOME
+        # (sinônimos, memória da loja, IA presa à lista) e completa família, subcategoria e atributos.
+        # Não consulta a BigDataCorp de novo: usa só o que já está no catálogo.
+        if not subcategoria and item.nome:
+            from app.services.classificador_produto import classificar
+            c = classificar(item.nome, item.marca or "", mix=mix, estabelecimento_id=estab.id)
+            if c["confianca"] != "baixa" and (not familia or c["familia_produto"] == familia):
+                familia = c["familia_produto"]
+                subcategoria = c["subcategoria"]
+                schema_c = resolver_view_schema(estab, familia_produto=familia)
+                atributos = {**sanitizar_atributos(schema_c, c["atributos"]), **(atributos or {})}
         return {"familia_produto": familia, "categoria": categoria or item.categoria,
-                "subcategoria": chaves_taxonomia[1] if chaves_taxonomia else None,
+                "subcategoria": subcategoria,
                 "atributos": atributos,
                 "descricao": bdc.descricao_produto(resultado) if resultado else ""}
     except Exception as e:
@@ -1098,7 +1112,9 @@ def classificar_produto_ia():
         return jsonify({"success": False, "message": "Digite o nome do produto para auto-preencher."}), 400
     marca = _campo_ia(data, "marca", 80)
     tipo_item = "servico" if data.get("tipo_item") == "servico" else "produto"
-    sugestao = classificar_produto_por_nome(nome=nome, marca=marca, tipo_item=tipo_item)
+    estab_id = get_authorized_establishment_id()
+    estab_id = int(estab_id) if estab_id and str(estab_id).lower() != "all" else None
+    sugestao = classificar_produto_por_nome(nome=nome, marca=marca, tipo_item=tipo_item, estabelecimento_id=estab_id)
     return jsonify({"success": True, "sugestao": sugestao}), 200
 
 
@@ -2265,18 +2281,7 @@ def criar_produto():
         atributos_limpos = sanitizar_atributos(
             schema, data.get("atributos"), tipo_item=tipo_item
         )
-        usa_validade = bool(schema.get("flags", {}).get("usa_validade", True))
-        flags_familia = schema.get("flags", {})
         entra_estoque = tipo_item == "produto" and Decimal(str(data.get("quantidade") or 0)) > 0
-        if entra_estoque and flags_familia.get("validade_obrigatoria") and not data.get("data_validade"):
-            nome_familia = schema.get("familia_produto", {}).get("nome", "esta família")
-            return jsonify({"success": False, "message": f"Informe a data de validade: em {nome_familia} ela é "
-                            "obrigatória quando o produto entra com estoque.",
-                            "errors": ["Data de validade obrigatória"]}), 400
-        if entra_estoque and flags_familia.get("exige_fabricacao") and not data.get("data_fabricacao"):
-            return jsonify({"success": False, "message": "Informe a data de fabricação: é obrigatória em "
-                            "Suplementos e Vitaminas quando o produto entra com estoque.",
-                            "errors": ["Data de fabricação obrigatória"]}), 400
         # Sugestão fiscal por família — só usada como fallback quando o usuário
         # não informou o campo explicitamente (nunca sobrescreve valor digitado).
         fiscal_sugerido = sugestao_fiscal_para_familia(familia_produto, tipo_item=tipo_item)
@@ -2289,6 +2294,20 @@ def criar_produto():
         if erro_taxonomia:
             return erro_taxonomia
         categoria_oficial, subcategoria_oficial = chaves_taxonomia
+
+        # Validade pela SUBCATEGORIA (perfil_subcategoria): lâmina e escova não vencem mesmo em
+        # Higiene; banho e sabonete ritualístico vencem mesmo em Artigos Religiosos.
+        from app.services.perfil_subcategoria import flags_efetivas
+        flags_familia = flags_efetivas(subcategoria_oficial, schema.get("flags", {}))
+        usa_validade = bool(flags_familia.get("usa_validade", True))
+        if entra_estoque and flags_familia.get("validade_obrigatoria") and not data.get("data_validade"):
+            return jsonify({"success": False, "message": "Informe a data de validade: este tipo de produto "
+                            "vence, e ela é obrigatória quando entra com estoque.",
+                            "errors": ["Data de validade obrigatória"]}), 400
+        if entra_estoque and flags_familia.get("exige_fabricacao") and not data.get("data_fabricacao"):
+            return jsonify({"success": False, "message": "Informe a data de fabricação: é obrigatória neste "
+                            "tipo de produto quando ele entra com estoque.",
+                            "errors": ["Data de fabricação obrigatória"]}), 400
         # categoria_id continua sincronizado com a linha da categoria oficial na loja.
         categoria_id = garantir_categoria_loja(estabelecimento_id, categoria_oficial).id
 
@@ -2694,7 +2713,14 @@ def atualizar_produto(id):
             tipo_item=tipo_item,
             produto_atual=produto,
         )
-        usa_validade = bool(schema.get("flags", {}).get("usa_validade", True))
+        # Validade pela subcategoria (a do payload, se mudou; senão a gravada no produto).
+        from app.services.perfil_subcategoria import flags_efetivas
+        _sub_resolvida = None
+        if data.get("subcategoria"):
+            _chaves = resolver_subcategoria(familia_produto, str(data.get("subcategoria")))
+            _sub_resolvida = _chaves[1] if _chaves else None
+        usa_validade = bool(flags_efetivas(_sub_resolvida or produto.subcategoria_oficial,
+                                           schema.get("flags", {})).get("usa_validade", True))
 
         def clean_nullable_str(val, max_len=None):
             if val is None:
@@ -6143,8 +6169,7 @@ def _imp_resolver_familia(texto_familia, ncm, mix) -> str:
         if chave is None:
             disponiveis = ", ".join(FAMILIAS_PRODUTO[c]["nome"] for c in mix if c in FAMILIAS_PRODUTO)
             raise ValueError(f"família '{texto_familia}' não existe. Use uma destas: {disponiveis}")
-        if chave not in mix:
-            raise ValueError(f"a família '{FAMILIAS_PRODUTO[chave]['nome']}' não faz parte do mix desta loja")
+        # Família que existe vale mesmo fora dos departamentos ligados (mesma regra do cadastro individual).
         return chave
 
     candidata = None

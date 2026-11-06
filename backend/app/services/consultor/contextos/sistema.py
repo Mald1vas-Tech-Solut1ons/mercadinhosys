@@ -1,316 +1,245 @@
-"""Context Builder 'sistema' + Classificador Inteligente de Produtos por Nome.
+"""Context Builder 'sistema' + ponte do Consultor com o classificador de produtos.
 
-1. Ensina à IA do Consultor da Loja como cada tela, regra fiscal e fluxo do MercadinhoSys funciona
-   (Produtos, PDV, Nota Fiscal XML, Financeiro/Pressão de Caixa/DRE, Estoque/Lotes, Compras, RH, Relatórios).
-2. Classifica automaticamente qualquer produto pelo nome na Taxonomia Oficial (Família -> Categoria -> Subcategoria),
-   sugerindo NCM (8 dígitos), CFOP, CSOSN, unidade, atributos (ex.: voltagem) e descrição comercial.
+1. Ensina à IA do Consultor como as telas e regras do MercadinhoSys funcionam, com as famílias
+   REAIS do sistema e os departamentos da loja (nada de lista fixa de 6 famílias).
+2. `classificar_produto_por_nome` usa o classificador em camadas (services/classificador_produto.py):
+   sinônimos do balcão → memória da loja → taxonomia → IA presa à lista oficial.
+3. `extrair_intencao_cadastro_produto` lê um pedido de cadastro no chat SEM inventar preço.
 """
 import re
 from typing import Any
 
-from app.services.catalogo_familias import TAXONOMIA, chave_categoria, chave_subcategoria, slug
-from app.services.taxonomia_service import outros, resolver
+from app.services.classificador_produto import classificar
 from app.services.view_schema_service import FAMILIAS_PRODUTO, sugestao_fiscal_para_familia
 from app.utils.ia_copiloto import gerar_texto, ia_disponivel
 
-# Mapa determinístico de NCMs reais de 8 dígitos para itens frequentes que travam o lojista
-_NCM_POR_TERMO: list[tuple[tuple[str, ...], str, str, str]] = [
-    (("projetor", "datashow", "retroprojetor"), "eletronicos", "Projetores", "85286200"),
-    (("tela projecao", "tela de projecao"), "eletronicos", "Telas de Projeção", "90106000"),
-    (("caixa de som", "caixa som", "soundbar"), "eletronicos", "Caixas de Som", "85182200"),
-    (("fone", "headset", "earphone", "airpods"), "eletronicos", "Fones de Ouvido", "85183000"),
-    (("carregador", "fonte usb"), "eletronicos", "Carregadores", "85044010"),
-    (("cabo hdmi", "hdmi"), "eletronicos", "Cabos HDMI e Áudio", "85444200"),
-    (("cabo usb", "cabo tipo c", "cabo lightning"), "eletronicos", "Cabos e Adaptadores", "85444200"),
-    (("mouse", "teclado"), "eletronicos", "Mouses e Teclados", "84716052"),
-    (("notebook", "tablet"), "eletronicos", "Notebooks e Tablets", "84713012"),
-    (("smart tv", "televisor", "tv led"), "eletronicos", "Smart TVs", "85287200"),
-    (("pilha", "bateria alcalina"), "eletronicos", "Pilhas Comuns", "85061010"),
-    (("air fryer", "fritadeira"), "eletro", "Air Fryers e Fritadeiras", "85167910"),
-    (("liquidificador",), "eletro", "Liquidificadores", "85094010"),
-    (("ventilador",), "eletro", "Ventiladores", "84145110"),
-    (("cafeteira",), "eletro", "Cafeteiras Elétricas", "85167100"),
-    (("micro ondas", "microondas"), "eletro", "Micro-ondas", "85165000"),
-    (("panela", "frigideira"), "bazar", "Panelas", "76151000"),
-    (("copo", "taca", "caneca"), "bazar", "Copos", "70133700"),
-    (("arroz",), "alimento", "Arroz", "10063021"),
-    (("feijao",), "alimento", "Feijão", "07133319"),
-    (("acucar",), "alimento", "Açúcar", "17019900"),
-    (("cafe",), "alimento", "Café", "09012100"),
-    (("oleo", "azeite"), "alimento", "Óleos e Azeites", "15079011"),
-    (("refrigerante", "coca", "guarana"), "bebida", "Refrigerantes", "22021000"),
-    (("cerveja",), "bebida", "Cervejas", "22030000"),
-    (("agua mineral",), "bebida", "Águas Minerais", "22011000"),
-    (("detergente",), "limpeza", "Detergentes", "34022000"),
-    (("sabao em po", "lava roupas"), "limpeza", "Lava-roupas em Pó", "34022000"),
-    (("agua sanitaria",), "limpeza", "Água Sanitária", "28289011"),
-    (("shampoo",), "perfumaria_higiene", "Shampoo", "33051000"),
-    (("creme dental", "pasta de dente"), "higiene", "Creme Dental", "33061000"),
-    (("sabonete",), "higiene", "Sabonetes em Barra", "34011190"),
-    (("papel higienico",), "higiene", "Papel Higiênico", "48181000"),
-    (("racao",), "pet", "Ração para Cães", "23091000"),
-    (("cimento",), "construcao_leve", "Cimento", "25232910"),
-    (("lampada",), "construcao_eletrica", "Lâmpadas de LED", "85395200"),
-    (("furadeira", "parafusadeira"), "ferramentas", "Furadeiras e Parafusadeiras", "84672100"),
-]
-
+# NCM de reserva quando nem a subcategoria nem a família sugerem (sugestão: o contador confirma).
 _NCM_PADRAO_POR_FAMILIA: dict[str, str] = {
-    "alimento": "21069090",
-    "frios_congelados": "04069090",
-    "hortifruti_pesaveis": "07099990",
-    "bebida": "22021000",
-    "suplementos": "21069030",
-    "perfumaria_higiene": "33049990",
-    "higiene": "34011190",
-    "limpeza": "34022000",
-    "bebe": "39249000",
-    "pet": "23091000",
-    "bazar": "39241000",
-    "cama_mesa_banho": "63022100",
-    "decoracao": "39264000",
-    "jardinagem": "39269090",
-    "embalagem_descartavel": "39232190",
-    "papelaria": "48201000",
-    "brinquedos": "95030099",
-    "eletro": "85098000",
-    "eletronicos": "85437099",
-    "ferramentas": "82055900",
-    "construcao_leve": "25232910",
-    "construcao_eletrica": "85366990",
-    "construcao_hidraulica": "39174090",
-    "construcao_ferragem": "73181500",
-    "tintas": "32091010",
-    "vestuario": "61091000",
-    "calcados": "64029990",
-    "acessorios": "42022220",
-    "esporte": "95069100",
-    "autopecas": "87089990",
-    "tabacaria": "96138000",
-    "servico": "00000000",
+    "alimento": "21069090", "frios_congelados": "04069090", "hortifruti_pesaveis": "07099990",
+    "bebida": "22021000", "suplementos": "21069030", "perfumaria_higiene": "33049990", "higiene": "34011190",
+    "limpeza": "34022000", "bebe": "39249000", "pet": "23091000", "bazar": "39241000",
+    "cama_mesa_banho": "63022100", "decoracao": "39264000", "jardinagem": "39269090",
+    "embalagem_descartavel": "39232190", "papelaria": "48201000", "brinquedos": "95030099",
+    "eletro": "85098000", "eletronicos": "85437099", "ferramentas": "82055900", "construcao_leve": "25232910",
+    "construcao_eletrica": "85366990", "construcao_hidraulica": "39174090", "construcao_ferragem": "73181500",
+    "tintas": "32091010", "vestuario": "61091000", "calcados": "64029990", "acessorios": "42022220",
+    "esporte": "95069100", "autopecas": "87089990", "motopecas": "87141000",
+    "tabacaria": "96138000", "servico": "00000000",
+    # religioso: sem padrão. Vela, imagem, guia, erva e banho têm NCMs diferentes; sem perfil, fica em branco
+    # para o contador (chutar vela para um banho é pior que não sugerir).
 }
+
+_PROIBIDO_NA_DESCRICAO = re.compile(r"\b(cura|curar|trata|tratar|tratamento de|elimina doen|repele|repelente)\w*",
+                                    re.IGNORECASE)
+
+
+def _descricao(nome: str, marca: str, subcategoria: str, familia: str, tipo_item: str) -> str:
+    if ia_disponivel() and len(nome) >= 3:
+        try:
+            texto = (gerar_texto(
+                "Escreva uma descrição comercial curta (1 a 2 frases, até 240 caracteres) em português do Brasil "
+                "para cadastro de produto de loja de bairro. Diga o que é e para que serve. Nunca invente medida, "
+                "peso, compatibilidade, validade ou preço que não estejam nos dados. Nunca faça promessa de cura, "
+                "tratamento ou efeito terapêutico. Sem emojis. Retorne só o texto.",
+                f"{'Serviço' if tipo_item == 'servico' else 'Produto'}: {nome}\nCategoria: {subcategoria}\n"
+                f"Marca: {marca or 'não informada'}",
+                max_tokens=160,
+            ) or "").strip().strip('"“”')
+            if texto and not _PROIBIDO_NA_DESCRICAO.search(texto):
+                return texto[:500]
+        except Exception:
+            pass
+    marca_txt = f" da marca {marca.upper()}" if marca else ""
+    return f"{nome.upper()}{marca_txt} — {FAMILIAS_PRODUTO.get(familia, {}).get('nome', familia)} ({subcategoria})."
 
 
 def classificar_produto_por_nome(
     nome: str,
     marca: str = "",
     tipo_item: str = "produto",
+    estabelecimento_id: int | None = None,
+    mix: list | None = None,
 ) -> dict[str, Any]:
-    """Classifica um produto na Taxonomia Oficial a partir do nome e retorna todos os campos
-    necessários para preencher ou cadastrar o item sem travar o lojista.
-    """
+    """Classifica pelo nome e devolve tudo que o cadastro precisa (família, subcategoria oficial,
+    marca, atributos lidos do nome, NCM provável, CFOP/CSOSN sugeridos e descrição)."""
     nome_limpo = (nome or "").strip()
-    texto_canonico = slug(f"{nome_limpo} {marca}").replace("_", " ")
-    palavras_nome = set(texto_canonico.split())
-
-    familia_escolhida = "servico" if tipo_item == "servico" else None
-    subcategoria_nome = None
-    ncm_sugerido = None
-
-    # 1. Casamento direto no dicionário de termos frequentes (ex.: Projetor -> eletronicos / Projetores / 85286200)
-    if not familia_escolhida:
-        for termos, fam, sub_nome, ncm in _NCM_POR_TERMO:
-            if any(t in texto_canonico for t in termos):
-                familia_escolhida = fam
-                subcategoria_nome = sub_nome
-                ncm_sugerido = ncm
-                break
-
-    # 2. Busca por interseção de palavras canônicas em todas as subcategorias da TAXONOMIA
-    if not familia_escolhida or not subcategoria_nome:
-        melhor_score = 0
-        for fam, categorias in TAXONOMIA.items():
-            if tipo_item != "servico" and fam == "servico":
-                continue
-            for cat_nome, subs in categorias.items():
-                if cat_nome == "Outros":
-                    continue
-                for sub in subs:
-                    sub_tokens = set(slug(sub).split("_"))
-                    comum = palavras_nome & sub_tokens
-                    if comum:
-                        score = len(comum) * 10 - len(sub_tokens)
-                        if score > melhor_score:
-                            melhor_score = score
-                            familia_escolhida = fam
-                            subcategoria_nome = sub
-
-    # 3. Se ainda não achou família, tenta IA ou cai em bazar/alimento
-    if not familia_escolhida:
-        familia_escolhida = "bazar"
-
-    # Resolve chaves oficiais (categoria_oficial, subcategoria_oficial)
-    resolvido = resolver(familia_escolhida, subcategoria_nome) if subcategoria_nome else None
-    if not resolvido:
-        # Pega a primeira subcategoria real da família ou Outros
-        categorias_fam = TAXONOMIA.get(familia_escolhida, {})
-        primeira_cat = next((c for c in categorias_fam if c != "Outros"), None)
-        if primeira_cat and categorias_fam[primeira_cat]:
-            subcategoria_nome = categorias_fam[primeira_cat][0]
-            resolvido = (
-                chave_categoria(familia_escolhida, primeira_cat),
-                chave_subcategoria(familia_escolhida, primeira_cat, subcategoria_nome),
-            )
-        else:
-            resolvido = outros(familia_escolhida)
-            subcategoria_nome = "Outros"
-
-    chave_cat, chave_sub = resolvido
-
-    # Sugestão fiscal da família (CFOP, CSOSN, NCM)
-    sug_fiscal = sugestao_fiscal_para_familia(familia_escolhida) or {}
-    if not ncm_sugerido:
-        exemplos_ncm = sug_fiscal.get("ncm_exemplos") or []
-        if exemplos_ncm and exemplos_ncm[0].get("ncm"):
-            ncm_sugerido = str(exemplos_ncm[0]["ncm"]).replace(".", "")[:8]
-        else:
-            ncm_sugerido = _NCM_PADRAO_POR_FAMILIA.get(familia_escolhida, "39241000")
-
-    cfop = str(sug_fiscal.get("cfop_padrao_sugerido") or "5102")
-    csosn = str(sug_fiscal.get("csosn_sugerido") or "102")
-
-    # Atributos automáticos extraídos do nome (ex.: voltagem)
-    atributos: dict[str, Any] = {}
-    upper = nome_limpo.upper()
-    if "BIVOLT" in upper:
-        atributos["voltagem_eletro"] = "Bivolt"
-    elif "220V" in upper or "220 V" in upper:
-        atributos["voltagem_eletro"] = "220V"
-    elif "110V" in upper or "127V" in upper:
-        atributos["voltagem_eletro"] = "110V"
-
-    # Descrição comercial (com IA se disponível, ou determinística clara)
-    descricao = ""
-    if ia_disponivel() and len(nome_limpo) >= 3:
+    if mix is None and estabelecimento_id:
         try:
-            descricao = (
-                gerar_texto(
-                    "Escreva uma descrição comercial curta (1 a 2 frases) em português para cadastro de produto.",
-                    f"Produto: {nome_limpo}\nCategoria: {subcategoria_nome}\nMarca: {marca or 'Não informada'}",
-                    max_tokens=120,
-                )
-                or ""
-            ).strip()
+            from app import db
+            from app.models import Estabelecimento
+            from app.services.view_schema_service import mix_permitido_para_estabelecimento
+            mix = mix_permitido_para_estabelecimento(db.session.get(Estabelecimento, int(estabelecimento_id)))
         except Exception:
-            descricao = ""
-    if not descricao:
-        marca_txt = f" da marca {marca.upper()}" if marca else ""
-        descricao = (
-            f"{nome_limpo.upper()}{marca_txt} — classificado em "
-            f"{FAMILIAS_PRODUTO.get(familia_escolhida, {}).get('nome', familia_escolhida)} ({subcategoria_nome})."
-        )
-
+            mix = None
+    r = classificar(nome_limpo, marca, tipo_item=tipo_item, mix=mix, estabelecimento_id=estabelecimento_id)
+    familia = r["familia_produto"]
+    sug_fiscal = sugestao_fiscal_para_familia(familia, tipo_item=tipo_item) or {}
+    ncm = r["ncm"] or _NCM_PADRAO_POR_FAMILIA.get(familia) or ""
     return {
+        **r,
         "nome": nome_limpo.upper(),
-        "familia_produto": familia_escolhida,
-        "familia_nome": FAMILIAS_PRODUTO.get(familia_escolhida, {}).get("nome", familia_escolhida),
-        "categoria_oficial": chave_cat,
-        "subcategoria": chave_sub,
-        "categoria_nome": subcategoria_nome,
-        "ncm": ncm_sugerido,
-        "cfop_padrao": cfop,
-        "csosn": csosn,
+        "ncm": ncm,
+        "ncm_confirmar": True,
+        "cfop_padrao": str(sug_fiscal.get("cfop_padrao_sugerido") or "5102"),
+        "csosn": str(sug_fiscal.get("csosn_sugerido") or "102"),
         "unidade_medida": "un",
-        "atributos": atributos,
-        "descricao": descricao,
+        "descricao": _descricao(nome_limpo, r["marca"], r["categoria_nome"], familia, tipo_item),
     }
 
 
-def extrair_intencao_cadastro_produto(mensagem: str) -> dict[str, Any] | None:
-    """Detecta quando o usuário pede ajuda para cadastrar um produto específico no chat
-    (ex.: 'Não consigo cadastrar um Projetor Epson bivolt custo 850 venda 1290 estoque 2')
-    e devolve os parâmetros prontos para a ação 'cadastrar_produto'.
-    """
-    if not mensagem or not isinstance(mensagem, str):
+_GATILHOS_CADASTRO = ("cadastrar", "cadastro", "cadastra", "cadastro", "novo produto", "incluir produto",
+                      "registrar produto")
+
+
+def nome_do_pedido(mensagem: str) -> str | None:
+    """Tira de 'como eu cadastro câmera de ar aro 18?' o nome do produto ('câmera de ar aro 18')."""
+    if not mensagem or not any(g in mensagem.lower() for g in _GATILHOS_CADASTRO):
         return None
-    texto_low = mensagem.lower()
-    gatilhos = ("cadastrar", "cadastro", "cadastra", "novo produto", "incluir produto", "registrar produto")
-    if not any(g in texto_low for g in gatilhos):
-        return None
-
-    # Extrai possíveis números: custo, venda e estoque
-    def _num_apos(padrao: str, default: float) -> float:
-        m = re.search(padrao, texto_low)
-        if not m:
-            return default
-        try:
-            return float(m.group(1).replace(".", "").replace(",", "."))
-        except ValueError:
-            return default
-
-    custo = _num_apos(r"(?:custo|paguei|compra)\s*(?:de\s*)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)", 0.0)
-    venda = _num_apos(r"(?:venda|vender|por|preco|preço)\s*(?:de\s*|por\s*)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)", 0.0)
-    estoque_float = _num_apos(r"(?:estoque|qtd|quantidade|tenho|unidades?)\s*(?:de\s*)?(\d+)", 1.0)
-    quantidade = max(1, int(estoque_float))
-
-    # Limpa a frase para extrair o nome do produto
     limpo = re.sub(
-        r"(?i)(não consigo|nao consigo|me ajuda a|como|quero|preciso|por favor|cadastrar|cadastro de|cadastra|"
-        r"um produto|o produto|no sistema|me ajuda|ajuda|custo\s*r?\$?\s*[\d.,]+|venda\s*r?\$?\s*[\d.,]+|"
-        r"por\s*r?\$?\s*[\d.,]+|estoque\s*\d+|quantidade\s*\d+|\?|\!|\.)",
+        r"(?i)\b(n[aã]o consigo|me ajuda a|me ajuda|ajuda|como (?:eu )?(?:fa[cç]o|posso|devo)?(?: para| pra)?|"
+        r"como|quero|preciso|por favor|cadastr\w*|no sistema|um produto|o produto|um item|"
+        r"custo\s*r?\$?\s*[\d.,]+|venda\s*r?\$?\s*[\d.,]+|vender\s*(?:por|a)?\s*r?\$?\s*[\d.,]+|"
+        r"por\s*r?\$?\s*[\d.,]+|estoque\s*\d+|quantidade\s*\d+|qtd\s*\d+|tenho\s*\d+\s*\w*)\b|[?!.]",
         " ",
         mensagem,
     )
-    limpo = re.sub(r"\b(um|uma|o|a|de|do|da)\b", " ", limpo, flags=re.IGNORECASE)
-    nome_extraido = " ".join(limpo.split()).strip(" ,;-")
-    if len(nome_extraido) < 3:
+    limpo = re.sub(r"(?i)\b(um|uma|o|a|os|as|eu|de|do|da|para|pra|isso|esse|essa)\b(?=\s|$)", " ", limpo)
+    nome = " ".join(limpo.split()).strip(" ,;-")
+    # O nome do produto continua com "de" interno ("câmara de ar"): recompõe pelo texto original.
+    m = re.search(re.escape(nome.split()[0]) + r".*", mensagem, re.IGNORECASE) if nome else None
+    if m:
+        candidato = re.split(r"(?i)\s+(?:como|custo|venda|vender|estoque|qtd|quantidade|tenho|por r\$|\?)",
+                             m.group(0))[0]
+        candidato = " ".join(candidato.split()).strip(" ,;-?!.")
+        if len(candidato) >= len(nome):
+            nome = candidato
+    return nome if len(nome) >= 3 else None
+
+
+def extrair_intencao_cadastro_produto(mensagem: str, estabelecimento_id: int | None = None) -> dict[str, Any] | None:
+    """Pedido de cadastro no chat → parâmetros da ação 'cadastrar_produto'.
+
+    Preço e estoque só entram se o lojista disse; sem eles ficam 0 e o chat PERGUNTA (o botão de
+    cadastrar só aparece com custo e venda informados).
+    """
+    nome = nome_do_pedido(mensagem)
+    if not nome:
         return None
+    texto_low = mensagem.lower()
 
-    classificacao = classificar_produto_por_nome(nome_extraido)
-    if venda <= 0 and custo > 0:
-        venda = round(custo * 1.35, 2)
-    elif custo <= 0 and venda > 0:
-        custo = round(venda * 0.7, 2)
-    elif custo <= 0 and venda <= 0:
-        custo = 50.0
-        venda = 75.0
+    def _num_apos(padrao: str) -> float:
+        m = re.search(padrao, texto_low)
+        if not m:
+            return 0.0
+        try:
+            return float(m.group(1).replace(".", "").replace(",", "."))
+        except ValueError:
+            return 0.0
 
+    custo = _num_apos(r"(?:custo|paguei|compra(?:da)?)\s*(?:de\s*|por\s*)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)")
+    venda = _num_apos(r"(?:venda|vender|vendo|pre[cç]o)\s*(?:de\s*|por\s*|a\s*)?(?:r\$\s*)?(\d+(?:[.,]\d+)?)")
+    quantidade = int(_num_apos(r"(?:estoque|qtd|quantidade|tenho)\s*(?:de\s*)?(\d+)"))
+
+    c = classificar_produto_por_nome(nome, estabelecimento_id=estabelecimento_id)
     return {
-        "nome": classificacao["nome"],
-        "familia_produto": classificacao["familia_produto"],
-        "familia_nome": classificacao["familia_nome"],
-        "categoria_oficial": classificacao["categoria_oficial"],
-        "subcategoria": classificacao["subcategoria"],
-        "categoria_nome": classificacao["categoria_nome"],
-        "ncm": classificacao["ncm"],
-        "cfop_padrao": classificacao["cfop_padrao"],
-        "csosn": classificacao["csosn"],
-        "unidade_medida": classificacao["unidade_medida"],
-        "preco_custo": custo,
-        "preco_venda": venda,
-        "quantidade": quantidade,
-        "atributos": classificacao["atributos"],
-        "descricao": classificacao["descricao"],
+        "nome": c["nome"], "familia_produto": c["familia_produto"], "familia_nome": c["familia_nome"],
+        "categoria_oficial": c["categoria_oficial"], "subcategoria": c["subcategoria"],
+        "categoria_nome": c["categoria_nome"], "marca": c["marca"], "ncm": c["ncm"],
+        "cfop_padrao": c["cfop_padrao"], "csosn": c["csosn"], "unidade_medida": c["unidade_medida"],
+        "preco_custo": custo, "preco_venda": venda, "quantidade": max(0, quantidade),
+        "atributos": c["atributos"], "descricao": c["descricao"],
+        "faltam": [k for k, v in (("custo", custo), ("preço de venda", venda)) if not v],
+    }
+
+
+def classificacao_para_pergunta(pergunta: str, estabelecimento_id: int | None) -> dict[str, Any] | None:
+    """Evidência pontual para o Consultor: como o sistema classifica o produto perguntado."""
+    nome = nome_do_pedido(pergunta)
+    if not nome:
+        return None
+    servico = bool(re.search(r"(?i)\b(servi[cç]o|troca de|conserto|reparo|m[aã]o de obra|instala[cç][aã]o)\b",
+                             pergunta))
+    c = classificar_produto_por_nome(nome, tipo_item="servico" if servico else "produto",
+                                     estabelecimento_id=estabelecimento_id)
+    from app.services.view_schema_service import resolver_view_schema
+    from app.services.perfil_subcategoria import regra_validade
+    try:
+        from app import db
+        from app.models import Estabelecimento
+        estab = db.session.get(Estabelecimento, int(estabelecimento_id)) if estabelecimento_id else None
+        schema = resolver_view_schema(estab, familia_produto=c["familia_produto"],
+                                      tipo_item="servico" if servico else "produto")
+        campos = [campo["label"] for campo in schema.get("campos", []) if campo.get("origem") == "atributo"][:14]
+        validade = regra_validade(c["subcategoria"], schema.get("flags", {}))
+    except Exception:
+        campos, validade = [], None
+    return {
+        "produto_perguntado": nome,
+        "tipo": "serviço" if servico else "produto",
+        "familia": c["familia_nome"],
+        "subcategoria_oficial": c["categoria_nome"],
+        "marca_lida_do_nome": c["marca"] or None,
+        "atributos_lidos_do_nome": c["atributos"],
+        "campos_do_formulario_desta_familia": campos,
+        "validade": {"obrigatoria": "obrigatória quando entra estoque", "opcional": "opcional",
+                     "nao_se_aplica": "não se aplica (não perguntar)"}.get(validade, "conforme o formulário"),
+        "ncm_provavel": c["ncm"],
+        "departamento_ligado_na_loja": not c.get("fora_dos_departamentos"),
+        "confianca": c["confianca"],
+        "como_fazer": (
+            f"Produtos > + Novo Produto > família {c['familia_nome']} > subcategoria {c['categoria_nome']}; "
+            "ou digite o nome e toque em '✨ Auto-preencher IA', que preenche família, subcategoria, marca, "
+            "atributos e NCM sozinho. Confira e informe custo, venda e estoque."
+            + ("" if not c.get("fora_dos_departamentos") else
+               f" Se a família {c['familia_nome']} não aparecer, ligue-a em Configurações > Departamentos da Loja.")
+        ),
     }
 
 
 def montar_contexto(estabelecimento_id: int, is_manager: bool = False) -> dict[str, Any]:
-    """Retorna a Base de Conhecimento Operacional do MercadinhoSys para que o Consultor da Loja
-    saiba orientar o usuário em qualquer tela, erro de cadastro, regra fiscal ou emissão de relatório.
-    """
+    """Base de Conhecimento Operacional do MercadinhoSys (famílias reais, não lista fixa)."""
+    try:
+        from app import db
+        from app.models import Estabelecimento
+        from app.services.view_schema_service import mix_permitido_para_estabelecimento
+        estab = db.session.get(Estabelecimento, int(estabelecimento_id))
+        departamentos = [FAMILIAS_PRODUTO[f]["nome"] for f in mix_permitido_para_estabelecimento(estab)
+                         if f in FAMILIAS_PRODUTO]
+    except Exception:
+        departamentos = []
+    todas = [info["nome"] for chave, info in FAMILIAS_PRODUTO.items() if chave != "servico"]
     return {
         "como_cadastrar_produto": {
             "onde_ir": "Menu lateral > Produtos > botão '+ Novo Produto'",
             "passo_a_passo": [
-                "1. Escolha a Família do Item (ex.: Mercearia, Bebidas, Eletrônicos, Eletroportáteis, Bazar, Construção). Todas as famílias já estão disponíveis no seletor.",
-                "2. Digite o Nome do Produto e clique em '✨ Auto-preencher IA' (ou escaneie o código de barras EAN) para o sistema preencher Família, Categoria, Subcategoria oficial, NCM e Descrição automaticamente.",
-                "3. Se o produto não tiver código de barras na embalagem, clique em 'Sem código? Gerar código interno' (gera um EAN-13 iniciado em 20 exclusivo da loja).",
-                "4. Na seção Tributação, confira NCM (8 dígitos), CFOP (padrão 5102) e CSOSN (padrão 102, ou 500 com CEST de 7 dígitos se houver ICMS-ST).",
-                "5. Na seção Precificação, escolha entre 'Tenho o custo' (custo -> venda), 'Defino a venda' (venda -> custo estimado) ou 'Pelo mercado' (preço Shopee/ML -> desconto -> custo estimado).",
-                "6. Informe a Quantidade Inicial em estoque (para famílias perecíveis como Alimentos e Bebidas, informe a Data de Validade; para Eletrônicos, Eletro e Bazar não há validade).",
+                "1. Digite o nome do produto como o cliente pede (ex.: 'Câmara de ar 3.00-18 Titan', "
+                "'Vela 7 dias vermelha', 'Condicionador Seda 325ml') e toque em '✨ Auto-preencher IA' ou "
+                "escaneie o código de barras: o sistema escolhe família, subcategoria oficial, marca, atributos "
+                "(medida, aro, modelo, cor, altura, santo/orixá) e NCM provável.",
+                "2. Confira a família e a subcategoria. O formulário muda sozinho: só aparecem os campos daquele "
+                "tipo de produto.",
+                "3. Sem código de barras na embalagem: 'Sem código? Gerar código interno' (EAN-13 que começa em 20).",
+                "4. Tributação: confira NCM, CFOP e CSOSN com o contador (são sugestões).",
+                "5. Preço: 'Tenho o custo', 'Defino a venda' ou 'Pelo mercado'.",
+                "6. Estoque inicial. A validade só é pedida quando o tipo de produto vence (alimento, cosmético, "
+                "ração, banho fabricado). Peça, vela, imagem, lâmina, escova e acessório não pedem validade.",
+                "Serviço (troca de tela, troca de óleo, borracharia): marque 'Serviço' no topo do formulário.",
             ],
-            "exemplos_classificacao_rapida": {
-                "Projetor / Cabo HDMI / Carregador / Fone / Caixa de Som / Pilha": "Família: Eletrônicos, Celulares e Informática (eletronicos) -> Subcategoria: Projetores (NCM 85286200)",
-                "Air Fryer / Liquidificador / Ventilador / Cafeteira": "Família: Eletroportáteis e Eletrodomésticos (eletro)",
-                "Panela / Copo / Pote / Garrafa Térmica": "Família: Bazar e Utilidades Domésticas (bazar)",
-                "Arroz / Feijão / Café / Óleo / Biscoito": "Família: Mercearia e Alimentos (alimento)",
-            },
-            "atalho_pelo_chat": "Você também pode pedir aqui no chat: 'Cadastrar [nome do produto] custo X venda Y estoque Z' e confirmar no botão abaixo da mensagem!",
+            "departamentos_ligados_nesta_loja": departamentos,
+            "todas_as_familias_do_sistema": todas,
+            "familia_nao_aparece": "Configurações > Segmento & Exibição > Departamentos da Loja: ligue a família.",
+            "atalho_pelo_chat": "No chat: 'Cadastrar [nome] custo X venda Y estoque Z' e confirmar no botão. "
+                                "Sem custo e venda o Consultor pergunta (nunca chuta preço).",
         },
         "guia_modulos_sistema": {
-            "pdv_e_caixa": "Menu PDV: venda com leitor de código de barras ou busca por nome, múltiplos pagamentos (PIX, Cartão, Dinheiro, Fiado) e Modo Offline automático (SyncQueue sincroniza quando a internet volta).",
-            "entrada_nota_xml": "Menu Entrada de Nota: importe o arquivo XML da NF-e do fornecedor para cadastrar produtos novos, atualizar custo médio, dar entrada no estoque e lançar os boletos em Despesas automaticamente.",
-            "financeiro_e_pressao_caixa": "Menu Despesas e Dashboard Financeiro: controla contas a pagar, DRE Gerencial e a Pressão de Caixa Diária (Boletos de hoje + Despesas Fixas/30 + Folha e Encargos/30).",
-            "compras_e_reposicao": "Menu Compras & Doca: gera pedidos de compra a partir dos itens abaixo do estoque mínimo ou via botão de 1 clique aqui no Consultor da Loja.",
-            "relatorios_e_exportacao": "Menu Relatórios ou diretamente aqui no Consultor da Loja: peça 'Emitir relatório de vendas/estoque/financeiro' e use os botões 'Baixar PDF', 'Exportar CSV' ou 'Copiar para WhatsApp'.",
+            "pdv_e_caixa": "Menu PDV: venda com leitor de código de barras ou busca por nome, múltiplos pagamentos "
+                           "(PIX, Cartão, Dinheiro, Fiado) e Modo Offline automático.",
+            "entrada_nota_xml": "Menu Entrada de Nota: importe o XML da NF-e do fornecedor para cadastrar produtos, "
+                                "atualizar custo médio, dar entrada no estoque e lançar os boletos em Despesas.",
+            "financeiro_e_pressao_caixa": "Despesas e Dashboard Financeiro: contas a pagar, DRE Gerencial e Pressão "
+                                          "de Caixa Diária.",
+            "compras_e_reposicao": "Compras & Doca: pedidos de compra a partir dos itens abaixo do mínimo.",
+            "relatorios_e_exportacao": "Relatórios ou aqui no Consultor: 'Emitir relatório de vendas/estoque/"
+                                       "financeiro' e 'Baixar PDF', 'Exportar CSV' ou 'Copiar para WhatsApp'.",
         },
     }

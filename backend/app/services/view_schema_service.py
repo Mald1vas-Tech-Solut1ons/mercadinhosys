@@ -283,7 +283,7 @@ FAMILIAS_PRODUTO = {
         "segmento_base": "generico",
         "flags_override": {"usa_validade": False, "usa_lotes": False, "usa_servicos": True},
         "campos_ocultos": ["controlar_validade"],
-        "campos_habilitados": ["duracao_minutos", "garantia_dias", "exige_agendamento"],
+        "campos_habilitados": ["duracao_minutos", "garantia_dias", "exige_agendamento", "aparelho_atendido"],
     },
     "autopecas": {
         "nome": "Autopeças",
@@ -300,13 +300,14 @@ from app.services.catalogo_familias import (  # noqa: E402
 # A árvore oficial vem de taxonomia_service, que só importa este módulo de forma tardia
 # (dentro de `_nome_familia`), então não há ciclo de import.
 from app.services.taxonomia_service import arvore  # noqa: E402
+from app.services.perfil_subcategoria import perfis_da_familia  # noqa: E402
 
 for _chave, _ajuste in AJUSTES_FAMILIAS_EXISTENTES.items():
     _familia = FAMILIAS_PRODUTO[_chave]
     if _ajuste.get("nome") and _ajuste["nome"] != _familia["nome"]:
         # Nome antigo segue aceito (planilhas de importação feitas antes da troca).
         _familia["nomes_antigos"] = [_familia["nome"]]
-    for _campo in ("nome", "descricao", "categorias", "unidades"):
+    for _campo in ("nome", "descricao", "categorias", "unidades", "opcoes_campos"):
         if _campo in _ajuste:
             _familia[_campo] = _ajuste[_campo]
     _familia["flags_override"] = {**(_familia.get("flags_override") or {}), **(_ajuste.get("flags_override") or {})}
@@ -963,6 +964,11 @@ def resolver_view_schema(
             campo = dict(linha.definicao)
             campo["chave"] = linha.chave
             campo["ordem"] = linha.ordem
+            # Opções da família (montadora de moto × de carro, material religioso): vêm do código,
+            # porque o view_registry nunca reescreve opções de campo já semeado.
+            opcoes_familia = (info_familia.get("opcoes_campos") or {}).get(linha.chave)
+            if isinstance(opcoes_familia, list):
+                campo["opcoes"] = list(opcoes_familia)
             if linha.chave in obrigatorios:
                 campo["obrigatorio"] = bool(obrigatorios[linha.chave])
             if linha.chave in opcoes_custom and isinstance(opcoes_custom[linha.chave], list):
@@ -1018,6 +1024,9 @@ def resolver_view_schema(
         # Árvore oficial Família → Categoria → Subcategoria (PLANO §3.4): o formulário escolhe a
         # subcategoria daqui e manda a chave; não existe categoria de texto livre.
         "taxonomia": arvore(familia_produto),
+        # Perfil por subcategoria: validade (obrigatória/opcional/não se aplica) e NCM provável.
+        # O formulário refina as flags da família pela subcategoria escolhida.
+        "perfis_subcategoria": perfis_da_familia(familia_produto, flags),
         "unidades": unidades or info_familia.get("unidades") or info_segmento["unidades"],
         "tipos_item": (
             ["produto", "servico"]

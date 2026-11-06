@@ -144,6 +144,13 @@ export interface ViewSchema {
     categorias_sugeridas?: string[];
     /** Árvore oficial Família → Categoria → Subcategoria (fonte do CategoriaPicker). */
     taxonomia?: TaxonomiaCategoria[];
+    /** Perfil por subcategoria (chave oficial): validade e NCM provável. */
+    perfis_subcategoria?: Record<string, {
+        validade: 'obrigatoria' | 'opcional' | 'nao_se_aplica';
+        ncm?: string | null;
+        /** Campos de atributo que importam neste tipo de produto (null = os da família). */
+        campos?: string[] | null;
+    }>;
     unidades: string[];
     tipos_item: TipoItem[];
     campos: CampoSchema[];

@@ -126,15 +126,16 @@ def test_importacao_coluna_familia_por_chave_ou_nome(client, session):
                                           "Assadeira Redonda;Panelas;20;39,90;;;;UN;6;;;;  BAZAR \n"
                                           "Sabonete 85g;Outros Cosméticos;1;2,49;;;;UN;60;;;34011190;Perfumaria e Higiene\n"
                                           "Coisa Estranha;Outros Alimentos;1;2;;;;UN;1;;;;foguetes\n"
-                                          "Pastilha de Freio;Outros Alimentos;30;59,90;;;;UN;1;;;;Autopeças\n")
-    assert body["total_importados"] == 3, body
-    assert body["total_erros"] == 2, body
+                                          "Pastilha de Freio;Pastilhas e Lonas;30;59,90;;;;UN;1;;;;Autopeças\n")
+    # Departamentos (05/11/2026): família que existe entra mesmo fora do mix da loja (outlet vende de tudo).
+    assert body["total_importados"] == 4, body
+    assert body["total_erros"] == 1, body
+    assert _p("Pastilha de Freio").familia_produto == "autopecas"
     assert _p("Air Fryer 4L").familia_produto == "eletro"
     assert _p("Assadeira Redonda").familia_produto == "bazar"
     assert _p("Assadeira Redonda").perfil_fiscal == "bazar_padrao"
     assert _p("Sabonete 85g").familia_produto == "perfumaria_higiene"
     assert any("foguetes" in e and "não existe" in e for e in body["erros"]), body["erros"]
-    assert any("Autopeças" in e and "mix" in e for e in body["erros"]), body["erros"]
 
 
 def test_importacao_coluna_familia_vence_o_ncm(client, session):

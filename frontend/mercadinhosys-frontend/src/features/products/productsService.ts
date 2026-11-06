@@ -54,8 +54,12 @@ export const productsService = {
                 cfop_padrao: string;
                 csosn: string;
                 unidade_medida: string;
-                atributos: Record<string, string>;
+                atributos: Record<string, any>;
                 descricao: string;
+                marca?: string;
+                fonte?: 'sinonimo' | 'memoria_loja' | 'taxonomia' | 'ia' | 'nenhuma';
+                confianca?: 'alta' | 'media' | 'baixa';
+                fora_dos_departamentos?: boolean;
             };
         }>('/produtos/classificar-ia', dados);
         return response.data.sugestao;

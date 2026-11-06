@@ -109,6 +109,25 @@ export function useViewSchema(familiaProduto?: string, tipoItem: string = 'produ
     return { schema, loading };
 }
 
+/**
+ * Flags da família refinadas pela subcategoria escolhida (mesma regra do servidor em
+ * perfil_subcategoria.flags_efetivas): lâmina não pede validade em Higiene; banho ritualístico
+ * pede validade em Artigos Religiosos.
+ */
+export function flagsDaSubcategoria(schema: ViewSchema | null, chaveSubcategoria?: string) {
+    const base = { ...(schema?.flags || {}) } as ViewSchema['flags'];
+    const regra = chaveSubcategoria ? schema?.perfis_subcategoria?.[chaveSubcategoria]?.validade : undefined;
+    if (!schema || !regra) return base;
+    const familiaUsaValidade = !!schema.flags?.usa_validade;
+    return {
+        ...base,
+        usa_validade: regra !== 'nao_se_aplica',
+        validade_obrigatoria: regra === 'obrigatoria',
+        usa_lotes: regra === 'nao_se_aplica' ? false : (familiaUsaValidade ? base.usa_lotes : true),
+        exige_fabricacao: regra === 'nao_se_aplica' ? false : base.exige_fabricacao,
+    };
+}
+
 /** Helpers de consulta — o "if validade" mora aqui, alimentado pelo schema. */
 export const schemaHelpers = {
     // Fail-closed: enquanto o schema do tenant/segmento atual não chegou (null),

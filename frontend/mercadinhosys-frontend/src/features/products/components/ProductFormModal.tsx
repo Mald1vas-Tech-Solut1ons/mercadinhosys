@@ -15,7 +15,8 @@ import {
     validarDescontoMercadoPct, validarMargemAlvoVendaPct,
 } from '../utils/precificacaoReversa';
 import { cosmosService, CatalogoBuscaItem } from '../../../services/cosmosService';
-import { useViewSchema, schemaHelpers } from '../../../services/viewSchemaService';
+import { useViewSchema, schemaHelpers, flagsDaSubcategoria } from '../../../services/viewSchemaService';
+import { irParaCampo, campoDoErroServidor } from '../irParaCampo';
 import BarcodeScanner from '../../pdv/components/BarcodeScanner';
 
 interface ProductFormModalProps {
@@ -155,6 +156,10 @@ const ProductFormModal = ({
     onPrintLabel,
 }: ProductFormModalProps) => {
     const [loading, setLoading] = useState(false);
+    const formRef = useRef<HTMLFormElement>(null);
+    // Última sugestão do Auto-preencher aplicada (para trocar só o que o lojista não editou).
+    const ultimaClassificacao = useRef<{ ncm?: string; descricao?: string; marca?: string;
+                                         atributos?: Record<string, any> } | null>(null);
     const [formData, setFormData] = useState({ ...emptyForm });
     const [showScanner, setShowScanner] = useState(false);
     const [isSearchingCosmos, setIsSearchingCosmos] = useState(false);
@@ -169,6 +174,8 @@ const ProductFormModal = ({
 
     // Motor de Renderização Contextual: o schema decide campos, unidades e grupos
     const { schema } = useViewSchema(formData.familia_produto || undefined, formData.tipo_item);
+    // Validade pela subcategoria escolhida (vela e lâmina não perguntam; banho fabricado pergunta).
+    const flagsItem = flagsDaSubcategoria(schema, formData.subcategoria);
     const ehServico = formData.tipo_item === 'servico';
     const visivel = (chave: string) => schemaHelpers.campoVisivel(schema, chave);
 
@@ -180,21 +187,44 @@ const ProductFormModal = ({
     // Placeholders contextuais: o dono de loja de roupas não deve ver "Ex: Arroz Tio João"
     const exemplos = schema?.segmento?.exemplos || EXEMPLOS_FALLBACK;
     const familiasDisponiveis = useMemo(() => {
-        const familias = schema?.familias_disponiveis || [];
+        let familias = schema?.familias_disponiveis || [];
+        // Família do produto fora dos departamentos ligados (produto antigo ou sugerida pela IA):
+        // entra na lista para o seletor não ficar em branco.
+        const atual = schema?.familia_produto;
+        if (atual?.chave && !familias.some(f => f.chave === atual.chave)) {
+            familias = [...familias, { chave: atual.chave, nome: atual.nome, descricao: atual.descricao,
+                                       segmento_base: atual.segmento_base }];
+        }
         if (ehServico) return familias.filter(f => f.chave === 'servico');
         return familias.filter(f => f.chave !== 'servico');
     }, [schema, ehServico]);
 
+    // Campos que importam para ESTE tipo de produto (perfil da subcategoria): vela pergunta cor e queima,
+    // imagem pergunta santo/altura/material, câmara pergunta medida/aro/válvula. Campo já preenchido
+    // ou obrigatório continua visível (nada some com dado dentro).
+    const camposDoPerfil = formData.subcategoria
+        ? schema?.perfis_subcategoria?.[formData.subcategoria]?.campos || null
+        : null;
     const gruposAtributos = useMemo(() => {
         if (!schema) return [];
+        const relevante = (chave: string, obrigatorio?: boolean) => {
+            if (!camposDoPerfil) return true;
+            const valor = formData.atributos?.[chave];
+            const preenchido = valor !== undefined && valor !== '' && !(Array.isArray(valor) && valor.length === 0);
+            return camposDoPerfil.includes(chave) || preenchido || !!obrigatorio;
+        };
         return ['atributos', 'dimensoes', 'servico']
             .map(grupo => ({
                 grupo,
                 label: schema.grupos.find(g => g.chave === grupo)?.label || grupo,
-                campos: schemaHelpers.camposDoGrupo(schema, grupo, formData.tipo_item),
+                campos: schemaHelpers.camposDoGrupo(schema, grupo, formData.tipo_item)
+                    .filter(c => grupo === 'servico' || relevante(c.chave, c.obrigatorio))
+                    .sort((a, b) => camposDoPerfil
+                        ? (camposDoPerfil.indexOf(a.chave) + 1 || 99) - (camposDoPerfil.indexOf(b.chave) + 1 || 99)
+                        : 0),
             }))
             .filter(g => g.campos.length > 0);
-    }, [schema, formData.tipo_item]);
+    }, [schema, formData.tipo_item, camposDoPerfil, formData.atributos]);
 
     useEffect(() => {
         if (!show) return;
@@ -457,28 +487,54 @@ const ProductFormModal = ({
         }
         setClassificandoIA(true);
         try {
+            // Marca que veio da sugestão anterior não é pista do produto novo (era a Pirelli da câmara).
+            const marcaDigitada = formData.marca && formData.marca !== ultimaClassificacao.current?.marca
+                ? formData.marca : '';
             const s = await productsService.classificarIA({
                 nome: nomeAlvo,
-                marca: formData.marca,
+                marca: marcaDigitada,
                 tipo_item: formData.tipo_item,
             });
             familiaEscolhida.current = true;
-            setFormData(prev => ({
-                ...prev,
-                familia_produto: s.familia_produto || prev.familia_produto,
-                categoria_oficial: s.categoria_oficial || prev.categoria_oficial,
-                categoria: maiusculas(s.categoria_nome) || prev.categoria,
-                subcategoria: s.subcategoria || prev.subcategoria,
-                ncm: prev.ncm || s.ncm || '',
-                cfop_padrao: prev.cfop_padrao || s.cfop_padrao || '5102',
-                csosn: prev.csosn || s.csosn || '102',
-                unidade_medida: prev.unidade_medida || s.unidade_medida || 'un',
-                descricao: prev.descricao || s.descricao || '',
-                atributos: { ...(s.atributos || {}), ...prev.atributos },
-            }));
-            showToast.success(
-                `✨ IA preencheu: ${s.familia_nome} › ${s.categoria_nome} (NCM ${s.ncm})`
-            );
+            // Campo que ainda tem o valor da sugestão ANTERIOR (o lojista não mexeu) é trocado pela nova;
+            // o que ele digitou fica. Sem isso, reclassificar mantinha NCM/marca do produto anterior.
+            const anterior = ultimaClassificacao.current;
+            const novoValor = (atual: any, sugerido: any, anteriorSugerido: any) =>
+                (!atual || atual === anteriorSugerido) ? (sugerido ?? '') : atual;
+            setFormData(prev => {
+                const atributosDigitados = Object.fromEntries(Object.entries(prev.atributos || {}).filter(
+                    ([k, v]) => anterior?.atributos?.[k] === undefined || anterior.atributos[k] !== v));
+                return {
+                    ...prev,
+                    familia_produto: s.familia_produto || prev.familia_produto,
+                    categoria_oficial: s.categoria_oficial || prev.categoria_oficial,
+                    categoria: maiusculas(s.categoria_nome) || prev.categoria,
+                    subcategoria: s.subcategoria || prev.subcategoria,
+                    ncm: novoValor(prev.ncm, s.ncm, anterior?.ncm),
+                    cfop_padrao: prev.cfop_padrao || s.cfop_padrao || '5102',
+                    csosn: prev.csosn || s.csosn || '102',
+                    unidade_medida: prev.unidade_medida || s.unidade_medida || 'un',
+                    descricao: novoValor(prev.descricao, s.descricao, anterior?.descricao),
+                    marca: novoValor(prev.marca, maiusculas(s.marca || ''), anterior?.marca),
+                    atributos: { ...(s.atributos || {}), ...atributosDigitados },
+                };
+            });
+            ultimaClassificacao.current = { ncm: s.ncm, descricao: s.descricao, marca: maiusculas(s.marca || ''),
+                                            atributos: { ...(s.atributos || {}) } };
+            const preenchidos = Object.keys(s.atributos || {}).length;
+            if (s.confianca === 'baixa') {
+                showToast.warning(`Não reconheci "${nomeAlvo}" com segurança: deixei em ${s.familia_nome} › `
+                    + `${s.categoria_nome}. Escolha a subcategoria certa.`);
+            } else {
+                showToast.success(`✨ Preenchido: ${s.familia_nome} › ${s.categoria_nome}`
+                    + (s.marca ? ` · marca ${s.marca}` : '')
+                    + (preenchidos ? ` · ${preenchidos} campo(s)` : '')
+                    + (s.ncm ? ` · NCM ${s.ncm} (confira)` : ''));
+            }
+            if (s.fora_dos_departamentos) {
+                showToast.info(`${s.familia_nome} não está nos departamentos da loja. Dá para cadastrar assim mesmo; `
+                    + 'para ela aparecer na lista, ligue em Configurações › Departamentos da Loja.');
+            }
         } catch (err: any) {
             showToast.error(err?.response?.data?.error || 'Não foi possível auto-classificar o produto agora.');
         } finally {
@@ -550,66 +606,80 @@ const ProductFormModal = ({
     const setAtributo = (chave: string, valor: any) =>
         setFormData(prev => ({ ...prev, atributos: { ...prev.atributos, [chave]: valor } }));
 
+    // Leva ao campo que impede salvar (rola, foca, contorna em vermelho) e explica no toast.
+    const faltou = (campo: string, mensagem: string) => {
+        showToast.error(mensagem, { duration: 6000 });
+        irParaCampo(formRef.current, campo);
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Validações obrigatórias
-        if (!formData.nome.trim()) { showToast.error(ehServico ? 'Nome do serviço é obrigatório' : 'Nome do produto é obrigatório'); return; }
+        if (!formData.nome.trim()) { faltou('nome', ehServico ? 'Nome do serviço é obrigatório' : 'Nome do produto é obrigatório'); return; }
         if (!formData.subcategoria.trim()) {
-            showToast.error('Escolha a subcategoria oficial da família antes de salvar');
+            faltou('subcategoria', 'Escolha a subcategoria oficial da família antes de salvar');
             return;
         }
         // Modos mercado/venda: o custo é ESTIMADO no servidor — não exigir custo
         // digitado; exigir os insumos do modo em vez disso.
         const custoEstimado = !ehServico && formData.modo_precificacao !== 'custo';
-        if (!ehServico && !custoEstimado && (!formData.preco_custo || formData.preco_custo <= 0)) { showToast.error('Preço de custo inválido'); return; }
+        if (!ehServico && !custoEstimado && (!formData.preco_custo || formData.preco_custo <= 0)) { faltou('preco_custo', 'Informe o preço de custo'); return; }
         if (custoEstimado && formData.modo_precificacao === 'mercado') {
             if (!formData.preco_referencia_mercado || formData.preco_referencia_mercado <= 0) {
-                showToast.error('Informe o preço de referência do mercado');
+                faltou('preco_referencia_mercado', 'Informe o preço de referência do mercado');
                 return;
             }
             const erroMargem = validarMargemAlvoVendaPct(formData.margem_alvo_venda_pct);
             if (formData.margem_alvo_venda_pct !== null && erroMargem) {
-                showToast.error(erroMargem);
+                faltou('margem_alvo_venda_pct', erroMargem);
                 return;
             }
             const erroDesconto = validarDescontoMercadoPct(formData.desconto_mercado_pct);
             if (formData.desconto_mercado_pct !== null && erroDesconto) {
-                showToast.error(erroDesconto);
+                faltou('desconto_mercado_pct', erroDesconto);
                 return;
             }
         }
         if (custoEstimado && formData.modo_precificacao === 'venda') {
-            if (!formData.preco_venda || formData.preco_venda <= 0) { showToast.error('Preço de venda inválido'); return; }
+            if (!formData.preco_venda || formData.preco_venda <= 0) { faltou('preco_venda', 'Informe o preço de venda'); return; }
             const erroMargem = validarMargemAlvoVendaPct(formData.margem_alvo_venda_pct);
             if (formData.margem_alvo_venda_pct !== null && erroMargem) {
-                showToast.error(erroMargem);
+                faltou('margem_alvo_venda_pct', erroMargem);
                 return;
             }
         }
-        if (!ehServico && !custoEstimado && (!formData.preco_venda || formData.preco_venda <= 0)) { showToast.error('Preço de venda inválido'); return; }
+        if (!ehServico && !custoEstimado && (!formData.preco_venda || formData.preco_venda <= 0)) { faltou('preco_venda', 'Informe o preço de venda'); return; }
         if (!ehServico && formData.icms_st && formData.cest.length !== 7) {
-            showToast.error('Produto com ICMS por substituição tributária (ST) precisa do CEST com 7 dígitos. Peça ao contador ou veja na nota do fornecedor.');
+            faltou('cest', 'Produto com ICMS por substituição tributária (ST) precisa do CEST com 7 dígitos. Peça ao contador ou veja na nota do fornecedor.');
             return;
         }
 
-        // Validade da família (só no cadastro novo com estoque; na edição a validade é dos lotes).
-        const flagsFamilia = schema?.flags;
+        // Validade pela subcategoria (só no cadastro novo com estoque; na edição a validade é dos lotes).
+        const flagsFamilia = flagsItem;
         const pedeValidade = !editMode && !ehServico && !!flagsFamilia?.usa_validade;
         if (pedeValidade && Number(formData.quantidade) > 0) {
-            const nomeFamilia = schema?.familia_produto?.nome || 'esta família';
             if (flagsFamilia?.validade_obrigatoria && !formData.data_validade) {
-                showToast.error(`Informe a data de validade: em ${nomeFamilia} ela é obrigatória quando entra estoque.`);
+                faltou('data_validade', 'Informe a data de validade: este tipo de produto vence e ela é obrigatória quando entra estoque.');
                 return;
             }
             if (flagsFamilia?.exige_fabricacao && !formData.data_fabricacao) {
-                showToast.error(`Informe a data de fabricação: em ${nomeFamilia} ela é obrigatória quando entra estoque.`);
+                faltou('data_fabricacao', 'Informe a data de fabricação: é obrigatória neste tipo de produto quando entra estoque.');
                 return;
             }
         }
         if (pedeValidade && formData.data_fabricacao && formData.data_validade
             && formData.data_fabricacao >= formData.data_validade) {
-            showToast.error('A data de fabricação precisa ser anterior à validade.');
+            faltou('data_fabricacao', 'A data de fabricação precisa ser anterior à validade.');
+            return;
+        }
+        // Campos que a família marca como obrigatórios (atributos do schema).
+        const atributoFaltando = (schema?.campos || []).find(c => c.obrigatorio && c.origem === 'atributo'
+            && (!c.aplica_tipo_item || c.aplica_tipo_item.includes(formData.tipo_item))
+            && (formData.atributos[c.chave] === undefined || formData.atributos[c.chave] === ''
+                || (Array.isArray(formData.atributos[c.chave]) && formData.atributos[c.chave].length === 0)));
+        if (atributoFaltando) {
+            faltou(`atributos.${atributoFaltando.chave}`, `Preencha ${atributoFaltando.label}.`);
             return;
         }
 
@@ -683,13 +753,16 @@ const ProductFormModal = ({
                         ? `Este produto já está cadastrado como "${existente.nome}" (id ${existente.id}). Edite o produto existente para atualizar estoque ou preço.`
                         : result.message || 'Produto já cadastrado com este EAN.';
                     showToast.error(msg, { duration: 8000 });
+                    irParaCampo(formRef.current, campoDoErroServidor(result as any) || 'codigo_barras');
                     return; // Não chama onSuccess, não fecha o modal
                 }
 
                 if (!result.success) {
-                    // Guardião devolve os motivos em `errors`: mostra o primeiro, que ensina o que corrigir.
+                    // Guardião devolve os motivos em `errors`: mostra o primeiro e LEVA ao campo dele.
                     const motivos = (result as any).errors as string[] | undefined;
                     showToast.error(motivos?.[0] || result.message || 'Erro ao salvar', { duration: 8000 });
+                    const campo = campoDoErroServidor(result as any);
+                    if (campo) irParaCampo(formRef.current, campo);
                     return;
                 }
 
@@ -702,7 +775,11 @@ const ProductFormModal = ({
                 onSuccess();
             }
         } catch (err: any) {
-            showToast.error(err?.response?.data?.message || 'Erro ao salvar');
+            const dados = err?.response?.data;
+            // Na edição o toast genérico "Erro ao atualizar" já saiu: a mensagem do servidor diz O QUÊ.
+            if (!(editMode && produto) || dados?.message) showToast.error(dados?.message || 'Erro ao salvar');
+            const campo = campoDoErroServidor(dados);
+            if (campo) irParaCampo(formRef.current, campo);
         } finally {
             setLoading(false);
         }
@@ -747,7 +824,7 @@ const ProductFormModal = ({
                 </div>
             }
         >
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-8">
 
                 {/* Toggle Produto/Serviço — só aparece se o segmento habilita serviços */}
                 {schemaHelpers.usaServicos(schema) && (
@@ -834,7 +911,7 @@ const ProductFormModal = ({
                             <div className="sm:col-span-2">
                                 <label className={labelClass}>{ehServico ? 'Nome do Serviço *' : 'Nome do Produto *'}</label>
                                 <div className="flex gap-2">
-                                    <input type="text" value={formData.nome} required
+                                    <input type="text" data-campo="nome" value={formData.nome} required
                                         ref={refNome}
                                         onChange={e => field('nome', e.target.value)}
                                         onKeyDown={e => {
@@ -903,7 +980,7 @@ const ProductFormModal = ({
                                 <div>
                                     <label className={labelClass}>Código de Barras</label>
                                     <div className="flex gap-2">
-                                        <input type="text" value={formData.codigo_barras}
+                                        <input type="text" data-campo="codigo_barras" value={formData.codigo_barras}
                                                 ref={(el) => { refEan.current = el; }}
                                                 onChange={e => {
                                                 field('codigo_barras', e.target.value);
@@ -941,7 +1018,7 @@ const ProductFormModal = ({
                                     )}
                                 </div>
                             )}
-                            <div className="min-w-0">
+                            <div className="min-w-0" data-campo="subcategoria">
                                 <CategoriaPicker
                                     taxonomia={schema?.taxonomia || []}
                                     value={formData.subcategoria}
@@ -961,7 +1038,7 @@ const ProductFormModal = ({
                             {visivel('marca') && !ehServico && (
                                 <div>
                                     <label className={labelClass}>Marca / Fabricante</label>
-                                    <input type="text" value={formData.marca}
+                                    <input type="text" data-campo="marca" value={formData.marca}
                                         onChange={e => field('marca', e.target.value)}
                                         className={inputClass} placeholder={exemplos.marca} />
                                 </div>
@@ -969,7 +1046,7 @@ const ProductFormModal = ({
                             {!ehServico && visivel('unidade_medida') && (
                                 <div>
                                     <label className={labelClass}>Unidade de Medida</label>
-                                    <select value={formData.unidade_medida}
+                                    <select data-campo="unidade_medida" value={formData.unidade_medida}
                                         onChange={e => field('unidade_medida', e.target.value)}
                                         className={inputClass}>
                                         {unidades.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
@@ -987,14 +1064,15 @@ const ProductFormModal = ({
                         <div className={sectionClass}>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {campos.map(campo => (
-                                    <SchemaField
-                                        key={campo.chave}
-                                        campo={campo}
-                                        value={formData.atributos[campo.chave]}
-                                        onChange={v => setAtributo(campo.chave, v)}
-                                        inputClass={inputClass}
-                                        labelClass={labelClass}
-                                    />
+                                    <div key={campo.chave} data-campo={`atributos.${campo.chave}`} className="min-w-0">
+                                        <SchemaField
+                                            campo={campo}
+                                            value={formData.atributos[campo.chave]}
+                                            onChange={v => setAtributo(campo.chave, v)}
+                                            inputClass={inputClass}
+                                            labelClass={labelClass}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -1022,7 +1100,7 @@ const ProductFormModal = ({
                                         NCM
                                         <CampoAjuda texto="Código fiscal de 8 dígitos que classifica o produto perante a Receita (Nomenclatura Comum do Mercosul). Se você escaneou o código de barras, geralmente já vem preenchido pela base de produtos. Sem ele, a nota fiscal não pode ser emitida." />
                                     </label>
-                                    <input type="text" inputMode="numeric" maxLength={8} value={formData.ncm}
+                                    <input type="text" data-campo="ncm" inputMode="numeric" maxLength={8} value={formData.ncm}
                                         onChange={e => field('ncm', e.target.value.replace(/\D/g, '').slice(0, 8))}
                                         className={`${inputClass} ${formData.ncm && formData.ncm.length !== 8 ? 'border-amber-400' : ''}`}
                                         placeholder="8 dígitos" />
@@ -1040,7 +1118,7 @@ const ProductFormModal = ({
                                         CEST
                                         <CampoAjuda texto="Código Especificador da Substituição Tributária — só é obrigatório se o seu produto está sujeito a ICMS-ST (o aviso acima indica quando isso é comum). Se não souber, deixe em branco e confirme com seu contador." />
                                     </label>
-                                    <input type="text" inputMode="numeric" maxLength={7} value={formData.cest}
+                                    <input type="text" data-campo="cest" inputMode="numeric" maxLength={7} value={formData.cest}
                                         onChange={e => field('cest', e.target.value.replace(/\D/g, '').slice(0, 7))}
                                         className={`${inputClass} ${cestFaltando ? 'border-red-400' : ''}`}
                                         placeholder={formData.icms_st ? 'Obrigatório com ST' : '7 dígitos'} />
@@ -1135,6 +1213,7 @@ const ProductFormModal = ({
                                     Preço de referência no mercado (R$) *
                                 </label>
                                 <input type="number" step="0.01" min="0.01" required
+                                    data-campo="preco_referencia_mercado"
                                     value={formData.preco_referencia_mercado}
                                     onChange={e => field('preco_referencia_mercado', parseFloat(e.target.value) || 0)}
                                     className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
@@ -1155,6 +1234,7 @@ const ProductFormModal = ({
                                     Desconto vs. mercado (%)
                                 </label>
                                 <input type="number" step="0.01" min="0" max="99.99"
+                                    data-campo="desconto_mercado_pct"
                                     value={formData.desconto_mercado_pct ?? ''}
                                     onChange={e => field('desconto_mercado_pct', e.target.value === '' ? null : parseFloat(e.target.value))}
                                     className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
@@ -1166,6 +1246,7 @@ const ProductFormModal = ({
                                     Margem alvo sobre a venda (%)
                                 </label>
                                 <input type="number" step="0.01" min="0.01" max="99.99"
+                                    data-campo="margem_alvo_venda_pct"
                                     value={formData.margem_alvo_venda_pct ?? ''}
                                     onChange={e => field('margem_alvo_venda_pct', e.target.value === '' ? null : parseFloat(e.target.value))}
                                     className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
@@ -1190,6 +1271,7 @@ const ProductFormModal = ({
                             <div className="sm:col-span-2">
                                 <label className="block text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">Margem alvo sobre a venda (%)</label>
                                 <input type="number" step="0.01" min="0.01" max="99.99"
+                                    data-campo="margem_alvo_venda_pct"
                                     value={formData.margem_alvo_venda_pct ?? ''}
                                     onChange={e => field('margem_alvo_venda_pct', e.target.value === '' ? null : parseFloat(e.target.value))}
                                     className={`${inputClass} text-lg font-semibold border-blue-200 dark:border-blue-800`}
@@ -1212,6 +1294,7 @@ const ProductFormModal = ({
                             </label>
                             <input type="number" step="0.01" min={ehServico ? '0' : '0.01'} required={!ehServico}
                                 ref={refPrecoCusto}
+                                data-campo="preco_custo"
                                 value={formData.preco_custo || ''} placeholder="0"
                                 onChange={e => {
                                     // Ao vivo: sem preço digitado, o preço acompanha custo × margem;
@@ -1245,6 +1328,7 @@ const ProductFormModal = ({
                                 {ehServico ? 'Preço Cobrado (R$) *' : 'Preço de Venda (R$) *'}
                             </label>
                             <input type="number" step="0.01" min="0.01" required
+                                data-campo="preco_venda"
                                 value={formData.preco_venda || ''} placeholder="0"
                                 onChange={e => {
                                     precoVendaManual.current = true;
@@ -1271,7 +1355,7 @@ const ProductFormModal = ({
                                     <label className={labelClass}>
                                         {editMode ? 'Estoque Atual' : 'Estoque inicial'}
                                     </label>
-                                    <input type="number" min="0" step="any" value={formData.quantidade || ''} placeholder="0"
+                                    <input type="number" data-campo="quantidade" min="0" step="any" value={formData.quantidade || ''} placeholder="0"
                                         onChange={e => field('quantidade', Math.max(0, parseFloat(e.target.value) || 0))}
                                         className={inputClass} />
                                     {!editMode && !formData.quantidade && (
@@ -1294,29 +1378,29 @@ const ProductFormModal = ({
                                     </div>
                                 )}
                             </div>
-                            {!editMode && schema?.flags?.usa_validade && (
+                            {!editMode && schema && flagsItem?.usa_validade && (
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                                     <div>
                                         <label className={labelClass}>
-                                            Data de Validade{schema.flags.validade_obrigatoria && Number(formData.quantidade) > 0 ? ' *' : ''}
+                                            Data de Validade{flagsItem.validade_obrigatoria && Number(formData.quantidade) > 0 ? ' *' : ''}
                                         </label>
-                                        <input type="date" value={formData.data_validade}
+                                        <input type="date" data-campo="data_validade" value={formData.data_validade}
                                             min={new Date().toISOString().slice(0, 10)}
                                             onChange={e => field('data_validade', e.target.value)}
                                             className={inputClass} />
                                     </div>
                                     <div>
                                         <label className={labelClass}>
-                                            Data de Fabricação{schema.flags.exige_fabricacao && Number(formData.quantidade) > 0 ? ' *' : ''}
+                                            Data de Fabricação{flagsItem.exige_fabricacao && Number(formData.quantidade) > 0 ? ' *' : ''}
                                         </label>
-                                        <input type="date" value={formData.data_fabricacao}
+                                        <input type="date" data-campo="data_fabricacao" value={formData.data_fabricacao}
                                             max={new Date().toISOString().slice(0, 10)}
                                             onChange={e => field('data_fabricacao', e.target.value)}
                                             className={inputClass} />
                                     </div>
                                     <div>
                                         <label className={labelClass}>Lote</label>
-                                        <input type="text" value={formData.lote} maxLength={50}
+                                        <input type="text" data-campo="lote" value={formData.lote} maxLength={50}
                                             onChange={e => field('lote', e.target.value.toUpperCase())}
                                             className={inputClass} placeholder="Da embalagem (ou automático)" />
                                     </div>

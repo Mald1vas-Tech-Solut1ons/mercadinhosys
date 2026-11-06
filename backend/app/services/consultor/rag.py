@@ -111,6 +111,22 @@ def recuperar_evidencias(especialista, tenant, is_manager, builders, pergunta=''
             'dados': limited,
             'observacao': 'Listas limitadas aos primeiros registros recuperados; totais preservados.',
         })
+    # Pergunta de cadastro ("como cadastro câmara de ar?"): evidência pontual com a classificação real
+    # do produto perguntado (o contexto 'sistema' é cacheado por loja e não enxerga a pergunta).
+    if 'sistema' in topics and tenant != 'all':
+        try:
+            from .contextos.sistema import classificacao_para_pergunta
+            classificacao = classificacao_para_pergunta(pergunta, tenant)
+        except Exception:
+            classificacao = None
+        if classificacao:
+            sources.append({
+                'fonte': 'classificacao',
+                'dados': _compact(classificacao),
+                'observacao': 'Como o sistema classifica o produto perguntado. Use estes nomes de família e '
+                              'subcategoria; nunca outra família.',
+            })
+
     return {
         'estabelecimento_id': tenant,
         'consultado_em_utc': iso_utc(datetime.now(timezone.utc)),

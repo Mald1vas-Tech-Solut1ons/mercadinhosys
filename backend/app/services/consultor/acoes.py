@@ -89,8 +89,9 @@ def sugerir_acoes(
 
     # 0. Se o usuário pediu ajuda para cadastrar um produto específico no chat (ex.: Projetor)
     if pergunta:
-        intencao_prod = extrair_intencao_cadastro_produto(pergunta)
-        if intencao_prod:
+        intencao_prod = extrair_intencao_cadastro_produto(pergunta, estabelecimento_id=est_id)
+        # Botão de cadastro só com custo e venda ditos pelo lojista (nunca preço inventado).
+        if intencao_prod and intencao_prod["preco_custo"] > 0 and intencao_prod["preco_venda"] > 0:
             sugestoes.append({
                 "acao": "cadastrar_produto",
                 "rotulo": f"Cadastrar '{intencao_prod['nome'][:32]}' (R$ {intencao_prod['preco_venda']:.2f})",
@@ -346,7 +347,8 @@ def executar_acao_confirmada(
         if len(nome) < 2:
             return {"success": False, "error": "Nome do produto é obrigatório para o cadastro."}, 400
 
-        classificado = classificar_produto_por_nome(nome=nome, marca=str(params.get("marca") or ""))
+        classificado = classificar_produto_por_nome(nome=nome, marca=str(params.get("marca") or ""),
+                                                    estabelecimento_id=estabelecimento_id)
         familia_produto = str(params.get("familia_produto") or classificado["familia_produto"]).strip()
         sub_informada = str(params.get("subcategoria") or classificado["subcategoria"]).strip()
 
@@ -358,20 +360,32 @@ def executar_acao_confirmada(
 
         categoria_loja = garantir_categoria_loja(estabelecimento_id, chave_cat)
 
+        # Preço é decisão do lojista: o chat nunca inventa custo nem venda.
         try:
-            preco_custo = Decimal(str(params.get("preco_custo") or 50)).quantize(Decimal("0.01"))
-            if preco_custo <= 0:
-                preco_custo = Decimal("50.00")
-            preco_venda = Decimal(str(params.get("preco_venda") or (preco_custo * Decimal("1.4")))).quantize(
-                Decimal("0.01")
-            )
-            if preco_venda <= 0:
-                preco_venda = (preco_custo * Decimal("1.4")).quantize(Decimal("0.01"))
-            margem = (((preco_venda - preco_custo) / preco_custo) * Decimal("100")).quantize(Decimal("0.01"))
+            preco_custo = Decimal(str(params.get("preco_custo") or 0)).quantize(Decimal("0.01"))
+            preco_venda = Decimal(str(params.get("preco_venda") or 0)).quantize(Decimal("0.01"))
         except Exception:
             return {"success": False, "error": "Preços de custo/venda inválidos."}, 400
+        if preco_custo <= 0 or preco_venda <= 0:
+            return {"success": False, "error": "Informe o custo e o preço de venda (ex.: 'custo 12 venda 25') "
+                                               "para eu cadastrar."}, 400
+        margem = (((preco_venda - preco_custo) / preco_custo) * Decimal("100")).quantize(Decimal("0.01"))
 
-        quantidade = max(Decimal("0"), Decimal(str(params.get("quantidade") or 1)))
+        try:
+            quantidade = max(Decimal("0"), Decimal(str(params.get("quantidade") or 0)))
+        except Exception:
+            return {"success": False, "error": "Quantidade inválida."}, 400
+
+        # Validade pela subcategoria: o chat não tem campo de data. Se este tipo vence e vai entrar
+        # estoque, o cadastro tem de ser pelo formulário (validade e lote).
+        from app.models import Estabelecimento, MovimentacaoEstoque
+        from app.services.perfil_subcategoria import flags_efetivas
+        from app.services.view_schema_service import resolver_view_schema
+        _estab = db.session.get(Estabelecimento, int(estabelecimento_id))
+        _flags = flags_efetivas(chave_sub, resolver_view_schema(_estab, familia_produto=familia_produto).get("flags", {}))
+        if quantidade > 0 and _flags.get("validade_obrigatoria"):
+            return {"success": False, "error": "Este tipo de produto vence: cadastre pelo formulário de Produtos "
+                                               "para informar validade e lote."}, 400
         ncm = str(params.get("ncm") or classificado["ncm"]).replace(".", "")[:8]
         cfop = str(params.get("cfop_padrao") or classificado["cfop_padrao"])[:4]
         csosn = str(params.get("csosn") or classificado["csosn"])[:3]
@@ -397,11 +411,20 @@ def executar_acao_confirmada(
             quantidade=quantidade,
             quantidade_minima=Decimal(str(params.get("quantidade_minima") or 2)),
             controlar_estoque=True,
+            controlar_validade=False,  # o chat não recebe data; quem vence vai pelo formulário (recusado acima)
             ativo=True,
             atributos_json=json.dumps(atributos, ensure_ascii=False) if atributos else None,
         )
         db.session.add(novo_produto)
         db.session.flush()
+        if quantidade > 0:
+            # Entrada inicial com rastro (mesma regra do formulário): sem isto o saldo não tem origem.
+            db.session.add(MovimentacaoEstoque(
+                estabelecimento_id=estabelecimento_id, produto_id=novo_produto.id, funcionario_id=funcionario_id,
+                tipo="entrada", quantidade=quantidade, quantidade_anterior=0, quantidade_atual=quantidade,
+                custo_unitario=preco_custo, valor_total=quantidade * preco_custo,
+                motivo="Cadastro inicial do produto", observacoes="Produto cadastrado pelo Consultor da Loja",
+            ))
 
         tipo_evento_audit = "cadastro_produto_consultor"
         descricao_audit = (

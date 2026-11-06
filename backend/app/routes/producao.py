@@ -229,6 +229,68 @@ def cancelar_ordem(ordem_id):
     return _acao(ordem_id, svc.cancelar_ordem)
 
 
+@producao_bp.route("/ordens/<int:ordem_id>/estornar", methods=["POST"])
+@gerente_ou_admin_required
+def estornar_ordem(ordem_id):
+    """Desfaz OP encerrada com apontamento errado. Mexe em estoque e custo: exige PIN e fica na auditoria."""
+    from app.models import Auditoria
+    from app.services.politica_acoes import resposta_erro_pin, validar_pin
+    estab_id = _estab()
+    op = _ordem(estab_id, ordem_id) if estab_id else None
+    if not op:
+        return jsonify({"success": False, "error": "Ordem não encontrada"}), 404
+    dados = request.get_json() or {}
+    autorizador, erro_pin = validar_pin(estab_id, get_jwt_identity(), dados.get("pin"))
+    if erro_pin:
+        return resposta_erro_pin(erro_pin, "PIN de gerente obrigatório para estornar a ordem")
+
+    def executar(ordem):
+        svc.estornar_ordem(ordem, dados.get("motivo"), int(get_jwt_identity()))
+        Auditoria.registrar(
+            estabelecimento_id=estab_id, tipo_evento="producao_estorno",
+            descricao=f"Estorno da {ordem.numero} ({ordem.produto.nome}): {ordem.motivo_estorno}",
+            usuario_id=int(get_jwt_identity()),
+            valor=float((ordem.custo_unitario_real or 0) * (ordem.quantidade_produzida or 0)),
+            detalhes={"ordem_id": ordem.id, "autorizado_por": autorizador.nome,
+                      "quantidade_produzida": float(ordem.quantidade_produzida or 0)})
+    return _acao(ordem_id, executar)
+
+
+@producao_bp.route("/rastreio/lote/<int:lote_id>", methods=["GET"])
+@funcionario_required
+def rastreio_lote(lote_id):
+    """Recall: de onde veio este lote e para onde foi (ordens, lotes produzidos e vendas)."""
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    try:
+        return jsonify({"success": True, **svc.rastreio_lote(estab_id, lote_id)})
+    except svc.ProducaoError as erro:
+        return jsonify({"success": False, "error": str(erro)}), 404
+
+
+@producao_bp.route("/lotes", methods=["GET"])
+@funcionario_required
+def buscar_lotes():
+    """Busca de lote por número (insumo ou acabado) para abrir o rastreio."""
+    from app.models import ProdutoLote
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    busca = (request.args.get("busca") or "").strip()
+    if len(busca) < 2:
+        return jsonify({"success": True, "lotes": []})
+    termo = f"%{busca}%"
+    lotes = ProdutoLote.query.join(Produto, Produto.id == ProdutoLote.produto_id).filter(
+        ProdutoLote.estabelecimento_id == estab_id,
+        or_(ProdutoLote.numero_lote.ilike(termo), Produto.nome.ilike(termo))
+    ).order_by(ProdutoLote.id.desc()).limit(30).all()
+    return jsonify({"success": True, "lotes": [{
+        "lote_id": l.id, "numero_lote": l.numero_lote, "produto_nome": l.produto.nome if l.produto else None,
+        "data_validade": l.data_validade.isoformat() if l.data_validade else None,
+        "saldo": float(l.quantidade or 0)} for l in lotes]})
+
+
 @producao_bp.route("/necessidade-insumos", methods=["GET"])
 @funcionario_required
 def necessidade_insumos():

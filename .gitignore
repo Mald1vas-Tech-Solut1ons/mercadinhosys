@@ -42,7 +42,6 @@ backend/__pycache__/
 **/dist/
 **/build/
 **/node_modules/
-backend/build.sh
 
 # Databases/Instances (recursivo)
 **/instance/

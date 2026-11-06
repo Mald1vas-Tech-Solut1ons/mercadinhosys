@@ -3,7 +3,7 @@
 > Documento de estado do produto: **o que existe e é robusto**, **o que falta para distribuir profissionalmente**, e um **plano de go-to-market** (incluindo conteúdo para redes) para atender **comércio em geral**.
 >
 > Data da auditoria: **2026-06-30** · Branch: `master` · Autor: revisão técnica assistida.
-> Escopo: backend (Flask/SQLAlchemy, ~25 mil linhas de rotas, 55+ modelos), frontend (React 19 + Vite + Tailwind, PWA), infra (Vercel + Render + Aiven/Postgres).
+> Escopo: backend (Flask/SQLAlchemy, ~25 mil linhas de rotas, 55+ modelos), frontend (React 19 + Vite + Tailwind, PWA), infra (Vercel + VM Oracle com PostgreSQL).
 
 ---
 
@@ -20,7 +20,7 @@ O MercadinhoSys **não é um MVP** — é um ERP de varejo multi-loja já bastan
 | Fiscal (NFC-e/NF-e) | Backend+front completos, **falta go-live real** | 🟡 |
 | Cobrança/assinatura | Link avulso (manual). **Falta recorrência** | 🔴 |
 | Observabilidade / suporte / SLA | Incipiente | 🔴 |
-| Performance (infra atual) | Funciona, mas lento (Render free) | 🟡 |
+| Performance (infra atual) | Sem cold start desde a migração para o Oracle (out/2026) | 🟢 |
 | Conteúdo/marketing/posicionamento | A construir | 🔴 |
 
 ---
@@ -67,7 +67,7 @@ Módulos confirmados no código (rotas backend + telas frontend). Nível: 🟢 r
 ### 2.7 Qualidade & infra
 - **Testes backend** 🟢 — `test_fiscal_nfce`, `test_tenant_isolation`, `test_vendas_multi`, `test_customers_rfm`, `test_delivery_multi`, `test_pin_seguranca`, `test_saas_readiness`, `test_sync_hybrid`, `test_catalogo_lookup`. Travas de regressão nos pontos sensíveis.
 - **Testes frontend** 🔴 — apenas 1 smoke Cypress. Cobertura E2E de UI quase inexistente.
-- **Infra** 🟡 — Frontend Vercel, Backend Render (free, cold start), DB Aiven Postgres com dados reais (~200 clientes, ~34k vendas em base de teste). Schema drift já corrigido; sequences de ID ressincronizadas.
+- **Infra** 🟢 — Frontend Vercel; backend, PostgreSQL, Redis e Caddy na VM Oracle (Docker). Schema drift já corrigido; sequences de ID ressincronizadas.
 
 ---
 
@@ -82,7 +82,7 @@ Módulos confirmados no código (rotas backend + telas frontend). Nível: 🟢 r
 **Riscos / dívidas técnicas (a tratar antes de escalar)**
 1. **Multi-tenant fail-open residual (P0):** o `TenantQuery` é fail-open quando não há tenant em `g`; a invariante depende 100% do guard HTTP `before_request`. Qualquer rota autenticada nova que escape do guard reabre risco de vazamento entre lojas. SQL cru (`text(...)`) e impersonation de super admin não passam pelo filtro automático.
 2. **Sync offline desligado:** PWA depende de conexão. Comércio com internet instável (feira, ambulante, interior) sofre. `SYNC_ENABLED=false`.
-3. **Performance no Render free:** dashboard ~9s, algumas listagens pesadas. Cold start. Inaceitável para demo ao vivo / cliente exigente.
+3. **Performance:** dashboard e listagens pesadas precisam de cache/paginação (o cold start acabou com o Oracle).
 4. **Cobertura de teste de UI baixa:** regressões visuais/fluxo (como os modais sob as barras no mobile, já corrigidos) não são pegas por CI.
 5. **Schema drift histórico:** produção foi corrigida à mão; migrações precisam ser a fonte única daqui pra frente.
 
@@ -95,7 +95,7 @@ Priorizado por bloqueio comercial. **P0 = bloqueia venda/escala · P1 = importan
 ### 4.1 [P0] Segurança & conformidade de dados
 - Fechar o **fail-open multi-tenant residual** (defesa em profundidade: validar tenant também na camada ORM/sessão, auditar rotas que usam SQL cru).
 - **LGPD:** política de privacidade + termos (existe `features/legal`, validar conteúdo), base legal, consentimento, processo de exclusão de dados, contrato de processamento. Necessário para vender com segurança jurídica.
-- **Backup/restore documentado** do Aiven + plano de recuperação. Hoje há risco se algo corromper a base única.
+- **Backup/restore documentado** do PostgreSQL de produção + plano de recuperação. Hoje há risco se algo corromper a base única.
 - Rotação de segredos, rate-limiting de login, política de senha (parcialmente existe).
 
 ### 4.2 [P0] Go-live fiscal real
@@ -117,7 +117,6 @@ Priorizado por bloqueio comercial. **P0 = bloqueia venda/escala · P1 = importan
 - **Onboarding guiado** dentro do produto (tour já existe — `WelcomeTour`; expandir com checklist de primeiros passos).
 
 ### 4.5 [P1] Performance & infra de produção
-- Sair do Render free para um plano sem cold start (ou tier pago) — demo/uso real não pode travar.
 - Paginação/caching no dashboard (motor analítico ~9s) e nas listagens pesadas.
 - CDN/assets, índices de banco revisados, ressincronizar sequences é processo, não improviso.
 
@@ -189,7 +188,7 @@ Conteúdo (Instagram/TikTok/YouTube) → **landing com trial de 30 dias self-ser
 - [ ] Go-live fiscal com **1 loja piloto** (Focus produção + A1 + CSC + contador). **(P0, §4.2)**
 - [ ] **Cobrança recorrente** + régua de inadimplência ligada ao `plano_status`. **(P0, §4.3)**
 - [ ] Fechar **fail-open multi-tenant residual** + auditar SQL cru. **(P0, §4.1)**
-- [ ] Sair do **Render free** (sem cold start) + paginar/caching dashboard. **(P1, §4.5)**
+- [x] Infra sem cold start (Oracle). - [ ] Paginar/caching dashboard. **(P1, §4.5)**
 - [ ] **Sentry** + uptime + canal de suporte (WhatsApp). **(P1, §4.4)**
 
 ### Fase 2 — "Profissional e confiável" (6–10 semanas)

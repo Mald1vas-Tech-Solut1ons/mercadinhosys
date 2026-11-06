@@ -434,7 +434,7 @@ carteira de clientes). Implementar este sprint JUNTO ou DEPOIS delas.
      `app/decorators/plan_guards.py` (trial: 10/dia; pago: 40/dia; env override).
    - Documentar no template de termos de uso: dados agregados são processados
      por provedores de IA (Groq/Google) sem dados pessoais identificáveis.
-   - Checklist de deploy: `GROQ_API_KEY` (⚠️ ainda pendente no Render) e
+   - Checklist de deploy: `GROQ_API_KEY` no ambiente de produção (Oracle) e
      `GEMINI_API_KEY` nos ambientes; `CONSULTOR_LIMITE_DIA`.
 
 ### Critérios de aceite (Sprint 5)

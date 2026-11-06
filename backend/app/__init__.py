@@ -48,8 +48,10 @@ def create_app(config_name=None):
     if config_name is None:
         config_name = os.getenv("FLASK_ENV", "default")
 
-    load_dotenv()
-    
+    # Só o backend/.env (nunca subir pastas atrás de outro .env).
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+                override=False)
+
     # 1. MONITORAMENTO (SENTRY)
     # DSN ausente preserva o destino de produção; DSN explicitamente vazio
     # desativa envio, inclusive quando o ensaio usa configuração production.
@@ -70,7 +72,7 @@ def create_app(config_name=None):
             traces_sample_rate=_sample_rate("SENTRY_TRACES_SAMPLE_RATE", 0.1),
             profiles_sample_rate=_sample_rate("SENTRY_PROFILES_SAMPLE_RATE", 0.1),
             environment=os.getenv("SENTRY_ENVIRONMENT", config_name),
-            release=os.getenv("RENDER_GIT_COMMIT") or os.getenv("SENTRY_RELEASE"),
+            release=os.getenv("SENTRY_RELEASE"),
             send_default_pii=False,  # não enviar dados pessoais por padrão (LGPD)
         )
         logger.info("🛡️ Sentry inicializado (environment=%s).", os.getenv("SENTRY_ENVIRONMENT", config_name))
@@ -92,75 +94,36 @@ def create_app(config_name=None):
     from app.utils.json_provider import CustomJSONProvider
     app.json = CustomJSONProvider(app)
 
-    db_source = None
-    runtime_db_url = (
-        os.environ.get("DATABASE_URL_TARGET")
-        or os.environ.get("DB_PRIMARY")
-        or os.environ.get("DATABASE_URL")
-        or os.environ.get("POSTGRES_URL")
-        or os.environ.get("AIVEN_DATABASE_URL")
-    )
-    # DETECTAR MODO MULTI-TENANT (não afeta modo normal)
+    # Banco: o config.py resolve UMA fonte (DATABASE_URL). Aqui só entra o modo multi-tenant
+    # (autenticação no banco principal, usado por auth_multi_tenant.py).
     multi_tenant_mode = os.getenv('MULTI_TENANT_MODE', 'false').lower() == 'true'
     main_db_url = os.getenv('MAIN_DATABASE_URL')
-    
     if multi_tenant_mode and main_db_url:
-        # Modo Multi-Tenant - usar banco principal para autenticação
-        runtime_db_url = main_db_url
+        app.config["SQLALCHEMY_DATABASE_URI"] = main_db_url.replace("postgres://", "postgresql://", 1)
         app.config["MULTI_TENANT_MODE"] = True
         logger.info("🏢 MODO MULTI-TENANT ATIVADO")
-    else:
-        # Modo normal - Prioridade para banco LOCAL (Docker/Postgres) se disponível
-        runtime_db_url = (
-            os.environ.get("DATABASE_URL_TARGET")
-            or os.environ.get("DB_PRIMARY")
-            or os.environ.get("DATABASE_URL")
-            or os.environ.get("POSTGRES_URL")
-            or os.environ.get("AIVEN_DATABASE_URL")
-        )
-    
-    if runtime_db_url:
-        if runtime_db_url.startswith("postgres://"):
-            runtime_db_url = runtime_db_url.replace("postgres://", "postgresql://", 1)
-        app.config["SQLALCHEMY_DATABASE_URI"] = runtime_db_url
-        
-        # Connection Pooling para Neon/Aiven (Postgres Cloud)
-        # pool_recycle DEVE ser menor que o idle_timeout do Neon (~300s / 5min).
-        # 1800s (30min) causava SSL SYSCALL error: EOF detected — conexões mortas reutilizadas.
-        if "postgres" in runtime_db_url or runtime_db_url.startswith("postgresql"):
-            from urllib.parse import urlparse as _urlparse
-            _parsed_host = _urlparse(runtime_db_url).hostname or ""
-            _is_local_host = _parsed_host in ("localhost", "127.0.0.1", "::1", "postgres", "db", "mercadinhosys-db")
 
-            # pool_size + max_overflow enxutos: Neon free = 20 conexões; 2 workers gunicorn × 5 = 10
-            _pool_size     = int(os.environ.get("DB_POOL_SIZE", "3"))
-            _max_overflow  = int(os.environ.get("DB_MAX_OVERFLOW", "2"))
-
-            app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-                "pool_size": _pool_size,
-                "max_overflow": _max_overflow,
-                # 240s < 300s (timeout idle do Neon) — recicla ANTES do banco fechar
-                "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "240")),
-                "pool_timeout": 30,
-                # pool_pre_ping: testa SELECT 1 antes de cada uso — 2ª linha de defesa
-                "pool_pre_ping": True,
-                "connect_args": {
-                    "connect_timeout": 10,
-                    "application_name": "mercadinhosys_backend",
-                    "keepalives": 1,
-                    "keepalives_idle": 30,
-                    "keepalives_interval": 10,
-                    "keepalives_count": 5,
-                    # sslmode NÃO entra aqui — conflita com ?sslmode= na URL.
-                    # Neon/Aiven: sslmode=require já vem na DATABASE_URL.
-                }
-            }
-            logger.info(f"[DB] Postgres detectado. Host: {_parsed_host} | pool_recycle=240s | SSL: {'DESATIVADO (local)' if _is_local_host else 'via URL (cloud)'}")
-
-        for key in ["DATABASE_URL_TARGET", "DB_PRIMARY", "DATABASE_URL", "POSTGRES_URL", "AIVEN_DATABASE_URL"]:
-            if os.environ.get(key):
-                db_source = key
-                break
+    _db_url = app.config.get("SQLALCHEMY_DATABASE_URI") or ""
+    if _db_url.startswith("postgresql"):
+        from urllib.parse import urlparse as _urlparse
+        # Postgres na mesma máquina (rede interna do Docker no Oracle): pool enxuto para a VM de
+        # 1 GB, pre_ping contra conexão morta após restart do banco, keepalive TCP.
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", "3")),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "2")),
+            "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "1800")),
+            "pool_timeout": 30,
+            "pool_pre_ping": True,
+            "connect_args": {
+                "connect_timeout": 10,
+                "application_name": "mercadinhosys_backend",
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+            },
+        }
+        logger.info(f"[DB] PostgreSQL em {_urlparse(_db_url).hostname}")
 
     # Inicializa extensões
     db.init_app(app)
@@ -417,8 +380,7 @@ def create_app(config_name=None):
         except Exception:
             redacted_db_uri = db_uri
     logger.info(f"DB URI: {redacted_db_uri}")
-    logger.info(f"DB SOURCE: {db_source or 'config'}")
-    
+
     # Inicializa Flask-Login
     from app.models import login_manager
     login_manager.init_app(app)
@@ -457,7 +419,7 @@ def create_app(config_name=None):
             response.headers.setdefault(key, value)
         return response
 
-    # Configuração de CORS - Robusta para Vercel/Render e Local
+    # Configuração de CORS (produção: CORS_ORIGINS; desenvolvimento: dev server local)
     cors_origins = None
     if app.config.get("CORS_ORIGINS"):
         cors_origins = app.config["CORS_ORIGINS"]
@@ -480,7 +442,7 @@ def create_app(config_name=None):
         "supports_credentials": True,
         "max_age": 600
     }})
-    logger.info(f"🌐 CORS configurado (Regex habilitado para Vercel/Render)")
+    logger.info(f"🌐 CORS configurado para {len(cors_origins)} origem(ns)")
 
 
     
@@ -490,12 +452,9 @@ def create_app(config_name=None):
             os.makedirs(folder)
 
     # ==================== BOOTSTRAP: CRIAR TABELAS E COLUNAS CRÍTICAS ====================
-    # Otimização para Vercel/Render: Pular setup se SKIP_DB_SETUP=true ou se em produção após primeiro deploy
+    # SKIP_DB_SETUP=true pula o bootstrap (produção, testes e seeds já controlam o schema).
     skip_db_setup = os.environ.get("SKIP_DB_SETUP", "false").lower() == "true"
-
-    # Em produção, o setup pesado em cada requisição causa timeouts (Render/Vercel).
     is_production = config_name == "production"
-    is_cloud = os.environ.get("VERCEL") == "1" or os.environ.get("RENDER") == "1"
 
     # create_app() roda em TODO boot do processo (flask db upgrade, cada worker do
     # gunicorn, etc.) porque run.py chama create_app() no import do módulo. Rodar
@@ -504,7 +463,7 @@ def create_app(config_name=None):
     # essa migração roda depois, o CREATE TABLE dela colide (DuplicateTable), a
     # migração falha, e o alembic_version trava ali para sempre (mesmo as
     # migrações aditivas seguintes, inofensivas, nunca mais são aplicadas). Isso já
-    # causou schema drift real em produção (Aiven) mais de uma vez.
+    # causou schema drift real em produção mais de uma vez.
     #
     # Não dá para simplesmente remover o create_all(): a primeira migração da
     # cadeia (366b766bc135, down_revision=None) é aditiva sobre tabelas "core" que
@@ -528,12 +487,10 @@ def create_app(config_name=None):
     if not skip_db_setup and not alembic_ja_controla_schema:
         with app.app_context():
             try:
-                # Testar conexão se for Postgres
-                if app.config.get("USING_POSTGRES"):
-                    from sqlalchemy import text
-                    logger.info("VERIFICANDO: Conexao com a Nuvem (Postgres)...")
-                    db.session.execute(text("SELECT 1"))
-                
+                # Testa a conexão antes de criar tabelas (erro de banco aparece aqui, claro)
+                from sqlalchemy import text
+                db.session.execute(text("SELECT 1"))
+
                 logger.info("VERIFICANDO: Tabelas no banco de dados...")
                 # Garante que os modelos sejam carregados para o metadata do SQLAlchemy
                 from app.models import FuncionarioPreferencias
@@ -547,32 +504,10 @@ def create_app(config_name=None):
                 
                 logger.info("SUCESSO: Tabelas verificadas/criadas.")
             except Exception as e:
-                logger.error(f"ERRO: Falha ao conectar na Nuvem: {e}")
-                
-                # FALLBACK LOGIC - RESTRITO
-                # Em produção (Render/Vercel), NÃO fazer fallback automático para SQLite 
-                # pois isso cria um banco vazio e esconde o erro real de conexão.
-                hybrid_mode = os.environ.get("HYBRID_MODE", "online").lower()
-                force_local = os.environ.get("FORCE_LOCAL_FALLBACK", "false").lower() == "true"
-                
-                # Se for PROD e não for forçado, não faz fallback!
-                if is_production and not force_local:
-                    logger.critical("🚫 PRODUÇÃO: Conexão com banco falhou. Fallback para SQLite BLOQUEADO para evitar perda de dados aparente.")
-                    logger.critical("Verifique DATABASE_URL e firewall.")
-                    # Não relançamos o erro para não derrubar o container em loop, mas a app ficará instável/erro 500
-                elif hybrid_mode != "offline" and app.config.get("USING_POSTGRES"):
-                    logger.error("❌ ERRO CRÍTICO: Falha ao conectar ao Postgres. Fallback para SQLite DESATIVADO para manter integridade.")
-                    # Mantém o URI original para tentar reconexão nas próximas requests
-                    pass
-                    
-                    # Recriar engine/session (simplificado - idealmente reiniciaria a app, mas vamos tentar create_all local)
-                    try:
-                        db.create_all()
-                        logger.info("SUCESSO: Banco de dados LOCAL inicializado.")
-                    except Exception as le:
-                        logger.error(f"ERRO FATAL: Nem o banco local pode ser inicializado: {le}")
-                else:
-                    logger.error(f"ERRO: Criar tabelas no bootstrap: {e}")
+                # Nunca trocar de banco por conta própria: um banco vazio esconderia o erro real.
+                # O /api/health responde 503 e o deploy (release.py) faz rollback.
+                (logger.critical if is_production else logger.error)(
+                    f"Bootstrap do banco falhou ({type(e).__name__}): {e}. Verifique DATABASE_URL.")
 
     elif skip_db_setup:
         logger.info("INFO: db.create_all() pulado (SKIP_DB_SETUP=true). Schema sync ainda sera executado.")
@@ -922,14 +857,6 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar relatorios: {e}")
 
-    # Sync (replicação local -> Neon)
-    try:
-        from app.routes.sync import sync_bp
-        app.register_blueprint(sync_bp)
-        logger.info("✅ Blueprint sync registrado (/api/sync/replicar)")
-    except Exception as e:
-        logger.error(f"❌ Erro ao registrar sync: {e}")
-
     # Ponto (controle de ponto)
     try:
         from app.routes.ponto import ponto_bp
@@ -986,25 +913,13 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar monitor: {e}")
 
-    # Dashboard do Product Owner (Super Admin): churn, MRR, auditoria, sync
+    # Dashboard do Product Owner (Super Admin): churn, MRR, auditoria
     try:
         from app.routes.super_admin_dashboard import super_admin_dashboard_bp
         app.register_blueprint(super_admin_dashboard_bp, url_prefix="/api/super-admin")
         logger.info("✅ Blueprint Super Admin Dashboard registrado em /api/super-admin")
     except Exception as e:
         logger.error(f"❌ Erro ao registrar super_admin_dashboard: {e}")
-
-    # Sincronização Híbrida
-    try:
-        from app.routes.sync_hybrid import sync_hybrid_bp
-        app.register_blueprint(sync_hybrid_bp, url_prefix="/api/sync-hybrid")
-        logger.info("✅ Blueprint Sincronização Híbrida registrado em /api/sync-hybrid")
-        
-        from app.routes.sync_cloud import sync_cloud_bp
-        app.register_blueprint(sync_cloud_bp, url_prefix="/api/sync")
-        logger.info("✅ Blueprint Cloud Sync (Receiver) registrado em /api/sync")
-    except Exception as e:
-        logger.error(f"❌ Erro ao registrar sync_hybrid ou sync_cloud: {e}")
 
 
     # Billing (Efí Bank)
@@ -1100,8 +1015,7 @@ def create_app(config_name=None):
                 health["status"] = "degraded"
 
         # Rota pública (sem login): nada de CPU, memória ou disco aqui — isso ajuda
-        # a mapear a máquina. Release, healthcheck do Docker e sync_worker só leem
-        # status/database.
+        # a mapear a máquina. Release e healthcheck do Docker só leem status/database.
         return jsonify(health), 200 if database_ok else 503
 
     @app.route("/api/ready", methods=["GET"])
@@ -1164,7 +1078,7 @@ def create_app(config_name=None):
             }
         )
 
-    # Erro de conexão com o banco (ex.: Neon pooler - remover statement_timeout em config)
+    # Erro de conexão com o banco: o lojista vê o que fazer; o detalhe técnico fica no log.
     from sqlalchemy.exc import OperationalError
     @app.errorhandler(OperationalError)
     def handle_db_connection_error(exc):
@@ -1173,7 +1087,8 @@ def create_app(config_name=None):
             jsonify({
                 "success": False,
                 "error": "Banco de dados temporariamente indisponível",
-                "message": "Verifique a configuração da conexão (Neon pooler não suporta statement_timeout).",
+                "message": "O sistema não conseguiu falar com o banco agora. Aguarde alguns segundos e tente "
+                           "de novo; nada do que você estava fazendo foi gravado pela metade.",
             }),
             503,
         )
@@ -1285,7 +1200,7 @@ def create_app(config_name=None):
             abort(404)
 
     # Log de inicialização — nunca logar a URI crua: ela carrega a senha do banco
-    # em texto puro e este log roda em todo boot (fica em logs do Render/CI).
+    # em texto puro e este log roda em todo boot (fica nos logs do container e do CI).
     _db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', 'SQLite')
     _db_uri_masked = re.sub(r'://([^:/]+):([^@]+)@', r'://\1:****@', _db_uri)
     logger.info(
@@ -1299,33 +1214,19 @@ def create_app(config_name=None):
     """
     )
 
-    # Configurar Listeners de Sincronia (Abordagem de Guerrilha)
+    # Auditoria forense automática (insert/update/delete de todo modelo de negócio)
     with app.app_context():
         try:
             from app.listeners import setup_listeners
             setup_listeners()
-            
-            # Iniciar Worker de Sincronia de Guerrilha (Em processo separado)
-            if os.getenv("SYNC_ENABLED", "false").lower() == "true":
-                from app.services.sync_worker import start_sync_worker
-                start_sync_worker(app)
-
         except Exception as e:
-            app.logger.error(f"Erro ao configurar listeners ou worker: {e}")
-
-    # Agendador de push automático local -> Aiven (a cada 30 min)
-    try:
-        from app.services.cloud_push_scheduler import start_cloud_push_scheduler
-        start_cloud_push_scheduler(app)
-    except Exception as e:
-        app.logger.error(f"Erro ao iniciar Cloud Push Scheduler: {e}")
+            app.logger.error(f"Erro ao configurar listeners de auditoria: {e}")
 
     # ==================== CLI COMMANDS ====================
-    # Registra comandos de gestão: flask push-to-aiven, flask sync-status
     try:
         from app.commands import register_commands
         register_commands(app)
-        logger.info("✅ CLI commands registrados (flask push-to-aiven, flask sync-status)")
+        logger.info("✅ CLI commands registrados")
     except Exception as e:
         logger.error(f"❌ Erro ao registrar CLI commands: {e}")
 

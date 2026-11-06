@@ -489,7 +489,7 @@ venv/Scripts/python.exe -m pytest tests/ -q                            # suíte 
 
 > ⚠️ **Lint:** o baseline carrega ~170+ erros de lint PRÉ-EXISTENTES em arquivos não tocados. Depois de editar, filtre o output do lint **só pelos arquivos que você tocou** — contagem global de lint não significa nada.
 
-> ⚠️ **Banco de produção é o PostgreSQL da ORACLE** (docker `oracle-postgres-1`). Aiven é fallback desativado. **Nunca aponte o backend de produção para o SQLite local.**
+> ⚠️ **Banco de produção é o PostgreSQL da ORACLE** (docker `oracle-postgres-1`). **Nunca aponte o backend de produção para o SQLite local.**
 
 ---
 

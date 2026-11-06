@@ -31,7 +31,7 @@ from decimal import Decimal
 # NOTA: pandas é importado localmente apenas nas funções de exportação que o
 # usam (exportar_clientes_em_risco / exportar_backup_local). Import no nível do
 # módulo carregava pandas+numpy (~120MB) no boot de CADA worker gunicorn e
-# contribuía para o estouro de memória no Render Starter (512MB).
+# contribuía para o estouro de memória da VM de produção (1 GB).
 import io
 import json
 import zipfile

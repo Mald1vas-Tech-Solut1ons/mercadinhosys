@@ -35,7 +35,6 @@ O repositório disponibiliza nativamente um framework de análise e consistênci
 
 *   **`inspect_db.py`:** Profile e auditoria das integridades transacionais e blocos ACID.
 *   **`compare_schemas.py`:** Validação de *Delta/Schema* comparando o ORM (SQLAlchemy Declarative Base) contra a infraestrutura viva na nuvem (PostgreSQL).
-*   **`force_sync_to_aiven.py`:** Utilitário CRON-like para forçar pipelines `Eventual Consistency` (Hybrid Sync/Local-First Engine), integrando as instâncias nativas com o ecossistema Nuvem AWS/Aiven.
 
 ## 🔗 Portais Ocupados (Network Map)
 

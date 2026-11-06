@@ -79,11 +79,8 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:?Configure CORS_ORIGINS}
       DB_POOL_SIZE: "2"
       DB_MAX_OVERFLOW: "1"
-      SYNC_ENABLED: "false"
-      SYNC_AUTO_PUSH: "false"
       RATELIMIT_STORAGE_URI: redis://redis:6379/1
       REDIS_URL: redis://redis:6379/0
-      HYBRID_MODE: online
     volumes:
       - uploads:/app/uploads
       - instance:/app/instance

@@ -195,7 +195,7 @@ Cobertura de testes nos pontos críticos: isolamento multi-tenant, emissão fisc
 
 ## ☁️ Deploy
 
-Trabalha-se em `main`; a branch **`master`** recebe o *fast-forward* de `main` e o `git push origin master` dispara o deploy (**Render** para o backend, **Vercel** para o frontend, **PostgreSQL** gerenciado).
+Trabalha-se em `main`; a branch **`master`** recebe o *fast-forward* de `main` e o backend é publicado na **VM Oracle** pelo `infra/oracle/release.py` (stage → deploy com backup e rollback) e o frontend pela CLI da **Vercel**.
 
 > Variáveis sensíveis (`SECRET_KEY`, `JWT_SECRET_KEY`, `COSMOS_TOKEN`, credenciais fiscais) ficam nas *env vars* do servidor — nunca no git.
 

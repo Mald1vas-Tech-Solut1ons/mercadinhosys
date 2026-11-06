@@ -2,7 +2,7 @@
 
 > Plano de execução para tornar o sistema **impecável, robusto e profissional**, alinhado ao [Plano Comercial](AUDITORIA-E-PLANO-COMERCIAL.md).
 >
-> Filosofia: **quase tudo que deixa o sistema robusto é GRÁTIS** (código, GitHub Actions, Sentry free, backups do Aiven). Dinheiro só destrava **infra sem cold start**, **pagamento recorrente** e **fiscal real**. Então dá para deixar o produto "impecável por dentro" **agora, com R$0**, e a virada para infra paga vira só o **último botão**.
+> Filosofia: **quase tudo que deixa o sistema robusto é GRÁTIS** (código, GitHub Actions, Sentry free, backups do PostgreSQL). Dinheiro só destrava **infra sem cold start**, **pagamento recorrente** e **fiscal real**. Então dá para deixar o produto "impecável por dentro" **agora, com R$0**, e a virada para infra paga vira só o **último botão**.
 >
 > Data: 2026-06-30.
 
@@ -48,13 +48,11 @@ O sistema é considerado **production-grade** quando TODOS estes itens estiverem
 | Hardening de segurança/isolamento | **R$0** (código) | Confiança para vender |
 | CI (GitHub Actions) | **R$0** (free tier generoso) | Qualidade de release |
 | Sentry / GlitchTip (erros) | **R$0** (free tier) | Suporte e confiabilidade |
-| Backups Aiven | **R$0** (incluso no plano atual) | Sobrevivência a desastre |
+| Backups do PostgreSQL (Oracle, validados pelo `release.py` antes de cada deploy) | **R$0** | Sobrevivência a desastre |
 | Otimização de performance (cache/índices/paginação) | **R$0** (código) | Velocidade percebida |
 | LGPD (docs + endpoint de exclusão) | **R$0** (texto + código) | Segurança jurídica |
 | Reativar sync offline | **R$0** (código) | Resiliência de conexão |
-| **Render Starter (sem cold start)** | **US$7/mês** | Acaba o "sistema travado" |
-| **Render Standard (2GB, fôlego p/ analytics)** | **US$25/mês** | Dashboard rápido sob carga |
-| DB Postgres pago (quando Aiven free apertar) | variável | Escala de dados |
+| Infra sem cold start | **R$0** — feito: produção na VM Oracle (backend + PostgreSQL + Redis + Caddy) | Acaba o "sistema travado" |
 | Gateway fiscal (Focus NFe) | por nota + A1 ~R$120-250/ano (do lojista) | Nota fiscal real |
 | Pagamento recorrente (Efí) | % por transação | Monetização automática |
 
@@ -89,21 +87,21 @@ Tudo aqui é código/configuração grátis. É o que deixa o sistema **profissi
 - **DoD:** um erro forçado aparece no painel com stack + tenant + usuário (sem PII sensível).
 
 #### 0.4 [P0] Backups & restore testado
-- **O quê:** confirmar/configurar backup automático do Aiven e **testar um restore** em base descartável.
+- **O quê:** confirmar/configurar backup automático do PostgreSQL no Oracle e **testar um restore** em base descartável.
 - **Como:** documentar retenção; script de restore; registrar data do último teste.
 - **DoD:** "consigo restaurar o banco em X minutos" comprovado e datado no runbook.
 
 #### 0.5 [P1] Performance sem trocar de infra
-- **O quê:** atacar o dashboard ~9s e listagens pesadas **com código** (não depende de Render Pro).
+- **O quê:** atacar o dashboard ~9s e listagens pesadas **com código** (não depende de infra paga).
 - **Como:**
   - Cache do resultado do motor analítico por tenant + janela (TTL curto; invalidar em venda).
   - Paginação real nas listagens grandes; `selectinload` onde houver N+1 (produtos já feito).
   - Revisar índices (FKs, `estabelecimento_id`, `data_venda`, `status`).
-- **DoD:** dashboard p95 < 3s **mesmo no Render free**; listagens < 1,5s.
+- **DoD:** dashboard p95 < 3s **na VM de 1 GB do Oracle**; listagens < 1,5s.
 
 #### 0.6 [P1] Migrações como fonte única
 - **O quê:** acabar com ALTER manual; schema = Alembic.
-- **Como:** gerar migração que reconcilie o que foi feito à mão no Aiven; `flask db upgrade` no deploy; proibir alteração manual no runbook.
+- **Como:** gerar migração que reconcilie o que foi feito à mão no banco; `flask db upgrade` no deploy; proibir alteração manual no runbook.
 - **DoD:** `flask db upgrade` em base limpa reproduz produção 100%.
 
 #### 0.7 [P1] E2E de UI (fluxo crítico)
@@ -128,12 +126,9 @@ Tudo aqui é código/configuração grátis. É o que deixa o sistema **profissi
 
 Quando houver caixa. **Pouco código, muito impacto de percepção.**
 
-#### 1.1 Render Starter (US$7) — mata o cold start
-- **DoD:** primeira requisição após ociosidade responde igual às demais; health sempre 200.
-
-#### 1.2 Render Standard (US$25) — fôlego para o analytics
-- **Quando:** quando várias lojas usarem dashboard ao mesmo tempo e o Starter apertar (memória/CPU).
-- **DoD:** dashboard p95 < 2s sob 5–10 lojas simultâneas.
+#### 1.1 Infra sem cold start — FEITO (out/2026)
+- Produção migrou para a VM Oracle (Docker: backend, PostgreSQL, Redis, Caddy). Health sempre 200; sem
+  hibernação. Próximo gatilho de upgrade: memória da VM (1 GB) sob várias lojas no dashboard.
 
 #### 1.3 Pós-upgrade: validar o pacote inteiro
 - Rodar o checklist da §0 em produção paga; medir p95; confirmar Sentry/uptime/backup ativos.
@@ -165,9 +160,9 @@ Quando houver caixa. **Pouco código, muito impacto de percepção.**
 ## 4. Runbook de produção (a escrever na Onda 0)
 
 Documento operacional curto cobrindo:
-1. **Deploy:** push em `master` → Render; `flask db upgrade`; verificação pós-deploy.
+1. **Deploy:** `infra/oracle/release.py` (stage com ensaio em clone do banco → deploy com backup e rollback automático); frontend pela CLI da Vercel.
 2. **Backup/restore:** onde, retenção, como restaurar, último teste.
-3. **Incidente:** onde olhar (Sentry/logs/uptime), como reverter deploy, como contatar suporte do Aiven/Render.
+3. **Incidente:** onde olhar (Sentry/logs/uptime), como reverter deploy, como entrar na VM Oracle.
 4. **Fiscal:** como ativar uma loja (A1/CSC), como reprocessar nota travada.
 5. **Acessos/segredos:** inventário e rotação.
 
@@ -180,16 +175,14 @@ Documento operacional curto cobrindo:
 | Semanas 1–2 | Onda 0.1–0.4 (isolamento, CI, Sentry, backup) | R$0 |
 | Semanas 3–4 | Onda 0.5–0.7 (performance, migrações, E2E) | R$0 |
 | Semanas 5–6 | Onda 0.8–0.10 (LGPD, sync, UX) + runbook | R$0 |
-| Quando der | Onda 1.1 (Render Starter US$7) | US$7/mês |
-| Sob carga | Onda 1.2 (Render Standard US$25) | US$25/mês |
+| Feito (out/2026) | Onda 1 — produção no Oracle, sem cold start | R$0 |
 | Com piloto | Onda 2 (cobrança + fiscal real) | variável |
 
-**Resultado:** ao terminar a Onda 0 (tudo grátis), o sistema já está **profissional e robusto por dentro** — falta só apertar o botão da infra paga (US$7) para a experiência ficar **impecável de fora também**. Quando os US$25 chegarem, o motor pesado roda liso sob várias lojas.
+**Resultado:** ao terminar a Onda 0 (tudo grátis), o sistema já está **profissional e robusto por dentro** — a infra sem cold start já está no ar (Oracle).
 
 ---
 
 ## 6. O que depende de você (não-código)
-1. Definir quando entra o **Render Starter (US$7)** — recomendo priorizar sobre o US$25.
 2. Criar conta no **gateway fiscal** + conseguir **loja piloto**.
 3. Escolher **provedor de pagamento recorrente** e definir **preços dos planos**.
 4. Validação **contábil** (CSOSN/NCM/CFOP).

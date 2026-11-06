@@ -65,7 +65,7 @@ function listaDeErros(errors: unknown): string[] {
 function doCorpo(data: unknown, status: number): string | null {
     if (data == null) return null;
     if (isStr(data)) {
-        // Proxy/servidor fora (Render acordando) devolve HTML genérico em 5xx: não serve.
+        // Proxy/servidor fora (Caddy sem backend, deploy em andamento) devolve HTML genérico em 5xx: não serve.
         if (status >= 500) return null;
         const texto = pareceHtml(data) ? textoDeHtml(data) : data.trim();
         return texto && texto.length <= 300 ? texto : null;

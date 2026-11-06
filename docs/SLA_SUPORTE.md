@@ -23,7 +23,7 @@ A operação do MercadinhoSys compromete-se com os seguintes prazos para cancela
 Quando um chamado de cancelamento chegar, a equipe deve seguir estes 3 passos obrigatórios:
 1. **Validar Identidade:** Confirmar se o e-mail que pediu é o `email_admin` cadastrado no banco de dados para a loja.
 2. **Pausar Cobrança:** Acessar o portal da **Efí Pay** e cancelar/inativar a assinatura ou cobrança recorrente vinculada ao cliente.
-3. **Mudar Status no Banco:** Acessar o sistema, ou rodar o script no Aiven, e alterar o `plano_status` da tabela `estabelecimentos` para `cancelado`.
+3. **Mudar Status no Banco:** Acessar o sistema (Super Admin) ou o PostgreSQL de produção no Oracle, e alterar o `plano_status` da tabela `estabelecimentos` para `cancelado`.
    - *Comando SQL Referência:* `UPDATE estabelecimentos SET plano_status = 'cancelado' WHERE id = X;`
    - O bloqueio de acesso ao sistema (403) ocorrerá instantaneamente.
 

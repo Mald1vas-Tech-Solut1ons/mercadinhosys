@@ -10,6 +10,6 @@ FALLBACK_SENTRY_DSN = (
 def resolve_sentry_dsn(config_name):
     if "SENTRY_DSN" in os.environ:
         return os.environ["SENTRY_DSN"].strip() or None
-    if config_name == "production" or os.getenv("RENDER"):
+    if config_name == "production":
         return FALLBACK_SENTRY_DSN
     return None

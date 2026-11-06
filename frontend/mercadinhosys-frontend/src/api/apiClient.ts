@@ -28,15 +28,6 @@ const apiClient = axios.create({
     },
 });
 
-// Keep-alive: pinga o backend a cada 9 minutos para evitar cold start do Render
-// (o Render free tier dorme após 15 minutos sem requisições)
-if (typeof window !== 'undefined') {
-    const keepAlive = () => {
-        axios.get(`${API_CONFIG.BASE_URL}/health`, { timeout: 5000 }).catch(() => {/* silencioso */});
-    };
-    setInterval(keepAlive, 9 * 60 * 1000); // 9 minutos
-}
-
 const shouldRetryRequest = (error: any): boolean => {
     const cfg = error?.config;
     if (!cfg) return false;

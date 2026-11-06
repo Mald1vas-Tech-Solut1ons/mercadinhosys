@@ -209,7 +209,7 @@ export const testConnection = async () => {
     if ('error' in results.health) {
         console.error('❌ Backend não está acessível!');
         console.log('Possíveis causas:');
-        console.log('  1. Backend offline no Render');
+        console.log('  1. Backend fora do ar (servidor Oracle / container backend)');
         console.log('  2. URL incorreta:', API_CONFIG.BASE_URL);
         console.log('  3. Problema de CORS');
     } else if (results.auth.status === 'failed') {

@@ -15,7 +15,7 @@ from flask import g, has_app_context, has_request_context, current_app
 from flask_login import LoginManager, UserMixin
 from flask_sqlalchemy import SQLAlchemy
 from flask_sqlalchemy.query import Query as _BaseQuery
-from sqlalchemy import MetaData, case, event, func, or_
+from sqlalchemy import MetaData, case, func, or_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, validates
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -225,9 +225,6 @@ def validar_cnpj(cnpj: str) -> bool:
     d2 = calc_digit(cnpj[:12] + str(d1), pesos2)
     return d1 == int(cnpj[12]) and d2 == int(cnpj[13])
 
-def is_offline_mode() -> bool:
-    return os.environ.get("MERCADINHO_OFFLINE", "false").lower() == "true"
-
 # ------------------------------------------------------------------------------
 # Mixins (Clean Code)
 # ------------------------------------------------------------------------------
@@ -396,76 +393,6 @@ class Estabelecimento(db.Model, EnderecoMixin, SerializableMixin, AuditMixin):
         if self.vencimento_assinatura:
             data["vencimento_assinatura"] = iso_utc(self.vencimento_assinatura)
         return data
-
-# ------------------------------------------------------------------------------
-# Sincronização Unificada (Offline‑first)
-# ------------------------------------------------------------------------------
-class SyncQueue(db.Model, MultiTenantMixin):
-    __tablename__ = "sync_queue"
-    id = db.Column(db.Integer, primary_key=True)
-    estabelecimento_id = TenantID()
-    tabela = db.Column(db.String(50), nullable=False)
-    registro_id = db.Column(db.Integer, nullable=False)
-    operacao = db.Column(db.String(50), nullable=False)  # insert, update, delete, replicar_para_neon, etc.
-    payload_json = db.Column(db.Text)
-    status = db.Column(db.String(20), default="pendente")
-    tentativas = db.Column(db.Integer, default=0)
-    mensagem_erro = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=utcnow)
-    synced_at = db.Column(db.DateTime)
-    __table_args__ = (db.Index("ix_sync_queue_status", "status"), db.Index("ix_sync_queue_created", "created_at"))
-
-    def to_dict(self):
-        return {"id": self.id, "tabela": self.tabela, "registro_id": self.registro_id, "operacao": self.operacao,
-                "status": self.status, "created_at": iso_utc(self.created_at) if self.created_at else None,
-                "synced_at": iso_utc(self.synced_at) if self.synced_at else None}
-
-    def to_sync_payload(self):
-        payload = {}
-        if self.payload_json:
-            try:
-                payload = json.loads(self.payload_json)
-            except Exception:
-                payload = {}
-
-        return {
-            "tabela": self.tabela,
-            "registro_id": self.registro_id,
-            "operacao": (self.operacao or "").upper(),
-            "estabelecimento_id": self.estabelecimento_id,
-            "payload": payload,
-            "timestamp": iso_utc(self.created_at) if self.created_at else None,
-        }
-
-    @classmethod
-    def registrar_mutacao(cls, estabelecimento_id, tabela, registro_id, operacao, payload):
-        if not estabelecimento_id: return False
-        try:
-            nova = cls(estabelecimento_id=estabelecimento_id, tabela=tabela, registro_id=registro_id,
-                       operacao=operacao, payload_json=json.dumps(payload, default=str))
-            db.session.add(nova)
-            return True
-        except: return False
-
-def _should_sync(instance) -> bool:
-    if not is_offline_mode(): return False
-    if isinstance(instance, SyncQueue): return False
-    return True
-
-@event.listens_for(db.session, "after_flush")
-def after_flush_listener(session, flush_context):
-    if not is_offline_mode(): return
-    for obj in session.new:
-        if _should_sync(obj) and hasattr(obj, "estabelecimento_id"):
-            SyncQueue.registrar_mutacao(obj.estabelecimento_id, obj.__tablename__, obj.id, "insert",
-                                        obj.to_dict() if hasattr(obj, "to_dict") else {})
-    for obj in session.dirty:
-        if _should_sync(obj) and hasattr(obj, "estabelecimento_id"):
-            SyncQueue.registrar_mutacao(obj.estabelecimento_id, obj.__tablename__, obj.id, "update",
-                                        obj.to_dict() if hasattr(obj, "to_dict") else {})
-    for obj in session.deleted:
-        if _should_sync(obj) and hasattr(obj, "estabelecimento_id"):
-            SyncQueue.registrar_mutacao(obj.estabelecimento_id, obj.__tablename__, obj.id, "delete", {"id": obj.id})
 
 # ==============================================================================
 # MODELOS DE DADOS (Parte 2/4)
@@ -2299,25 +2226,6 @@ class DocumentoFiscal(db.Model, MultiTenantMixin, SerializableMixin):
             "autorizado_em": iso_utc(self.autorizado_em) if self.autorizado_em else None,
         }
 
-class SyncHeartbeat(db.Model):
-    """Batimento do sync local→Aiven (linha única id=1). Permite detectar sync parado."""
-    __tablename__ = "sync_heartbeat"
-    id = db.Column(db.Integer, primary_key=True)  # sempre 1
-    last_run_at = db.Column(db.DateTime)
-    status = db.Column(db.String(20))  # ok | erro
-    total_registros = db.Column(db.Integer, default=0)
-    duracao_segundos = db.Column(db.Numeric(10, 2))
-    erro = db.Column(db.Text)
-    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
-
-    def to_dict(self):
-        return {
-            "last_run_at": iso_utc(self.last_run_at.replace(tzinfo=timezone.utc)) if self.last_run_at else None,
-            "status": self.status, "total_registros": self.total_registros,
-            "duracao_segundos": float(self.duracao_segundos) if self.duracao_segundos is not None else None,
-            "erro": self.erro,
-        }
-
 class LoginHistory(db.Model):
     __tablename__ = "login_history"
     id = db.Column(db.Integer, primary_key=True)
@@ -2953,37 +2861,6 @@ def load_user(user_id):
     try: return Funcionario.query.get(int(user_id))
     except: return None
 
-def get_model_by_table(table_name: str):
-    mapping = {
-        "estabelecimentos": Estabelecimento,
-        "funcionarios": Funcionario,
-        "categorias_produto": CategoriaProduto,
-        "fornecedores": Fornecedor,
-        "produtos": Produto,
-        "produto_lotes": ProdutoLote,
-        "estoque_lotes": ProdutoLote,
-        "movimentacoes_estoque": MovimentacaoEstoque,
-        "movimentacao_estoque": MovimentacaoEstoque,
-        "vendas": Venda,
-        "venda_itens": VendaItem,
-        "pagamentos": Pagamento,
-        "movimentacoes_caixa": MovimentacaoCaixa,
-        "transacoes_caixa": MovimentacaoCaixa,
-        "contas_pagar": ContaPagar,
-        "contas_receber": ContaReceber,
-        "clientes": Cliente,
-        "caixas": Caixa,
-        "historico_precos": HistoricoPrecos,
-        "configuracoes": Configuracao,
-        "despesas": Despesa,
-        "motoristas": Motorista,
-        "veiculos": Veiculo,
-        "taxas_entrega": TaxaEntrega,
-        "entregas": Entrega,
-    }
-    return mapping.get(table_name)
-SyncLog = SyncQueue
-AuditoriaSincronia = SyncQueue
 
 # ==========================================
 # Módulo 8: App do Entregador e Logística

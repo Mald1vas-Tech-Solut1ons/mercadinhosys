@@ -13,18 +13,11 @@ os.makedirs(TMP_DIR, exist_ok=True)
 SIM_DB_PATH = os.path.join(TMP_DIR, 'simulation_master.db')
 DATABASE_URI = f"sqlite:///{SIM_DB_PATH}"
 
-# 2. BLINDAGEM DE AMBIENTE (Expert Lockdown)
-# Forçar TODAS as chaves possíveis para o SQLite local, evitando vazamento do .env (Aiven/Postgres)
-db_keys = [
-    "AIVEN_DATABASE_URL", "POSTGRES_URL", "DATABASE_URL_TARGET", 
-    "DB_PRIMARY", "DATABASE_URL", "MAIN_DATABASE_URL", "POSTGRES_URL_NON_POOLING"
-]
-for key in db_keys:
-    os.environ[key] = DATABASE_URI
-
+# 2. BLINDAGEM DE AMBIENTE: o banco da simulação é SEMPRE este SQLite (DATABASE_URL é a única fonte).
+os.environ["DATABASE_URL"] = DATABASE_URI
+os.environ["MAIN_DATABASE_URL"] = ""
+os.environ["MULTI_TENANT_MODE"] = "false"
 os.environ["FLASK_ENV"] = "simulation"
-os.environ["HYBRID_MODE"] = "offline"
-os.environ["CLOUD_ENABLED"] = "false"
 os.environ["SKIP_DB_SETUP"] = "false"
 
 # Adicionar o diretório raiz ao path

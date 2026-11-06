@@ -30,7 +30,7 @@ if not exists:
     run(['exec', 'oracle-postgres-1', 'createdb', '-U', 'mercadinho_user', DB])
 audit_env = {'AUDIT_DATABASE_URL': f'postgresql://mercadinho_user:{quote(password, safe="")}@postgres:5432/{DB}',
              'AUDIT_REDIS_URL': 'redis://redis:6379/3', 'DATABASE_URL': f'postgresql://mercadinho_user:{quote(password, safe="")}@postgres:5432/{DB}',
-             'SKIP_SCHEMA_SYNC': 'true', 'SKIP_DB_SETUP': 'true', 'SENTRY_DSN': '', 'SYNC_ENABLED': 'false',
+             'SKIP_SCHEMA_SYNC': 'true', 'SKIP_DB_SETUP': 'true', 'SENTRY_DSN': '',
              'DB_POOL_SIZE': '2', 'DB_MAX_OVERFLOW': '1', 'PYTHONPATH': '/app', 'OPENBLAS_NUM_THREADS': '1'}
 for key in ('AUDIT_DATABASE_URL', 'DATABASE_URL'):
     audit_env[key] += '?sslmode=disable'

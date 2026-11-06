@@ -12,7 +12,7 @@ const secoesManuais = [
         desc: 'Operação de caixa, leitura de códigos de barras, múltiplos pagamentos e abertura/fechamento.'
     },
     {
-        Icon: WifiOff, titulo: 'Modo Offline (SyncQueue)',
+        Icon: WifiOff, titulo: 'Modo Offline do Caixa',
         desc: 'O que acontece quando a internet cai e como o sistema sincroniza os dados automaticamente.'
     },
     {
@@ -59,7 +59,7 @@ const metricasGerenciais = [
 const baseDeConhecimento = [
     {
         q: 'Como o PDV funciona sem internet (Modo Offline)?',
-        a: 'O MercadinhoSys possui um banco de dados embutido no seu navegador. Se a internet cair, o caixa continua operando normalmente: lendo produtos, gerando cupons e finalizando vendas. Assim que a conexão for restabelecida, uma fila oculta (SyncQueue) enviará todas as transações pendentes para o servidor de forma segura e sem duplicidade.',
+        a: 'O MercadinhoSys possui um banco de dados embutido no seu navegador. Se a internet cair, o caixa continua operando normalmente: lendo produtos, gerando cupons e finalizando vendas. Assim que a conexão for restabelecida, o sistema enviará sozinho todas as transações pendentes para o servidor de forma segura e sem duplicidade.',
     },
     {
         q: 'Meu produto não tem código de barras. Como imprimir a etiqueta?',

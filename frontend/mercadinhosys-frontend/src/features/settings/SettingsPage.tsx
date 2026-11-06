@@ -4,7 +4,7 @@ import {
     Shield, Upload, MapPin,
     Save, CheckCircle, Building2, Clock,
     ShoppingCart, Package, X, XCircle, Edit2, RefreshCw,
-    Database, Keyboard, DollarSign, User
+    Keyboard, DollarSign, User
 } from 'lucide-react';
 import settingsService, { Configuracao, Estabelecimento, PontoConfig } from './settingsService';
 import ShortcutsHelp from '../../shortcuts/ShortcutsHelp';
@@ -1279,12 +1279,9 @@ const SettingsPage: React.FC = () => {
                                 />
                             </div>
 
-                            <SectionTitle title="Banco & Replicação" icon={Database} />
-                            <SyncPanel />
                         </div>
                     )}
 
-                    {/* ABA SINCRONIZAÇÃO */}
                     {/* ABA ASSINATURA */}
                     {activeTab === 'assinatura' && (
                         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 space-y-6 animate-fadeIn">
@@ -1310,110 +1307,3 @@ const SettingsPage: React.FC = () => {
 };
 
 export default SettingsPage;
-
-const SyncPanel: React.FC = () => {
-    const [loading, setLoading] = useState(false);
-    const [replicating, setReplicating] = useState(false);
-    const [neonStatus, setNeonStatus] = useState<string>('desconhecido');
-    const [localCounts, setLocalCounts] = useState<Record<string, number | null> | null>(null);
-    const [remoteCounts, setRemoteCounts] = useState<Record<string, number | null> | null>(null);
-    const models = [
-        'estabelecimentos',
-        'funcionarios',
-        'clientes',
-        'fornecedores',
-        'categoria_produto',
-        'produtos',
-        'vendas',
-        'venda_itens',
-        'pagamentos',
-        'movimentacoes_estoque',
-        'despesas',
-    ];
-    const fetchHealth = async () => {
-        try {
-            setLoading(true);
-            const resp = await apiClient.get('/sync/health');
-            setNeonStatus(resp.data?.neon ?? 'desconhecido');
-            setLocalCounts(resp.data?.local_counts ?? null);
-            setRemoteCounts(resp.data?.remote_counts ?? null);
-        } catch (e: unknown) {
-            setNeonStatus('erro');
-        } finally {
-            setLoading(false);
-        }
-    };
-    const replicar = async () => {
-        try {
-            setReplicating(true);
-            await apiClient.post('/sync/replicar');
-            await fetchHealth();
-            showToast.success('Replicação concluída');
-        } catch (e: unknown) {
-            const error = e as { response?: { data?: { message?: string } } };
-            showToast.error(error.response?.data?.message || 'Erro ao replicar');
-        } finally {
-            setReplicating(false);
-        }
-    };
-    useEffect(() => {
-        fetchHealth();
-    }, []);
-    return (
-        <div className="space-y-4 p-4 border rounded-lg border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Database className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Status do Neon</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={fetchHealth}
-                        disabled={loading}
-                        className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded"
-                    >
-                        {loading ? 'Verificando...' : 'Verificar Status'}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={replicar}
-                        disabled={replicating || (neonStatus !== 'online' && !String(neonStatus).startsWith('offline'))}
-                        className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
-                    >
-                        {replicating ? 'Replicando...' : 'Replicar agora'}
-                    </button>
-                </div>
-            </div>
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-                <div className="mb-2">
-                    Status: <span className="font-semibold">{neonStatus}</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <div className="font-semibold mb-1">Local</div>
-                        <div className="space-y-1">
-                            {models.map((m) => (
-                                <div key={m} className="flex justify-between">
-                                    <span className="text-xs">{m}</span>
-                                    <span className="text-xs">{localCounts?.[m] ?? '-'}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="font-semibold mb-1">Neon</div>
-                        <div className="space-y-1">
-                            {models.map((m) => (
-                                <div key={m} className="flex justify-between">
-                                    <span className="text-xs">{m}</span>
-                                    <span className="text-xs">{remoteCounts?.[m] ?? '-'}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}

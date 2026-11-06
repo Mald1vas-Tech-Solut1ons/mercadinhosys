@@ -1,9 +1,12 @@
 import os
-from app import create_app
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Carrega variáveis de ambiente
-load_dotenv()
+# Só o backend/.env. load_dotenv() sem caminho sobe as pastas e, num worktree, achava o .env da
+# raiz do projeto (já levou o servidor local a abrir conexão com um banco de nuvem antigo).
+load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=False)
+
+from app import create_app  # noqa: E402  (depois do .env: config.py lê o ambiente no import)
 
 # Cria a aplicação
 app = create_app(os.getenv("FLASK_ENV", "default"))

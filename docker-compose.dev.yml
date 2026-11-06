@@ -36,13 +36,8 @@ services:
       FLASK_ENV: development
       FLASK_DEBUG: 1
       WERKZEUG_DEBUG_PIN: "off"
-      # Usar Postgres do container 'postgres' (porta 5432 interna)
-      DATABASE_URL_TARGET: "postgresql://mercadinho_user:mercadinho_secure_pass_2024@postgres:5432/mercadinhosys"
+      # Postgres do container 'postgres' (porta 5432 interna); DATABASE_URL é a única fonte do banco
       DATABASE_URL: "postgresql://mercadinho_user:mercadinho_secure_pass_2024@postgres:5432/mercadinhosys"
-      # Zerar variáveis cloud para evitar vazamento do .env para o Docker
-      AIVEN_DATABASE_URL: ""
-      DB_PRIMARY: ""
-      POSTGRES_URL: ""
       SECRET_KEY: dev-secret-key
       JWT_SECRET_KEY: dev-jwt-secret
       CORS_ORIGINS: http://localhost:5173

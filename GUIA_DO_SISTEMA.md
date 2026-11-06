@@ -10,7 +10,7 @@
 
 ERP + PDV multi-tenant (SaaS) para mercados/lojas de varejo e atacado.
 Backend Flask + SQLAlchemy (Postgres em produção, SQLite em dev). Frontend
-React 18 + TypeScript + Vite, PWA instalável. Deploy via `master` (Render/Vercel).
+React 18 + TypeScript + Vite, PWA instalável. Backend publicado na VM Oracle (`infra/oracle/release.py`); frontend na Vercel.
 
 **Papéis (importante):**
 - **Super admin = dono do SaaS (Rafael)** — `is_super_admin`, nível 0, vê todas as lojas. Não opera caixa.

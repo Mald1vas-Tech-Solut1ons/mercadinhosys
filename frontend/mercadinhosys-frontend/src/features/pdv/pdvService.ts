@@ -278,7 +278,7 @@ export const pdvService = {
 
     /**
      * Finaliza venda de forma ATÔMICA.
-     * - Online: POST /pdv/finalizar → backend → Aiven
+     * - Online: POST /pdv/finalizar → backend → PostgreSQL
      * - Offline: enfileira em IndexedDB → sincroniza quando voltar o sinal
      *
      * Retorna { venda, offline: true } quando enfileirado offline.

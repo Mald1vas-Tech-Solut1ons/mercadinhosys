@@ -111,7 +111,6 @@ def stage():
                     'SKIP_DB_SETUP': 'true', 'SKIP_SCHEMA_SYNC': 'true', 'SECRET_KEY': secrets.token_hex(32),
                     'JWT_SECRET_KEY': secrets.token_hex(32), 'SENTRY_DSN': '', 'SENTRY_ENVIRONMENT': 'db-split-stage',
                     'DB_POOL_SIZE': '2', 'DB_MAX_OVERFLOW': '1', 'REDIS_URL': '',
-                    'SYNC_ENABLED': 'false', 'SYNC_AUTO_PUSH': 'false',
                     'OPENBLAS_NUM_THREADS': '1', 'OMP_NUM_THREADS': '1',
                     'CORS_ORIGINS': 'https://mercadinhosys.vercel.app'}
         stage_env.write_text(''.join(k + '=' + v + '\n' for k, v in settings.items()))

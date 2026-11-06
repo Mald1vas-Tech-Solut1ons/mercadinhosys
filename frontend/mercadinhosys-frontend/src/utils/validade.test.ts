@@ -86,17 +86,20 @@ describe('parseDataValidade — FASE 1.6 (parser único)', () => {
         });
 
         it('numérico para válido (positivo ou negativo)', () => {
-            const amanha = new Date();
-            amanha.setDate(amanha.getDate() + 1);
-            const iso = amanha.toISOString().slice(0, 10);
-            const v = diasParaVencer(iso);
+            // Data LOCAL (o que o lojista vê no calendário). toISOString() é UTC: depois das 21h em
+            // Brasília já é "amanhã" em UTC e o teste quebrava todo fim de tarde.
+            const diaLocal = (deslocamento: number) => {
+                const d = new Date();
+                d.setDate(d.getDate() + deslocamento);
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${d.getFullYear()}-${mm}-${dd}`;
+            };
+            const v = diasParaVencer(diaLocal(1));
             expect(v).toBeGreaterThanOrEqual(0);
             expect(v).toBeLessThanOrEqual(1);
 
-            const ontem = new Date();
-            ontem.setDate(ontem.getDate() - 1);
-            const isoOntem = ontem.toISOString().slice(0, 10);
-            expect(diasParaVencer(isoOntem)).toBeLessThan(0);
+            expect(diasParaVencer(diaLocal(-1))).toBeLessThan(0);
         });
     });
 });

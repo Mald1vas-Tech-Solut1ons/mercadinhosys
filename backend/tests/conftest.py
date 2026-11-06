@@ -13,21 +13,16 @@ if audit_database != 'sqlite:///:memory:':
     if parsed_audit.scheme != 'postgresql' or not parsed_audit.path.startswith('/audit_security_'):
         raise RuntimeError('Testes destrutivos exigem banco PostgreSQL audit_security_* isolado')
 os.environ["DATABASE_URL"] = audit_database
-os.environ["AIVEN_DATABASE_URL"] = ""
-os.environ["POSTGRES_URL"] = ""
-os.environ["DATABASE_URL_TARGET"] = ""
-os.environ["DB_PRIMARY"] = ""
 os.environ["MAIN_DATABASE_URL"] = ""
 os.environ["MULTI_TENANT_MODE"] = "false"
 os.environ["REDIS_URL"] = os.environ.get('AUDIT_REDIS_URL', '')
-os.environ["SYNC_ENABLED"] = "false"
 os.environ["FLASK_ENV"] = "simulation" # Bypass CNPJ/CPF strict validation
 os.environ["SKIP_DB_SETUP"] = "true"
 os.environ["SENTRY_DSN"] = ""
 os.environ["SENTRY_ENVIRONMENT"] = "testing"
-# load_dotenv() sobe pastas e, num worktree, acha o .env REAL da raiz do projeto: teste chegou a
-# mandar e-mail pelo Gmail e consultar a BigDataCorp. Valor vazio aqui vence (load_dotenv não
-# sobrescreve variável que já existe), então nenhuma credencial externa entra na suíte.
+# Defesa em profundidade: o app só lê backend/.env, mas um dev pode ter credencial real ali (teste
+# já chegou a mandar e-mail pelo Gmail e consultar a BigDataCorp). Valor vazio aqui vence
+# (load_dotenv não sobrescreve variável que já existe), então nenhuma credencial entra na suíte.
 for _segredo in ("MAIL_USERNAME", "MAIL_PASSWORD", "EMAIL_APP_PASSWORD", "MAIL_DEFAULT_SENDER",
                  "API_BIG_DATA_CORP", "API_BIG_DATA_CORP_TOKEN_ID", "COSMOS_TOKEN",
                  "GROQ_API_KEY", "DEEPSEEK_API", "CLOUDINARY_URL",

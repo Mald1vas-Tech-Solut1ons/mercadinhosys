@@ -293,11 +293,12 @@ def test_ponto_fora_do_raio_da_loja_e_recusado(client, session, loja):
     assert perto.status_code in (200, 201), perto.get_data(as_text=True)
 
 
-def test_sync_download_nao_aceita_usuario_comum(client, session, loja):
+def test_sync_download_nao_existe_e_nao_cria_usuario(client, session, loja):
+    # A sincronização híbrida foi removida (05/11/2026): a porta não existe mais.
     r = client.post("/api/sync-hybrid/download", headers=_h(loja["caixa"]), json={"data": {"funcionarios": [
         {"estabelecimento_id": loja["estab"].id, "nome": "Invasor", "username": "invasor", "role": "ADMIN",
          "is_super_admin": True}]}})
-    assert r.status_code in (401, 403)
+    assert r.status_code == 404
     assert Funcionario.query.filter_by(username="invasor").count() == 0
 
 

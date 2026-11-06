@@ -3,7 +3,7 @@ Super Admin Dashboard - Interface centralizada e otimizada
 Permite ao Super Admin gerenciar todos os clientes de forma organizada
 """
 
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from app.models import (
     db,
@@ -531,28 +531,6 @@ def logs_acesso():
         logger.error(f"Erro em logs_acesso: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
-
-@super_admin_dashboard_bp.route("/sincronizar-dados", methods=["POST"])
-@super_admin_required
-def forcar_sincronizacao():
-    """Força sincronização REAL dos dados locais para o Aiven (bulk upsert idempotente)."""
-    try:
-        from scripts.force_sync_to_aiven import force_sync
-        resultado = force_sync(app=current_app._get_current_object(), silent=True)
-        if resultado.get("success"):
-            return jsonify({
-                "success": True,
-                "message": f"Sincronização concluída: {resultado.get('total_registros', 0)} registros enviados ao Aiven.",
-                "total_registros": resultado.get("total_registros", 0),
-                "timestamp": iso_utc(datetime.now()),
-            })
-        return jsonify({
-            "success": False,
-            "error": resultado.get("erro", "Falha na sincronização"),
-        }), 500
-    except Exception as e:
-        logger.error(f"Erro ao sincronizar dados: {e}")
-        return jsonify({"success": False, "error": f"Erro na sincronização: {str(e)}"}), 500
 
 @super_admin_dashboard_bp.route("/health", methods=["GET"])
 def health_check():

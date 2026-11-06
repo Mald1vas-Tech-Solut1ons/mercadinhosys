@@ -1,4 +1,4 @@
-"""tabela sync_heartbeat (observabilidade do sync local→Aiven)
+"""tabela sync_heartbeat (observabilidade da replicação local→nuvem; removida em f2b4d6a8c0e1)
 
 Revision ID: c9d0e1f2a3b4
 Revises: b8c9d0e1f2a3

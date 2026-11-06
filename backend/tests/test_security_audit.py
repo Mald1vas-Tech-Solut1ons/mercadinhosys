@@ -31,18 +31,18 @@ def test_schema_diagnostics_require_authentication(client, session):
     assert client.get('/api/auth/db-schema').status_code in (401, 404)
 
 
-@pytest.mark.parametrize('secret', ['', None])
-def test_cloud_sync_fails_closed_without_secret(client, app, session, monkeypatch, secret):
-    monkeypatch.setitem(app.config, 'CLOUD_SYNC_TOKEN', secret)
-    assert client.post('/api/sync/receive', json={'tabela': 'produtos'}).status_code == 401
-
-
-@pytest.mark.parametrize('suffix,method', [('/export', 'get'), ('/restore', 'post'), ('/upload', 'post')])
-def test_sync_platform_operations_deny_store_admin(client, session, suffix, method):
+@pytest.mark.parametrize('path,method', [
+    ('/api/sync/receive', 'post'), ('/api/sync/replicar', 'post'), ('/api/sync/health', 'get'),
+    ('/api/sync-hybrid/export', 'get'), ('/api/sync-hybrid/restore', 'post'), ('/api/sync-hybrid/upload', 'post'),
+    ('/api/super-admin/sincronizar-dados', 'post'),
+])
+def test_rotas_da_sincronizacao_hibrida_foram_aposentadas(client, session, path, method):
+    # A sincronização local -> nuvem saiu em 05/11/2026: produção é um PostgreSQL só, no
+    # Oracle. Estas portas não podem voltar a existir (escreviam em tabelas a partir de payload externo).
     est = session.query(Estabelecimento).first()
     token = create_access_token(identity='1', additional_claims={'estabelecimento_id': est.id, 'role': 'admin'})
-    response = getattr(client, method)('/api/sync-hybrid' + suffix, headers={'Authorization': f'Bearer {token}'}, json={})
-    assert response.status_code == 403
+    response = getattr(client, method)(path, headers={'Authorization': f'Bearer {token}'}, json={})
+    assert response.status_code == 404
 
 
 def test_limit_offset_and_bulk_mutations_keep_tenant_scope(dois_tenants, session):

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # Pares (acento minúsculo → base) para dobrar acentos direto em SQL com replace().
 # Usamos SÓ minúsculas porque aplicamos lower() antes. replace() e lower() existem
 # tanto no PostgreSQL quanto no SQLite — logo, NÃO dependemos da extensão `unaccent`
-# (que pode não estar no Neon e fazia a busca dar 500) nem de função custom.
+# (que nem todo PostgreSQL tem instalada; sem ela a busca dava 500) nem de função custom.
 # Inclui as MAIÚSCULAS acentuadas mapeadas para a base minúscula porque o lower()
 # do SQLite é ASCII-only (não rebaixa "Á"→"á"); assim o folding funciona igual em
 # SQLite (testes) e PostgreSQL (produção).
@@ -76,7 +76,7 @@ def ilike_unaccent(column, search_term):
     Busca case-insensitive E accent-insensitive, PORTÁVEL e robusta:
     'agua' encontra 'Água', 'acai' encontra 'Açaí'. A coluna é dobrada por função
     SQLite/translate PostgreSQL; o termo é normalizado em Python. Não usa a extensão
-    unaccent (evita 'function unaccent does not exist' no Neon → 500 na busca).
+    unaccent (evita 'function unaccent does not exist' → 500 na busca).
     """
     termo_norm = _strip_accents(search_term).lower()
     return _fold_accents_sql(column).like(termo_norm)

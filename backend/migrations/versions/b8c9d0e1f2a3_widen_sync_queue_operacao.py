@@ -5,9 +5,9 @@ Revises: a7b8c9d0e1f2
 Create Date: 2026-06-24
 
 A coluna era varchar(10), dimensionada só para 'insert/update/delete'. O endpoint
-/api/sync/replicar grava operacao='replicar_para_neon' (18 chars) no log de sync,
+A replicação gravava um código de operação de 18 caracteres no log de sync,
 estourando o limite (StringDataRightTruncation) e causando 500 — o que impedia o
-force_sync local→Aiven de rodar. Idempotente.
+a replicação local→nuvem de rodar (removida em f2b4d6a8c0e1). Idempotente.
 """
 from alembic import op
 import sqlalchemy as sa

@@ -3,7 +3,7 @@ Analisando o MercadinhoSys com a visão de um especialista em SaaS e ERPs de var
 
 ### 1. PDV "Offline-First" (Frente de Caixa Blindado)
 O calcanhar de Aquiles de todo mercadinho é a internet. Se a internet cair e o PDV parar, a fila cresce, o cliente vai embora e o dono da loja cancela o seu sistema no mesmo dia. 
-* **O que falta:** O Frente de Caixa (PDV) precisa funcionar de forma offline (ou híbrida). Ele deve conseguir ler código de barras, registrar a venda, emitir a contingência fiscal e, quando a internet voltar, sincronizar tudo com o backend no Render silenciosamente.
+* **O que falta:** O Frente de Caixa (PDV) precisa funcionar de forma offline (ou híbrida). Ele deve conseguir ler código de barras, registrar a venda, emitir a contingência fiscal e, quando a internet voltar, sincronizar tudo com o backend silenciosamente.
 
 ### 2. Integração Fiscal Transparente (NFC-e / NF-e / SAT)
 Lojista odeia burocracia. O sistema que resolve a emissão de nota fiscal sem dor de cabeça ganha o cliente.

@@ -10,66 +10,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 basedir = Path(__file__).parent.absolute()
-db_path = Path("c:/temp/mercadinho_instance/mercadinho.db")
 
 # Carrega .env cedo para que todas as variáveis estejam disponíveis
 # antes da avaliação das classes de configuração.
 load_dotenv(dotenv_path=basedir / ".env", override=False)
 
 
-# ==================== HYBRID DATABASE CONFIGURATION ====================
-# Hybrid Logic: Cloud First, Local Fallback
-# CLOUD_ENABLED: 'true' (default, use cloud if possible), 'false' (standalone local only)
-# HYBRID_MODE: 'online' (try cloud, fallback), 'offline' (straight to local)
-
-_cloud_enabled = os.environ.get("CLOUD_ENABLED", "true").lower() == "true"
-_hybrid_mode = os.environ.get("HYBRID_MODE", "online").lower()
-_database_url = (
-    os.environ.get("DATABASE_URL_TARGET")
-    or os.environ.get("DB_PRIMARY")
-    or os.environ.get("DATABASE_URL")
-    or os.environ.get("POSTGRES_URL")
-    or os.environ.get("AIVEN_DATABASE_URL")
-)
-
-_using_postgres = False
-_sqlalchemy_database_uri = None
-_db_source = "DEFAULT"
-
-# Caminho padrão para SQLite (Instalável / Fallback)
+# ==================== BANCO DE DADOS ====================
+# Uma fonte só: DATABASE_URL. Produção (Oracle) = PostgreSQL na rede interna do Docker.
+# Sem DATABASE_URL: desenvolvimento usa SQLite local; produção NÃO sobe (cair calado num banco
+# vazio esconderia o erro e o lojista veria a loja "zerada").
+_database_url = (os.environ.get("DATABASE_URL") or "").strip()
 _local_sqlite_uri = f"sqlite:///{os.path.join(basedir, 'instance', 'mercadinho_local.db')}"
 
-if not _cloud_enabled or _hybrid_mode == "offline":
-    _sqlalchemy_database_uri = _local_sqlite_uri
-    _db_source = "LOCAL_ONLY"
-    reason = "CLOUD_ENABLED=false" if not _cloud_enabled else "HYBRID_MODE=offline"
-    logger.info("[DB: HYBRID] Mode: %s | Using Local SQLite: %s", reason, _sqlalchemy_database_uri)
+if _database_url:
+    if _database_url.startswith("postgres://"):
+        _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+    _host_local = any(h in _database_url for h in ("@localhost", "@127.0.0.1"))
+    if _database_url.startswith("postgresql") and _host_local and "?" not in _database_url:
+        _database_url += "?sslmode=disable"
+    _sqlalchemy_database_uri = _database_url
+elif os.environ.get("FLASK_ENV") == "production":
+    raise RuntimeError("CRITICAL: DATABASE_URL não configurada no ambiente de produção!")
 else:
-    # Tentar configurar Cloud (Postgres)
-    if _database_url:
-        if _database_url.startswith("postgres://"):
-            _database_url = _database_url.replace("postgres://", "postgresql://", 1)
-        
-        _sqlalchemy_database_uri = _database_url
-        _using_postgres = _database_url.startswith("postgresql://")
-        
-        # Correção Crítica: Forçar sslmode=disable para localhost se não houver parâmetros
-        if _using_postgres and "localhost" in _sqlalchemy_database_uri and "?" not in _sqlalchemy_database_uri:
-            _sqlalchemy_database_uri += "?sslmode=disable"
-        elif _using_postgres and "127.0.0.1" in _sqlalchemy_database_uri and "?" not in _sqlalchemy_database_uri:
-            _sqlalchemy_database_uri += "?sslmode=disable"
-            
-        _db_source = "CLOUD_ENV"
-        
-        if _using_postgres:
-            logger.info("[DB: HYBRID] Mode: ONLINE | Source: CLOUD (Postgres)")
-        else:
-            logger.info("[DB: HYBRID] Mode: ONLINE | Source: CLOUD (SQLite via URL?)")
-    else:
-        # Sem URL de nuvem configura automaticamente para local
-        _sqlalchemy_database_uri = _local_sqlite_uri
-        _db_source = "AUTO_LOCAL"
-        logger.warning("[DB: HYBRID] Mode: ONLINE | No Cloud URL found. Fallback to Local SQLite.")
+    _sqlalchemy_database_uri = _local_sqlite_uri
+    logger.info("[DB] DATABASE_URL vazia: usando SQLite local (%s)", _local_sqlite_uri)
+
+_using_postgres = _sqlalchemy_database_uri.startswith("postgresql")
 
 class Config:
     _secret_key = os.environ.get("SECRET_KEY")
@@ -88,27 +55,8 @@ class Config:
     USING_POSTGRES = _using_postgres
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # POOL ENXUTO: o Aiven (free) só tem 20 conexões e os processos internos dele
-    # já consomem ~8. Com 2 workers gunicorn, cada um pode usar no máx pool_size+
-    # max_overflow = 5 → 10 no total, com folga sob os ~12 disponíveis. Configurável
-    # por env (DB_POOL_SIZE/DB_MAX_OVERFLOW) para ajustar conforme o plano do Aiven.
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "pool_pre_ping": True,
-        "pool_recycle": 280,
-        "pool_size": int(os.environ.get("DB_POOL_SIZE", "3")),
-        "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "2")),
-        "pool_timeout": 30,
-        "connect_args": {
-            "keepalives": 1,
-            "keepalives_idle": 30,
-            "keepalives_interval": 10,
-            "keepalives_count": 5,
-            "connect_timeout": 10,
-            # NOTA: sslmode NÃO é definido aqui — é controlado pelo __init__.py
-            # que detecta se é localhost (disable) ou cloud/Aiven (require).
-            # A URL do Aiven já inclui ?sslmode=require na query string.
-        },
-    } if _using_postgres else {}
+    # Opções do pool do PostgreSQL: definidas em app/__init__.py (create_app), num lugar só.
+    SQLALCHEMY_ENGINE_OPTIONS = {}
 
     # ==================== CORS ====================
     cors_origins_str = os.environ.get("CORS_ORIGINS", "")
@@ -139,14 +87,6 @@ class Config:
     # ==================== CACHE ====================
     CACHE_TYPE = os.environ.get("CACHE_TYPE", "SimpleCache")
     CACHE_DEFAULT_TIMEOUT = 300
-
-    # ==================== SYNC ====================
-    APP_MODE = os.environ.get("APP_MODE", "local")
-    SYNC_ENABLED = os.environ.get("SYNC_ENABLED", "false").lower() == "true"
-    SYNC_WORKER_INTERVAL = int(os.environ.get("SYNC_WORKER_INTERVAL", "30"))
-    SYNC_MAX_RETRIES = int(os.environ.get("SYNC_MAX_RETRIES", "3"))
-    CLOUD_API_URL = os.environ.get("CLOUD_API_URL", "https://mercadinhosys.onrender.com")
-    CLOUD_SYNC_TOKEN = os.environ.get("CLOUD_SYNC_TOKEN", "")
 
 
 class DevelopmentConfig(Config):

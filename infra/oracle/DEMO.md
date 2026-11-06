@@ -1,6 +1,6 @@
 # MercadinhoSys na Oracle: instalação, seed e operação
 
-Atualizado em 07/10/2026. Release e evidências: [relatório modular](../../docs/RELATORIO_RELEASE_MODULAR_2026-10-07.md). Instalação realizada com dados simulados; nenhum dado real do Aiven foi restaurado.
+Atualizado em 07/10/2026. Release e evidências: [relatório modular](../../docs/RELATORIO_RELEASE_MODULAR_2026-10-07.md). Instalação realizada com dados simulados.
 
 ## Infraestrutura instalada
 
@@ -40,15 +40,14 @@ No servidor, `infra/oracle/.env.demo` contém banco, JWT, CORS e chaves de integ
 | Ambiente Efí | `EFI_ENV=sandbox`, preservado do projeto; nenhuma cobrança de produção criada nesta migração |
 | Webhook Efí | `BACKEND_URL=https://mercadinhosys-api.144.22.151.18.sslip.io`; o código acrescenta `/api/billing/webhook` |
 | SMTP | Não havia credenciais SMTP no `.env` local examinado; não afirmar envio de e-mail validado |
-| Sincronização Aiven | Desativada: `SYNC_ENABLED=false`, `SYNC_AUTO_PUSH=false`; banco operacional é o PostgreSQL da Oracle |
 
-`import-integrations.py` recebe JSON por stdin, aceita apenas nomes autorizados e atualiza o ambiente sem exibir segredos. Não copiar o `.env` local inteiro para a Oracle: isso traria conexão Aiven, modo local, tokens antigos e URLs obsoletas. Usar `demo.env.example` como lista de variáveis sem valores reais.
+`import-integrations.py` recebe JSON por stdin, aceita apenas nomes autorizados e atualiza o ambiente sem exibir segredos. Não copiar o `.env` local inteiro para a Oracle: isso traria conexões de banco antigas, tokens e URLs obsoletas. Usar `demo.env.example` como lista de variáveis sem valores reais.
 
 Detalhes da IA e seus limites: [RAG e provedores](IA-RAG.md). Resultados de integração externa: [Validação das integrações](INTEGRACOES.md).
 
 ## Frontend publicado
 
-O projeto Vercel `mercadinhosys` usa `VITE_API_URL=https://mercadinhosys-api.144.22.151.18.sslip.io/api` no ambiente e no comando de build. O build explícito foi necessário porque o código remoto anterior fixava Render no `vercel.json`.
+O projeto Vercel `mercadinhosys` usa `VITE_API_URL=https://mercadinhosys-api.144.22.151.18.sslip.io/api` no ambiente e no comando de build.
 
 Deployment publicado: `dpl_Em78qKzfF69TaVCn9Fp1agMG63gh`, revisão `6d95713cf189f798aa98eb7f1fd64fa584a30683`. As alterações de frontend e infraestrutura foram commitadas, enviadas ao GitHub e integradas em `master` (PR #3). A versão anterior `dpl_FxoNHMV9kV3oyYcZSAtbUUFLbUnM` foi preservada para rollback.
 
@@ -114,7 +113,7 @@ A restauração do primeiro dump foi testada em banco temporário por `verify-ba
 
 Saúde, PostgreSQL, HTTPS, CORS, login SUPERADMIN, `/super-admin/health`, login da primeira loja e produtos autenticados: verificados. Login no navegador e dashboard: confirmados. Dump e restauração: verificados.
 
-A Micro tem 1 GB e não foi submetida a teste amplo de carga. A instalação funcional usa dados simulados; fiscal real, pagamentos e e-mail não estão certificados por esses testes. Trocar o endpoint do site não cancela automaticamente um plano ou faturamento Render.
+A Micro tem 1 GB e não foi submetida a teste amplo de carga. A instalação funcional usa dados simulados; fiscal real, pagamentos e e-mail não estão certificados por esses testes.
 
 ## Correção de fornecedores e monitoramento
 

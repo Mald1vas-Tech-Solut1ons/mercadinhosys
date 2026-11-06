@@ -168,7 +168,7 @@ def stage():
                     'FLASK_ENV': 'production', 'SKIP_DB_SETUP': 'true', 'SKIP_SCHEMA_SYNC': 'true',
                     'SECRET_KEY': secrets.token_hex(32), 'JWT_SECRET_KEY': secrets.token_hex(32),
                     'DB_POOL_SIZE': '2', 'DB_MAX_OVERFLOW': '1', 'REDIS_URL': '',
-                    'SYNC_ENABLED': 'false', 'SYNC_AUTO_PUSH': 'false', 'SENTRY_DSN': '',
+                    'SENTRY_DSN': '',
                     'SENTRY_ENVIRONMENT': 'release-stage', 'SENTRY_RELEASE': args.release,
                     'OPENBLAS_NUM_THREADS': '1', 'OMP_NUM_THREADS': '1',
                     'CORS_ORIGINS': 'https://mercadinhosys.vercel.app'}

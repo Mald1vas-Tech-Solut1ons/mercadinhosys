@@ -178,7 +178,7 @@ def salvar_foto_base64(foto_base64, funcionario_id):
             logger.error(f"Foto não é data URL válida. Começa com: {foto_base64[:50]}")
             return None
 
-        # 1) PERSISTENTE: Cloudinary (se configurado). O disco do Render é EFÊMERO —
+        # 1) PERSISTENTE: Cloudinary (se configurado). O disco do container é EFÊMERO —
         # fotos salvas localmente somem a cada deploy. Com CLOUDINARY_URL no ambiente,
         # subimos para a nuvem e devolvemos uma URL permanente (CDN).
         if os.getenv("CLOUDINARY_URL"):
@@ -198,7 +198,7 @@ def salvar_foto_base64(foto_base64, funcionario_id):
                 logger.error(f"Upload Cloudinary falhou (fallback p/ disco): {cloud_err}")
 
         # 2) FALLBACK: disco local (ok no dev; em produção SEM Cloudinary a imagem
-        # some no próximo deploy do Render).
+        # some no próximo deploy).
         # Extrair dados da imagem
         header, encoded = foto_base64.split(',', 1)
         ext = header.split('/')[1].split(';')[0]

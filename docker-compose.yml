@@ -46,18 +46,7 @@ services:
       
       # Database (senha vem de ${DB_PASSWORD} — fonte única, igual ao serviço postgres)
       DATABASE_URL: postgresql://mercadinho_user:${DB_PASSWORD:-mercadinho_secure_pass_2024}@postgres:5432/mercadinhosys
-      AIVEN_DATABASE_URL: ${AIVEN_DATABASE_URL:-}
       MULTI_TENANT_MODE: "true"
-      HYBRID_MODE: "online"
-
-      # Sincronização Local → Aiven roda no serviço dedicado "sync" (abaixo).
-      # Desligado aqui para não rodar dentro do worker do gunicorn (frágil/corre entre workers).
-      SYNC_AUTO_PUSH: "false"
-      SYNC_PUSH_INTERVAL_SEC: "300"
-      # DESLIGADO: GuerrillaSyncWorker entrava em loop self-referencial
-      # (CLOUD_API_URL=http://mercadinhosys-backend:5000) -> POST /sync/receive
-      # no próprio backend -> 500/429 contínuo, pressão de DB e lentidão nas escritas.
-      SYNC_ENABLED: "false"
 
       # Rate-limiting com storage compartilhado (Redis) — vale entre todos os workers
       RATELIMIT_STORAGE_URI: redis://:${REDIS_PASSWORD:-redis_secure_pass}@redis:6379/1
@@ -95,35 +84,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - mercadinhosys-network
-
-  # Sync Daemon — DESLIGADO por decisão de arquitetura (2026-06).
-  # A fonte da verdade é a NUVEM (Aiven); o local é sandbox de DEV isolado.
-  # O push local→Aiven saturava as 20 conexões do Aiven (causou apagão) e
-  # sobrescrevia produção com dados de teste. O offline real é via PWA (fila
-  # por-aparelho, sincroniza pela API). Para reativar pontualmente: SYNC_AUTO_PUSH=true.
-  sync:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: mercadinhosys-sync
-    restart: "no"
-    profiles: ["sync"]   # não sobe no `docker compose up` padrão
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: ["python", "-m", "scripts.sync_daemon"]
-    environment:
-      DATABASE_URL: postgresql://mercadinho_user:${DB_PASSWORD:-mercadinho_secure_pass_2024}@postgres:5432/mercadinhosys
-      AIVEN_DATABASE_URL: ${AIVEN_DATABASE_URL:-}
-      SYNC_AUTO_PUSH: "false"
-      SYNC_PUSH_INTERVAL_SEC: "1800"
-    volumes:
-      - ./backend:/app
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     networks:
       - mercadinhosys-network
 

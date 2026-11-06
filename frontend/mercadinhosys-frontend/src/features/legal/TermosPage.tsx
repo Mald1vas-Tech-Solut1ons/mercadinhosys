@@ -62,9 +62,9 @@ const TermosPage: React.FC = () => {
                 ou totalmente livre de falhas temporárias.
             </p>
             <p>
-                O Software dispõe de recursos operacionais <strong>Offline (SyncQueue)</strong> para operação de caixa
+                O Software dispõe de recursos operacionais <strong>Offline</strong> para operação de caixa
                 sem internet. É responsabilidade do Licenciado conectar o sistema à internet periodicamente para que
-                a fila de sincronização (SyncQueue) não expire ou seja corrompida pela limpeza do cache local do navegador.
+                a fila de vendas feitas sem internet não expire ou seja corrompida pela limpeza do cache local do navegador.
             </p>
 
             <SecaoTitulo numero={5}>Limitação de Responsabilidade Civil</SecaoTitulo>

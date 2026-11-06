@@ -20,7 +20,7 @@ class SmartCache:
 
     # Teto de entradas. Cada entrada pode ser um payload inteiro de dashboard
     # (centenas de KB); com o teto antigo de 1000, o cache sozinho podia passar
-    # de centenas de MB por worker e derrubar o Render Starter (512MB).
+    # de centenas de MB por worker e derrubar a VM de produção (1 GB de RAM).
     MAX_ENTRIES = 64
 
     @classmethod
@@ -171,7 +171,7 @@ def cache_response(ttl_seconds: int = 300, require_db_check: bool = False):
                 if require_db_check:
                     try:
                         # Otimização: não fazer SELECT 1 em todas as requisições se já temos o resultado
-                        # ou usar um check mais leve. No Postgres/Aiven, SELECT 1 é rápido, 
+                        # ou usar um check mais leve. No PostgreSQL, SELECT 1 é rápido,
                         # mas muitas conexões simultâneas podem enfileirar.
                         from sqlalchemy import text
                         from app import db

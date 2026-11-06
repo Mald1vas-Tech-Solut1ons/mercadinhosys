@@ -22,12 +22,12 @@ import logo from '../../../logoprincipal.png';
 // Mesmas chaves de TIPOS_LOJA em backend/app/routes/onboarding.py.
 const TIPOS_LOJA = [
     { valor: 'mercearia', nome: 'Mercearia / mercado' },
-    { valor: 'religioso', nome: 'Artigos religiosos (loja e/ou fábrica)' },
+    { valor: 'religioso', nome: 'Artigos religiosos' },
     { valor: 'roupas', nome: 'Roupas e calçados' },
     { valor: 'construcao', nome: 'Material de construção' },
     { valor: 'autopecas', nome: 'Autopeças' },
     { valor: 'motopecas', nome: 'Motopeças' },
-    { valor: 'outro', nome: 'Outro tipo de loja' },
+    { valor: 'outro', nome: 'Bazar / variedades / outros' },
 ];
 
 export function RegisterPage() {
@@ -39,8 +39,6 @@ export function RegisterPage() {
     // Estados do formulário
     const [formData, setFormData] = useState({
         nome_fantasia: '',
-        // A loja nasce com os departamentos do tipo escolhido (?tipo= vem da página do segmento).
-        tipo_loja: TIPOS_LOJA.some(t => t.valor === params.get('tipo')) ? String(params.get('tipo')) : '',
         cnpj: '',
         telefone_loja: '',
         email_loja: '',
@@ -52,6 +50,11 @@ export function RegisterPage() {
         confirmar_senha: '',
     });
 
+    // O que a loja vende (vários): nasce com a soma dos departamentos. ?tipo= vem da página do nicho.
+    const [tiposLoja, setTiposLoja] = useState<string[]>(() =>
+        TIPOS_LOJA.some(t => t.valor === params.get('tipo')) ? [String(params.get('tipo'))] : []);
+    const alternarTipo = (valor: string) =>
+        setTiposLoja(atual => atual.includes(valor) ? atual.filter(v => v !== valor) : [...atual, valor]);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -74,6 +77,10 @@ export function RegisterPage() {
             return;
         }
 
+        if (tiposLoja.length === 0) {
+            setError('Marque o que a sua loja vende.');
+            return;
+        }
         setLoading(true);
         setError('');
 
@@ -81,7 +88,7 @@ export function RegisterPage() {
             // payload exato que o backend espera
             const payload = {
                 nome_fantasia: formData.nome_fantasia,
-                tipo_loja: formData.tipo_loja,
+                tipos_loja: tiposLoja,
                 razao_social: formData.nome_fantasia, // Mesma coisa por padrão
                 cnpj: formData.cnpj,
                 telefone_loja: formData.telefone_loja,
@@ -111,7 +118,7 @@ export function RegisterPage() {
         } finally {
             setLoading(false);
         }
-    }, [formData, navigate]);
+    }, [formData, tiposLoja, navigate]);
 
     const isFormValid =
         formData.nome_fantasia &&
@@ -202,12 +209,18 @@ export function RegisterPage() {
                                     <TextField fullWidth label="Nome Fantasia *" name="nome_fantasia" value={formData.nome_fantasia} onChange={handleChange} required />
                                 </Box>
                                 <Box>
-                                    <TextField select fullWidth label="Tipo de loja *" name="tipo_loja" value={formData.tipo_loja} onChange={handleChange} required
-                                        SelectProps={{ native: true }} InputLabelProps={{ shrink: true }}
-                                        helperText="Define os departamentos iniciais; dá para mudar depois">
-                                        <option value="" disabled>Escolha</option>
-                                        {TIPOS_LOJA.map(t => <option key={t.valor} value={t.valor}>{t.nome}</option>)}
-                                    </TextField>
+                                    <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>O que sua loja vende? * <span style={{ fontWeight: 'normal' }}>(marque tudo; dá para mudar depois)</span></Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                        {TIPOS_LOJA.map(t => {
+                                            const ativo = tiposLoja.includes(t.valor);
+                                            return (
+                                                <Button key={t.valor} size="small" variant={ativo ? 'contained' : 'outlined'}
+                                                    onClick={() => alternarTipo(t.valor)} aria-pressed={ativo}>
+                                                    {t.nome}
+                                                </Button>
+                                            );
+                                        })}
+                                    </Box>
                                 </Box>
                                 <Box>
                                     <TextField fullWidth label="CNPJ (ou CPF) *" name="cnpj" value={formData.cnpj} onChange={handleChange} required />

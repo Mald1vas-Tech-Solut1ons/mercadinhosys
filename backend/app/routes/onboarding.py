@@ -36,9 +36,27 @@ TIPOS_LOJA = {
 
 
 def segmento_e_mix(tipo_loja):
-    """(segmento, configuracoes iniciais) para o tipo de loja; tipo desconhecido = mercearia."""
-    segmento, mix = TIPOS_LOJA.get(str(tipo_loja or "").strip().lower(), TIPOS_LOJA["mercearia"])
-    return segmento, ({"mix_produtos": list(mix)} if mix else {})
+    """(segmento, configuracoes iniciais) para o(s) tipo(s) de loja; desconhecido = mercearia.
+
+    Aceita um tipo ou uma lista: loja que vende de tudo (bazar + religioso + motopeças +
+    autopeças) nasce "generico" com a SOMA dos departamentos marcados. Depois o dono liga ou
+    desliga departamentos em Configurações > Segmento.
+    """
+    from app.services.view_schema_service import MIX_PADRAO_POR_SEGMENTO
+    tipos = tipo_loja if isinstance(tipo_loja, (list, tuple)) else [tipo_loja]
+    tipos = [str(t or "").strip().lower() for t in tipos if str(t or "").strip().lower() in TIPOS_LOJA]
+    if not tipos:
+        return TIPOS_LOJA["mercearia"][0], {}
+    if len(tipos) == 1:
+        segmento, mix = TIPOS_LOJA[tipos[0]]
+        return segmento, ({"mix_produtos": list(mix)} if mix else {})
+    soma = []
+    for tipo in tipos:
+        segmento, mix = TIPOS_LOJA[tipo]
+        for familia in (mix or MIX_PADRAO_POR_SEGMENTO.get(segmento, [])):
+            if familia not in soma:
+                soma.append(familia)
+    return "generico", {"mix_produtos": soma}
 
 @onboarding_bp.route("/registrar", methods=["POST"])
 def registrar_conta():
@@ -107,7 +125,7 @@ def registrar_conta():
         # Início da Transação Atômica
         try:
             # 1. Criar Estabelecimento (já no segmento e com os departamentos do tipo de loja)
-            segmento_loja, config_inicial = segmento_e_mix(data.get("tipo_loja") or data.get("segmento"))
+            segmento_loja, config_inicial = segmento_e_mix(data.get("tipos_loja") or data.get("tipo_loja") or data.get("segmento"))
             novo_estabelecimento = Estabelecimento(
                 segmento=segmento_loja,
                 nome_fantasia=nome_fantasia,
@@ -208,7 +226,7 @@ def registrar_conta():
                 nome=str(data.get("nome_admin") or nome_fantasia)[:150], email=str(email_admin or "")[:100],
                 whatsapp=str(celular_admin or "")[:30], origem="cadastro_teste", etapa="teste",
                 nome_loja=str(nome_fantasia)[:150], loja_criada_id=novo_estabelecimento.id,
-                segmento=(str(data.get("tipo_loja") or data.get("segmento") or "")[:60] or None),
+                segmento=(",".join(data["tipos_loja"]) if isinstance(data.get("tipos_loja"), list) and data["tipos_loja"] else str(data.get("tipo_loja") or data.get("segmento") or ""))[:60] or None,
             )
             db.session.add(lead)
             db.session.flush()

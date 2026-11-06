@@ -179,3 +179,14 @@ def test_necessidade_de_compra_soma_ordens_abertas_menos_estoque(client, session
     assert por_nome["COPO VELA 7 DIAS"]["comprar"] == 80.0     # 380 - 300
     assert por_nome["PAVIO VELA 7 DIAS"]["comprar"] == 0.0     # 380 <= 500
     assert len(por_nome["COPO VELA 7 DIAS"]["ordens"]) == 2
+
+
+def test_cadastro_loja_que_vende_de_tudo_soma_os_departamentos():
+    from app.routes.onboarding import segmento_e_mix
+    segmento, config = segmento_e_mix(["religioso", "motopecas", "autopecas", "outro"])
+    mix = config["mix_produtos"]
+    assert segmento == "generico"
+    for familia in ("religioso", "bazar", "motopecas", "autopecas", "servico", "alimento"):
+        assert familia in mix
+    assert len(mix) == len(set(mix))
+    assert segmento_e_mix(["inexistente"]) == ("mercearia", {})

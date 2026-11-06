@@ -8,7 +8,7 @@ import { purchaseOrderService, PedidoCompra } from '../../products/purchaseOrder
 import PurchaseOrderDetailsModal from '../../products/components/PurchaseOrderDetailsModal';
 import ReceivePurchaseModal from '../../products/components/ReceivePurchaseModal';
 import { ModalPagamentoBoleto } from '../../expenses/components/BoletosAVencerPanel';
-import { dataDoDia } from '../../../utils/dataLocal';
+import { dataDoDia, diasAte } from '../../../utils/dataLocal';
 
 interface SupplierHistoryModalProps {
     fornecedor: Fornecedor;
@@ -220,7 +220,7 @@ const SupplierHistoryModal = ({ fornecedor, onClose }: SupplierHistoryModalProps
                                 valor_atual: conta.valor || p.total,
                                 data_emissao: conta.data_emissao || p.data_pedido,
                                 data_vencimento: conta.data_vencimento,
-                                dias_vencimento: Math.floor((dataDoDia(conta.data_vencimento).getTime() - new Date().getTime()) / (1000 * 3600 * 24)),
+                                dias_vencimento: diasAte(conta.data_vencimento) ?? 0,
                                 status_vencimento: 'normal',
                                 pedido_numero: p.numero_pedido,
                                 pedido_id: p.id,

@@ -3,7 +3,7 @@ import { Calendar, Download, Filter, ChevronDown, ChevronUp, AlertCircle } from 
 import { apiClient } from '../../../api/apiClient';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { dataLocalISO, dataDoDia } from '../../../utils/dataLocal';
+import { dataDoDia, dataLocalISO } from '../../../utils/dataLocal';
 
 interface EspelhoPontoData {
   funcionario_id: number;
@@ -118,7 +118,7 @@ export default function EspelhoPonto() {
     doc.text(`Funcionário: ${espelhoData.nome}`, 105, 30, { align: 'center' });
     doc.text(`Cargo: ${espelhoData.cargo}`, 105, 37, { align: 'center' });
     doc.setFontSize(10);
-    doc.text(`Período: ${new Date(dataInicio).toLocaleDateString('pt-BR')} a ${new Date(dataFim).toLocaleDateString('pt-BR')}`, 105, 44, { align: 'center' });
+    doc.text(`Período: ${dataDoDia(dataInicio).toLocaleDateString('pt-BR')} a ${dataDoDia(dataFim).toLocaleDateString('pt-BR')}`, 105, 44, { align: 'center' });
 
     const headers = [['Data', 'Entrada', 'Saída', 'Int. Início', 'Int. Fim', 'Atraso', 'Extras', 'H. Trab.']];
     const data = espelhoData.registros_diarios.map(r => [

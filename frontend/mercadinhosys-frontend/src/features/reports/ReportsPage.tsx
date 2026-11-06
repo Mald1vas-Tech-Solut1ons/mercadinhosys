@@ -46,7 +46,7 @@ import { salesService } from '../sales/salesService';
 import { productsService } from '../products/productsService';
 import { pontoService } from '../ponto/pontoService';
 import { apiClient } from '../../api/apiClient';
-import { dataLocalISO, dataDoDia } from '../../utils/dataLocal';
+import { carimboLocal, dataDoDia, dataLocalISO } from '../../utils/dataLocal';
 
 // ==================== INTERFACES ====================
 
@@ -285,7 +285,7 @@ const ReportsPage: React.FC = () => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `backup_local_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.zip`;
+                a.download = `backup_local_${carimboLocal()}.zip`;
                 a.click();
                 window.URL.revokeObjectURL(url);
                 return res;
@@ -619,7 +619,7 @@ const ReportsPage: React.FC = () => {
                     'Produto': p.produto_nome, 'Estoque Atual': p.estoque_atual,
                     'Média Vendas/Dia': p.media_vendas_diarias,
                     'Dias até Esgotamento': p.dias_ate_esgotamento || 'N/A',
-                    'Data Prevista': p.data_esgotamento_prevista ? new Date(p.data_esgotamento_prevista).toLocaleDateString('pt-BR') : 'N/A',
+                    'Data Prevista': p.data_esgotamento_prevista ? dataDoDia(p.data_esgotamento_prevista).toLocaleDateString('pt-BR') : 'N/A',
                     'Status': p.status
                 })));
             }

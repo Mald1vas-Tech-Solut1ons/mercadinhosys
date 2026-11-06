@@ -3,7 +3,7 @@ import { Edit, Trash2, Archive, ShoppingCart, FileText, ChevronLeft, ChevronRigh
 import { Produto } from '../../../types';
 import { formatCurrency } from '../../../utils/formatters';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
-import { dataDoDia } from '../../../utils/dataLocal';
+import { dataDoDia, diasAte } from '../../../utils/dataLocal';
 
 /** Miniatura do produto com fallback gracioso e zoom ao clicar — precisa de
  * estado próprio por linha (erro de carregamento), por isso vive em seu
@@ -254,9 +254,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                 <td className="px-5 py-3 text-sm">
                                     {produto.data_validade ? (
                                         (() => {
-                                            const hoje = new Date();
-                                            const validade = dataDoDia(produto.data_validade);
-                                            const dias = Math.floor((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+                                            // Dias de calendário: o que vence hoje é 0 (vende até o fim do dia), não -1.
+                                            const dias = diasAte(produto.data_validade) ?? 0;
 
                                             if (dias < 0) {
                                                 return (

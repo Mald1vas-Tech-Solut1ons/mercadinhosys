@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import { pontoService } from './pontoService';
-import { dataLocalISO } from '../../utils/dataLocal';
+import { carimboLocal, dataLocalISO } from '../../utils/dataLocal';
 
 /**
  * Componente de diagnóstico para verificar:
@@ -75,7 +75,7 @@ export const DiagnosticoFotos: React.FC = () => {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `diagnostico_fotos_${new Date().toISOString()}.json`;
+    link.download = `diagnostico_fotos_${carimboLocal()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };

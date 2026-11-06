@@ -3,7 +3,7 @@ import { Sparkles, Plus, Search, CheckCircle, Settings, Edit, Trash2 } from 'luc
 import { showToast } from '../../../components/elements/Toast';
 import beneficiosService, { Beneficio, FuncionarioSimples, BeneficioCatalogo } from '../beneficiosService';
 import { formatCurrency } from '../../../utils/formatters';
-import { dataLocalISO } from '../../../utils/dataLocal';
+import { dataDoDia, dataLocalISO } from '../../../utils/dataLocal';
 import { confirmar } from '../../../components/ui/Confirmacao';
 
 export default function BeneficiosRH() {
@@ -273,7 +273,7 @@ export default function BeneficiosRH() {
                           )}
                         </td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
-                          {new Date(ben.data_inicio).toLocaleDateString('pt-BR')}
+                          {dataDoDia(ben.data_inicio).toLocaleDateString('pt-BR')}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <p className="font-black text-gray-900 dark:text-white">{formatCurrency(ben.valor_mensal)}</p>

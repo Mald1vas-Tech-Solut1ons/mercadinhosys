@@ -9,6 +9,7 @@ import { showToast } from '../../utils/toast';
 import NovoClienteModal from '../../components/modals/NovoClienteModal';
 import EstabelecimentoDetalheModal from '../../components/modals/EstabelecimentoDetalheModal';
 import { confirmar } from '../../components/ui/Confirmacao';
+import { dataDoDia } from '../../utils/dataLocal';
 
 interface Estabelecimento {
     id: number;
@@ -49,7 +50,7 @@ const formatCurrency = (value: number) =>
 
 const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
-    return new Date(dateStr).toLocaleDateString('pt-BR');
+    return dataDoDia(dateStr).toLocaleDateString('pt-BR');
 };
 
 const MetricPill: React.FC<{ icon: React.ElementType; label: string; value: string | number; color: string }> = ({

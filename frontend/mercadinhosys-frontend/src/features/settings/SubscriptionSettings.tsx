@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CreditCard, Calendar, CheckCircle2, ShieldCheck, Zap, ArrowRight, ExternalLink, RefreshCcw, Star } from 'lucide-react';
 import settingsService, { SubscriptionStatus } from './settingsService';
 import { showToast } from '../../utils/toast';
+import { dataDoDia } from '../../utils/dataLocal';
 
 const SubscriptionSettings: React.FC = () => {
     const [status, setStatus] = useState<SubscriptionStatus | null>(null);
@@ -48,7 +49,7 @@ const SubscriptionSettings: React.FC = () => {
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return 'Assinatura Vitalícia';
-        return new Date(dateString).toLocaleDateString('pt-BR', {
+        return dataDoDia(dateString).toLocaleDateString('pt-BR', {
             day: '2-digit',
             month: 'long',
             year: 'numeric'

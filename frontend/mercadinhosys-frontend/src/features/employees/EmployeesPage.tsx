@@ -24,7 +24,7 @@ import { buscarCep, formatCep, formatCpf, formatPhone } from "../../utils/cepUti
 import { useLocation } from "react-router-dom";
 import { showToast } from "../../utils/toast";
 import PinDialog from "../../components/modals/PinDialog";
-import { dataLocalISO } from '../../utils/dataLocal';
+import { dataDoDia, dataLocalISO } from '../../utils/dataLocal';
 
 ChartJS.register(
     BarElement,
@@ -65,8 +65,7 @@ function formatCurrency(value: number) {
 
 function formatDate(dateString: string) {
     if (!dateString) return "-";
-    const date = new Date(dateString);
-    return date.toLocaleDateString("pt-BR");
+    return dataDoDia(dateString).toLocaleDateString("pt-BR");
 }
 
 function formatCPF(cpf: string) {

@@ -6,6 +6,7 @@ import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 import { MapPin, Target, PackageOpen, Users, Save, Trash2, Plus, Clock } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
+import { dataDoDia } from '../../utils/dataLocal';
 
 export default function SFAManagement() {
     const [activeTab, setActiveTab] = useState('metas');
@@ -284,7 +285,7 @@ export default function SFAManagement() {
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <h3 className="font-bold text-lg text-indigo-900 dark:text-indigo-300">{f.produto_nome}</h3>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">Validade: {new Date(f.data_inicio).toLocaleDateString()} a {new Date(f.data_fim).toLocaleDateString()}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Validade: {dataDoDia(f.data_inicio).toLocaleDateString()} a {dataDoDia(f.data_fim).toLocaleDateString()}</p>
                                         </div>
                                         <div className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-400 p-2 rounded-full cursor-pointer hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition-colors" onClick={() => handleDeleteFoco(f.id)}>
                                             <Trash2 className="w-5 h-5" />

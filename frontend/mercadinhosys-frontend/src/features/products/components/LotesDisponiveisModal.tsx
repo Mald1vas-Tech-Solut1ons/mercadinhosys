@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Layers, AlertTriangle, CheckCircle, Clock, Package } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
-import { dataDoDia } from '../../../utils/dataLocal';
+import { dataDoDia, diasAte } from '../../../utils/dataLocal';
 
 interface Lote {
   id: number;
@@ -51,9 +51,7 @@ export default function LotesDisponiveisModal({ produtoId, produtoNome, onClose 
   };
 
   const getDiasParaVencer = (dataValidade: string) => {
-    const hoje = new Date();
-    const validade = new Date(dataValidade);
-    return Math.floor((validade.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+    return diasAte(dataValidade) ?? 0;
   };
 
   const getValidadeBadge = (dataValidade: string) => {

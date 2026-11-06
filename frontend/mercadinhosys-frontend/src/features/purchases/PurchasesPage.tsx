@@ -17,7 +17,7 @@ import PurchaseOrderModal from '../products/components/PurchaseOrderModal';
 import ReceivePurchaseModal from '../products/components/ReceivePurchaseModal';
 import PurchaseOrderDetailsModal from '../products/components/PurchaseOrderDetailsModal';
 import { InsightCard as ConsultorInsightCard } from '../../components/consultor/InsightCard';
-import { dataDoDia } from '../../utils/dataLocal';
+import { dataDoDia, diasAte } from '../../utils/dataLocal';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────
 interface DashboardStats {
@@ -38,7 +38,7 @@ const getDaysLate = (previsao?: string): number => {
 
 const isToday = (dateStr?: string): boolean => {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
+  const d = dataDoDia(dateStr);
   const t = new Date();
   return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
 };
@@ -346,7 +346,7 @@ const PurchasesPage: React.FC = () => {
         recebidos_mes: recMes.length,
         valor_pendente: resPend.pedidos.reduce((s, p) => s + (p.total || 0), 0),
         valor_recebido_mes: recMes.reduce((s, p) => s + (p.total || 0), 0),
-        atrasados: resPend.pedidos.filter(p => p.data_previsao_entrega && new Date(p.data_previsao_entrega) < now).length,
+        atrasados: resPend.pedidos.filter(p => p.data_previsao_entrega && (diasAte(p.data_previsao_entrega) ?? 0) < 0).length,
         chegando_hoje: resPend.pedidos.filter(p => isToday(p.data_previsao_entrega)).length,
       });
     } catch { /* silencioso */ }

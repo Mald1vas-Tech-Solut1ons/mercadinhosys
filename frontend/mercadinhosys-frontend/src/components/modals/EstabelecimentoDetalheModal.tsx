@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { apiClient } from '../../api/apiClient';
 import { isValidCNPJ } from '../../utils/validators';
 import { showToast } from '../../utils/toast';
+import { dataDoDia } from '../../utils/dataLocal';
 
 interface EstabelecimentoDetalheModalProps {
     estabelecimento: any;
@@ -112,7 +113,7 @@ const EstabelecimentoDetalheModal: React.FC<EstabelecimentoDetalheModalProps> = 
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('pt-BR');
+        return dataDoDia(dateString).toLocaleDateString('pt-BR');
     };
 
     const getPlanoColor = (plano: string) => {

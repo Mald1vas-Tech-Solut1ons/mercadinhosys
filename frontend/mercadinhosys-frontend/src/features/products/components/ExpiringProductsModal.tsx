@@ -5,6 +5,7 @@ import { productsService } from '../productsService';
 import { formatCurrency } from '../../../utils/formatters';
 import { showToast } from '../../../utils/toast';
 import { confirmar } from '../../../components/ui/Confirmacao';
+import { dataDoDia, diasAte } from '../../../utils/dataLocal';
 
 /** Lote no período de validade (vindo da API) */
 export interface LoteNoPeriodo {
@@ -102,7 +103,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
 
     const diasRestantesDe = (dataValidade: string | null | undefined): number | null => {
         if (!dataValidade) return null;
-        return Math.ceil((new Date(dataValidade).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        return diasAte(dataValidade);
     };
 
     /** Uma linha por lote (ou uma por produto quando não há lotes), com chave estável.
@@ -417,7 +418,7 @@ const ExpiringProductsModal: React.FC<ExpiringProductsModalProps> = ({ isOpen, o
                                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider sm:hidden">Validade</span>
                                             <div className="flex flex-col items-end sm:items-start">
                                                 <span className={`text-sm font-medium ${timeframe === 'vencidos' ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'}`}>
-                                                    {dataValidade ? new Date(dataValidade).toLocaleDateString() : 'N/A'}
+                                                    {dataValidade ? dataDoDia(dataValidade).toLocaleDateString() : 'N/A'}
                                                 </span>
                                                 {diasRestantes !== null && (
                                                     <span className="text-[10px] text-gray-400">{diasRestantes} dias</span>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wrench, Plus, CalendarDays, Activity, FileText } from 'lucide-react';
 import { deliveryService, ManutencaoVeiculo } from './deliveryService';
 import { ManutencaoModal } from './ManutencaoModal';
+import { dataDoDia } from '../../utils/dataLocal';
 
 interface MeuVeiculoPanelProps {
     veiculoId?: number;
@@ -101,7 +102,7 @@ export const MeuVeiculoPanel: React.FC<MeuVeiculoPanelProps> = ({ veiculoId, kmA
                                         <div>
                                             <h4 className="font-bold text-gray-900 dark:text-white text-base">{m.tipo_servico}</h4>
                                             <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 dark:text-gray-400">
-                                                <CalendarDays className="w-3 h-3" /> {new Date(m.data_manutencao).toLocaleDateString()}
+                                                <CalendarDays className="w-3 h-3" /> {dataDoDia(m.data_manutencao).toLocaleDateString()}
                                             </p>
                                         </div>
                                         <div className="bg-red-50 dark:bg-red-900/20 px-3 py-1 rounded-lg text-red-700 dark:text-red-400 font-bold text-sm">

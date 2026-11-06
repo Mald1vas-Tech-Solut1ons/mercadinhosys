@@ -25,6 +25,7 @@ const TELAS: { titulo: string; termos: string; ir: string }[] = [
     { titulo: 'Vendas', termos: 'vendas historico cupom', ir: '/sales' },
     { titulo: 'Fornecedores', termos: 'fornecedores distribuidor', ir: '/suppliers' },
     { titulo: 'Compras e nota de entrada', termos: 'compras nota entrada xml pedido', ir: '/compras' },
+    { titulo: 'Produção (ficha técnica e ordem)', termos: 'producao fabrica ficha tecnica receita ordem op insumo custo', ir: '/producao' },
     { titulo: 'Despesas e contas a pagar', termos: 'despesas contas boleto financeiro', ir: '/expenses' },
     { titulo: 'Relatórios', termos: 'relatorios abc rfm exportar', ir: '/reports' },
     { titulo: 'Funcionários e RH', termos: 'funcionarios rh folha ponto', ir: '/employees' },

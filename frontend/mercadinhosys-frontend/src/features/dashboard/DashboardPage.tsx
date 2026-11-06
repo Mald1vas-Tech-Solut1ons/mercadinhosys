@@ -56,7 +56,8 @@ export default function DashboardPageV2() {
     // dados (somados) carregados na montagem inicial.
   }, [daysFilter, selectedTenantId]);
 
-  const loadData = async () => {
+  // fresco = botão "Atualizar": o backend pula o cache de 10 min e recalcula na hora.
+  const loadData = async (fresco = false) => {
     if (daysFilter === 'custom' && (!startDate || !endDate)) {
       return; // Prevenir requisição sem datas
     }
@@ -64,9 +65,9 @@ export default function DashboardPageV2() {
     setErroDados(null);
     try {
       // apiClient já inclui /api no baseURL — prefixar aqui viraria /api/api/... (404)
-      let url = `/dashboard/cientifico?days=${daysFilter}`;
+      let url = `/dashboard/cientifico?days=${daysFilter}${fresco ? '&fresh=1' : ''}`;
       if (daysFilter === 'custom') {
-        url = `/dashboard/cientifico?start_date=${startDate}T00:00:00&end_date=${endDate}T23:59:59`;
+        url = `/dashboard/cientifico?start_date=${startDate}T00:00:00&end_date=${endDate}T23:59:59${fresco ? '&fresh=1' : ''}`;
       }
       const response = await apiClient.get(url);
       setData(response.data?.data || response.data);
@@ -128,7 +129,7 @@ export default function DashboardPageV2() {
                  className="px-3 py-2 bg-white dark:bg-slate-800 text-gray-900 dark:text-white rounded-lg border border-gray-200 dark:border-slate-700 outline-none text-sm"
                />
                <button 
-                 onClick={loadData}
+                 onClick={() => loadData()}
                  disabled={!startDate || !endDate}
                  className="px-3 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-300 dark:border-blue-500/30 disabled:opacity-50"
                >
@@ -152,7 +153,7 @@ export default function DashboardPageV2() {
              <option value="custom">Período Personalizado</option>
            </select>
            {daysFilter !== 'custom' && (
-             <button onClick={loadData} className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-300 dark:border-blue-500/30">
+             <button onClick={() => loadData(true)} className="px-4 py-2 bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-600/20 dark:text-blue-400 dark:hover:bg-blue-600/30 text-sm font-bold rounded-lg transition-colors border border-blue-300 dark:border-blue-500/30">
                Atualizar
              </button>
            )}
@@ -233,7 +234,7 @@ export default function DashboardPageV2() {
             {abaAtiva === 'bi' && <BiTab periodo={periodo} />}
             {abaAtiva === 'inventory' && <InventoryTab data={data} />}
             {abaAtiva === 'financial' && <FinancialTab data={data} />}
-            {abaAtiva === 'rh' && <RHTab data={data} onRefresh={loadData} />}
+            {abaAtiva === 'rh' && <RHTab data={data} onRefresh={() => loadData(true)} />}
           </div>
         )}
       </div>

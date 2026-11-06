@@ -56,7 +56,8 @@ const BiTab: React.FC<{ periodo?: { de: string; ate: string } }> = ({ periodo })
   useEffect(() => {
     if (!de || !ate) return undefined;
     let vivo = true;
-    apiClient.get('/dashboard/bi', { params: { de, ate } })
+    // versao > 0 = o usuário pediu "Recarregar": o backend pula o cache.
+    apiClient.get('/dashboard/bi', { params: { de, ate, ...(versao > 0 ? { fresh: 1 } : {}) } })
       .then(r => { if (vivo) setResposta({ chave, dados: r.data?.data || null, erro: null }); })
       .catch(e => {
         if (!vivo) return;
@@ -68,7 +69,7 @@ const BiTab: React.FC<{ periodo?: { de: string; ate: string } }> = ({ periodo })
         }));
       });
     return () => { vivo = false; };
-  }, [de, ate, chave]);
+  }, [de, ate, chave, versao]);
 
   const carregar = useCallback(() => setVersao(v => v + 1), []);
   const carregando = resposta?.chave !== chave;

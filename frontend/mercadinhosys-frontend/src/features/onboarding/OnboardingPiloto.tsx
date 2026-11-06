@@ -59,6 +59,8 @@ const OnboardingPiloto: React.FC = () => {
     });
 
     useEffect(() => {
+        // Dispensado: a pílula não aparece, então não há o que contar (nem custo no servidor).
+        if (dispensado) return undefined;
         let vivo = true;
         (async () => {
             let caixaAberto = false;
@@ -73,12 +75,13 @@ const OnboardingPiloto: React.FC = () => {
                 // sem sinal de caixa: mantém "fechado" (não derruba o onboarding)
             }
 
-            // Nº de produtos cadastrados e vendas de hoje vêm do dashboard científico (dados reais).
+            // Nº de produtos e vendas de hoje: duas contagens leves (antes pedia o /cientifico
+            // inteiro, ~25 consultas, a cada abertura do painel; e no plano grátis dava 403).
             try {
-                const dash = await apiClient.get('/dashboard/cientifico?days=1');
-                const d = dash.data?.data || dash.data || {};
-                produtos = Number(d.inventory?.total_produtos || 0);
-                vendas = Number(d.financials?.count ?? d.summary?.revenue?.sample_size ?? 0);
+                const progresso = await apiClient.get('/dashboard/progresso-loja');
+                const d = progresso.data?.data || {};
+                produtos = Number(d.produtos || 0);
+                vendas = Number(d.vendas_hoje || 0);
             } catch {
                 // dashboard indisponível: mantém zeros — nunca inventa número
             }
@@ -90,7 +93,7 @@ const OnboardingPiloto: React.FC = () => {
         return () => {
             vivo = false;
         };
-    }, []);
+    }, [dispensado]);
 
     const dispensar = () => {
         setDispensado(true);

@@ -7,6 +7,8 @@ prejuízo. Este teste prova a conta e o recorte.
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
+import uuid
+
 import pytest
 from flask_jwt_extended import create_access_token
 
@@ -57,7 +59,7 @@ def _venda(session, ctx, itens, quando=None):
     """itens: [(produto, quantidade, total)]"""
     venda = Venda(
         estabelecimento_id=ctx["estab"].id, funcionario_id=ctx["admin"].id,
-        codigo=f"T{datetime.now().strftime('%H%M%S%f')[:14]}",
+        codigo=f"T{uuid.uuid4().hex[:13]}",  # relógio do Windows repete o microssegundo
         subtotal=sum(t for _, _, t in itens), total=sum(t for _, _, t in itens),
         valor_recebido=sum(t for _, _, t in itens), troco=Decimal("0"),
         status="finalizada", data_venda=quando or datetime.now(),

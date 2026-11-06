@@ -112,8 +112,11 @@ def dashboard_cientifico():
             f"{','.join(map(str, category_ids)) if category_ids else ''}:"
             f"{segment or ''}"
         )
+        # fresh=1 (botão "Atualizar"): ignora o cache e recalcula — o dono quer ver a venda
+        # que acabou de fazer. Abrir o painel normalmente usa o cache.
+        quer_fresco = request.args.get("fresh") == "1"
         try:
-            cached_payload = cache.get(cache_key)
+            cached_payload = None if quer_fresco else cache.get(cache_key)
         except Exception:
             cached_payload = None
         if cached_payload is not None:
@@ -151,10 +154,11 @@ def dashboard_cientifico():
             },
             "data": data
         }
-        # TTL de 120s: dashboard reflete novas vendas em até 2 min (aceitável p/
-        # analítico) e absorve picos de acesso sem reprocessar.
+        # TTL de 10 min (era 2): o painel é analítico (período de dias) e a VM tem pouca
+        # memória; recalcular as ~25 consultas a cada 2 min custava ~48 s com o processo em
+        # swap. Venda nova aparece na hora pelo botão "Atualizar" (fresh=1).
         try:
-            cache.set(cache_key, payload, timeout=120)
+            cache.set(cache_key, payload, timeout=600)
         except Exception as cache_err:
             logger.warning("Falha ao gravar cache do dashboard: %s", cache_err)
 
@@ -374,6 +378,42 @@ def dashboard_categorias():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@dashboard_bp.route("/progresso-loja", methods=["GET"])
+@gerente_ou_admin_required
+def progresso_loja():
+    """Contagens do checklist "Primeiros passos": produtos ativos e vendas de hoje.
+
+    O checklist pedia o /cientifico inteiro (~25 consultas) só para ler esses dois números,
+    a cada abertura do painel, e no plano grátis o /cientifico é Pro: o checklist recebia
+    403 e mostrava zero para sempre. Aqui são duas contagens, sem trava de plano.
+    """
+    try:
+        from sqlalchemy import func
+        from app import db
+        from app.models import Produto, Venda
+        from app.utils.timezone import local_date_to_utc_naive
+
+        estabelecimento_id = get_establishment_id()
+        hoje = hoje_local()
+        produtos = (
+            db.session.query(func.count(Produto.id))
+            .filter(Produto.estabelecimento_id == estabelecimento_id, Produto.deleted_at.is_(None),
+                    Produto.ativo.isnot(False), Produto.eh_grade_modelo.isnot(True))
+            .scalar() or 0
+        )
+        vendas_hoje = (
+            db.session.query(func.count(Venda.id))
+            .filter(Venda.estabelecimento_id == estabelecimento_id, Venda.status == "finalizada",
+                    Venda.data_venda >= local_date_to_utc_naive(hoje),
+                    Venda.data_venda <= local_date_to_utc_naive(hoje, fim_do_dia=True))
+            .scalar() or 0
+        )
+        return jsonify({"success": True, "data": {"produtos": int(produtos), "vendas_hoje": int(vendas_hoje)}})
+    except Exception as e:
+        logger.exception("Erro no progresso da loja: %s", e)
+        return jsonify({"success": False, "error": "Erro ao contar o progresso"}), 500
+
+
 @dashboard_bp.route("/bi", methods=["GET"])
 @gerente_ou_admin_required
 @plan_required('Pro')
@@ -397,7 +437,7 @@ def dashboard_bi():
 
         chave = f"dash_bi:v1:{estabelecimento_id}:{inicio.isoformat()}:{fim.isoformat()}"
         try:
-            em_cache = cache.get(chave)
+            em_cache = None if request.args.get("fresh") == "1" else cache.get(chave)
         except Exception:
             em_cache = None
         if em_cache is not None:

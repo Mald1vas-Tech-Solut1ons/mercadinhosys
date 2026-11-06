@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from sqlalchemy import func
 from app import db

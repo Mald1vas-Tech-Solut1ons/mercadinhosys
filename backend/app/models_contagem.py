@@ -8,7 +8,6 @@ NÃO cria tabela paralela de perdas: grava MovimentacaoEstoque com motivo
 Este módulo existe separado de app/models.py apenas por tamanho: models.py importa
 estes nomes no final, então o registry do SQLAlchemy e o Alembic enxergam tudo.
 """
-from datetime import datetime
 from decimal import Decimal
 
 from app import db

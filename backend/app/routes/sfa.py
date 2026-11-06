@@ -15,7 +15,7 @@ from uuid import uuid4
 import re
 import calendar as cal_lib
 from sqlalchemy import bindparam, func
-from app.utils.timezone import now_utc, iso_local, local_date_to_utc_naive, to_local, agora_local
+from app.utils.timezone import now_utc, iso_local, local_date_to_utc_naive, to_local, agora_local, hoje_local
 
 bp = Blueprint("sfa", __name__)
 
@@ -126,7 +126,7 @@ def _rotas_do_vendedor(vendedor_id, estab_id, somente_hoje=False):
     sql_rotas = "SELECT id, nome, dia_semana, ativa FROM rotas WHERE vendedor_id = :vid AND estabelecimento_id = :eid AND (deleted_at IS NULL)"
     if somente_hoje:
         # Python weekday(): 0=Seg..6=Dom, mesmo padrão de Rota.dia_semana
-        params["dow"] = datetime.now(timezone.utc).weekday()
+        params["dow"] = hoje_local().weekday()  # dia da semana da loja (às 22h de segunda já é terça em UTC)
         sql_rotas += " AND dia_semana = :dow"
     return db.session.execute(text(sql_rotas), params).mappings().all()
 

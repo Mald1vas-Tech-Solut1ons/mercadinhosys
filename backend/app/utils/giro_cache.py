@@ -14,7 +14,9 @@ Espelha a estrutura de `abc_cache.py`: cache por processo, TTL curto, lock.
 
 import time
 import threading
-from datetime import timedelta
+from datetime import datetime, timedelta
+
+from app.utils.timezone import data_local
 
 GIRO_PERIODO_DIAS = 90
 _TTL_SEGUNDOS = 600  # 10 min
@@ -86,7 +88,8 @@ def dias_efetivos(primeira_venda, hoje_date, janela_dias: int = GIRO_PERIODO_DIA
     """
     if not primeira_venda:
         return janela_dias
-    ref = primeira_venda.date() if hasattr(primeira_venda, "date") else primeira_venda
+    # O datetime vem do banco em UTC: o dia que conta é o da loja (mesma base de `hoje_date`).
+    ref = data_local(primeira_venda) if isinstance(primeira_venda, datetime) else primeira_venda
     dias = (hoje_date - ref).days
     return max(1, min(int(janela_dias), dias))
 

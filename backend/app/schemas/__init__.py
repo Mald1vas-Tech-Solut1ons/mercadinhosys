@@ -4,7 +4,6 @@ Schemas de validação com Marshmallow
 """
 
 from marshmallow import Schema, fields, validate, ValidationError, validates
-from datetime import datetime
 
 
 class ProdutoSchema(Schema):

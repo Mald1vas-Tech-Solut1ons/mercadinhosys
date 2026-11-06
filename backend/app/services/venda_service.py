@@ -4,7 +4,7 @@ Serviço de lógica de vendas
 from app.models import db, Pagamento, ContaReceber, Cliente, MovimentacaoCaixa
 from app.utils.errors import FiadoSemClienteError, PagamentoInvalidoError
 from decimal import Decimal
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import List, Dict, Any
 
 class VendaService:

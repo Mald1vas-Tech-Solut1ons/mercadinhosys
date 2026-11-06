@@ -1,4 +1,3 @@
-from datetime import datetime, timedelta
 from app import db
 from sqlalchemy import func
 from app.models import PedidoCompra, Fornecedor, ContaPagar, Produto

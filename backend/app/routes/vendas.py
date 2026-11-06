@@ -1105,13 +1105,16 @@ def obter_venda(venda_id):
 def vendas_do_dia():
     try:
         estabelecimento_id = get_authorized_establishment_id()
+        # created_at é UTC: o dia da loja vai da meia-noite de Brasília (03:00 UTC) à seguinte.
+        # Comparar com a data pura usava a meia-noite UTC (21h de Brasília) como virada do dia.
         hoje = hoje_local()
-        amanha = hoje + timedelta(days=1)
+        inicio_utc = local_date_to_utc_naive(hoje)
+        fim_utc = local_date_to_utc_naive(hoje + timedelta(days=1))
 
         vendas_hoje = Venda.query.filter(
             Venda.estabelecimento_id == estabelecimento_id,
-            Venda.created_at >= hoje,
-            Venda.created_at < amanha,
+            Venda.created_at >= inicio_utc,
+            Venda.created_at < fim_utc,
             Venda.status == "finalizada",
         ).options(
             db.joinedload(Venda.funcionario),
@@ -1135,8 +1138,8 @@ def vendas_do_dia():
             func.sum(VendaItem.total_item).label("total_vendido"),
         ).join(Venda).filter(
             Venda.estabelecimento_id == estabelecimento_id,
-            Venda.created_at >= hoje,
-            Venda.created_at < amanha,
+            Venda.created_at >= inicio_utc,
+            Venda.created_at < fim_utc,
             Venda.status == "finalizada",
         ).group_by(VendaItem.produto_nome).order_by(func.sum(VendaItem.quantidade).desc()).limit(10).all()
 

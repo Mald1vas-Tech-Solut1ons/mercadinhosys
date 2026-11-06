@@ -2,14 +2,13 @@ from flask import Blueprint, jsonify, request, g, abort
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import logging
 import re
-from datetime import datetime
 from decimal import Decimal
 import math
 from app.models import (
     db, StatusPedidoLogistica, AuditoriaQuilometragem,
     TurnoEntregador, ConfiguracaoLogistica, ChecklistVeiculo, Funcionario, Veiculo
 )
-from app.utils.timezone import hoje_local, iso_utc, now_utc
+from app.utils.timezone import hoje_local, iso_utc, now_utc, local_date_to_utc_naive
 
 logger = logging.getLogger(__name__)
 logistica_bp = Blueprint('logistica', __name__)
@@ -471,9 +470,10 @@ def dashboard_metricas():
     est_id = _get_est_id()
     filtro = request.args.get('filtro', 'hoje')
     
-    from datetime import datetime, timedelta
+    from datetime import timedelta
     agora = now_utc()
-    hoje_inicio = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+    # "Hoje" começa à meia-noite de Brasília (03:00 UTC), não à meia-noite UTC (21h da véspera).
+    hoje_inicio = local_date_to_utc_naive(hoje_local())
     
     if filtro == 'hoje':
         data_inicio = hoje_inicio
@@ -564,7 +564,6 @@ def dashboard_metricas():
 def registrar_abastecimento():
     try:
         from app.models import AbastecimentoVeiculo, Veiculo, Despesa, db
-        from datetime import date
         data = request.json
         est_id = _get_est_id()
 
@@ -673,7 +672,6 @@ def listar_manutencoes(veiculo_id):
 def registrar_manutencao():
     try:
         from app.models import ManutencaoVeiculo, Veiculo, Despesa, db
-        from datetime import date
         data = request.json
         funcionario_id = get_jwt_identity()
         est_id = _get_est_id()

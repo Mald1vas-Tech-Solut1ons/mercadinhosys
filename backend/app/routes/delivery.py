@@ -1125,9 +1125,9 @@ def dashboard_logistica():
         data_ref = func.coalesce(Entrega.data_entrega, Entrega.data_saida, Entrega.created_at)
         filtros = [Entrega.estabelecimento_id == est_id, Entrega.deleted_at.is_(None)]
         if di:
-            filtros.append(func.date(data_ref) >= datetime.strptime(di, "%Y-%m-%d").date())
+            filtros.append(get_local_date(data_ref) >= datetime.strptime(di, "%Y-%m-%d").date())
         if df:
-            filtros.append(func.date(data_ref) <= datetime.strptime(df, "%Y-%m-%d").date())
+            filtros.append(get_local_date(data_ref) <= datetime.strptime(df, "%Y-%m-%d").date())
         if motorista_id:
             filtros.append(Entrega.motorista_id == motorista_id)
         if veiculo_id:

@@ -1,3 +1,4 @@
+from app.utils.timezone import fmt_local
 from app.models import Auditoria, db
 from sqlalchemy import desc
 
@@ -20,7 +21,7 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
 
     contexto["ultimos_logs"] = [
         {
-            "data_hora": log.data_evento.strftime("%d/%m/%Y %H:%M:%S") if log.data_evento else "",
+            "data_hora": fmt_local(log.data_evento, "%d/%m/%Y %H:%M:%S") if log.data_evento else "",
             "usuario": f"Funcionário #{log.usuario_id}" if log.usuario_id else "Sistema",
             "evento": log.tipo_evento,
             "descricao": log.descricao,

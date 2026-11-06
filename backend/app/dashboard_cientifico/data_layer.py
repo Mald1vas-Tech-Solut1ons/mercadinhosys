@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy import func, desc, extract, case, and_, or_
 from decimal import Decimal, ROUND_HALF_UP
 from app.utils.custo import custo_efetivo
-from app.utils.timezone import iso_utc, now_utc, local_date_to_utc_naive, hoje_local, agora_local, hoje_local
+from app.utils.timezone import iso_utc, now_utc, local_date_to_utc_naive, hoje_local, agora_local
 from app.models import (
     Venda, VendaItem, Produto, Cliente,
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
@@ -244,8 +244,7 @@ class DataLayer:
         try:
             # db injetado pelo decorator
             # Normalizar para naive e garantir compatibilidade
-            hoje_dt = datetime.now(timezone.utc)
-            hoje = hoje_dt.date()
+            hoje = hoje_local()  # dia da loja: validade vence no fim do dia de Brasília
             data_limite = hoje + timedelta(days=days_alert)
             
             query = db.session.query(
@@ -381,8 +380,8 @@ class DataLayer:
         try:
             # db injetado pelo decorator
             # 🔥 CORREÇÃO: Usar datetime completo para garantir compatibilidade com Postgres
-            start_date = datetime.now(timezone.utc) - timedelta(days=days)
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Início da janela = meia-noite de Brasília de N dias atrás, em UTC (como a coluna).
+            start_date = local_date_to_utc_naive(hoje_local() - timedelta(days=days))
             
             query_top = db.session.query(
                 Produto.id,
@@ -435,8 +434,8 @@ class DataLayer:
         try:
             # db injetado pelo decorator
             # 🔥 CORREÇÃO: Usar datetime completo
-            start_date = datetime.now(timezone.utc) - timedelta(days=days)
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Início da janela = meia-noite de Brasília de N dias atrás, em UTC (como a coluna).
+            start_date = local_date_to_utc_naive(hoje_local() - timedelta(days=days))
             
             # Subquery para vendas filtradas por data
             # Necessário para não filtrar os produtos quando fizermos o LEFT JOIN
@@ -508,8 +507,8 @@ class DataLayer:
         """
         try:
             from app.models import Fornecedor, ContaPagar, PedidoCompra
-            start_date = datetime.now(timezone.utc) - timedelta(days=days)
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Início da janela = meia-noite de Brasília de N dias atrás, em UTC (como a coluna).
+            start_date = local_date_to_utc_naive(hoje_local() - timedelta(days=days))
 
             def _tenant(q, col):
                 if str(estabelecimento_id).lower() != 'all':
@@ -740,8 +739,8 @@ class DataLayer:
             from app.utils.query_helpers import get_hour_extract
             hour_extract = get_hour_extract(Venda.data_venda)
             
-            start_date = datetime.now(timezone.utc) - timedelta(days=days)
-            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            # Início da janela = meia-noite de Brasília de N dias atrás, em UTC (como a coluna).
+            start_date = local_date_to_utc_naive(hoje_local() - timedelta(days=days))
             
             query_top = db.session.query(
                 hour_extract.label('hora'),
@@ -1984,7 +1983,7 @@ class DataLayer:
 
             # 3. CONTAS A PAGAR (Cálculo Independente de Filtro de Data para Aberto/Vencido)
             try:
-                hoje = datetime.now(timezone.utc).date()
+                hoje = hoje_local()
                 date_7d = hoje + timedelta(days=7)
                 date_30d = hoje + timedelta(days=30)
                 
@@ -2030,7 +2029,7 @@ class DataLayer:
 
             # 4. DESPESAS A VENCER (obrigações futuras cadastradas com data_vencimento)
             try:
-                hoje = datetime.now(timezone.utc).date()
+                hoje = hoje_local()
                 date_7d = hoje + timedelta(days=7)
                 date_30d = hoje + timedelta(days=30)
                 q_dv = db.session.query(
@@ -2306,7 +2305,7 @@ class DataLayer:
         """
         try:
             # db injetado pelo decorator
-            hoje = datetime.now(timezone.utc).date()
+            hoje = hoje_local()
             
             # Agrega por status de vencimento
             query_agg_stats = db.session.query(

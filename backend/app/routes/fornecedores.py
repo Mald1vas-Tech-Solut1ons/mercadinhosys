@@ -20,7 +20,7 @@ from app.models import (
     ContaPagar,
 )
 from app.utils import validar_cnpj, validar_email, formatar_telefone
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, fmt_local, data_local
 from app.services.politica_acoes import acao_protegida, verificar_acao
 
 fornecedores_bp = Blueprint("fornecedores", __name__)
@@ -1049,7 +1049,7 @@ def exportar_fornecedores():
                         f.total_compras or 0,
                         float(f.valor_total_comprado or 0),
                         (
-                            f.data_cadastro.strftime("%d/%m/%Y %H:%M:%S")
+                            fmt_local(f.data_cadastro, "%d/%m/%Y %H:%M:%S")
                             if f.data_cadastro
                             else ""
                         ),
@@ -1098,7 +1098,7 @@ def exportar_fornecedores():
                         "Total Compras": f.total_compras or 0,
                         "Valor Total Comprado": float(f.valor_total_comprado or 0),
                         "Data Cadastro": (
-                            f.data_cadastro.strftime("%d/%m/%Y %H:%M:%S")
+                            fmt_local(f.data_cadastro, "%d/%m/%Y %H:%M:%S")
                             if f.data_cadastro
                             else ""
                         ),
@@ -1519,7 +1519,7 @@ def get_inteligencia(id):
                 timeline.append({
                     "id": m.id,
                     "numero": f"MOV-{m.id}",
-                    "data": iso_utc(m.created_at.date()) if m.created_at else None,
+                    "data": iso_utc(data_local(m.created_at)) if m.created_at else None,
                     "total": float(m.valor_total or 0),
                     "atraso_dias": 0,
                     "no_prazo": True

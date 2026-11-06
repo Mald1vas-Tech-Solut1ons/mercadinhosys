@@ -129,8 +129,10 @@ def calcular_rfm_cliente(cliente_id: int, estabelecimento_id: int) -> dict:
         }
     
     # Calcular métricas
-    now = datetime.now(timezone.utc)
-    ultima_compra = max(v.data_venda for v in vendas)
+    # data_venda vem do banco sem fuso (UTC): subtrair de um datetime COM fuso dava TypeError e o
+    # RFM do cliente nunca aparecia no PDV (o erro era engolido como warning).
+    now = now_utc()
+    ultima_compra = max(v.data_venda.replace(tzinfo=None) for v in vendas)
     recency_days = (now - ultima_compra).days
     frequency = len(vendas)
     monetary = sum(float(v.total) for v in vendas)

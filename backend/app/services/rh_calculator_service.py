@@ -581,8 +581,8 @@ def calcular_retrospectiva(funcionario, data_inicio: date, data_fim: date) -> di
     ).filter(
         MovimentacaoEstoque.funcionario_id == funcionario.id,
         MovimentacaoEstoque.tipo.in_(["entrada", "ENTRADA", "compra", "recebimento"]),
-        sqlfunc.date(MovimentacaoEstoque.created_at) >= data_inicio,
-        sqlfunc.date(MovimentacaoEstoque.created_at) <= data_fim,
+        get_local_date(MovimentacaoEstoque.created_at) >= data_inicio,
+        get_local_date(MovimentacaoEstoque.created_at) <= data_fim,
     ).first()
 
     # --- Entregas (motoboy/entregador): vincula Funcionário → Motorista por CPF ---
@@ -603,8 +603,8 @@ def calcular_retrospectiva(funcionario, data_inicio: date, data_fim: date) -> di
         escopo_entrega = and_(
             Entrega.motorista_id == motorista.id,
             Entrega.status.notin_(["cancelada", "cancelado"]),
-            sqlfunc.date(data_ref) >= data_inicio,
-            sqlfunc.date(data_ref) <= data_fim,
+            get_local_date(data_ref) >= data_inicio,
+            get_local_date(data_ref) <= data_fim,
         )
         # km: usa km_percorridos quando registrado (>0), senão a distância da entrega
         km_expr = sqlfunc.sum(case((Entrega.km_percorridos > 0, Entrega.km_percorridos), else_=Entrega.distancia_km))

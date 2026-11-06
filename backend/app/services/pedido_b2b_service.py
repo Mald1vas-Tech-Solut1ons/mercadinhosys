@@ -11,7 +11,7 @@ bloqueado ``FOR UPDATE``, para reserva, venda de balcão e expedição serem ser
 """
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy import func

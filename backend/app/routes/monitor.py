@@ -7,7 +7,7 @@ from app.decorators.decorator_jwt import super_admin_required
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import json
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local, local_date_to_utc_naive
 import logging
 
 logger = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ def get_global_summary():
         is_global = str(estab_id).lower() == "all"
 
         agora = datetime.now(timezone.utc)
-        hoje_start = agora.replace(hour=0, minute=0, second=0, microsecond=0)
+        hoje_start = local_date_to_utc_naive(hoje_local())  # meia-noite de Brasília, em UTC (como a coluna)
         mes_start = hoje_start - timedelta(days=30)
         
         # 1. Estabelecimentos Totais (Contagem simples - sempre global para manter sentido no dashboard SaaS)

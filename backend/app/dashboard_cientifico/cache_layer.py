@@ -5,7 +5,6 @@ Foco: Performance sem dados desatualizados
 
 import time
 from typing import Any, Dict, Optional
-from datetime import datetime, timedelta
 import threading
 
 

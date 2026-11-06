@@ -24,7 +24,7 @@ import re
 
 from app.models import (
     db, Produto, Fornecedor, CategoriaProduto, MovimentacaoEstoque,
-    ContaPagar, NotaFiscalEntrada, Estabelecimento, utcnow,
+    ContaPagar, NotaFiscalEntrada, Estabelecimento,
     PedidoCompra, PedidoCompraItem, ProdutoLote,
 )
 from app.services.catalogo_mestre_service import registrar_produto_se_novo

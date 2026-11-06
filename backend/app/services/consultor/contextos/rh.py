@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.services.rh_calculator_service import calcular_custo_folha_detalhado
 from app.models import Funcionario, JustificativaPonto, Rescisao, Venda, RegistroPonto
 from app import db

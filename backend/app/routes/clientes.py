@@ -15,7 +15,7 @@ from app.models import db, Cliente, Estabelecimento, Venda, VendaItem, ContaRece
 from app.utils import validar_email, formatar_telefone, calcular_idade
 # Validadores com dígito verificador (os de app.utils só conferiam o tamanho).
 from app.utils.validators import validar_cpf, validar_cnpj
-from app.utils.timezone import iso_utc, now_utc, hoje_local
+from app.utils.timezone import iso_utc, now_utc, hoje_local, fmt_local
 from app.utils.ia_copiloto import gerar_texto, ia_disponivel
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
@@ -1950,12 +1950,12 @@ def exportar_clientes():
                         "SIM" if c.ativo else "NÃO",
                         c.observacoes or "",
                         (
-                            c.data_cadastro.strftime("%d/%m/%Y %H:%M:%S")
+                            fmt_local(c.data_cadastro, "%d/%m/%Y %H:%M:%S")
                             if c.data_cadastro
                             else ""
                         ),
                         (
-                            c.data_atualizacao.strftime("%d/%m/%Y %H:%M:%S")
+                            fmt_local(c.data_atualizacao, "%d/%m/%Y %H:%M:%S")
                             if c.data_atualizacao
                             else ""
                         ),
@@ -2025,12 +2025,12 @@ def exportar_clientes():
                         "Ativo": "SIM" if c.ativo else "NÃO",
                         "Observações": c.observacoes or "",
                         "Data Cadastro": (
-                            c.data_cadastro.strftime("%d/%m/%Y %H:%M:%S")
+                            fmt_local(c.data_cadastro, "%d/%m/%Y %H:%M:%S")
                             if c.data_cadastro
                             else ""
                         ),
                         "Data Atualização": (
-                            c.data_atualizacao.strftime("%d/%m/%Y %H:%M:%S")
+                            fmt_local(c.data_atualizacao, "%d/%m/%Y %H:%M:%S")
                             if c.data_atualizacao
                             else ""
                         ),

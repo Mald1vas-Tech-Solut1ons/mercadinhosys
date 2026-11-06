@@ -9,7 +9,7 @@ from flask_jwt_extended import get_jwt, jwt_required
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import admin_required as store_admin_required
-from app.utils.timezone import iso_utc, hoje_local
+from app.utils.timezone import iso_utc, hoje_local, local_date_to_utc_naive
 
 funcionarios_bp = Blueprint("funcionarios", __name__, url_prefix="/api/funcionarios")
 
@@ -892,32 +892,25 @@ def detalhes_funcionario(id):
         )
 
         # Vendas por mês (últimos 6 meses)
-        hoje = datetime.now(timezone.utc)
+        # Mês calendário da LOJA: do dia 1 às 00:00 de Brasília até o dia 1 do mês seguinte (exclusivo),
+        # convertidos para UTC como a coluna. Antes o limite carregava a hora atual (replace(day=1)
+        # mantinha hh:mm) e cortava as vendas do último dia do mês depois daquele horário.
         vendas_por_mes = []
+        primeiro_do_mes = hoje_local().replace(day=1)
 
         for i in range(6):
-            mes_data = hoje.replace(day=1)
+            mes_data = primeiro_do_mes
             for _ in range(i):
-                if mes_data.month == 1:
-                    mes_data = mes_data.replace(year=mes_data.year - 1, month=12)
-                else:
-                    mes_data = mes_data.replace(month=mes_data.month - 1)
-
-            mes_fim = mes_data
-            if mes_fim.month == 12:
-                mes_fim = mes_fim.replace(
-                    year=mes_fim.year + 1, month=1, day=1
-                ) - timedelta(days=1)
-            else:
-                mes_fim = mes_fim.replace(month=mes_fim.month + 1, day=1) - timedelta(
-                    days=1
-                )
+                mes_data = (mes_data - timedelta(days=1)).replace(day=1)
+            proximo_mes = (mes_data + timedelta(days=32)).replace(day=1)
+            inicio_utc = local_date_to_utc_naive(mes_data)
+            fim_utc = local_date_to_utc_naive(proximo_mes)
 
             vendas_mes = Venda.query.filter(
                 Venda.funcionario_id == id,
                 Venda.estabelecimento_id == estabelecimento_id,
-                Venda.created_at >= mes_data,
-                Venda.created_at <= mes_fim,
+                Venda.created_at >= inicio_utc,
+                Venda.created_at < fim_utc,
             ).count()
 
             valor_mes = (
@@ -925,8 +918,8 @@ def detalhes_funcionario(id):
                 .filter(
                     Venda.funcionario_id == id,
                     Venda.estabelecimento_id == estabelecimento_id,
-                    Venda.created_at >= mes_data,
-                    Venda.created_at <= mes_fim,
+                    Venda.created_at >= inicio_utc,
+                    Venda.created_at < fim_utc,
                 )
                 .scalar()
                 or 0.0

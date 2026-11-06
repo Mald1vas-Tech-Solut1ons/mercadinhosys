@@ -19,7 +19,7 @@ from app.models import (
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from app.decorators.plan_guards import plan_required
 from app.dashboard_cientifico.data_layer import DataLayer
-from app.utils.timezone import hoje_local
+from app.utils.timezone import hoje_local, iso_utc
 
 rh_bp = Blueprint("rh", __name__)
 
@@ -898,7 +898,7 @@ def listar_rescisoes():
                 "data_demissao": r.data_demissao.isoformat() if r.data_demissao else None,
                 "tipo_rescisao": r.tipo_rescisao,
                 "total_liquido": float(r.total_liquido or 0),
-                "registrada_em": r.created_at.isoformat() if r.created_at else None,
+                "registrada_em": iso_utc(r.created_at),
                 "detalhe": r.verbas_rescisorias_json,
             })
         return jsonify({

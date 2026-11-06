@@ -473,7 +473,7 @@ def _deve_alertar_por_cobertura(metrica, produto, hoje):
 @jwt_required()
 def dashboard_alertas():
     try:
-        from datetime import date, timedelta
+        from datetime import timedelta
         from sqlalchemy import or_, and_
         from app.models import Produto
         from app.utils.query_helpers import get_configuracao_safe

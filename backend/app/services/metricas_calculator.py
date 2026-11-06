@@ -1,6 +1,6 @@
 import schedule
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from flask import current_app
 from app import db
 from app.models import DashboardMetrica, Venda, Produto, Estabelecimento, allow_all_tenants

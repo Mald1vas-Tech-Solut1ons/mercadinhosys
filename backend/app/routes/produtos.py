@@ -32,7 +32,7 @@ from app.models import (
     CatalogoMestre,
 )
 from app.utils import calcular_margem_lucro, formatar_codigo_barras
-from app.utils.timezone import iso_utc, now_utc, fmt_local, agora_local, hoje_local
+from app.utils.timezone import iso_utc, now_utc, fmt_local, agora_local, hoje_local, data_local
 from app.utils.query_helpers import get_local_date
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
@@ -527,7 +527,7 @@ def classificar_giro_produto(produto, hoje_date=None, agregado=None):
     try:
         from app.utils.giro_cache import metrica_produto
         if hoje_date is None:
-            hoje_date = datetime.now(timezone.utc).date()
+            hoje_date = hoje_local()
         return metrica_produto(produto, hoje_date, agregado=agregado)["classe"]
     except Exception:
         return 'lento'
@@ -1754,7 +1754,7 @@ def listar_produtos():
             # paginamos manualmente. Catálogos por loja são pequenos (dezenas),
             # então o custo é desprezível e a consistência com o card é garantida.
             alvo = filtro_rapido.replace("giro_", "")
-            hoje_giro = datetime.now(timezone.utc).date()
+            hoje_giro = hoje_local()
             from app.utils.giro_cache import get_vendas_agregadas
             agregado_giro = get_vendas_agregadas(estabelecimento_id)
             todos = query.options(*opts).all()
@@ -1779,7 +1779,7 @@ def listar_produtos():
         # anexa a métrica a cada produto (via _giro_metrica), para que to_dict e o
         # status_giro leiam os MESMOS números dos cards/modais/Hub.
         from app.utils.giro_cache import get_vendas_agregadas, metrica_produto
-        hoje_giro_lista = datetime.now(timezone.utc).date()
+        hoje_giro_lista = hoje_local()
         agregado_lista = get_vendas_agregadas(estabelecimento_id)
 
         for produto in paginacao_items:
@@ -2180,7 +2180,7 @@ def obter_produto(id):
                         else None
                     ),
                     "dias_ultima_venda": (
-                        (datetime.now(timezone.utc).date() - produto.ultima_venda.date()).days
+                        (hoje_local() - data_local(produto.ultima_venda)).days
                         if produto.ultima_venda
                         else None
                     ),
@@ -4524,7 +4524,7 @@ def obter_estatisticas_produtos():
         # lotes ativos com estoque). Antes contava só Produto.data_validade com
         # controlar_validade=True, e a lista considerava lotes também: o card
         # dizia X e o modal/lista mostrava Y.
-        hoje = datetime.now(timezone.utc).date()
+        hoje = hoje_local()
 
         def _count_validade_janela(dias=None, apenas_vencidos=False):
             if apenas_vencidos:
@@ -4572,12 +4572,11 @@ def obter_estatisticas_produtos():
         produtos_com_margem = []
         produtos_criticos = []
 
-        hoje_datetime = datetime.now(timezone.utc)
 
         # FONTE ÚNICA de giro: agregado do ledger do tenant (uma query, cacheada).
         from app.utils.giro_cache import get_vendas_agregadas, metrica_produto
         agregado_stats = get_vendas_agregadas(estabelecimento_id)
-        hoje_giro_stats = hoje_datetime.date()
+        hoje_giro_stats = hoje_local()
 
         for p in produtos_lite:
             # 5.1 Cálculo de Margem Individual
@@ -4929,7 +4928,7 @@ def alertas_produtos():
 
             for produto in produtos_sem_movimento:
                 if produto.ultima_venda:
-                    dias_sem_venda = (datetime.now(timezone.utc) - produto.ultima_venda).days
+                    dias_sem_venda = (hoje_local() - data_local(produto.ultima_venda)).days
                     alertas.append({
                         "tipo": "sem_movimento",
                         "nivel": "baixo",
@@ -5076,7 +5075,7 @@ def exportar_produtos():
                     produto.total_vendido or 0,
                     produto.quantidade_vendida or 0,
                     (
-                        produto.ultima_venda.strftime("%d/%m/%Y %H:%M")
+                        fmt_local(produto.ultima_venda)
                         if produto.ultima_venda
                         else ""
                     ),
@@ -5788,8 +5787,8 @@ def obter_produto_hub(id):
 
         dias_sem_venda = None
         if ultima_venda_dt:
-            ref = ultima_venda_dt.date() if hasattr(ultima_venda_dt, 'date') else ultima_venda_dt
-            dias_sem_venda = (hoje.date() - ref).days
+            ref = data_local(ultima_venda_dt) if isinstance(ultima_venda_dt, datetime) else ultima_venda_dt
+            dias_sem_venda = (hoje_local() - ref).days
 
         lucro_estimado = 0
         if produto.preco_venda and produto.preco_custo:

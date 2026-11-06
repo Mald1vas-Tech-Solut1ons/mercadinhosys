@@ -330,7 +330,7 @@ MIX_PADRAO_POR_SEGMENTO = {
     "autopecas": ["autopecas", "servico"],
     "generico": ["alimento", "bebida", "embalagem_descartavel", "bazar", "perfumaria_higiene", "construcao_leve",
                  "construcao_eletrica", "construcao_hidraulica", "construcao_ferragem", "vestuario", "servico",
-                 "eletro", "calcados", "suplementos"],
+                 "eletro", "calcados", "suplementos", "autopecas"],
 }
 
 for _segmento, _novas in MIX_NOVAS_POR_SEGMENTO.items():
@@ -659,6 +659,17 @@ def normalizar_segmento(segmento: str = None) -> str:
     return segmento
 
 
+def todas_familias_ordenadas(segmento: str = None) -> list:
+    """Todas as famílias (departamentos) do sistema: as do segmento primeiro, depois as demais.
+
+    O segmento é só o MODELO INICIAL da loja; qualquer loja pode ligar qualquer departamento
+    (outlet que vende cosmético, cama/mesa e motopeça não pode ficar trocando de segmento).
+    """
+    segmento = normalizar_segmento(segmento)
+    primeiro = MIX_PADRAO_POR_SEGMENTO.get(segmento, MIX_PADRAO_POR_SEGMENTO[SEGMENTO_PADRAO])
+    return list(primeiro) + [f for f in FAMILIAS_PRODUTO if f not in primeiro]
+
+
 def listar_familias_disponiveis(segmento: str = None, mix: list | None = None) -> list:
     segmento = normalizar_segmento(segmento)
     familias = mix or MIX_PADRAO_POR_SEGMENTO.get(segmento, MIX_PADRAO_POR_SEGMENTO[SEGMENTO_PADRAO])
@@ -679,7 +690,9 @@ def listar_familias_disponiveis(segmento: str = None, mix: list | None = None) -
 def mix_permitido_para_estabelecimento(estabelecimento: Estabelecimento | None = None, segmento: str = None) -> list:
     segmento = normalizar_segmento(estabelecimento.segmento if estabelecimento is not None else segmento)
     mix_padrao = MIX_PADRAO_POR_SEGMENTO.get(segmento, MIX_PADRAO_POR_SEGMENTO[SEGMENTO_PADRAO])
-    familias_permitidas = set(mix_padrao)
+    # Departamentos: o mix configurado pela loja vale para QUALQUER família do sistema; o
+    # segmento só define o mix padrão de quem ainda não configurou.
+    familias_permitidas = set(FAMILIAS_PRODUTO)
     mix = []
     if estabelecimento is not None:
         try:
@@ -714,7 +727,9 @@ def normalizar_familia_produto(
     mix = mix_permitido_para_estabelecimento(estabelecimento, segmento)
     if familia in mix:
         return familia
-    if familia in FAMILIAS_PRODUTO and estabelecimento is None:
+    # Família válida fora dos departamentos ativos (produto antigo, departamento desligado):
+    # o produto mantém o formulário DELE. Trocar pela 1ª do mix abria lençol como autopeça.
+    if familia in FAMILIAS_PRODUTO:
         return familia
     return mix[0]
 
@@ -995,7 +1010,7 @@ def resolver_view_schema(
         # NCM, efeito da marca de ST) — o formulário avisa o operador com elas.
         "regras_fiscais": regras_para_interface(),
         "mix_permitido": mix_permitido,
-        "familias_configuraveis": listar_familias_disponiveis(segmento_tenant),
+        "familias_configuraveis": listar_familias_disponiveis(segmento_tenant, todas_familias_ordenadas(segmento_tenant)),
         "familias_disponiveis": listar_familias_disponiveis(segmento_tenant, mix_permitido),
         "flags": flags,
         # Categorias prontas da família (o cadastro mostra para tocar; as da loja continuam valendo).

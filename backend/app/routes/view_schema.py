@@ -12,6 +12,7 @@ from flask_jwt_extended import jwt_required, get_jwt
 from app import db
 from app.models import Estabelecimento
 from app.services.view_schema_service import (
+    FAMILIAS_PRODUTO,
     SEGMENTOS,
     invalidar_cache_view_schema,
     mix_permitido_para_estabelecimento,
@@ -125,20 +126,18 @@ def definir_segmento():
         if segmento not in SEGMENTOS:
             return jsonify({"success": False, "error": f"Segmento inválido: {segmento}"}), 400
 
+        # Trocar de segmento NUNCA tira departamento: a loja fica com o que já vendia + o padrão
+        # do segmento novo (antes, ir para "autopeças" deixava só autopeças e serviço).
+        mix_vigente = mix_permitido_para_estabelecimento(estabelecimento)
+        mix_padrao_novo = mix_permitido_para_estabelecimento(segmento=segmento)
+        mix_unido = list(mix_vigente) + [f for f in mix_padrao_novo if f not in mix_vigente]
         estabelecimento.segmento = segmento
         configuracoes = estabelecimento.configuracoes or {}
-        mix_atual = configuracoes.get("mix_produtos") or []
-        if mix_atual:
-            mix_padrao_novo = resolver_view_schema(segmento=segmento).get("mix_permitido") or []
-            mix_sanitizado = [
-                familia for familia in [str(v or "").strip().lower() for v in mix_atual]
-                if familia in mix_padrao_novo
-            ]
-            if mix_sanitizado and mix_sanitizado != mix_padrao_novo:
-                configuracoes["mix_produtos"] = mix_sanitizado
-            else:
-                configuracoes.pop("mix_produtos", None)
-            estabelecimento.configuracoes = configuracoes
+        if mix_unido != mix_padrao_novo:
+            configuracoes["mix_produtos"] = mix_unido
+        else:
+            configuracoes.pop("mix_produtos", None)
+        estabelecimento.configuracoes = configuracoes
         db.session.commit()
         invalidar_cache_view_schema(estabelecimento.id)
 
@@ -174,7 +173,7 @@ def salvar_overrides():
             mix_customizado = []
             for familia in mix_solicitado:
                 chave = str(familia or "").strip().lower()
-                if chave in mix_padrao and chave not in mix_customizado:
+                if chave in FAMILIAS_PRODUTO and chave not in mix_customizado:
                     mix_customizado.append(chave)
 
         overrides = {}

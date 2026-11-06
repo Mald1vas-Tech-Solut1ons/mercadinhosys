@@ -122,8 +122,8 @@ const SegmentSettings = () => {
                     <h3 className="text-lg font-bold text-gray-800 dark:text-white">Segmento do Negócio</h3>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-                    O segmento define quais campos, unidades e indicadores o sistema exibe.
-                    Cadastro de produtos, PDV e relatórios se adaptam automaticamente.
+                    O segmento é o perfil principal da loja (indicadores e departamentos sugeridos).
+                    Trocar de segmento não tira nenhum departamento que a loja já usa.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {segmentos.map(seg => {
@@ -157,10 +157,12 @@ const SegmentSettings = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-1">
                     <Layers className="w-5 h-5 text-blue-600" />
-                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Mix de Produtos Permitido</h3>
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Departamentos da Loja</h3>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Defina quais famílias podem ser cadastradas neste tenant. O formulário de produto e o schema contextual respeitam essa governança.
+                    Ligue todos os departamentos que sua loja vende — pode misturar à vontade (ex.: cosméticos,
+                    cama e mesa e motopeças). Cada produto abre com o formulário certo do departamento dele,
+                    sem precisar trocar o segmento.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {familiasConfiguraveis.map(familia => {
@@ -190,8 +192,19 @@ const SegmentSettings = () => {
                 </div>
                 {mixProdutos.length === 0 && (
                     <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
-                        Nenhuma família selecionada. Ao salvar, o sistema volta automaticamente para o mix padrão do segmento.
+                        Nenhum departamento selecionado. Ao salvar, o sistema volta para os departamentos padrão do segmento.
                     </p>
+                )}
+                {!salvo && (
+                    <div className="mt-5 flex justify-end">
+                        <button
+                            onClick={salvarOverrides}
+                            disabled={salvando}
+                            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 shadow-lg"
+                        >
+                            {salvando ? 'Salvando...' : 'Salvar Departamentos'}
+                        </button>
+                    </div>
                 )}
             </div>
 

@@ -7,6 +7,7 @@ H3: login cloud recusa funcionário com status demitido/suspenso.
 H1: CORS fallback nunca é ["*"] com supports_credentials=True.
 H4: senhas passam pela mesma política (8+ letras+números) em todos os pontos.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 import os
 from datetime import date
 
@@ -50,7 +51,7 @@ def test_list_tenants_recusa_admin_de_loja_comum(app, client, ctx):
 
 def test_onboarding_recusa_senha_fraca(client, session):
     estab = session.query(Estabelecimento).first()
-    suffix = date.today().strftime("%H%M%S")
+    suffix = hoje_local().strftime("%H%M%S")
     resp = client.post(
         "/api/onboarding/registrar",
         json={

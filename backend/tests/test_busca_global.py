@@ -1,4 +1,5 @@
 """Busca global (Ctrl+K): tolerante a acento e erro de digitação, filtros de estado, isolada por loja."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -34,7 +35,7 @@ def ctx(session):
     cat = CategoriaProduto(estabelecimento_id=estab.id, nome="Geral")
     session.add(cat)
     session.flush()
-    hoje = date.today()
+    hoje = hoje_local()
     session.add_all([
         Produto(estabelecimento_id=estab.id, categoria_id=cat.id, nome="Água Mineral 500ml", codigo_barras="7891234567895",
                 preco_custo=Decimal("1"), preco_venda=Decimal("2.5"), quantidade=Decimal("30"), quantidade_minima=Decimal("5")),

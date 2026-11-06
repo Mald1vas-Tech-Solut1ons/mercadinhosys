@@ -3,6 +3,7 @@
 Antes o endpoint ignorava `alerta_estoque_minimo`/`controlar_validade` e usava
 30 dias fixos: a loja desligava o alerta e a lista de estoque crítico seguia lá.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -30,7 +31,7 @@ def _setup(session, **config):
     session.add(Produto(estabelecimento_id=estab.id, categoria_id=cat.id, nome="Iogurte",
                         preco_custo=Decimal("2"), preco_venda=Decimal("4"),
                         quantidade=50, quantidade_minima=1, controlar_validade=True,
-                        data_validade=date.today() + timedelta(days=20)))
+                        data_validade=hoje_local() + timedelta(days=20)))
     session.commit()
     token = create_access_token(identity=str(admin.id), additional_claims={
         "estabelecimento_id": estab.id, "role": "admin", "nome": "Admin",

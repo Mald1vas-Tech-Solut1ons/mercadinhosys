@@ -1,4 +1,5 @@
 """Regressão do retorno ausente no fallback de listagem de fornecedores."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, datetime, timezone
 
 import pytest
@@ -244,7 +245,7 @@ def test_supplier_detail_keeps_partial_payment_balance_visible(client, session, 
     supplier, _, global_headers, tenant_headers = supplier_global_context
     session.add(ContaPagar(estabelecimento_id=supplier.estabelecimento_id, fornecedor_id=supplier.id,
                           numero_documento="SUP-PARTIAL", valor_original=40, valor_pago=10, valor_atual=30,
-                          data_emissao=date.today(), data_vencimento=date.today(), status="parcial"))
+                          data_emissao=hoje_local(), data_vencimento=hoje_local(), status="parcial"))
     session.commit()
     headers = dict(tenant_headers if mode == "tenant" else global_headers)
     if mode == "mirror":

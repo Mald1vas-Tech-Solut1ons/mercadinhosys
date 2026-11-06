@@ -1,4 +1,5 @@
 """Formulário por família: validade/fabricação/lote no cadastro, categorias prontas e campos certos."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 
 import pytest
@@ -22,7 +23,7 @@ def ctx(session):
 
 
 def _hoje(dias=0):
-    return (date.today() + timedelta(days=dias)).isoformat()
+    return (hoje_local() + timedelta(days=dias)).isoformat()
 
 
 def _criar(client, ctx, **campos):

@@ -5,6 +5,7 @@
 - Consultor enxerga a venda de hoje (antes `data_venda <= date` zerava hoje/ontem);
 - rotas de lotes e de código de barras que o front chama existem.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -61,7 +62,7 @@ def test_cadastro_com_senha_permite_login_e_dashboard_em_trial(client, session):
     # A oferta da landing e do panfleto é "2 meses grátis": o teste self-service dura 60 dias.
     trial = r.get_json()["trial"]
     assert trial["dias"] == 60
-    assert trial["vencimento"].startswith((date.today() + timedelta(days=60)).isoformat())
+    assert trial["vencimento"].startswith((hoje_local() + timedelta(days=60)).isoformat())
 
     login = client.post("/api/auth/login", json={"username": "dono_onda0", "senha": "MinhaSenha1"})
     assert login.status_code == 200, login.get_data(as_text=True)
@@ -79,7 +80,7 @@ def test_trial_em_vigor_vale_como_pro_e_gratuito_continua_bloqueado(client, sess
     h = _headers(estab.id, admin.id)
 
     estab.plano, estab.plano_status = "trial", "experimental"
-    estab.vencimento_plano = date.today() + timedelta(days=10)
+    estab.vencimento_plano = hoje_local() + timedelta(days=10)
     db.session.commit()
     from app import cache
     cache.delete(f"plano:{estab.id}")

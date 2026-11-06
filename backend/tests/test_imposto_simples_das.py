@@ -10,6 +10,7 @@ Em vez de multiplicar a receita por uma alíquota que ninguém configurou só pa
 preencher a coluna — número errado com cara de certo numa tela de lucro é risco
 contábil, não estimativa.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -38,7 +39,7 @@ def ctx(session):
 
 
 def _resumo(client, ctx):
-    hoje = date.today().isoformat()
+    hoje = hoje_local().isoformat()
     r = client.get(f"/api/despesas/resumo-financeiro/?data_inicio={hoje}&data_fim={hoje}",
                    headers=ctx["headers"])
     assert r.status_code == 200, r.get_json()

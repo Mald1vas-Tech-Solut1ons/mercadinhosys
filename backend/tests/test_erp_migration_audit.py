@@ -3,6 +3,7 @@
 Nasceram como xfail na auditoria de 07/10/2026; todas passam desde a correção
 de 08/10/2026. Usa apenas o banco isolado das fixtures.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -44,7 +45,7 @@ def erp_context(session):
     lot = ProdutoLote(
         estabelecimento_id=estab.id, produto_id=prod.id, fornecedor_id=forn.id,
         numero_lote="ERP-AUDIT", quantidade=10, quantidade_inicial=10,
-        data_entrada=date.today(), data_validade=date.today() + timedelta(days=30),
+        data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=30),
         preco_custo_unitario=4, ativo=True,
     )
     session.add(lot)
@@ -72,7 +73,7 @@ def test_recebimento_parcial_permite_complemento(client, session, erp_context):
     response = client.post("/api/pedidos-compra/receber", headers=ctx["headers"], json={
         "pedido_id": purchase_id,
         "itens": [{"item_id": item.id, "quantidade_recebida": 3,
-                   "data_validade": (date.today() + timedelta(days=60)).isoformat()}],
+                   "data_validade": (hoje_local() + timedelta(days=60)).isoformat()}],
     })
     assert response.status_code == 200, response.get_json()
     session.expire_all()
@@ -153,7 +154,7 @@ def test_custo_medio_preserva_quantidade_fracionaria(erp_context):
 
 def test_consumo_nao_seleciona_lote_vencido(session, erp_context):
     ctx = erp_context
-    ctx["lot"].data_validade = date.today() - timedelta(days=1)
+    ctx["lot"].data_validade = hoje_local() - timedelta(days=1)
     session.commit()
     selected = ctx["prod"].get_lotes_disponiveis()
     assert ctx["lot"].id not in {lot.id for lot in selected}

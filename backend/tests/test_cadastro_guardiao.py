@@ -6,6 +6,7 @@ Prova cada regra contra a rota real POST /api/produtos/ (com JWT e loja):
 - estoque 0 recusado; exceção consciente marca Lista de Revisão;
 - nome/marca/unidade gravados canônicos (UPPER) mesmo vindo minúsculo.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from decimal import Decimal
 
 import pytest
@@ -30,7 +31,7 @@ def _post(client, ctx, **campos):
     base = {"nome": "PRODUTO GUARDIAO", "subcategoria": "Outros Alimentos",
             "preco_custo": 2.0, "preco_venda": 5.0, "quantidade": 10,
             # Alimento com estoque exige validade (regra da família).
-            "data_validade": (date.today() + timedelta(days=180)).isoformat()}
+            "data_validade": (hoje_local() + timedelta(days=180)).isoformat()}
     base.update(campos)
     return client.post("/api/produtos/", headers=ctx["headers"], json=base)
 

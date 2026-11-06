@@ -1,4 +1,5 @@
 """NF-e documental vinculada à compra não duplica a entrada física ou a dívida."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from decimal import Decimal
 import io
 
@@ -267,7 +268,7 @@ def test_xml_e_recebimento_concorrentes_postgres(app, client, session, ctx, monk
                     data={'xml': (io.BytesIO(b'<xml/>'), 'nfe.xml'), 'pedido_id': str(pedido_id)}).status_code
             return c.post('/api/pedidos-compra/receber', headers=headers, json={'pedido_id': pedido_id,
                 'numero_nota_fiscal': '123', 'serie_nota_fiscal': '1', 'itens': [{'item_id': item_id,
-                'quantidade_recebida': 10, 'data_validade': (date.today() + timedelta(days=90)).isoformat()}]}).status_code
+                'quantidade_recebida': 10, 'data_validade': (hoje_local() + timedelta(days=90)).isoformat()}]}).status_code
     with ThreadPoolExecutor(max_workers=2) as executor:
         assert list(executor.map(chamar, ['xml', 'receber'])) == [201, 200]
     session.expire_all()

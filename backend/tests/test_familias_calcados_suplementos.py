@@ -1,4 +1,5 @@
 """Famílias Calçados e Suplementos e Nutrição + bloqueio configurável de venda de vencido."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -120,7 +121,7 @@ def _bloquear(session, ctx, valor):
 
 
 def test_produto_sem_lote_vencido_bloqueado_por_padrao(client, session, caixa_ctx):
-    p = _produto(session, caixa_ctx, data_validade=date.today() - timedelta(days=2))
+    p = _produto(session, caixa_ctx, data_validade=hoje_local() - timedelta(days=2))
     r = _vender(client, caixa_ctx, p)
     assert r.status_code == 400
     assert "vencido" in r.get_json()["error"]
@@ -128,7 +129,7 @@ def test_produto_sem_lote_vencido_bloqueado_por_padrao(client, session, caixa_ct
 
 def test_loja_que_desliga_o_bloqueio_vende_vencido(client, session, caixa_ctx):
     _bloquear(session, caixa_ctx, False)
-    p = _produto(session, caixa_ctx, data_validade=date.today() - timedelta(days=2))
+    p = _produto(session, caixa_ctx, data_validade=hoje_local() - timedelta(days=2))
     assert _vender(client, caixa_ctx, p).status_code == 201
 
 
@@ -136,11 +137,11 @@ def test_lote_vencido_sai_primeiro_quando_bloqueio_desligado(client, session, ca
     _bloquear(session, caixa_ctx, False)
     p = _produto(session, caixa_ctx)
     vencido = ProdutoLote(estabelecimento_id=caixa_ctx["estab"].id, produto_id=p.id, numero_lote="V",
-                          quantidade=2, quantidade_inicial=2, data_entrada=date.today() - timedelta(days=200),
-                          data_validade=date.today() - timedelta(days=1), preco_custo_unitario=30, ativo=True)
+                          quantidade=2, quantidade_inicial=2, data_entrada=hoje_local() - timedelta(days=200),
+                          data_validade=hoje_local() - timedelta(days=1), preco_custo_unitario=30, ativo=True)
     bom = ProdutoLote(estabelecimento_id=caixa_ctx["estab"].id, produto_id=p.id, numero_lote="B",
-                      quantidade=3, quantidade_inicial=3, data_entrada=date.today(),
-                      data_validade=date.today() + timedelta(days=300), preco_custo_unitario=30, ativo=True)
+                      quantidade=3, quantidade_inicial=3, data_entrada=hoje_local(),
+                      data_validade=hoje_local() + timedelta(days=300), preco_custo_unitario=30, ativo=True)
     db.session.add_all([vencido, bom])
     db.session.commit()
     assert _vender(client, caixa_ctx, p, qtd=5).status_code == 201
@@ -150,10 +151,10 @@ def test_lote_vencido_sai_primeiro_quando_bloqueio_desligado(client, session, ca
 
 
 def test_lote_vencido_segue_em_quarentena_com_bloqueio(client, session, caixa_ctx):
-    p = _produto(session, caixa_ctx, data_validade=date.today() - timedelta(days=1))
+    p = _produto(session, caixa_ctx, data_validade=hoje_local() - timedelta(days=1))
     db.session.add(ProdutoLote(estabelecimento_id=caixa_ctx["estab"].id, produto_id=p.id, numero_lote="V",
-                               quantidade=5, quantidade_inicial=5, data_entrada=date.today() - timedelta(days=200),
-                               data_validade=date.today() - timedelta(days=1), preco_custo_unitario=30, ativo=True))
+                               quantidade=5, quantidade_inicial=5, data_entrada=hoje_local() - timedelta(days=200),
+                               data_validade=hoje_local() - timedelta(days=1), preco_custo_unitario=30, ativo=True))
     db.session.commit()
     r = _vender(client, caixa_ctx, p)
     assert r.status_code == 400

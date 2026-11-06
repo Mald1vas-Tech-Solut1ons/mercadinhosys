@@ -26,7 +26,7 @@ def fin(session):
     session.flush()
     session.add_all([
         ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, numero_lote="FIN", quantidade=10,
-                    quantidade_inicial=10, data_entrada=date.today(), data_validade=date.today() + timedelta(days=90),
+                    quantidade_inicial=10, data_entrada=hoje_local(), data_validade=hoje_local() + timedelta(days=90),
                     preco_custo_unitario=40, ativo=True),
         Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="FIN", saldo_inicial=0,
               saldo_atual=0, status="aberto"),
@@ -72,7 +72,7 @@ def test_troco_nao_e_entrada_de_caixa(client, session, fin):
 
 
 def test_entrada_esperada_inclui_contas_a_receber_do_periodo(client, session, fin):
-    hoje = date.today()
+    hoje = hoje_local()
     session.add_all([
         ContaReceber(estabelecimento_id=fin["estab"].id, cliente_id=fin["cliente"].id, numero_documento="R7",
                      valor_original=300, valor_atual=300, data_emissao=hoje, data_vencimento=hoje + timedelta(days=3),

@@ -1,4 +1,5 @@
 """Concorrência real dos fluxos ERP; nunca simula locks PostgreSQL com SQLite."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from decimal import Decimal
@@ -34,9 +35,9 @@ def erp(app, session):
     session.flush()
     session.add_all([
         ProdutoLote(estabelecimento_id=tenant.id, produto_id=product.id, numero_lote='OK', quantidade=6,
-                    quantidade_inicial=6, preco_custo_unitario=4, data_validade=date.today() + timedelta(days=30), ativo=True),
+                    quantidade_inicial=6, preco_custo_unitario=4, data_validade=hoje_local() + timedelta(days=30), ativo=True),
         ProdutoLote(estabelecimento_id=tenant.id, produto_id=product.id, numero_lote='VENCIDO', quantidade=4,
-                    quantidade_inicial=4, preco_custo_unitario=4, data_validade=date.today() - timedelta(days=1), ativo=True),
+                    quantidade_inicial=4, preco_custo_unitario=4, data_validade=hoje_local() - timedelta(days=1), ativo=True),
         Caixa(estabelecimento_id=tenant.id, funcionario_id=actor.id, numero_caixa='ERP', saldo_inicial=0,
               saldo_atual=0, status='aberto'),
     ])
@@ -88,7 +89,7 @@ def test_recebimento_concorrente_nao_ultrapassa_pedido(app, session, erp):
     assert created.status_code == 201, created.get_json()
     order_id = created.get_json()['pedido']['id']
     item_id = session.query(PedidoCompraItem).filter_by(pedido_id=order_id).one().id
-    validity = (date.today() + timedelta(days=90)).isoformat()
+    validity = (hoje_local() + timedelta(days=90)).isoformat()
     payload = {'pedido_id': order_id, 'itens': [{'item_id': item_id, 'quantidade_recebida': 7, 'data_validade': validity}]}
     results = parallel(app, 3, lambda c: c.post('/api/pedidos-compra/receber', json=payload, headers=erp['headers']))
     assert sorted(status for status, _ in results) == [200, 400, 400], results

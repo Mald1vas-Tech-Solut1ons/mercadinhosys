@@ -1,4 +1,5 @@
 """Rastreio do site público e CRM de leads do super admin."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 import uuid
 from datetime import date
 
@@ -93,7 +94,7 @@ def test_crm_porta_a_porta_etapas_e_historico(client, session):
     r = client.post("/api/saas/crm/leads", json={
         "nome": "Seu Zé", "nome_loja": "Moto Peças do Zé", "segmento": "moto-pecas",
         "bairro": "Pimentas", "cidade": "Guarulhos", "whatsapp": "11977776666",
-        "proximo_contato": date.today().isoformat()}, headers=headers)
+        "proximo_contato": hoje_local().isoformat()}, headers=headers)
     assert r.status_code == 201, r.get_data(as_text=True)
     lead_id = r.get_json()["data"]["id"]
     assert r.get_json()["data"]["origem"] == "porta_a_porta"

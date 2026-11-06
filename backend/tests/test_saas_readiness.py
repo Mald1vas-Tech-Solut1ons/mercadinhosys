@@ -1,3 +1,4 @@
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 import pytest
 from datetime import date
 from app.decorators.plan_guards import plan_required, premium_required
@@ -185,7 +186,7 @@ def test_trial_expiration_blocking(app, client, session):
     estab_trial = Estabelecimento.query.first()
     estab_trial.plano = "trial"
     estab_trial.plano_status = "experimental"
-    estab_trial.vencimento_plano = date.today() - timedelta(days=1)
+    estab_trial.vencimento_plano = hoje_local() - timedelta(days=1)
     session.commit()
     
     admin = Funcionario.query.filter_by(estabelecimento_id=estab_trial.id).first()

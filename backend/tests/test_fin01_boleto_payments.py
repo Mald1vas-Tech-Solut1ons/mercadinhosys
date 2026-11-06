@@ -1,3 +1,4 @@
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 import pytest
 from datetime import date, timedelta
 from decimal import Decimal
@@ -27,8 +28,8 @@ def boleto_context(session):
         valor_original=Decimal("40.00"),
         valor_atual=Decimal("40.00"),
         valor_pago=Decimal("0.00"),
-        data_emissao=date.today(),
-        data_vencimento=date.today() + timedelta(days=10),
+        data_emissao=hoje_local(),
+        data_vencimento=hoje_local() + timedelta(days=10),
         status="aberto"
     )
     session.add(boleto)
@@ -46,7 +47,7 @@ def test_sucessive_payments_boleto(client, session, boleto_context):
     # Pagamento 1: R$ 10,00
     res1 = client.post(f"/api/boletos/{boleto_id}/pagar", json={
         "valor_pago": 10.00,
-        "data_pagamento": date.today().isoformat()
+        "data_pagamento": hoje_local().isoformat()
     }, headers=headers)
     assert res1.status_code == 200, res1.get_json()
 
@@ -59,7 +60,7 @@ def test_sucessive_payments_boleto(client, session, boleto_context):
     # Pagamento 2: R$ 30,00
     res2 = client.post(f"/api/boletos/{boleto_id}/pagar", json={
         "valor_pago": 30.00,
-        "data_pagamento": date.today().isoformat()
+        "data_pagamento": hoje_local().isoformat()
     }, headers=headers)
     assert res2.status_code == 200, res2.get_json()
 

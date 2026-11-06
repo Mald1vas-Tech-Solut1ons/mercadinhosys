@@ -1,4 +1,5 @@
 """Hora e dia das vendas são os da loja (São Paulo, UTC-3), não os do banco (UTC)."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -17,13 +18,13 @@ def _venda(session, estab, func, utc_naive, codigo):
 def test_vendas_por_hora_e_por_dia_no_fuso_da_loja(client, session):
     estab = session.query(Estabelecimento).first()
     func = session.query(Funcionario).filter_by(estabelecimento_id=estab.id).first()
-    ontem = date.today() - timedelta(days=1)
+    ontem = hoje_local() - timedelta(days=1)
     # 20:25 UTC = 17:25 em São Paulo; 01:30 UTC de hoje = 22:30 de ontem em São Paulo.
     _venda(session, estab, func, datetime.combine(ontem, datetime.min.time()).replace(hour=20, minute=25), "FUSO-1")
-    _venda(session, estab, func, datetime.combine(date.today(), datetime.min.time()).replace(hour=1, minute=30), "FUSO-2")
+    _venda(session, estab, func, datetime.combine(hoje_local(), datetime.min.time()).replace(hour=1, minute=30), "FUSO-2")
     session.commit()
     token = create_access_token(identity=str(func.id), additional_claims={"estabelecimento_id": estab.id, "role": "admin"})
-    r = client.get(f"/api/vendas/estatisticas?data_inicio={ontem - timedelta(days=1)}&data_fim={date.today()}",
+    r = client.get(f"/api/vendas/estatisticas?data_inicio={ontem - timedelta(days=1)}&data_fim={hoje_local()}",
                    headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200, r.get_data(as_text=True)
     corpo = r.get_json()

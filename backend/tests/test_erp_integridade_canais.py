@@ -4,6 +4,7 @@ Complementa as provas ERP-01..09: cada canal usa a mesma regra de saldo
 vendável (lote vencido em quarentena), grava custo histórico, estorna
 exatamente o que consumiu e o recebimento parcial mantém título e custo certos.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -39,8 +40,8 @@ def ctx(session):
     session.add(prod)
     session.flush()
     lote = ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, fornecedor_id=forn.id, numero_lote="L-OK",
-                       quantidade=10, quantidade_inicial=10, data_entrada=date.today(),
-                       data_validade=date.today() + timedelta(days=30), preco_custo_unitario=4, ativo=True)
+                       quantidade=10, quantidade_inicial=10, data_entrada=hoje_local(),
+                       data_validade=hoje_local() + timedelta(days=30), preco_custo_unitario=4, ativo=True)
     caixa = Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="INT-1",
                   saldo_inicial=0, saldo_atual=0, status="aberto")
     session.add_all([lote, caixa])
@@ -73,8 +74,8 @@ def _cancelar(client, ctx, venda_id):
 
 def test_lote_vencido_fica_em_quarentena_no_pdv(client, session, ctx):
     session.add(ProdutoLote(estabelecimento_id=ctx["estab"].id, produto_id=ctx["prod"].id, numero_lote="L-VENC",
-                            quantidade=4, quantidade_inicial=4, data_entrada=date.today() - timedelta(days=90),
-                            data_validade=date.today() - timedelta(days=1), preco_custo_unitario=4, ativo=True))
+                            quantidade=4, quantidade_inicial=4, data_entrada=hoje_local() - timedelta(days=90),
+                            data_validade=hoje_local() - timedelta(days=1), preco_custo_unitario=4, ativo=True))
     _get(session, Produto, ctx["prod"].id).quantidade = Decimal("14")
     session.commit()
 
@@ -90,8 +91,8 @@ def test_lote_vencido_fica_em_quarentena_no_pdv(client, session, ctx):
 
 def test_descarte_consome_primeiro_o_lote_vencido(session, ctx):
     vencido = ProdutoLote(estabelecimento_id=ctx["estab"].id, produto_id=ctx["prod"].id, numero_lote="L-DESC",
-                          quantidade=3, quantidade_inicial=3, data_entrada=date.today() - timedelta(days=90),
-                          data_validade=date.today() - timedelta(days=2), preco_custo_unitario=4, ativo=True)
+                          quantidade=3, quantidade_inicial=3, data_entrada=hoje_local() - timedelta(days=90),
+                          data_validade=hoje_local() - timedelta(days=2), preco_custo_unitario=4, ativo=True)
     session.add(vencido)
     session.commit()
     prod = _get(session, Produto, ctx["prod"].id)
@@ -267,7 +268,7 @@ def _compra(client, session, ctx, quantidade=10, preco=4, frete=0):
 
 
 def _receber(client, ctx, pedido_id, item_id, **qtd):
-    linha = {"item_id": item_id, "data_validade": (date.today() + timedelta(days=90)).isoformat(), **qtd}
+    linha = {"item_id": item_id, "data_validade": (hoje_local() + timedelta(days=90)).isoformat(), **qtd}
     return client.post("/api/pedidos-compra/receber", headers=ctx["headers"], json={"pedido_id": pedido_id, "itens": [linha]})
 
 
@@ -353,8 +354,8 @@ def test_compra_fracionada_nao_trunca(client, session, ctx):
 
 def test_descarte_manual_de_vencido_baixa_o_lote_e_libera_o_lote_bom(client, session, ctx):
     session.add(ProdutoLote(estabelecimento_id=ctx["estab"].id, produto_id=ctx["prod"].id, numero_lote="L-VENC-D",
-                            quantidade=4, quantidade_inicial=4, data_entrada=date.today() - timedelta(days=90),
-                            data_validade=date.today() - timedelta(days=1), preco_custo_unitario=4, ativo=True))
+                            quantidade=4, quantidade_inicial=4, data_entrada=hoje_local() - timedelta(days=90),
+                            data_validade=hoje_local() - timedelta(days=1), preco_custo_unitario=4, ativo=True))
     _get(session, Produto, ctx["prod"].id).quantidade = Decimal("14")
     session.commit()
     r = client.post(f"/api/produtos/{ctx['prod'].id}/estoque", headers=ctx["headers"],

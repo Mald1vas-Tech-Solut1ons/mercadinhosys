@@ -1,4 +1,5 @@
 """Reproduções da auditoria: nenhum teste acessa serviços externos."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from decimal import Decimal
 from datetime import datetime
 
@@ -382,7 +383,7 @@ def test_private_document_requires_current_user_and_matching_store(app, client, 
     (folder / 'audit.pdf').write_bytes(b'%PDF-1.4\nseed')
     monkeypatch.setitem(app.config, 'UPLOAD_FOLDER', str(tmp_path))
     document = JustificativaPonto(estabelecimento_id=user.estabelecimento_id, funcionario_id=user.id,
-        tipo='atestado', data=date.today(), motivo='Seed', documento_url='/uploads/justificativas/audit.pdf')
+        tipo='atestado', data=hoje_local(), motivo='Seed', documento_url='/uploads/justificativas/audit.pdf')
     session.add(document)
     session.commit()
     path = prefix + 'justificativas/audit.pdf'
@@ -451,7 +452,7 @@ def test_sfa_rejects_foreign_product_reference(client, session, sfa_context, doi
         from datetime import date
         seller = Funcionario(estabelecimento_id=dois_tenants[1].id, nome='Vendedor Seed', username='foreign-seller', cpf='23456789012',
             data_nascimento=date(1990, 1, 1), celular='11999999999', email='seed@example.invalid', cargo='Vendedor',
-            data_admissao=date.today(), role='VENDEDOR', ativo=True)
+            data_admissao=hoje_local(), role='VENDEDOR', ativo=True)
         seller.set_password('seed-test-password')
         session.add(seller)
         session.flush()

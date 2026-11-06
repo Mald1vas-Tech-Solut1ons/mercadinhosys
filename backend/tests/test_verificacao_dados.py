@@ -1,4 +1,5 @@
 """Verificação noturna: base consistente passa; cada tipo de divergência é apontado."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -21,8 +22,8 @@ def base(session):
     session.add(p)
     session.flush()
     session.add(ProdutoLote(estabelecimento_id=estab.id, produto_id=p.id, numero_lote="L1", quantidade=8,
-                            quantidade_inicial=10, data_entrada=date.today(),
-                            data_validade=date.today() + timedelta(days=90), preco_custo_unitario=20, ativo=True))
+                            quantidade_inicial=10, data_entrada=hoje_local(),
+                            data_validade=hoje_local() + timedelta(days=90), preco_custo_unitario=20, ativo=True))
     v = Venda(estabelecimento_id=estab.id, funcionario_id=func.id, codigo="VER-1", subtotal=Decimal("60"),
               desconto=Decimal("0"), total=Decimal("60"), status="finalizada")
     session.add(v)

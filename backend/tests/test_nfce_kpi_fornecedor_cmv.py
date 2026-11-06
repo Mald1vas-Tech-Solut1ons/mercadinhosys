@@ -1,4 +1,5 @@
 """NFC-e (data e destinatário), KPI do vendedor, nota do fornecedor e CMV com custo histórico."""
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from types import SimpleNamespace
@@ -33,8 +34,8 @@ def ctx(session):
     session.flush()
     session.add_all([
         ProdutoLote(estabelecimento_id=estab.id, produto_id=prod.id, fornecedor_id=forn.id, numero_lote="L1",
-                    quantidade=100, quantidade_inicial=100, data_entrada=date.today(),
-                    data_validade=date.today() + timedelta(days=90), preco_custo_unitario=40, ativo=True),
+                    quantidade=100, quantidade_inicial=100, data_entrada=hoje_local(),
+                    data_validade=hoje_local() + timedelta(days=90), preco_custo_unitario=40, ativo=True),
         Caixa(estabelecimento_id=estab.id, funcionario_id=admin.id, numero_caixa="N1", saldo_inicial=0,
               saldo_atual=0, status="aberto"),
     ])
@@ -265,12 +266,12 @@ def _compra_recebida(client, ctx, em_dia=True):
     pedido_id = criar.get_json()["pedido"]["id"]
     item = PedidoCompraItem.query.filter_by(pedido_id=pedido_id).first()
     if not em_dia:
-        PedidoCompra.query.filter_by(id=pedido_id).update({"data_previsao_entrega": date.today() - timedelta(days=10)})
+        PedidoCompra.query.filter_by(id=pedido_id).update({"data_previsao_entrega": hoje_local() - timedelta(days=10)})
         db.session.commit()
     receber = client.post("/api/pedidos-compra/receber", headers=ctx["headers"], json={
         "pedido_id": pedido_id,
         "itens": [{"item_id": item.id, "quantidade_recebida": 10,
-                   "data_validade": (date.today() + timedelta(days=60)).isoformat()}]})
+                   "data_validade": (hoje_local() + timedelta(days=60)).isoformat()}]})
     assert receber.status_code == 200, receber.get_json()
     return pedido_id
 

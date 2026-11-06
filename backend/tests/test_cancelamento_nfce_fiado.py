@@ -9,6 +9,7 @@
    continua de pé (rollback de estoque/caixa/pagamento/doc); SEFAZ aceitou →
    doc e venda cancelados juntos, na mesma transação.
 """
+from app.utils.timezone import hoje_local  # dia da LOJA (o app usa o mesmo)
 from datetime import datetime, timezone, date
 from decimal import Decimal
 
@@ -88,8 +89,8 @@ def _venda(session, cliente, total=Decimal("20"), forma="fiado", venc=None):
     titulo = ContaReceber(
         estabelecimento_id=estab_id, venda_id=venda.id, cliente_id=None,
         valor_original=total, valor_atual=total, valor_recebido=Decimal("0"),
-        status="aberto", data_emissao=date.today(),
-        data_vencimento=venc or date.today(),
+        status="aberto", data_emissao=hoje_local(),
+        data_vencimento=venc or hoje_local(),
     )
     session.add(titulo)
     return venda, titulo
@@ -148,7 +149,7 @@ def test_fiado_pago_devolve_dinheiro_na_gaveta(client, session, ctx):
     titulo = ContaReceber(
         estabelecimento_id=ctx["estab"].id, venda=venda, cliente_id=cliente.id,
         numero_documento=venda.codigo, valor_original=Decimal("20"), valor_atual=Decimal("8"), valor_recebido=Decimal("12"),
-        status="aberto", data_emissao=date.today(), data_vencimento=date.today(),
+        status="aberto", data_emissao=hoje_local(), data_vencimento=hoje_local(),
     )
     cliente.saldo_devedor = Decimal("8")
     session.add_all([venda, item, titulo])
@@ -193,7 +194,7 @@ def test_fiado_pago_sem_gaveta_aberta_recusa_cancelamento(client, session, ctx):
     titulo = ContaReceber(
         estabelecimento_id=ctx["estab"].id, venda=venda, cliente_id=cliente.id,
         numero_documento=venda.codigo, valor_original=Decimal("50"), valor_atual=Decimal("0"), valor_recebido=Decimal("50"),
-        status="aberto", data_emissao=date.today(), data_vencimento=date.today(),
+        status="aberto", data_emissao=hoje_local(), data_vencimento=hoje_local(),
     )
     session.add_all([venda, item, titulo])
     # Fecha a única gaveta

@@ -1,0 +1,239 @@
+"""API da produção própria: fichas técnicas, ordens de produção e papel dos itens.
+
+Leitura: qualquer funcionário da loja. Escrita: gerente ou admin. Toda consulta é filtrada pela
+loja do token (get_authorized_establishment_id); id de outra loja responde 404.
+"""
+from flask import Blueprint, current_app, jsonify, request
+from flask_jwt_extended import get_jwt_identity
+from sqlalchemy import or_
+
+from app import db
+from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
+from app.models import Produto
+from app.models_producao import PAPEIS_PRODUCAO, FichaTecnica, OrdemProducao
+from app.services import producao_service as svc
+from app.utils.query_helpers import get_authorized_establishment_id
+
+producao_bp = Blueprint("producao", __name__)
+
+
+def _estab():
+    estab_id = get_authorized_establishment_id()
+    if not estab_id or str(estab_id).lower() == "all":
+        return None
+    return int(estab_id)
+
+
+def _erro(erro, status=400):
+    db.session.rollback()
+    corpo = {"success": False, "error": str(erro)}
+    if getattr(erro, "faltas", None):
+        corpo["faltas"] = erro.faltas
+        status = 409
+    return jsonify(corpo), status
+
+
+def _ficha(estab_id, ficha_id):
+    return FichaTecnica.query.filter_by(id=ficha_id, estabelecimento_id=estab_id).first()
+
+
+def _ordem(estab_id, ordem_id):
+    return OrdemProducao.query.filter_by(id=ordem_id, estabelecimento_id=estab_id).first()
+
+
+def _sem_loja():
+    return jsonify({"success": False, "error": "Escolha uma loja"}), 400
+
+
+# ── Itens (papel na fábrica) ──────────────────────────────────────────────
+
+@producao_bp.route("/itens", methods=["GET"])
+@funcionario_required
+def listar_itens():
+    """Produtos para montar fichas: busca por nome/código, filtro opcional por papel."""
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    q = Produto.query.filter(Produto.estabelecimento_id == estab_id, Produto.deleted_at.is_(None),
+                             Produto.ativo.isnot(False), Produto.eh_grade_modelo.isnot(True))
+    busca = (request.args.get("busca") or "").strip()
+    if busca:
+        termo = f"%{busca}%"
+        q = q.filter(or_(Produto.nome.ilike(termo), Produto.codigo_barras.ilike(termo),
+                         Produto.codigo_interno.ilike(termo)))
+    papel = (request.args.get("papel") or "").strip()
+    if papel == "revenda":
+        q = q.filter(Produto.papel_producao.is_(None))
+    elif papel:
+        q = q.filter(Produto.papel_producao == papel)
+    itens = q.order_by(Produto.nome).limit(min(request.args.get("limite", 50, type=int), 200)).all()
+    return jsonify({"success": True, "itens": [{
+        "id": p.id, "nome": p.nome, "unidade": p.unidade_medida or "UN", "papel": p.papel_producao or "revenda",
+        "quantidade": float(p.quantidade or 0), "preco_custo": float(p.preco_custo or 0),
+        "preco_venda": float(p.preco_venda or 0)} for p in itens]})
+
+
+@producao_bp.route("/itens/<int:produto_id>/papel", methods=["PATCH"])
+@gerente_ou_admin_required
+def definir_papel(produto_id):
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    produto = Produto.query.filter_by(id=produto_id, estabelecimento_id=estab_id).first()
+    if not produto:
+        return jsonify({"success": False, "error": "Produto não encontrado"}), 404
+    try:
+        svc.definir_papel(produto, (request.get_json() or {}).get("papel"))
+        db.session.commit()
+    except svc.ProducaoError as erro:
+        return _erro(erro)
+    return jsonify({"success": True, "papel": produto.papel_producao or "revenda", "papeis": PAPEIS_PRODUCAO})
+
+
+# ── Fichas técnicas ───────────────────────────────────────────────────────
+
+@producao_bp.route("/fichas", methods=["GET"])
+@funcionario_required
+def listar_fichas():
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    fichas = FichaTecnica.query.filter_by(estabelecimento_id=estab_id).all()
+    dados = sorted((svc.ficha_dict(f) for f in fichas), key=lambda f: f["produto_nome"].lower())
+    return jsonify({"success": True, "fichas": dados})
+
+
+@producao_bp.route("/fichas", methods=["POST"])
+@gerente_ou_admin_required
+def criar_ficha():
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    try:
+        ficha = svc.salvar_ficha(estab_id, request.get_json() or {})
+        db.session.commit()
+    except (svc.ProducaoError, ValueError) as erro:
+        return _erro(erro)
+    return jsonify({"success": True, "ficha": svc.ficha_dict(ficha)}), 201
+
+
+@producao_bp.route("/fichas/<int:ficha_id>", methods=["GET"])
+@funcionario_required
+def obter_ficha(ficha_id):
+    estab_id = _estab()
+    ficha = _ficha(estab_id, ficha_id) if estab_id else None
+    if not ficha:
+        return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
+    return jsonify({"success": True, "ficha": svc.ficha_dict(ficha)})
+
+
+@producao_bp.route("/fichas/<int:ficha_id>", methods=["PUT"])
+@gerente_ou_admin_required
+def atualizar_ficha(ficha_id):
+    estab_id = _estab()
+    ficha = _ficha(estab_id, ficha_id) if estab_id else None
+    if not ficha:
+        return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
+    try:
+        dados = dict(request.get_json() or {})
+        dados["produto_id"] = ficha.produto_id  # o produto da ficha não muda
+        svc.salvar_ficha(estab_id, dados, ficha=ficha)
+        db.session.commit()
+    except (svc.ProducaoError, ValueError) as erro:
+        return _erro(erro)
+    return jsonify({"success": True, "ficha": svc.ficha_dict(ficha)})
+
+
+# ── Ordens de produção ────────────────────────────────────────────────────
+
+@producao_bp.route("/ordens", methods=["GET"])
+@funcionario_required
+def listar_ordens():
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    q = OrdemProducao.query.filter_by(estabelecimento_id=estab_id)
+    status = (request.args.get("status") or "").strip()
+    if status:
+        q = q.filter(OrdemProducao.status == status)
+    ordens = q.order_by(OrdemProducao.id.desc()).limit(200).all()
+    return jsonify({"success": True, "ordens": [svc.ordem_dict(o) for o in ordens]})
+
+
+@producao_bp.route("/ordens", methods=["POST"])
+@gerente_ou_admin_required
+def criar_ordem():
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    dados = request.get_json() or {}
+    ficha = _ficha(estab_id, int(dados.get("ficha_id") or 0))
+    if not ficha:
+        return jsonify({"success": False, "error": "Ficha não encontrada"}), 404
+    try:
+        op = svc.criar_ordem(estab_id, ficha, dados.get("quantidade"), int(get_jwt_identity()),
+                             dados.get("observacoes"))
+        db.session.commit()
+    except (svc.ProducaoError, ValueError) as erro:
+        return _erro(erro)
+    corpo = svc.ordem_dict(op)
+    corpo["faltas"] = svc.faltas_da_ordem(op)
+    return jsonify({"success": True, "ordem": corpo}), 201
+
+
+@producao_bp.route("/ordens/<int:ordem_id>", methods=["GET"])
+@funcionario_required
+def obter_ordem(ordem_id):
+    estab_id = _estab()
+    op = _ordem(estab_id, ordem_id) if estab_id else None
+    if not op:
+        return jsonify({"success": False, "error": "Ordem não encontrada"}), 404
+    corpo = svc.ordem_dict(op)
+    corpo["faltas"] = svc.faltas_da_ordem(op) if op.status in ("planejada", "em_producao") else []
+    return jsonify({"success": True, "ordem": corpo})
+
+
+def _acao(ordem_id, executar):
+    estab_id = _estab()
+    op = _ordem(estab_id, ordem_id) if estab_id else None
+    if not op:
+        return jsonify({"success": False, "error": "Ordem não encontrada"}), 404
+    try:
+        executar(op)
+        db.session.commit()
+    except (svc.ProducaoError, ValueError) as erro:
+        return _erro(erro)
+    except Exception as erro:  # erro inesperado não pode deixar estoque pela metade
+        db.session.rollback()
+        current_app.logger.exception("Erro na ordem de produção %s: %s", ordem_id, erro)
+        return jsonify({"success": False, "error": "Erro ao processar a ordem"}), 500
+    return jsonify({"success": True, "ordem": svc.ordem_dict(op)})
+
+
+@producao_bp.route("/ordens/<int:ordem_id>/iniciar", methods=["POST"])
+@gerente_ou_admin_required
+def iniciar_ordem(ordem_id):
+    return _acao(ordem_id, svc.iniciar_ordem)
+
+
+@producao_bp.route("/ordens/<int:ordem_id>/encerrar", methods=["POST"])
+@gerente_ou_admin_required
+def encerrar_ordem(ordem_id):
+    dados = request.get_json() or {}
+    return _acao(ordem_id, lambda op: svc.encerrar_ordem(op, dados, int(get_jwt_identity())))
+
+
+@producao_bp.route("/ordens/<int:ordem_id>/cancelar", methods=["POST"])
+@gerente_ou_admin_required
+def cancelar_ordem(ordem_id):
+    return _acao(ordem_id, svc.cancelar_ordem)
+
+
+@producao_bp.route("/necessidade-insumos", methods=["GET"])
+@funcionario_required
+def necessidade_insumos():
+    """Produção -> compras: quanto comprar de cada insumo para cumprir as ordens abertas."""
+    estab_id = _estab()
+    if not estab_id:
+        return _sem_loja()
+    return jsonify({"success": True, "insumos": svc.necessidade_insumos(estab_id)})

@@ -1226,6 +1226,9 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     produto_pai_id = db.Column(db.Integer, db.ForeignKey("produtos.id"), nullable=True, index=True)
     atributos_variante = db.Column(db.Text, nullable=True)    # {"numeracao": "38", "cor": "Preto"}
     eh_grade_modelo = db.Column(db.Boolean, nullable=False, server_default=db.false(), default=False)
+    # Papel na fábrica: None/revenda (comprado e revendido), fabricado, semiacabado, materia_prima,
+    # embalagem. Matéria-prima e embalagem não aparecem no PDV (models_producao).
+    papel_producao = db.Column(db.String(20), nullable=True)
     ativo = db.Column(db.Boolean, default=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
     categoria = db.relationship("CategoriaProduto", backref=db.backref("produtos", lazy=True))

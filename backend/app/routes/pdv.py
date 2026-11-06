@@ -732,7 +732,8 @@ def catalogo_offline():
         q = db.session.query(
             Produto.id, Produto.nome, Produto.codigo_barras, Produto.codigo_interno,
             Produto.preco_venda, Produto.quantidade, Produto.unidade_medida,
-        ).filter(Produto.ativo == True, Produto.deleted_at.is_(None))
+        ).filter(Produto.ativo == True, Produto.deleted_at.is_(None),
+                 db.or_(Produto.papel_producao.is_(None), Produto.papel_producao.notin_(('materia_prima', 'embalagem'))))
         if str(estabelecimento_id).lower() != "all":
             q = q.filter(Produto.estabelecimento_id == estabelecimento_id)
         produtos = [{
@@ -801,6 +802,7 @@ def buscar_produtos_pdv():
                 COALESCE((SELECT pl.numero_lote {lot_condition}), p.lote) as lote
             FROM produtos p
             WHERE p.ativo = true AND p.deleted_at IS NULL
+              AND (p.papel_producao IS NULL OR p.papel_producao NOT IN ('materia_prima', 'embalagem'))
               {estab_filter}
               AND ({predicate})
             ORDER BY p.nome ASC

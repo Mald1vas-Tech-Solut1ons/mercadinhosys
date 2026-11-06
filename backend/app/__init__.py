@@ -978,6 +978,15 @@ def create_app(config_name=None):
     except Exception as e:
         logger.error(f"❌ Erro ao registrar Contagem cíclica: {e}")
 
+    # Produção própria (fábrica): ficha técnica e ordem de produção
+    try:
+        from app import models_producao  # noqa: F401  (registry do SQLAlchemy em testes/CLI)
+        from app.routes.producao import producao_bp
+        app.register_blueprint(producao_bp, url_prefix="/api/producao")
+        logger.info("✅ Blueprint Produção registrado em /api/producao")
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar Produção: {e}")
+
     # Dashboard Científico já é tratado via dashboard_bp centralizado
     pass
 

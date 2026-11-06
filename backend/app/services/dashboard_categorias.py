@@ -196,6 +196,7 @@ def analise_por_categoria(estabelecimento_id: int, dias: int = 30) -> dict:
         chave = linha.categoria_key
         rotulo = (linha.categoria_nome or "").strip() or _rotulo_humano(chave)
         bloco = categorias.setdefault(chave, {
+            "_chave": chave,
             "categoria": rotulo,
             "familia": linha.familia,
             "receita": 0.0,
@@ -221,7 +222,9 @@ def analise_por_categoria(estabelecimento_id: int, dias: int = 30) -> dict:
         })
 
     for bloco in categorias.values():
-        antes = receita_antes.get(bloco["categoria"])
+        # O período anterior é indexado pela CHAVE (slug); buscar pelo rótulo zerava o Δ%
+        # sempre que o nome exibido diferia da chave ("Bazar › Cozinha" × "bazar.cozinha").
+        antes = receita_antes.get(bloco.pop("_chave"))
         bloco["margem"] = round(bloco["receita"] - bloco["custo"], 2)
         bloco["margem_pct"] = round((bloco["margem"] / bloco["receita"] * 100) if bloco["receita"] else 0.0, 1)
         bloco["participacao"] = round((bloco["receita"] / receita_total * 100) if receita_total else 0.0, 1)

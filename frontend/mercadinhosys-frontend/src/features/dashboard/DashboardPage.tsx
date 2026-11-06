@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/apiClient';
-import { Target, Package, AlertTriangle, Users, DollarSign, Activity, Layers } from 'lucide-react';
+import { Target, Package, AlertTriangle, Users, DollarSign, Activity, BarChart3, ChevronDown, Sparkles } from 'lucide-react';
 
 import ExecutiveTab from './components/tabs/ExecutiveTab';
 import SalesSfaTab from './components/tabs/SalesSfaTab';
 import InventoryTab from './components/tabs/InventoryTab';
 import FinancialTab from './components/tabs/FinancialTab';
 import RHTab from './components/tabs/RHTab';
-import CategoriasTab from './components/tabs/CategoriasTab';
+import BiTab from './bi/BiTab';
 import { authService } from '../auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
 import { InsightCard } from '../../components/consultor/InsightCard';
@@ -21,8 +21,24 @@ import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { dataLocalISO } from '../../utils/dataLocal';
 import type { PeriodoDashboard } from './components/PorQueMudou';
 
+const CHAVE_ABA = 'mercadinhosys_dashboard_aba';
+const CHAVE_IA = 'mercadinhosys_dashboard_ia_aberta';
+
+function lerLocal(chave: string): string | null {
+  try { return localStorage.getItem(chave); } catch { return null; }
+}
+function gravarLocal(chave: string, valor: string) {
+  try { localStorage.setItem(chave, valor); } catch { /* sem storage: vale só nesta sessão */ }
+}
+
 export default function DashboardPageV2() {
-  const [activeTab, setActiveTab] = useState('executive');
+  // O painel reabre na última aba usada (quem vive no BI não precisa clicar toda vez).
+  const [activeTab, setActiveTabState] = useState(() => lerLocal(CHAVE_ABA) || 'executive');
+  const setActiveTab = (aba: string) => { setActiveTabState(aba); gravarLocal(CHAVE_ABA, aba); };
+  // Consultor IA recolhido por padrão: ocupa uma linha até o dono pedir a análise.
+  // Recolhido ele nem monta, então também não gasta a cota diária de insights.
+  const [iaAberta, setIaAberta] = useState(() => lerLocal(CHAVE_IA) === '1');
+  const alternarIa = () => setIaAberta(v => { gravarLocal(CHAVE_IA, v ? '0' : '1'); return !v; });
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [erroDados, setErroDados] = useState<'plano' | 'assinatura' | 'falha' | null>(null);
@@ -81,11 +97,13 @@ export default function DashboardPageV2() {
     : [
         { id: 'executive', label: 'Visão Executiva', icon: Activity },
         { id: 'sales', label: 'Vendas & SFA', icon: Target },
-        { id: 'categorias', label: 'Categorias & Subcategorias', icon: Layers },
+        { id: 'bi', label: 'Análise BI', icon: BarChart3 },
         { id: 'inventory', label: 'Estoque Inteligente', icon: Package },
         { id: 'financial', label: 'Financeiro', icon: DollarSign },
         { id: 'rh', label: 'Equipe & RH', icon: Users },
       ];
+  // Aba salva que não existe mais (ou fora do plano) volta para a Visão Executiva.
+  const abaAtiva = tabs.some(t => t.id === activeTab) ? activeTab : 'executive';
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-900 text-gray-900 dark:text-slate-100 p-4 md:p-6 lg:p-8 animate-in fade-in duration-500">
@@ -153,7 +171,7 @@ export default function DashboardPageV2() {
           em vez de deixar o dono achar que os números sumiram. Na Visão Executiva
           o próprio ExecutiveTab mostra o bloco completo — aqui é só a faixa
           para as demais abas, sem repetir a mesma mensagem duas vezes. */}
-      {data && activeTab !== 'executive' && periodoSemVenda(data) && (
+      {data && abaAtiva !== 'executive' && periodoSemVenda(data) && (
         <PeriodoSemVenda
           data={data}
           variante="banner"
@@ -162,7 +180,30 @@ export default function DashboardPageV2() {
         />
       )}
 
-      <InsightCard especialista="geral" titulo="Consultor da Loja" className="mb-6 tour-ia-consultor" />
+      <div className="mb-6 overflow-hidden rounded-2xl border border-indigo-200 bg-white dark:border-indigo-500/30 dark:bg-slate-800/60 tour-ia-consultor">
+        <button
+          type="button"
+          onClick={alternarIa}
+          aria-expanded={iaAberta}
+          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-indigo-50/60 dark:hover:bg-indigo-500/10"
+        >
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-700 text-white">
+            <Sparkles className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold text-gray-900 dark:text-white">Consultor da Loja · análise com IA</span>
+            <span className="block truncate text-xs text-gray-500 dark:text-slate-400">
+              {iaAberta ? 'Recolher a análise' : 'Diagnóstico e recomendações do período — toque para abrir'}
+            </span>
+          </span>
+          <ChevronDown className={`h-5 w-5 shrink-0 text-gray-400 transition-transform ${iaAberta ? 'rotate-180' : ''}`} />
+        </button>
+        {iaAberta && (
+          <div className="border-t border-indigo-100 p-3 dark:border-indigo-500/20">
+            <InsightCard especialista="geral" titulo="Consultor da Loja" />
+          </div>
+        )}
+      </div>
 
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
           (snap + sangria até as bordas) para nunca cortar/embaralhar os rótulos. */}
@@ -170,7 +211,7 @@ export default function DashboardPageV2() {
         <div className="flex md:border-b border-gray-200 dark:border-slate-800 gap-2 md:gap-6 overflow-x-auto snap-x px-4 md:px-0 pb-2">
           {tabs.map(tab => {
             const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+            const isActive = abaAtiva === tab.id;
             return (
               <button
                 key={tab.id}
@@ -215,12 +256,12 @@ export default function DashboardPageV2() {
           </div>
         ) : (
           <div className="animate-in slide-in-from-bottom-4 duration-500">
-            {activeTab === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} onVerPeriodo={(dias) => setDaysFilter(dias)} />}
-            {activeTab === 'sales' && <SalesSfaTab data={data} />}
-            {activeTab === 'categorias' && <CategoriasTab dias={typeof daysFilter === 'number' ? daysFilter : 30} />}
-            {activeTab === 'inventory' && <InventoryTab data={data} />}
-            {activeTab === 'financial' && <FinancialTab data={data} />}
-            {activeTab === 'rh' && <RHTab data={data} onRefresh={loadData} />}
+            {abaAtiva === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} onVerPeriodo={(dias) => setDaysFilter(dias)} />}
+            {abaAtiva === 'sales' && <SalesSfaTab data={data} />}
+            {abaAtiva === 'bi' && <BiTab periodo={periodo} />}
+            {abaAtiva === 'inventory' && <InventoryTab data={data} />}
+            {abaAtiva === 'financial' && <FinancialTab data={data} />}
+            {abaAtiva === 'rh' && <RHTab data={data} onRefresh={loadData} />}
           </div>
         )}
       </div>

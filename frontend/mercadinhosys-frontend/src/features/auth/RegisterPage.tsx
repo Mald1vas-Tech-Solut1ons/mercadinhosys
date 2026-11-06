@@ -13,20 +13,34 @@ import {
     Checkbox,
     FormControlLabel,
 } from '@mui/material';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { authService } from './authService';
 import { showToast } from '../../utils/toast';
 import { erroSenha } from '../../utils/validators';
 import logo from '../../../logoprincipal.png';
 
+// Mesmas chaves de TIPOS_LOJA em backend/app/routes/onboarding.py.
+const TIPOS_LOJA = [
+    { valor: 'mercearia', nome: 'Mercearia / mercado' },
+    { valor: 'religioso', nome: 'Artigos religiosos (loja e/ou fábrica)' },
+    { valor: 'roupas', nome: 'Roupas e calçados' },
+    { valor: 'construcao', nome: 'Material de construção' },
+    { valor: 'autopecas', nome: 'Autopeças' },
+    { valor: 'motopecas', nome: 'Motopeças' },
+    { valor: 'outro', nome: 'Outro tipo de loja' },
+];
+
 export function RegisterPage() {
     const theme = useTheme();
     const mode = theme.palette.mode;
     const navigate = useNavigate();
+    const [params] = useSearchParams();
 
     // Estados do formulário
     const [formData, setFormData] = useState({
         nome_fantasia: '',
+        // A loja nasce com os departamentos do tipo escolhido (?tipo= vem da página do segmento).
+        tipo_loja: TIPOS_LOJA.some(t => t.valor === params.get('tipo')) ? String(params.get('tipo')) : '',
         cnpj: '',
         telefone_loja: '',
         email_loja: '',
@@ -42,7 +56,7 @@ export function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
@@ -67,6 +81,7 @@ export function RegisterPage() {
             // payload exato que o backend espera
             const payload = {
                 nome_fantasia: formData.nome_fantasia,
+                tipo_loja: formData.tipo_loja,
                 razao_social: formData.nome_fantasia, // Mesma coisa por padrão
                 cnpj: formData.cnpj,
                 telefone_loja: formData.telefone_loja,
@@ -185,6 +200,14 @@ export function RegisterPage() {
                             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
                                 <Box>
                                     <TextField fullWidth label="Nome Fantasia *" name="nome_fantasia" value={formData.nome_fantasia} onChange={handleChange} required />
+                                </Box>
+                                <Box>
+                                    <TextField select fullWidth label="Tipo de loja *" name="tipo_loja" value={formData.tipo_loja} onChange={handleChange} required
+                                        SelectProps={{ native: true }} InputLabelProps={{ shrink: true }}
+                                        helperText="Define os departamentos iniciais; dá para mudar depois">
+                                        <option value="" disabled>Escolha</option>
+                                        {TIPOS_LOJA.map(t => <option key={t.valor} value={t.valor}>{t.nome}</option>)}
+                                    </TextField>
                                 </Box>
                                 <Box>
                                     <TextField fullWidth label="CNPJ (ou CPF) *" name="cnpj" value={formData.cnpj} onChange={handleChange} required />

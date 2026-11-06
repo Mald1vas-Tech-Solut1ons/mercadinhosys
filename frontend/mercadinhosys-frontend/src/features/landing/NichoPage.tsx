@@ -17,6 +17,13 @@ import { AntesDepois, BarraFixaCelular, CalculadoraPerdas, DemoInterativa, DiaNa
  * Ordem pensada para a decisão do lojista: reconhecer a dor, ver o sistema na rotina dele,
  * mexer na demonstração, sentir o custo de não ter, confiar (Vera, desenvolvedor) e agir.
  */
+// Página do nicho -> tipo de loja do cadastro (a loja já nasce com os departamentos certos).
+const TIPO_POR_NICHO: Record<string, string> = {
+    'mercadinho': 'mercearia', 'supermercado': 'mercearia', 'mercearia': 'mercearia', 'adega-e-conveniencia': 'mercearia',
+    'distribuidora': 'mercearia', 'loja-de-roupas': 'roupas', 'loja-de-calcados': 'roupas', 'moto-pecas': 'motopecas',
+    'material-de-construcao': 'construcao',
+};
+
 const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
     const navigate = useNavigate();
     const nicho = NICHOS.find(n => n.slug === slug)!;
@@ -177,7 +184,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
             {/* 10. Oferta */}
             <section id="oferta" className="py-16 sm:py-20 bg-[#101C31] border-y border-[#24344F] scroll-mt-20">
                 <div className={secao}>
-                    <OfertaDoisMeses origem={nicho.nome} onCadastro={() => navigate('/register')} />
+                    <OfertaDoisMeses origem={nicho.nome} onCadastro={() => navigate(`/register?tipo=${TIPO_POR_NICHO[slug] ?? 'outro'}`)} />
                 </div>
             </section>
 
@@ -209,7 +216,7 @@ const NichoPage: React.FC<{ slug: string }> = ({ slug }) => {
 
             <footer className="py-12 border-t border-[#24344F]"><MapaDoSite /></footer>
             <BannerCookies />
-            <BarraFixaCelular origem={nicho.nome} onCadastro={() => navigate('/register')} />
+            <BarraFixaCelular origem={nicho.nome} onCadastro={() => navigate(`/register?tipo=${TIPO_POR_NICHO[slug] ?? 'outro'}`)} />
         </div>
     );
 };

@@ -21,6 +21,25 @@ TRIAL_DIAS = 60
 from app.decorators.rbac import super_admin_required
 from app.utils.timezone import iso_utc, hoje_local
 
+# Tipo de loja escolhido no cadastro -> (segmento, departamentos iniciais). Antes o cadastro não
+# gravava nada disso e toda loja nascia "mercearia" (a loja de artigos religiosos via alimentos
+# e bebidas e não via Velas/Imagens). None = mix padrão do segmento.
+TIPOS_LOJA = {
+    "mercearia": ("mercearia", None),
+    "roupas": ("vestuario", None),
+    "construcao": ("construcao", None),
+    "autopecas": ("autopecas", None),
+    "motopecas": ("autopecas", ["motopecas", "autopecas", "servico"]),
+    "religioso": ("generico", ["religioso", "perfumaria_higiene", "decoracao", "bazar"]),
+    "outro": ("generico", None),
+}
+
+
+def segmento_e_mix(tipo_loja):
+    """(segmento, configuracoes iniciais) para o tipo de loja; tipo desconhecido = mercearia."""
+    segmento, mix = TIPOS_LOJA.get(str(tipo_loja or "").strip().lower(), TIPOS_LOJA["mercearia"])
+    return segmento, ({"mix_produtos": list(mix)} if mix else {})
+
 @onboarding_bp.route("/registrar", methods=["POST"])
 def registrar_conta():
     """
@@ -87,8 +106,10 @@ def registrar_conta():
 
         # Início da Transação Atômica
         try:
-            # 1. Criar Estabelecimento
+            # 1. Criar Estabelecimento (já no segmento e com os departamentos do tipo de loja)
+            segmento_loja, config_inicial = segmento_e_mix(data.get("tipo_loja") or data.get("segmento"))
             novo_estabelecimento = Estabelecimento(
+                segmento=segmento_loja,
                 nome_fantasia=nome_fantasia,
                 razao_social=razao_social,
                 cnpj=cnpj,
@@ -106,6 +127,8 @@ def registrar_conta():
                 vencimento_plano=hoje_local() + timedelta(days=TRIAL_DIAS),
                 ativo=True                                          # Trial ativo imediatamente
             )
+            if config_inicial:
+                novo_estabelecimento.configuracoes = config_inicial
             db.session.add(novo_estabelecimento)
             db.session.flush()
 
@@ -185,7 +208,7 @@ def registrar_conta():
                 nome=str(data.get("nome_admin") or nome_fantasia)[:150], email=str(email_admin or "")[:100],
                 whatsapp=str(celular_admin or "")[:30], origem="cadastro_teste", etapa="teste",
                 nome_loja=str(nome_fantasia)[:150], loja_criada_id=novo_estabelecimento.id,
-                segmento=(str(data["segmento"])[:60] if data.get("segmento") else None),
+                segmento=(str(data.get("tipo_loja") or data.get("segmento") or "")[:60] or None),
             )
             db.session.add(lead)
             db.session.flush()

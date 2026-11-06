@@ -20,6 +20,7 @@ const ProductsPage = lazy(() => import('../features/products/ProductsPage'));
 const EstoqueCountsPage = lazy(() => import('../features/products/pages/EstoqueCountsPage'));
 const ProductHubPage = lazy(() => import('../features/products/ProductHubPage'));
 const PurchasesPage = lazy(() => import('../features/purchases/PurchasesPage'));
+const ProducaoPage = lazy(() => import('../features/producao/ProducaoPage'));
 const SuppliersPage = lazy(() => import('../features/suppliers/SuppliersPage'));
 const CustomersPage = lazy(() => import('../features/customers/CustomersPage'));
 const SalesPage = lazy(() => import('../features/sales/SalesPage'));
@@ -107,6 +108,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="estoque-contagem" element={<ModuleGuard modulo="produtos"><EstoqueCountsPage /></ModuleGuard>} />
                     <Route path="products/:id" element={<ModuleGuard modulo="produtos"><ProductHubPage /></ModuleGuard>} />
                     <Route path="compras" element={<ModuleGuard modulo="compras"><PurchasesPage /></ModuleGuard>} />
+                    <Route path="producao" element={<ModuleGuard modulo="producao"><ProducaoPage /></ModuleGuard>} />
                     <Route path="suppliers" element={<ModuleGuard modulo="fornecedores"><SuppliersPage /></ModuleGuard>} />
                     <Route path="suppliers/:id" element={<ModuleGuard modulo="fornecedores"><SuppliersPage /></ModuleGuard>} />
                     <Route path="customers" element={<ModuleGuard modulo="clientes"><CustomersPage /></ModuleGuard>} />

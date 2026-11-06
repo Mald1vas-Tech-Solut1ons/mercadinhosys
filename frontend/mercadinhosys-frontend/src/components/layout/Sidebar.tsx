@@ -26,8 +26,7 @@ import {
     ShoppingBag,
     Sparkles,
     Play,
-    Database
-} from 'lucide-react';
+    Database, Factory } from 'lucide-react';
 import { authService } from '../../features/auth/authService';
 import { canAccessRoute, getMenuForUser } from '../../utils/permissions';
 
@@ -38,6 +37,7 @@ const menuItems = [
     { to: '/pdv?manage=true', icon: DollarSign, label: 'Gerenciar Caixa' },
     { to: '/products', icon: Package, label: 'Produtos' },
     { to: '/compras', icon: ShoppingBag, label: 'Compras & Doca' },
+    { to: '/producao', icon: Factory, label: 'Produção' },
     { to: '/suppliers', icon: Truck, label: 'Fornecedores' },
     { to: '/customers', icon: Users, label: 'Clientes' },
     { to: '/sales', icon: CreditCard, label: 'Vendas' },

@@ -20,6 +20,8 @@ interface InsightCardProps {
     | 'geral';
   titulo?: string;
   className?: string;
+  /** 'painel': dentro de um painel lateral; explica quando a IA está indisponível em vez de sumir. */
+  variante?: 'cartao' | 'painel';
 }
 
 const gradientMap = {
@@ -180,6 +182,7 @@ export const InsightCard: React.FC<InsightCardProps> = ({
   especialista,
   titulo = 'Consultor da Loja',
   className = '',
+  variante = 'cartao',
 }) => {
   const planoGratis = isPlanoGratis(authService.getCurrentUser());
   const navigate = useNavigate();
@@ -306,14 +309,30 @@ export const InsightCard: React.FC<InsightCardProps> = ({
   const Icon = iconMap[especialista] || Sparkles;
 
   if (iaIndisponivel) {
-    return null;
+    if (variante !== 'painel') return null;
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+        <p className="flex items-center gap-2 font-bold"><HelpCircle className="h-5 w-5" /> A análise com IA está desligada nesta loja</p>
+        <p className="mt-2 leading-relaxed">
+          O Consultor foi desativado nas configurações (opção de privacidade da LGPD) ou o servidor de IA não está
+          configurado. Os números do painel continuam valendo; só a leitura em texto fica indisponível.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/settings')}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+        >
+          Abrir Configurações › Sistema & Segurança <ArrowRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    );
   }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 ${className}`}
+      className={`relative overflow-hidden rounded-2xl bg-white dark:bg-gray-800 ${variante === 'painel' ? 'border border-gray-100 dark:border-gray-700' : 'shadow-xl border border-gray-100 dark:border-gray-700'} ${className}`}
     >
       {/* Top Banner with gradient */}
       <div className={`h-2 w-full bg-linear-to-r ${gradientMap[especialista]}`}></div>

@@ -21,6 +21,7 @@ import ProductHistoryModal from './components/ProductHistoryModal';
 import PurchaseOrdersPanel from './components/PurchaseOrdersPanel';
 import PurchaseOrderModal from './components/PurchaseOrderModal';
 import CommandToolbar from './components/CommandToolbar';
+import { useRolagem } from '../../contexts/RolagemContext';
 
 import ProductFormModal from './components/ProductFormModal';
 import EntradaRapidaPallet from './components/EntradaRapidaPallet';
@@ -724,6 +725,7 @@ const ProductsPage: React.FC = () => {
 
   // Buscando: painéis saem da frente e a tabela fica logo abaixo do campo.
   const emBusca = buscaLocal.trim().length > 0;
+  const { recolhido } = useRolagem();
 
   return (
     <div className="space-y-6 p-6">
@@ -741,6 +743,7 @@ const ProductsPage: React.FC = () => {
           onSearchChange={setBuscaLocal}
           onToggleFilters={() => setShowFilters(!showFilters)}
           showFilters={showFilters}
+          compacta={recolhido}
         />
       </div>
 

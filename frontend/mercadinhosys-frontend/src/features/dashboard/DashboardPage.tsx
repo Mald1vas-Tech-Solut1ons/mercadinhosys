@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/apiClient';
-import { Target, Package, AlertTriangle, Users, DollarSign, Activity, BarChart3, ChevronDown, Sparkles } from 'lucide-react';
+import { Target, Package, AlertTriangle, Users, DollarSign, Activity, BarChart3 } from 'lucide-react';
 
 import ExecutiveTab from './components/tabs/ExecutiveTab';
 import SalesSfaTab from './components/tabs/SalesSfaTab';
@@ -10,7 +10,7 @@ import RHTab from './components/tabs/RHTab';
 import BiTab from './bi/BiTab';
 import { authService } from '../auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
-import { InsightCard } from '../../components/consultor/InsightCard';
+import ConsultorAcesso from './components/ConsultorAcesso';
 import AlertsPanel from './components/AlertsPanel';
 import OnboardingPiloto from '../onboarding/OnboardingPiloto';
 import PainelDoDia from './components/PainelDoDia';
@@ -22,7 +22,6 @@ import { dataLocalISO } from '../../utils/dataLocal';
 import type { PeriodoDashboard } from './components/PorQueMudou';
 
 const CHAVE_ABA = 'mercadinhosys_dashboard_aba';
-const CHAVE_IA = 'mercadinhosys_dashboard_ia_aberta';
 
 function lerLocal(chave: string): string | null {
   try { return localStorage.getItem(chave); } catch { return null; }
@@ -35,10 +34,6 @@ export default function DashboardPageV2() {
   // O painel reabre na última aba usada (quem vive no BI não precisa clicar toda vez).
   const [activeTab, setActiveTabState] = useState(() => lerLocal(CHAVE_ABA) || 'executive');
   const setActiveTab = (aba: string) => { setActiveTabState(aba); gravarLocal(CHAVE_ABA, aba); };
-  // Consultor IA recolhido por padrão: ocupa uma linha até o dono pedir a análise.
-  // Recolhido ele nem monta, então também não gasta a cota diária de insights.
-  const [iaAberta, setIaAberta] = useState(() => lerLocal(CHAVE_IA) === '1');
-  const alternarIa = () => setIaAberta(v => { gravarLocal(CHAVE_IA, v ? '0' : '1'); return !v; });
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [erroDados, setErroDados] = useState<'plano' | 'assinatura' | 'falha' | null>(null);
@@ -180,30 +175,7 @@ export default function DashboardPageV2() {
         />
       )}
 
-      <div className="mb-6 overflow-hidden rounded-2xl border border-indigo-200 bg-white dark:border-indigo-500/30 dark:bg-slate-800/60 tour-ia-consultor">
-        <button
-          type="button"
-          onClick={alternarIa}
-          aria-expanded={iaAberta}
-          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-indigo-50/60 dark:hover:bg-indigo-500/10"
-        >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-700 text-white">
-            <Sparkles className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold text-gray-900 dark:text-white">Consultor da Loja · análise com IA</span>
-            <span className="block truncate text-xs text-gray-500 dark:text-slate-400">
-              {iaAberta ? 'Recolher a análise' : 'Diagnóstico e recomendações do período — toque para abrir'}
-            </span>
-          </span>
-          <ChevronDown className={`h-5 w-5 shrink-0 text-gray-400 transition-transform ${iaAberta ? 'rotate-180' : ''}`} />
-        </button>
-        {iaAberta && (
-          <div className="border-t border-indigo-100 p-3 dark:border-indigo-500/20">
-            <InsightCard especialista="geral" titulo="Consultor da Loja" />
-          </div>
-        )}
-      </div>
+      <ConsultorAcesso />
 
       {/* Tabs Navigation — no mobile vira uma faixa de "pílulas" com rolagem horizontal
           (snap + sangria até as bordas) para nunca cortar/embaralhar os rótulos. */}

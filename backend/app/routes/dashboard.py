@@ -374,6 +374,47 @@ def dashboard_categorias():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@dashboard_bp.route("/bi", methods=["GET"])
+@gerente_ou_admin_required
+@plan_required('Pro')
+def dashboard_bi():
+    """Fato por produto do BI configurável (filtros, faixas, correlações, árvore até o produto).
+
+    Período: `de`/`ate` (AAAA-MM-DD, dia da loja) ou `days` (1–365).
+    """
+    try:
+        from app import cache
+        from app.services.dashboard_bi import analise_bi, resolver_periodo
+
+        estabelecimento_id = get_establishment_id()
+        de = request.args.get("de")
+        ate = request.args.get("ate")
+        dias = request.args.get("days", default=30, type=int)
+        try:
+            inicio, fim = resolver_periodo(dias, de, ate)
+        except ValueError:
+            return jsonify({"success": False, "error": "Datas inválidas: use AAAA-MM-DD."}), 400
+
+        chave = f"dash_bi:v1:{estabelecimento_id}:{inicio.isoformat()}:{fim.isoformat()}"
+        try:
+            em_cache = cache.get(chave)
+        except Exception:
+            em_cache = None
+        if em_cache is not None:
+            return jsonify(em_cache), 200
+
+        payload = {"success": True, "data": analise_bi(
+            estabelecimento_id, de=inicio.isoformat(), ate=fim.isoformat())}
+        try:
+            cache.set(chave, payload, timeout=120)
+        except Exception as cache_err:
+            logger.warning("Falha ao gravar cache do BI: %s", cache_err)
+        return jsonify(payload), 200
+    except Exception as e:
+        logger.exception("Erro no BI do dashboard: %s", e)
+        return jsonify({"success": False, "error": "Erro ao montar o BI"}), 500
+
+
 @dashboard_bp.route("/executivo", methods=["GET"])
 @gerente_ou_admin_required
 @plan_required('Pro')

@@ -77,7 +77,10 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-}
       MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
       CORS_ORIGINS: ${CORS_ORIGINS:?Configure CORS_ORIGINS}
-      DB_POOL_SIZE: "2"
+      # Uma conexão por thread do gunicorn (--threads 4) + 1 de folga. Com 2+1 a 4ª requisição
+      # esperava 30 s (pool_timeout) e dava 500 "QueuePool limit" quando o painel frio segurava
+      # conexões por ~48 s (06/11/2026). Postgres tem max_connections=25; cada conexão ~5 MB.
+      DB_POOL_SIZE: "4"
       DB_MAX_OVERFLOW: "1"
       RATELIMIT_STORAGE_URI: redis://redis:6379/1
       REDIS_URL: redis://redis:6379/0

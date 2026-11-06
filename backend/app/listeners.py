@@ -5,6 +5,12 @@ import logging
 from flask import g
 from datetime import datetime, date
 
+
+def _now_utc():
+    """Import tardio (evita import circular de app.utils no topo do módulo)."""
+    from app.utils.timezone import now_utc
+    return now_utc()
+
 def iso_utc(valor):
     """Import tardio: app.utils carrega serviços que dependem de app (import circular)."""
     from app.utils.timezone import iso_utc as _iso_utc
@@ -124,7 +130,7 @@ def registrar_evento_forense(mapper, connection, target, operacao):
                     "operacao": operacao,
                     "tabela": target.__tablename__,
                     "registro_id": registro_id,
-                    "timestamp": iso_utc(datetime.now()),
+                    "timestamp": iso_utc(_now_utc()),
                     "data": payload
                 }
             )

@@ -2,8 +2,9 @@
 import hashlib
 import json
 import re
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from app.utils.timezone import hoje_local
 
 
 def money(value):
@@ -40,7 +41,7 @@ def payment_request(data, header_key, conta_id):
         except ValueError:
             raise ValueError('Data de pagamento inválida; use AAAA-MM-DD') from None
     else:
-        paid_on = date.today()
+        paid_on = hoje_local()
     method = data.get('forma_pagamento', 'Transferência')
     notes = data.get('observacoes')
     if not isinstance(method, str) or not method.strip() or len(method) > 30:

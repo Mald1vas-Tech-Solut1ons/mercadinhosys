@@ -15,8 +15,14 @@ import os
 import re
 import logging
 from urllib.parse import urlparse
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from dotenv import load_dotenv
+
+
+def _hoje_local():
+    """Import tardio (evita import circular de app.utils no topo do módulo)."""
+    from app.utils.timezone import hoje_local
+    return hoje_local()
 
 def iso_utc(valor):
     """Import tardio: app.utils carrega serviços que dependem de app (import circular)."""
@@ -339,8 +345,7 @@ def create_app(config_name=None):
                         abort(403, description="Sua assinatura está inativa ou suspensa. Acesse o painel de cobrança para regularizar.")
                         
                     if plano_status == 'experimental' and vencimento:
-                        from datetime import date
-                        if vencimento < date.today():
+                        if vencimento < _hoje_local():
                             logger.warning(f"🚫 Acesso bloqueado para tenant {tid} devido a trial expirado ({vencimento}). Rota: {request.path}")
                             abort(403, description="Seu período de teste expirou. Acesse o painel de cobrança para regularizar.")
         else:

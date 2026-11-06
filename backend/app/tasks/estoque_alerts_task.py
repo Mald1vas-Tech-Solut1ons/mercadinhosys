@@ -1,6 +1,19 @@
+"""Aviso diário de estoque e validade para o dono da loja — FUNÇÃO INCOMPLETA (não está ligada).
+
+O que já existe: as três consultas (ruptura, vencendo em N dias, vencidos). Os alertas DENTRO do app
+já funcionam por outro caminho (GET /api/dashboard/alertas, respeitando alerta_estoque_minimo e
+dias_alerta_validade da Configuracao).
+
+O que falta para ligar (levantado em 06/11/2026):
+  - as funções de envio importadas abaixo NÃO existem em email_service (este módulo não importa);
+  - usar `Produto.quantidade_minima` (o modelo não tem `estoque_minimo`) e os lotes (estoque_service);
+  - respeitar Configuracao.alerta_estoque_minimo, dias_alerta_validade e alertas_email/alertas_whatsapp;
+  - agendar no Oracle (timer systemd, como o mercadinhosys-backup.timer), 1x por dia de manhã.
+"""
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from app.models import db, Produto, Estabelecimento
+from app.utils.timezone import hoje_local
 from app.services.email_service import notificar_estoque_baixo, notificar_vencimento_proximo
 
 logger = logging.getLogger(__name__)
@@ -40,7 +53,7 @@ class EstoqueAlertsTask:
                     # notificar_estoque_baixo(estab, produtos_ruptura)
                     
                 # 2. Vencimento Próximo
-                hoje = datetime.now().date()
+                hoje = hoje_local()
                 dias_alerta = 30 # Default 30 dias para vencer
                 data_limite = hoje + timedelta(days=dias_alerta)
                 

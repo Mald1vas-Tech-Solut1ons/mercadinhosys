@@ -21,11 +21,12 @@ from sqlalchemy import func
 
 from app import db
 from app.models import CategoriaProduto, Produto, Venda, VendaItem
+from app.utils.timezone import now_utc
 
 
 def _janela(dias: int):
     """(inicio, fim, inicio_anterior, fim_anterior) — período atual e o espelho anterior."""
-    fim = datetime.now()
+    fim = now_utc()
     inicio = fim - timedelta(days=dias)
     return inicio, fim, inicio - timedelta(days=dias), inicio
 

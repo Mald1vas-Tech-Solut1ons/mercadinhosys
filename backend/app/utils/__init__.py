@@ -4,8 +4,5 @@ from .utils import calcular_margem_lucro, validar_cnpj, validar_cpf, formatar_mo
 # Importa o logger
 from .logger import setup_logger
 
-# Importa serviço de email
-from app.services.email_service import enviar_email
-
 # Importa paginação
 from .pagination import paginate

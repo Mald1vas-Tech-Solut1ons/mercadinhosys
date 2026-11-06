@@ -1,4 +1,3 @@
-from datetime import timezone
 """
 MÓDULO DE INTELIGÊNCIA DE NEGÓCIOS - RELATÓRIOS AVANÇADOS
 Sistema de análise preditiva e business intelligence para MercadinhoSys
@@ -26,7 +25,7 @@ from app.models import (
     Estabelecimento,
     CategoriaProduto,
 )
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from decimal import Decimal
 # NOTA: pandas é importado localmente apenas nas funções de exportação que o
 # usam (exportar_clientes_em_risco / exportar_backup_local). Import no nível do
@@ -38,7 +37,7 @@ import zipfile
 from sqlalchemy import func, extract, and_, or_, cast, String, desc
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from app.decorators.plan_guards import plan_required
-from app.utils.timezone import iso_utc, now_utc, fmt_local, iso_local
+from app.utils.timezone import iso_utc, now_utc, fmt_local, iso_local, agora_local, hoje_local
 from collections import defaultdict
 from typing import Dict, List, Any, Tuple
 from app.utils.metrics_calculator import MetricsCalculator
@@ -228,12 +227,12 @@ def calcular_previsao_esgotamento(produto_id: int, estabelecimento_id: int) -> D
             "estoque_atual": estoque_atual,
             "media_vendas_diarias": 0,
             "dias_ate_esgotamento": 0,
-            "data_esgotamento_prevista": iso_utc(datetime.now().date()),
+            "data_esgotamento_prevista": iso_utc(hoje_local()),
             "status": "ESGOTADO"
         }
     
     # Calcular média de vendas dos últimos N dias
-    data_inicio = datetime.now() - timedelta(days=STOCK_PREDICTION_DAYS)
+    data_inicio = now_utc() - timedelta(days=STOCK_PREDICTION_DAYS)
     
     vendas_recentes = db.session.query(
         func.sum(VendaItem.quantidade).label('total_vendido')
@@ -263,7 +262,7 @@ def calcular_previsao_esgotamento(produto_id: int, estabelecimento_id: int) -> D
     
     # Calcular dias até esgotamento
     dias_ate_esgotamento = int(estoque_atual / media_vendas_diarias)
-    data_esgotamento = datetime.now() + timedelta(days=dias_ate_esgotamento)
+    data_esgotamento = now_utc() + timedelta(days=dias_ate_esgotamento)
     
     # Determinar status
     if dias_ate_esgotamento <= 3:
@@ -292,10 +291,10 @@ def relatorio_rentabilidade_abc(estabelecimento_id: int, days: int = 30, data_in
     if data_inicio:
         # Se data_inicio foonecida, usa o range explícito
         if not data_fim:
-            data_fim = datetime.now()
+            data_fim = now_utc()
     else:
         # Padrão: últimos X dias
-        data_fim = datetime.now()
+        data_fim = now_utc()
         data_inicio = data_fim - timedelta(days=days)
 
     # Query otimizada: usa custo_unitario da venda SE existir, senão usa preco_custo atual (fallback)
@@ -572,7 +571,7 @@ def exportar_clientes_em_risco():
         csv_bytes = output.getvalue().encode('utf-8-sig')
         mem_file = io.BytesIO(csv_bytes)
         
-        filename = f"clientes_em_risco_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        filename = f"clientes_em_risco_{agora_local().strftime('%Y%m%d_%H%M%S')}.csv"
         
         return send_file(
             mem_file,
@@ -748,14 +747,14 @@ def exportar_backup_local():
         if not estabelecimento_id:
             return jsonify({"error": "Estabelecimento não identificado"}), 400
         
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = agora_local().strftime("%Y%m%d_%H%M%S")
         
         # Criar dicionário de dados (metadados)
         dicionario_dados = {
             "metadata": {
                 "sistema": "MercadinhoSys",
                 "versao": "2.0.0",
-                "data_exportacao": iso_utc(datetime.now()),
+                "data_exportacao": iso_utc(now_utc()),
                 "estabelecimento_id": estabelecimento_id,
                 "exportado_por": "Super Admin" if str(estabelecimento_id).lower() == 'all' else "Funcionário Autenticado"
             },

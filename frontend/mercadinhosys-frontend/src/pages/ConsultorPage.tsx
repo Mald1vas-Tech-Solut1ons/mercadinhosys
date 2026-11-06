@@ -23,6 +23,7 @@ import {
 } from '../services/consultorService';
 import { showToast } from '../utils/toast';
 import ReactMarkdown from 'react-markdown';
+import { dataLocalISO } from '../utils/dataLocal';
 
 interface Mensagem {
   id: number;
@@ -157,7 +158,7 @@ export const ConsultorPage: React.FC = () => {
         currentY = ((doc as any).lastAutoTable?.finalY || currentY + 30) + 10;
       }
 
-      doc.save(`relatorio-consultor-loja-${new Date().toISOString().slice(0, 10)}.pdf`);
+      doc.save(`relatorio-consultor-loja-${dataLocalISO()}.pdf`);
       showToast.success('PDF do relatório baixado com sucesso!');
     } catch {
       showToast.error('Não foi possível gerar o PDF agora.');
@@ -180,7 +181,7 @@ export const ConsultorPage: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `relatorio-consultor-loja-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `relatorio-consultor-loja-${dataLocalISO()}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       showToast.success('Planilha CSV exportada com sucesso!');

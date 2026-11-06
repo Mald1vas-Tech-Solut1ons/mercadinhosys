@@ -2,14 +2,14 @@ from datetime import timezone
 from flask import Blueprint, request, jsonify, current_app
 from app import db
 from app.models import Funcionario, Venda, Estabelecimento
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy import or_, and_, func, case, true
 from flask_jwt_extended import get_jwt, jwt_required
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
 from app.decorators.rbac import admin_required as store_admin_required
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local
 
 funcionarios_bp = Blueprint("funcionarios", __name__, url_prefix="/api/funcionarios")
 
@@ -42,7 +42,7 @@ def meu_holerite():
         if not funcionario:
             return jsonify({"success": False, "error": "Funcionário não encontrado"}), 404
 
-        mes_referencia = request.args.get("mes_referencia") or date.today().strftime("%Y-%m")
+        mes_referencia = request.args.get("mes_referencia") or hoje_local().strftime("%Y-%m")
 
         # Holerite calculado 100% no BACKEND, lendo a ConfiguracaoFolha
         # (INSS/IRRF progressivos, % hora extra, FGTS, VT). Nada hardcoded.
@@ -498,7 +498,7 @@ def estatisticas_funcionarios():
         )
 
         # Admissões por mês (últimos 12 meses)
-        hoje = date.today()
+        hoje = hoje_local()
         admissoes_por_mes = []
 
         for i in range(12):
@@ -569,7 +569,7 @@ def estatisticas_funcionarios():
         tempo_total_dias = 0
         for f in funcionarios_ativos:
             if f.data_admissao:
-                tempo_empresa = (date.today() - f.data_admissao).days
+                tempo_empresa = (hoje_local() - f.data_admissao).days
                 tempo_total_dias += tempo_empresa
 
         tempo_medio_empresa = tempo_total_dias / max(1, total_ativos)
@@ -707,7 +707,7 @@ def relatorio_vendas_funcionarios():
         data_inicio_str = request.args.get("inicio")
         data_fim_str = request.args.get("fim")
 
-        hoje = date.today()
+        hoje = hoje_local()
         if not data_inicio_str:
             data_inicio = hoje.replace(day=1)  # Início do mês atual
         else:
@@ -985,12 +985,12 @@ def detalhes_funcionario(id):
                 ),
                 "vendas_por_mes": vendas_por_mes,
                 "tempo_empresa_dias": (
-                    (date.today() - funcionario.data_admissao).days
+                    (hoje_local() - funcionario.data_admissao).days
                     if funcionario.data_admissao
                     else None
                 ),
                 "tempo_empresa_anos": (
-                    ((date.today() - funcionario.data_admissao).days / 365.25)
+                    ((hoje_local() - funcionario.data_admissao).days / 365.25)
                     if funcionario.data_admissao
                     else None
                 ),
@@ -1152,7 +1152,7 @@ def criar_funcionario():
             data_admissao=(
                 datetime.strptime(data["data_admissao"], "%Y-%m-%d").date()
                 if data.get("data_admissao")
-                else date.today()
+                else hoje_local()
             ),
             # data_demissao removido do modelo
             username=usuario,
@@ -1451,7 +1451,7 @@ def excluir_funcionario(id):
 
         # Exclusão lógica
         funcionario.ativo = False
-        funcionario.data_demissao = date.today()
+        funcionario.data_demissao = hoje_local()
         funcionario.status = "inativo"
 
         db.session.commit()

@@ -92,6 +92,12 @@ def fuso_da_uf(uf):
     return timezone(timedelta(hours=_OFFSET_POR_UF.get((uf or "").strip().upper(), -3)))
 
 
+def agora_local():
+    """Hora de parede da loja (naive), para TEXTO que o lojista lê: observação, protocolo, nome de
+    arquivo, código com data. Nunca gravar em coluna de data/hora: o banco é UTC (use now_utc)."""
+    return datetime.now(timezone.utc).astimezone(LOCAL_TZ).replace(tzinfo=None)
+
+
 def hoje_local():
     """Data de hoje na loja. O servidor roda em UTC: `date.today()` vira o dia 3h cedo e datava título,
     vencimento e atraso no dia seguinte entre 21h e meia-noite."""

@@ -14,7 +14,7 @@ import json
 from app.middleware.rate_limit import limiter
 from app.routes.onboarding import TRIAL_DIAS
 from app.decorators.plan_guards import normalize_plan
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local
 
 saas_bp = Blueprint("saas", __name__)
 logger = logging.getLogger(__name__)
@@ -193,7 +193,7 @@ def tenant_onboarding():
         if trial_dias < 1: trial_dias = 1
         if trial_dias > 365: trial_dias = 365
         if em_trial:
-            vencimento_plano_inicial = date.today() + timedelta(days=trial_dias)
+            vencimento_plano_inicial = hoje_local() + timedelta(days=trial_dias)
             if isinstance(data.get('vencimento_plano'), str) and data.get('vencimento_plano'):
                 try:
                     vencimento_plano_inicial = datetime.strptime(data['vencimento_plano'], "%Y-%m-%d").date()
@@ -214,7 +214,7 @@ def tenant_onboarding():
             plano=plano_inicial,
             plano_status=plano_status_inicial,
             vencimento_plano=vencimento_plano_inicial,
-            data_abertura=date.today(),
+            data_abertura=hoje_local(),
             ativo=True,
             regime_tributario='SIMPLES NACIONAL',
             cep=(data.get('cep') or '00000-000').strip() or '00000-000',
@@ -245,7 +245,7 @@ def tenant_onboarding():
             salario_base=0.0,  # Define zero para proprietário inicial
             status='ativo',
             ativo=True,
-            data_admissao=date.today(),
+            data_admissao=hoje_local(),
             data_cadastro=datetime.now(timezone.utc),
             permissoes_json=json.dumps({
                 "pdv": True,
@@ -513,7 +513,7 @@ def trial_status():
             return jsonify({"success": False, "error": "Estabelecimento não encontrado"}), 404
 
         venc = est.vencimento_plano
-        dias = (venc - date.today()).days if venc else None
+        dias = (venc - hoje_local()).days if venc else None
         em_trial = (est.plano_status == 'experimental')
         vencido = (dias is not None and dias < 0)
 

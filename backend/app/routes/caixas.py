@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import timezone
 from decimal import Decimal
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -6,7 +6,7 @@ from app.decorators.plan_guards import permission_required
 from app import db
 from app.models import Caixa, MovimentacaoCaixa, Estabelecimento, Funcionario, Auditoria
 from app.utils.sale_validation import number
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, agora_local, now_utc
 
 caixas_bp = Blueprint("caixas", __name__)
 
@@ -121,7 +121,7 @@ def abrir_caixa():
             }), 400
 
         # Gerar número de caixa simples
-        numero_caixa = f"CX-{datetime.now().strftime('%Y%m%d%H%M%S')}-{user_id}"
+        numero_caixa = f"CX-{agora_local().strftime('%Y%m%d%H%M%S')}-{user_id}"
 
         novo_caixa = Caixa(
             estabelecimento_id=funcionario.estabelecimento_id,
@@ -237,7 +237,7 @@ def fechar_caixa():
         diferenca_gaveta = valor_informado - saldo_calculado
 
         caixa.status = "fechado"
-        caixa.data_fechamento = datetime.now()
+        caixa.data_fechamento = now_utc()
         caixa.saldo_final = saldo_calculado # Armazenamos o calculado da gaveta conforme solicitado
         caixa.observacoes = (caixa.observacoes or "") + f"\n[FECHAMENTO] Calculado Gaveta: {saldo_calculado:.2f} | Informado Gaveta: {valor_informado:.2f} | Diferença: {diferenca_gaveta:.2f}"
 

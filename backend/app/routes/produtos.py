@@ -32,7 +32,7 @@ from app.models import (
     CatalogoMestre,
 )
 from app.utils import calcular_margem_lucro, formatar_codigo_barras
-from app.utils.timezone import iso_utc, now_utc, fmt_local
+from app.utils.timezone import iso_utc, now_utc, fmt_local, agora_local, hoje_local
 from app.utils.query_helpers import get_local_date
 from app.decorators.decorator_jwt import funcionario_required
 from app.decorators.plan_guards import quota_required, permission_required
@@ -74,7 +74,7 @@ def to_decimal(value, precision=2):
         return d.quantize(Decimal(quantize_str), rounding=ROUND_HALF_UP)
     except (Exception):
         return Decimal(quantize_str)
-from sqlalchemy import text, func, or_, case, and_, Date, Integer
+from sqlalchemy import text, func, or_, case, and_, Integer
 from app.services.politica_acoes import acao_protegida, verificar_acao
 produtos_bp = Blueprint("produtos", __name__)
 
@@ -408,7 +408,7 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
     if data.get("data_validade"):
         try:
             data_validade = datetime.strptime(data["data_validade"], "%Y-%m-%d").date()
-            if data_validade < date.today():
+            if data_validade < hoje_local():
                 erros.append("Data de validade não pode ser passada")
         except ValueError:
             erros.append("Formato de data inválido. Use YYYY-MM-DD")
@@ -416,7 +416,7 @@ def validar_dados_produto(data, produto_id=None, estabelecimento_id=None):
     if data.get("data_fabricacao"):
         try:
             fabricacao = datetime.strptime(data["data_fabricacao"], "%Y-%m-%d").date()
-            if fabricacao > date.today():
+            if fabricacao > hoje_local():
                 erros.append("Data de fabricação não pode ser futura")
             validade_txt = data.get("data_validade")
             if validade_txt and fabricacao >= datetime.strptime(validade_txt, "%Y-%m-%d").date():
@@ -543,7 +543,7 @@ def verificar_estoque_baixo(produto):
 def verificar_validade_proxima(produto):
     """Verifica se o produto está próximo da validade ou já vencido (baseado no lote FIFO)"""
     if produto.controlar_validade and produto.data_validade:
-        dias_para_validade = (produto.data_validade - date.today()).days
+        dias_para_validade = (produto.data_validade - hoje_local()).days
         if dias_para_validade <= 30:  # Inclui vencidos (negativo) e próximos (0-30)
             return True
     return False
@@ -1593,7 +1593,7 @@ def listar_produtos():
             query = _filtrar_busca_produto(query, busca)
 
         # 8. Filtros de Validade (produto OU lotes do produto; fallback só por produto se lotes falhar)
-        hoje = date.today()
+        hoje = hoje_local()
 
         try:
             if validade_proxima and validade_proxima.lower() == "true":
@@ -1855,7 +1855,7 @@ def listar_produtos():
 
             if verificar_validade_proxima(produto):
                 produto_dict["alerta_validade"] = True
-                dias = (produto.data_validade - date.today()).days if produto.data_validade else 0
+                dias = (produto.data_validade - hoje_local()).days if produto.data_validade else 0
                 alertas.append({
                     "produto_id": produto.id,
                     "tipo": "validade_proxima",
@@ -2386,7 +2386,7 @@ def criar_produto():
                         str(data["referencia_mercado_em"])[:10], "%Y-%m-%d"
                     ).date()
                 else:
-                    referencia_mercado_em = date.today()
+                    referencia_mercado_em = hoje_local()
                 preco_ref_fmt = f"R$ {ref.quantize(Decimal('0.01')):f}"
                 fonte_fmt = (fonte_referencia_mercado or "outro").replace("_", " ")
                 motivo_modo = (
@@ -2583,7 +2583,7 @@ def criar_produto():
 
         lote_inicial = None
         if produto.quantidade > 0 and produto.data_validade and flags_familia.get("usa_lotes", True):
-            numero = (produto.lote or "").strip() or f"CAD-{produto.id}-{date.today().strftime('%Y%m%d')}"
+            numero = (produto.lote or "").strip() or f"CAD-{produto.id}-{hoje_local().strftime('%Y%m%d')}"
             try:
                 numero = _ensure_unique_lote_number(estabelecimento_id, numero)
             except ValueError:
@@ -2967,7 +2967,7 @@ def atualizar_produto(id):
                         str(data["referencia_mercado_em"])[:10], "%Y-%m-%d"
                     ).date()
                 else:
-                    produto.referencia_mercado_em = date.today()
+                    produto.referencia_mercado_em = hoje_local()
                 preco_ref_fmt = f"R$ {ref.quantize(Decimal('0.01')):f}"
                 fonte_fmt = (produto.fonte_referencia_mercado or "outro").replace("_", " ")
                 motivo_modo_put = (
@@ -3182,10 +3182,8 @@ def deletar_produto(id):
 @funcionario_required
 @acao_protegida("produtos.excluir")
 def toggle_ativo_produto(id):
+    # @funcionario_required já garante funcionário autenticado e ativo.
     try:
-        user = get_current_user()
-        if not user:
-            return jsonify({"error": "Usuário não encontrado"}), 404
         from app.utils.query_helpers import get_authorized_establishment_id
         estab_id = get_authorized_establishment_id()
         
@@ -3356,7 +3354,7 @@ def ajustar_estoque(id):
                 elif lote_str or data_validade_str:
                     numero_lote_final = _ensure_unique_lote_number(
                         estabelecimento_id,
-                        lote_str if lote_str else f"ENT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                        lote_str if lote_str else f"ENT-{agora_local().strftime('%Y%m%d%H%M%S')}",
                     )
                     # Mesma regra do recebimento de pedido: produto com controle de validade não ganha
                     # data inventada (o lote "vencia" em 1 ano e escapava do bloqueio de vencido).
@@ -3773,7 +3771,7 @@ def descartar_produto(id):
             categoria="descarte_perda",
             tipo="variavel",
             valor=valor_prejuizo,
-            data_despesa=datetime.now().date(),
+            data_despesa=hoje_local(),
             forma_pagamento="Ajuste de Estoque",
             recorrente=False,
             observacoes=f"Gerado automaticamente via descarte de produto ID {produto.id}. Obs: {observacoes}"
@@ -4808,7 +4806,7 @@ def alertas_produtos():
         dias_alerta = int(request.args.get("dias", 30))
         
         alertas = []
-        hoje = date.today()
+        hoje = hoje_local()
 
         # ═══════════════════════════════════════════════════════════
         # 🔴 LOTES JÁ VENCIDOS (AÇÃO IMEDIATA - retirar da gôndola)
@@ -5098,7 +5096,7 @@ def exportar_produtos():
             200,
             {
                 "Content-Type": "text/csv; charset=utf-8",
-                "Content-Disposition": f'attachment; filename=produtos_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv',
+                "Content-Disposition": f'attachment; filename=produtos_{agora_local().strftime("%Y%m%d_%H%M%S")}.csv',
             },
         )
 
@@ -6335,7 +6333,7 @@ def importar_produtos_csv():
     import io
     from sqlalchemy import select
     from sqlalchemy.exc import IntegrityError
-    from app.utils.timezone import now_utc, hoje_local
+    from app.utils.timezone import hoje_local
 
     try:
         claims = get_jwt()

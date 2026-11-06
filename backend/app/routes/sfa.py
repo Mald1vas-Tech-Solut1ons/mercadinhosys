@@ -15,7 +15,7 @@ from uuid import uuid4
 import re
 import calendar as cal_lib
 from sqlalchemy import bindparam, func
-from app.utils.timezone import now_utc, iso_local, local_date_to_utc_naive, to_local
+from app.utils.timezone import now_utc, iso_local, local_date_to_utc_naive, to_local, agora_local
 
 bp = Blueprint("sfa", __name__)
 
@@ -838,8 +838,8 @@ def admin_metas():
             db.session.commit()
             return jsonify({"status": "success", "message": "Meta salva"}), 200
         else:
-            mes = request.args.get("mes", datetime.now().month)
-            ano = request.args.get("ano", datetime.now().year)
+            mes = request.args.get("mes", agora_local().month)
+            ano = request.args.get("ano", agora_local().year)
             metas = MetaVendedor.query.filter_by(
                 estabelecimento_id=estabelecimento_id, mes=mes, ano=ano
             ).all()

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, Response, current_app
 from app import db
-from app.utils.timezone import iso_utc, fmt_local, hoje_local, local_date_to_utc_naive, to_local
+from app.utils.timezone import iso_utc, fmt_local, hoje_local, local_date_to_utc_naive, to_local, agora_local, now_utc
 from app.models import (
     Venda,
     VendaItem,
@@ -86,7 +86,7 @@ def _norm_forma_pagamento(nome):
 
 def gerar_codigo_venda():
     """Gera código único para venda no formato V-YYYYMMDD-XXXX"""
-    data_atual = datetime.now().strftime("%Y%m%d")
+    data_atual = agora_local().strftime("%Y%m%d")
     random_part = "".join(random.choices(string.digits, k=4))
     return f"V-{data_atual}-{random_part}"
 
@@ -255,21 +255,9 @@ def calcular_estatisticas_vendas(query_base, estabelecimento_id):
         func.sum(Pagamento.valor).label("total")
     ).filter(Pagamento.venda_id.in_(ids_select)).group_by(Pagamento.forma_pagamento).all()
 
-    def _norm(n):
-        if not n: return 'dinheiro'
-        n = n.lower().strip()
-        if 'crédito' in n or 'credito' in n: return 'cartao_credito'
-        if 'débito' in n or 'debito' in n: return 'cartao_debito'
-        if 'dinheiro' in n: return 'dinheiro'
-        if 'pix' in n: return 'pix'
-        if 'fiado' in n: return 'fiado'
-        if 'alimentação' in n or 'alimentacao' in n: return 'vale_alimentacao'
-        if 'refeição' in n or 'refeicao' in n: return 'vale_refeicao'
-        return n.replace(" ", "_").replace("ã", "a").replace("é", "e").replace("ê", "e").replace("í", "i").replace("ó", "o").replace("ç", "c")
-
     formas_dict = {}
     for f in formas:
-        norm_key = _norm(f.forma_pagamento)
+        norm_key = _norm_forma_pagamento(f.forma_pagamento)
         if norm_key not in formas_dict:
             formas_dict[norm_key] = {"quantidade": 0, "total": 0.0}
         formas_dict[norm_key]["quantidade"] += f.quantidade
@@ -492,12 +480,9 @@ def estatisticas_vendas():
             Pagamento.venda_id.in_(ids_select)
         ).group_by(Pagamento.forma_pagamento).all()
 
-        def _norm(nome):
-            return _norm_forma_pagamento(nome)
-
         formas_pgto_agrupadas = {}
         for fp in formas_pgto_raw:
-            nk = _norm(fp[0])
+            nk = _norm_forma_pagamento(fp[0])
             if nk not in formas_pgto_agrupadas:
                 formas_pgto_agrupadas[nk] = {"quantidade": 0, "total": 0.0}
             formas_pgto_agrupadas[nk]["quantidade"] += fp[1]
@@ -607,7 +592,7 @@ def relatorio_diario():
         for v in vendas:
             for p in v.pagamentos:
                 if p.status == "aprovado":
-                    nk = _norm(p.forma_pagamento)
+                    nk = _norm_forma_pagamento(p.forma_pagamento)
                     formas_pagamento[nk]["quantidade"] += 1
                     formas_pagamento[nk]["total"] += float(p.valor)
 
@@ -684,7 +669,7 @@ def analise_tendencia():
         periodo = request.args.get("periodo", "mensal")
         meses = int(request.args.get("meses", 6))
 
-        data_fim = datetime.now()
+        data_fim = now_utc()
         data_inicio = data_fim - timedelta(days=30 * meses)
 
         query = Venda.query.filter(
@@ -1120,7 +1105,7 @@ def obter_venda(venda_id):
 def vendas_do_dia():
     try:
         estabelecimento_id = get_authorized_establishment_id()
-        hoje = datetime.now().date()
+        hoje = hoje_local()
         amanha = hoje + timedelta(days=1)
 
         vendas_hoje = Venda.query.filter(
@@ -1253,7 +1238,7 @@ def cancelar_venda(venda_id):
             return jsonify({'error': 'Autorizador inativo'}), 403
 
         # Permitir cancelamento de vendas até 7 dias atrás
-        dias_venda = (datetime.now() - venda.created_at.replace(tzinfo=None)).days if venda.created_at else 0
+        dias_venda = (now_utc() - venda.created_at.replace(tzinfo=None)).days if venda.created_at else 0
         if dias_venda > 7:
             return jsonify({"error": f"Vendas com mais de 7 dias não podem ser canceladas. Esta venda tem {dias_venda} dias."}), 400
 
@@ -1398,7 +1383,7 @@ def cancelar_venda(venda_id):
                 resp = gateway.cancelar(doc_fiscal.referencia, justificativa=(motivo or "Cancelamento da venda no PDV"))
                 if resp.get("status") == "cancelado":
                     doc_fiscal.status = "cancelado"
-                    doc_fiscal.cancelado_em = datetime.now()
+                    doc_fiscal.cancelado_em = now_utc()
                     doc_fiscal.justificativa_cancelamento = (motivo or "Cancelamento da venda no PDV")[:255]
                 else:
                     # SEFAZ recusou o cancelamento: a venda NÃO é cancelada e nada
@@ -1409,11 +1394,11 @@ def cancelar_venda(venda_id):
                     )
 
             venda.status = "cancelada"
-            agora = datetime.now()
+            agora = now_utc()  # banco grava UTC; o texto abaixo mostra a hora de Brasília
             venda.data_cancelamento = agora
             venda.motivo_cancelamento = (motivo or "")[:255]
             autorizado_por = f" | Autorizado por: {autorizador.nome}" if autorizador else ""
-            venda.observacoes = f"{venda.observacoes or ''}\n[Cancelada em {agora.strftime('%d/%m/%Y %H:%M')}] Motivo: {motivo}{autorizado_por}".strip()
+            venda.observacoes = f"{venda.observacoes or ''}\n[Cancelada em {agora_local().strftime('%d/%m/%Y %H:%M')}] Motivo: {motivo}{autorizado_por}".strip()
             venda.updated_at = agora
 
             from app.models import Auditoria
@@ -1481,7 +1466,7 @@ def exportar_vendas():
         mimetype = "application/vnd.ms-excel" if formato == "excel" else "text/csv"
         ext = "xls" if formato == "excel" else "csv"
         resp = Response("\ufeff" + content, mimetype=f"{mimetype}; charset=utf-8")
-        resp.headers["Content-Disposition"] = f'attachment; filename="vendas-{datetime.now().strftime("%Y%m%d")}.{ext}"'
+        resp.headers["Content-Disposition"] = f'attachment; filename="vendas-{agora_local().strftime("%Y%m%d")}.{ext}"'
         return resp
     except Exception as e:
         current_app.logger.error(f"❌ Erro ao exportar vendas: {str(e)}")
@@ -1555,7 +1540,7 @@ def iniciar_venda_pdv():
         cliente_id = data.get("cliente_id")
         if not funcionario_id:
             return jsonify({"error": "Funcionário é obrigatório"}), 400
-        codigo_temp = f"PDV-{datetime.now().strftime('%H%M%S')}-{funcionario_id}"
+        codigo_temp = f"PDV-{agora_local().strftime('%H%M%S')}-{funcionario_id}"
         venda = Venda(
             estabelecimento_id=estabelecimento_id,
             codigo=codigo_temp,

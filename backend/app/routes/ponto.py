@@ -6,7 +6,7 @@ Rotas para Sistema de Controle de Ponto
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import db, RegistroPonto, ConfiguracaoHorario, Funcionario, Estabelecimento, Auditoria
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, timedelta
 from sqlalchemy import func, and_, or_
 from app.decorators.plan_guards import plan_required, permission_required
 import base64
@@ -15,6 +15,7 @@ from werkzeug.utils import secure_filename
 import logging
 from functools import lru_cache
 import math
+from app.utils.timezone import hoje_local
 
 logger = logging.getLogger(__name__)
 ponto_bp = Blueprint('ponto', __name__)
@@ -64,7 +65,7 @@ def calcular_minutos_atraso(hora_registro, hora_esperada, tolerancia):
         return 0
     
     # Converter para datetime para facilitar cálculo
-    hoje = date.today()
+    hoje = hoje_local()
     dt_registro = datetime.combine(hoje, hora_registro)
     dt_esperada = datetime.combine(hoje, hora_esperada)
     dt_tolerancia = dt_esperada + timedelta(minutes=tolerancia)
@@ -636,7 +637,7 @@ def estatisticas_ponto():
             return jsonify({'success': False, 'message': 'Funcionário não encontrado'}), 404
         
         # Últimos 30 dias
-        data_inicio = date.today() - timedelta(days=30)
+        data_inicio = hoje_local() - timedelta(days=30)
         
         try:
             registros = RegistroPonto.query.filter(
@@ -705,7 +706,7 @@ def estatisticas_ponto():
         grafico_frequencia = []
         for i in range(30):
             try:
-                dia = date.today() - timedelta(days=29-i)
+                dia = hoje_local() - timedelta(days=29-i)
                 dia_str = dia.isoformat()
                 registros_dia = registros_por_dia.get(dia_str, [])
                 
@@ -1111,8 +1112,8 @@ def relatorio_detalhado_funcionario(funcionario_id):
                 entrada_time = datetime.strptime(entrada['hora'], '%H:%M:%S').time()
                 saida_time = datetime.strptime(saida['hora'], '%H:%M:%S').time()
                 
-                entrada_dt = datetime.combine(date.today(), entrada_time)
-                saida_dt = datetime.combine(date.today(), saida_time)
+                entrada_dt = datetime.combine(hoje_local(), entrada_time)
+                saida_dt = datetime.combine(hoje_local(), saida_time)
                 
                 diferenca = saida_dt - entrada_dt
                 horas_trabalhadas = diferenca.total_seconds() / 3600

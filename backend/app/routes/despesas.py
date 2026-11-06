@@ -3,6 +3,7 @@ from sqlalchemy import or_, and_
 from decimal import Decimal, ROUND_HALF_UP
 
 from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import get_jwt_identity
 
 from app import db
 from app.decorators.decorator_jwt import funcionario_required
@@ -16,7 +17,7 @@ from app.services.rh_calculator_service import (
     calcular_custo_folha_periodos,
 )
 from app.utils.financeiro_constants import sem_categorias_integradas
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local
 
 despesas_bp = Blueprint("despesas", __name__)
 
@@ -315,13 +316,13 @@ def obter_custo_folha():
     """
     try:
         from app.utils.query_helpers import get_authorized_establishment_id
-        from datetime import date, datetime
+        from datetime import datetime
         
         estabelecimento_id = get_authorized_establishment_id()
         if not estabelecimento_id:
             return jsonify({"success": False, "error": "Estabelecimento não identificado"}), 400
 
-        hoje = date.today()
+        hoje = hoje_local()
         inicio_str = request.args.get("inicio")
         fim_str = request.args.get("fim")
 
@@ -362,7 +363,7 @@ def obter_estatisticas_despesas():
         from sqlalchemy import case
         from app.models import ContaPagar
 
-        hoje = datetime.now().date()
+        hoje = hoje_local()
         mes_atual_inicio = hoje.replace(day=1)
         mes_anterior_inicio = (mes_atual_inicio - timedelta(days=1)).replace(day=1)
         mes_anterior_fim = mes_atual_inicio - timedelta(days=1)
@@ -675,8 +676,8 @@ def detalhamento_unificado():
     recorrente = request.args.get("recorrente")
 
     try:
-        inicio = datetime.strptime(inicio_str, "%Y-%m-%d").date() if inicio_str else datetime.now().date()
-        fim = datetime.strptime(fim_str, "%Y-%m-%d").date() if fim_str else datetime.now().date()
+        inicio = datetime.strptime(inicio_str, "%Y-%m-%d").date() if inicio_str else hoje_local()
+        fim = datetime.strptime(fim_str, "%Y-%m-%d").date() if fim_str else hoje_local()
     except ValueError:
         return jsonify({"success": False, "error": "Datas inválidas"}), 400
 
@@ -737,11 +738,11 @@ def detalhamento_unificado():
             })
             
         # 2.1 Boletos Vencidos (Pressão de Caixa)
-        hoje_local = datetime.now().date()
-        if inicio <= hoje_local <= fim:
+        hoje_dia = hoje_local()
+        if inicio <= hoje_dia <= fim:
             q_vencidos = db.session.query(ContaPagar).filter(
                 ContaPagar.status.in_(['aberto', 'parcial']),
-                ContaPagar.data_vencimento < hoje_local
+                ContaPagar.data_vencimento < hoje_dia
             )
             if estabelecimento_id != 'all':
                 q_vencidos = q_vencidos.filter(ContaPagar.estabelecimento_id == estabelecimento_id)
@@ -757,7 +758,7 @@ def detalhamento_unificado():
                     "id": f"cp_venc_{cp.id}",
                     "descricao": descricao,
                     "valor": valor_devido,
-                    "data_despesa": iso_utc(cp.data_vencimento) if cp.data_vencimento else iso_utc(hoje_local),
+                    "data_despesa": iso_utc(cp.data_vencimento) if cp.data_vencimento else iso_utc(hoje_dia),
                     "categoria": "Boletos Vencidos (Atraso)",
                     "forma_pagamento": "Pressão de Caixa",
                     "tipo": "variavel",
@@ -828,7 +829,7 @@ def criar_despesa():
         except ValueError:
             return None
 
-    data_despesa_date = _parse_date_field(data.get("data_despesa")) or datetime.now().date()
+    data_despesa_date = _parse_date_field(data.get("data_despesa")) or hoje_local()
     data_emissao_date = _parse_date_field(data.get("data_emissao"))
     data_vencimento_date = _parse_date_field(data.get("data_vencimento"))
 
@@ -952,7 +953,7 @@ def boletos_a_vencer():
     """Lista boletos de fornecedores que estão próximos ao vencimento"""
     try:
         from app.models import ContaPagar, Fornecedor
-        from datetime import date, timedelta
+        from datetime import timedelta
         
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
@@ -974,10 +975,10 @@ def boletos_a_vencer():
         
         if apenas_vencidos:
             # Apenas boletos já vencidos
-            query = query.filter(ContaPagar.data_vencimento < date.today())
+            query = query.filter(ContaPagar.data_vencimento < hoje_local())
         else:
             # Boletos que vencem nos próximos X dias
-            data_limite = date.today() + timedelta(days=dias_antecedencia)
+            data_limite = hoje_local() + timedelta(days=dias_antecedencia)
             query = query.filter(ContaPagar.data_vencimento <= data_limite)
         
         boletos = query.order_by(ContaPagar.data_vencimento.asc()).all()
@@ -987,7 +988,7 @@ def boletos_a_vencer():
         total_valor = Decimal('0')
         
         for boleto in boletos:
-            dias_vencimento = (boleto.data_vencimento - date.today()).days
+            dias_vencimento = (boleto.data_vencimento - hoje_local()).days
 
             # Determinar origem: mercadoria (pedido de compra) ou despesa fixa
             tem_pedido = boleto.pedido_compra_id is not None and getattr(boleto, 'pedido_compra', None) is not None
@@ -1064,14 +1065,14 @@ def resumo_financeiro():
     """
     try:
         from app.dashboard_cientifico.data_layer import DataLayer
-        from datetime import date, timedelta, datetime
+        from datetime import timedelta, datetime
 
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
         if not estabelecimento_id:
             return jsonify({"error": "Estabelecimento não identificado"}), 400
 
-        hoje = date.today()
+        hoje = hoje_local()
         data_inicio_str = request.args.get('data_inicio')
         data_fim_str = request.args.get('data_fim')
 
@@ -1308,7 +1309,7 @@ def historico_comparativo():
     """
     try:
         from sqlalchemy import func, extract
-        from datetime import date, timedelta
+        from datetime import timedelta
         from collections import defaultdict
 
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
@@ -1316,7 +1317,7 @@ def historico_comparativo():
         if not estabelecimento_id:
             return jsonify({"error": "Estabelecimento não identificado"}), 400
 
-        hoje = date.today()
+        hoje = hoje_local()
         # Calcula os últimos 12 meses
         meses = []
         for i in range(11, -1, -1):
@@ -1516,14 +1517,14 @@ def boletos_por_status():
     """
     try:
         from app.models import ContaPagar, Fornecedor
-        from datetime import date, timedelta
+        from datetime import timedelta
 
         from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
         estabelecimento_id = get_authorized_establishment_id()
         if not estabelecimento_id:
             return jsonify({"error": "Estabelecimento não identificado"}), 400
 
-        hoje = date.today()
+        hoje = hoje_local()
         dias = int(request.args.get('dias', 30))
         limite_vencer = hoje + timedelta(days=dias)
 

@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy import func, desc, extract, case, and_, or_
 from decimal import Decimal, ROUND_HALF_UP
 from app.utils.custo import custo_efetivo
-from app.utils.timezone import iso_utc, now_utc, local_date_to_utc_naive
+from app.utils.timezone import iso_utc, now_utc, local_date_to_utc_naive, hoje_local, agora_local, hoje_local
 from app.models import (
     Venda, VendaItem, Produto, Cliente,
     Funcionario, FuncionarioBeneficio, Beneficio, BancoHoras, RegistroPonto, ConfiguracaoHorario,
@@ -1029,9 +1029,9 @@ class DataLayer:
         """
         try:
             # db injetado pelo decorator
-            data_inicio = datetime.now() - timedelta(days=days)
+            data_inicio = now_utc() - timedelta(days=days)
             data_inicio_dia = data_inicio.date()
-            hoje_dia = datetime.now().date()
+            hoje_dia = hoje_local()
             inicio_mes = hoje_dia.replace(day=1)
 
             try:
@@ -1168,7 +1168,7 @@ class DataLayer:
                 m = ((m - 1) % 12) + 1
                 return y, m
 
-            now = datetime.now()
+            now = agora_local()
             current_year, current_month = now.year, now.month
             start_history = (datetime(current_year, current_month, 1) - timedelta(days=365)).date()
             
@@ -1246,7 +1246,7 @@ class DataLayer:
 
             # 9. Top Funcionários com Horas Extras (estimado via ponto, ou via BancoHoras se disponível)
             overtime_list = []
-            banco_horas_mes = datetime.now().strftime("%Y-%m")
+            banco_horas_mes = agora_local().strftime("%Y-%m")
             banco_registros_query = db.session.query(BancoHoras).join(Funcionario).filter(
                 BancoHoras.mes_referencia == banco_horas_mes
             )
@@ -1359,7 +1359,6 @@ class DataLayer:
             # o 1º dia do mês, a admissão e o 1º ponto da loja até ONTEM (hoje ainda dá para chegar),
             # e só abate justificativas aprovadas do próprio mês.
             from app.decorators.rbac import nivel_do_role
-            from app.utils.timezone import hoje_local
             ontem_loja = hoje_local() - timedelta(days=1)
             inicio_mes_loja = hoje_local().replace(day=1)
             primeiro_ponto_query = db.session.query(func.min(RegistroPonto.data))

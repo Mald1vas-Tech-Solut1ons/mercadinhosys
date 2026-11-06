@@ -20,6 +20,7 @@ import random
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Dict, Optional
+from app.utils.timezone import agora_local
 
 
 def _dv_chave(chave43: str) -> str:
@@ -36,7 +37,7 @@ def _dv_chave(chave43: str) -> str:
 def gerar_chave_acesso(uf_cod: str, cnpj: str, modelo: str, serie: int, numero: int,
                        tp_emis: str = "1", data: Optional[datetime] = None) -> str:
     """Monta uma chave de acesso de 44 dígitos (com DV correto)."""
-    data = data or datetime.now()
+    data = data or agora_local()
     aamm = data.strftime("%y%m")
     cnpj = (cnpj or "").rjust(14, "0")[:14]
     c_nf = f"{random.randint(0, 99999999):08d}"
@@ -79,7 +80,7 @@ class SimuladoGateway(FiscalGateway):
         return {
             "status": "autorizado",
             "chave": chave,
-            "protocolo": f"SIM{datetime.now().strftime('%y%m%d%H%M%S')}{random.randint(100,999)}",
+            "protocolo": f"SIM{agora_local().strftime('%y%m%d%H%M%S')}{random.randint(100,999)}",
             "numero": str(payload.get("numero")),
             "serie": str(payload.get("serie")),
             "danfe_url": None,

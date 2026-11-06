@@ -7,12 +7,12 @@ Cupons fiscais, notificações, etc.
 from flask import current_app, render_template_string
 from flask_mail import Message
 from app import mail
-from datetime import datetime
 import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import ssl
+from app.utils.timezone import agora_local
 
 
 def _format_moeda(valor) -> str:
@@ -215,7 +215,7 @@ def enviar_cupom_fiscal(venda_data: dict, cliente_email: str):
         import random
         chave_acesso = "".join([str(random.randint(0, 9)) for _ in range(44)])
         protocolo = f"{random.randint(100000000, 999999999)}"
-        data_protocolo = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        data_protocolo = agora_local().strftime("%d/%m/%Y %H:%M:%S")
 
         html_template = """
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">

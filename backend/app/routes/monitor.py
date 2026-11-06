@@ -1,13 +1,16 @@
 from datetime import timezone
 # app/routes/monitor.py
 from flask import Blueprint, jsonify, request, current_app
-from app.models import db, Auditoria, Estabelecimento, Venda, Funcionario
+from app.models import db, Auditoria, Estabelecimento, Venda
 from app.utils.query_helpers import ilike_unaccent, get_authorized_establishment_id
 from app.decorators.decorator_jwt import super_admin_required
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import json
 from app.utils.timezone import iso_utc
+import logging
+
+logger = logging.getLogger(__name__)
 
 monitor_bp = Blueprint("monitor", __name__)
 
@@ -259,28 +262,17 @@ def update_establishment(id):
 @monitor_bp.route("/establishments/<int:id>", methods=["DELETE"])
 @super_admin_required
 def delete_establishment(id):
-    """Exclui um estabelecimento (CUIDADO: Decisão de CEO/CTO)"""
-    try:
-        estab = Estabelecimento.query.get_or_404(id)
-        nome = estab.nome_fantasia
-        
-        from app.utils.query_helpers import ilike_unaccent, get_estabelecimento_safe, get_authorized_establishment_id
-        claims = get_jwt()
-        # Prioriza o contexto de impersonation se for Super Admin
-        estabelecimento_id = get_authorized_establishment_id()
-        
-        # Em um sistema real, aqui deletaríamos ou desvincularíamos dependências.
-        # Por segurança de dados, vamos apenas marcar como 'excluido' no plano_status 
-        # ou realmente deletar se o usuário confirmar.
-        # O usuário pediu "deletar", então vamos realizar a exclusão física.
-        
-        db.session.delete(estab)
-        db.session.commit()
-        
-        return jsonify({
-            "success": True,
-            "message": f"Estabelecimento '{nome}' e todos os dados associados foram removidos."
-        }), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": f"Erro ao deletar: {str(e)}"}), 500
+    """Exclusão física de loja NÃO é feita por botão.
+
+    Apagar o estabelecimento apaga vendas, estoque, clientes e notas da loja, sem volta. Esta rota
+    nunca chegou a funcionar (quebrava em `get_jwt` sem import) e não vai passar a funcionar por
+    acidente: a loja é INATIVADA pela rota /status (reversível, sem perda de dado). Exclusão
+    definitiva (ex.: pedido LGPD) é um fluxo próprio, com backup, confirmação e auditoria.
+    """
+    estab = Estabelecimento.query.get_or_404(id)
+    return jsonify({
+        "success": False,
+        "code": "EXCLUSAO_FISICA_BLOQUEADA",
+        "error": (f"A loja '{estab.nome_fantasia}' não pode ser apagada por aqui: isso destruiria vendas, "
+                  "estoque e notas sem volta. Use 'Inativar' (reversível)."),
+    }), 409

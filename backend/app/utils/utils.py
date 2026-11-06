@@ -5,12 +5,13 @@ try:
 except ImportError:
     stats = None
 import math
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
 import json
 from flask import current_app
 import re
+from app.utils.timezone import hoje_local
 
 
 def calcular_tendencia(series: List[float]) -> Dict[str, Any]:
@@ -835,7 +836,7 @@ def calcular_idade(data_nascimento):
         else:
             nasc = data_nascimento
 
-        hoje = datetime.today()
+        hoje = hoje_local()
         idade = (
             hoje.year - nasc.year - ((hoje.month, hoje.day) < (nasc.month, nasc.day))
         )

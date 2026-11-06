@@ -1,4 +1,3 @@
-from datetime import timezone
 # app/clientes.py
 # MÓDULO COMPLETO DE CLIENTES - ERP INDUSTRIAL BRASILEIRO
 # CRUD completo com todas as operações necessárias para clientes CPF
@@ -7,7 +6,7 @@ from flask import Blueprint, request, jsonify, current_app
 # from flask_login import login_required, current_user  # Removido - usando JWT
 from flask_jwt_extended import get_jwt_identity, get_jwt, jwt_required
 from app.utils.query_helpers import ilike_unaccent, documento_contem, get_authorized_establishment_id
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -169,7 +168,7 @@ def validar_dados_cliente(data, cliente_id=None, estabelecimento_id=None, is_upd
     if tipo == "PF" and data.get("data_nascimento"):
         try:
             data_nasc = datetime.strptime(data["data_nascimento"], "%Y-%m-%d").date()
-            if data_nasc > date.today():
+            if data_nasc > hoje_local():
                 erros.append("Data de nascimento não pode ser futura")
             elif calcular_idade(data_nasc) < 18:
                 erros.append("Cliente deve ter pelo menos 18 anos")
@@ -364,8 +363,7 @@ def listar_clientes():
         # "quebrado" nos primeiros dias do mês (ex.: dia 3 só soma 3 dias de
         # vendas) — enganoso para o lojista, que lia como "receita mensal
         # típica". 30 dias corridos dá uma leitura sempre justa.
-        from datetime import date
-        hoje = date.today()
+        hoje = hoje_local()
         trinta_dias_atras = hoje - timedelta(days=30)
 
         query_gasto_mes = db.session.query(db.func.sum(Venda.total)).filter(
@@ -1202,7 +1200,7 @@ def listar_contas_fiado(id):
             id=id, estabelecimento_id=estabelecimento_id
         ).first_or_404()
 
-        hoje = date.today()
+        hoje = hoje_local()
         contas = (
             ContaReceber.query.filter_by(
                 cliente_id=id, estabelecimento_id=estabelecimento_id, status="aberto"
@@ -1448,7 +1446,7 @@ def pagar_fiado(id):
             if conta.valor_atual <= centavo:
                 conta.valor_atual = Decimal("0")
                 conta.status = "pago"
-                conta.data_recebimento = date.today()
+                conta.data_recebimento = hoje_local()
 
         if conta_receber_id:
             conta = next((c for c in abertas if str(c.id) == str(conta_receber_id)), None)

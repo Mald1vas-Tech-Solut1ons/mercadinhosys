@@ -13,7 +13,7 @@ from .models_layer import PracticalModels
 from .temporal_analysis import TemporalAnalysis
 from .serializers import DashboardSerializer
 from .cache_layer import cache_response
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, now_utc
 
 def _brl(valor, casas=2):
     """Número no formato brasileiro (1.234,56) para as mensagens que o lojista lê."""
@@ -191,7 +191,7 @@ class DashboardOrchestrator:
 
         return {
             "success": True,
-            "timestamp": iso_utc(datetime.now()),
+            "timestamp": iso_utc(now_utc()),
             "period_days": days,
             "summary": {
                 "revenue": serializer.serialize_metric(sales_current),

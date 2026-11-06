@@ -18,6 +18,7 @@ import { cosmosService, CatalogoBuscaItem } from '../../../services/cosmosServic
 import { useViewSchema, schemaHelpers, flagsDaSubcategoria } from '../../../services/viewSchemaService';
 import { irParaCampo, campoDoErroServidor } from '../irParaCampo';
 import BarcodeScanner from '../../pdv/components/BarcodeScanner';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 interface ProductFormModalProps {
     show: boolean;
@@ -1385,7 +1386,7 @@ const ProductFormModal = ({
                                             Data de Validade{flagsItem.validade_obrigatoria && Number(formData.quantidade) > 0 ? ' *' : ''}
                                         </label>
                                         <input type="date" data-campo="data_validade" value={formData.data_validade}
-                                            min={new Date().toISOString().slice(0, 10)}
+                                            min={dataLocalISO()}
                                             onChange={e => field('data_validade', e.target.value)}
                                             className={inputClass} />
                                     </div>
@@ -1394,7 +1395,7 @@ const ProductFormModal = ({
                                             Data de Fabricação{flagsItem.exige_fabricacao && Number(formData.quantidade) > 0 ? ' *' : ''}
                                         </label>
                                         <input type="date" data-campo="data_fabricacao" value={formData.data_fabricacao}
-                                            max={new Date().toISOString().slice(0, 10)}
+                                            max={dataLocalISO()}
                                             onChange={e => field('data_fabricacao', e.target.value)}
                                             className={inputClass} />
                                     </div>

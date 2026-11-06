@@ -14,7 +14,7 @@ Responsabilidades ao importar:
 """
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional
 from sqlalchemy import select, or_
@@ -28,6 +28,7 @@ from app.models import (
     PedidoCompra, PedidoCompraItem, ProdutoLote,
 )
 from app.services.catalogo_mestre_service import registrar_produto_se_novo
+from app.utils.timezone import hoje_local
 
 CATEGORIA_IMPORTACAO = "Importação NF-e"
 
@@ -474,8 +475,8 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
                 numero_documento=f"{parsed['numero']}-{d.get('numero') or '1'}",
                 tipo_documento="duplicata",
                 valor_original=d["valor"], valor_atual=d["valor"], valor_pago=Decimal("0"),
-                data_emissao=(data_emissao.date() if data_emissao else date.today()),
-                data_vencimento=(venc.date() if venc else date.today()),
+                data_emissao=(data_emissao.date() if data_emissao else hoje_local()),
+                data_vencimento=(venc.date() if venc else hoje_local()),
                 status="aberto",
                 observacoes=f"NF-e {parsed['numero']} - {parsed['emitente'].get('nome')}",
             ))
@@ -485,8 +486,8 @@ def importar(parsed: Dict[str, Any], xml_text: str, estab_id: int, funcionario_i
             estabelecimento_id=estab_id, fornecedor_id=forn.id if forn else None,
             numero_documento=str(parsed["numero"]), tipo_documento="nota_fiscal",
             valor_original=parsed["total"], valor_atual=parsed["total"], valor_pago=Decimal("0"),
-            data_emissao=(data_emissao.date() if data_emissao else date.today()),
-            data_vencimento=(data_emissao.date() if data_emissao else date.today()),
+            data_emissao=(data_emissao.date() if data_emissao else hoje_local()),
+            data_vencimento=(data_emissao.date() if data_emissao else hoje_local()),
             status="aberto",
             observacoes=f"NF-e {parsed['numero']} - {parsed['emitente'].get('nome')}",
         ))

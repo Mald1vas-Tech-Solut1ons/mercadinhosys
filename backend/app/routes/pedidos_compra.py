@@ -1,7 +1,7 @@
 # app/routes/pedidos_compra.py
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
@@ -16,7 +16,7 @@ from app.decorators.decorator_jwt import funcionario_required
 from app.services.estoque_service import quantidade_valida
 from app.services.fornecedor_score import aplicar_metricas, calcular_metricas
 from app.utils.sale_validation import number
-from app.utils.timezone import iso_utc, now_utc
+from app.utils.timezone import iso_utc, now_utc, hoje_local
 
 pedidos_compra_bp = Blueprint('pedidos_compra', __name__)
 
@@ -110,7 +110,7 @@ def listar_pedidos():
                     vencido = (
                         cp.status in ('aberto', 'pendente') and
                         cp.data_vencimento and
-                        cp.data_vencimento < date.today()
+                        cp.data_vencimento < hoje_local()
                     )
                     pedido_dict['financeiro'] = {
                         'status': cp.status,                         # aberto | pago | vencido | cancelado
@@ -193,10 +193,10 @@ def criar_pedido():
                 return default
 
         # Datas: usa o que o operador informou; senão, defaults sensatos.
-        data_pedido = _parse_date(data.get('data_pedido'), date.today())
+        data_pedido = _parse_date(data.get('data_pedido'), hoje_local())
         data_previsao = _parse_date(
             data.get('data_previsao_entrega'),
-            date.today() + timedelta(days=fornecedor.prazo_entrega or 7),
+            hoje_local() + timedelta(days=fornecedor.prazo_entrega or 7),
         )
         horario_entrega = (data.get('horario_entrega') or '').strip() or None
 
@@ -267,7 +267,7 @@ def criar_pedido():
 
         # ERP: criar Conta a Pagar ao emitir o pedido (obrigação financeira)
         # A Despesa é criada quando o boleto for pago (pagar boleto)
-        data_vencimento = data_previsao or (date.today() + timedelta(days=30))
+        data_vencimento = data_previsao or (hoje_local() + timedelta(days=30))
         conta_pagar = ContaPagar(
             estabelecimento_id=estab_id,
             fornecedor_id=pedido.fornecedor_id,
@@ -276,7 +276,7 @@ def criar_pedido():
             tipo_documento='pedido_compra',
             valor_original=total,
             valor_atual=total,
-            data_emissao=date.today(),
+            data_emissao=hoje_local(),
             data_vencimento=data_vencimento,
             status='aberto',
             observacoes=f'Pedido de compra {numero_pedido}' + (f' - {pedido.observacoes}' if pedido.observacoes else ''),
@@ -506,7 +506,7 @@ def receber_pedido_compra():
                     if produto.controlar_validade:
                         raise ValueError(f'Informe a validade do lote de {produto.nome}')
                     # Sem controle de validade a data não restringe a venda.
-                    data_validade = date.today() + timedelta(days=365)
+                    data_validade = hoje_local() + timedelta(days=365)
 
                 numero_lote = _numero_lote_livre(
                     estab_id, str(item_data.get('numero_lote') or f"LOTE-{pedido.numero_pedido}-{item.id}"))
@@ -524,7 +524,7 @@ def receber_pedido_compra():
                     quantidade_inicial=quantidade_para_estoque,
                     data_fabricacao=data_fabricacao,
                     data_validade=data_validade,
-                    data_entrada=date.today(),
+                    data_entrada=hoje_local(),
                     preco_custo_unitario=custo_entrada,
                     ativo=True,
                 )
@@ -560,7 +560,7 @@ def receber_pedido_compra():
 
         concluido = all(item.status == 'recebido' for item in pedido.itens)
         pedido.status = 'recebido' if concluido else 'parcial'
-        pedido.data_recebimento = date.today()
+        pedido.data_recebimento = hoje_local()
         if data.get('numero_nota_fiscal'):
             pedido.numero_nota_fiscal = data['numero_nota_fiscal']
         if data.get('serie_nota_fiscal'):
@@ -582,7 +582,7 @@ def receber_pedido_compra():
                         dias_prazo = int(str(pedido.condicao_pagamento).split()[0])
                     except (ValueError, IndexError):
                         pass
-                data_vencimento = date.today() + timedelta(days=dias_prazo)
+                data_vencimento = hoje_local() + timedelta(days=dias_prazo)
             else:
                 data_vencimento = datetime.strptime(data_vencimento_str, '%Y-%m-%d').date()
 
@@ -594,7 +594,7 @@ def receber_pedido_compra():
                 tipo_documento='boleto',
                 valor_original=devido,
                 valor_atual=devido,
-                data_emissao=date.today(),
+                data_emissao=hoje_local(),
                 data_vencimento=data_vencimento,
                 status='aberto',
                 observacoes=f'Referente ao pedido {pedido.numero_pedido}'
@@ -644,7 +644,7 @@ def devolver_pedido_compra(pedido_id):
             
         # Marca o pedido como devolvido
         pedido.status = 'devolvido'
-        pedido.observacoes = f"{pedido.observacoes or ''}\n[Devolução Total registrada em {date.today().strftime('%d/%m/%Y')} por {user.nome}]"
+        pedido.observacoes = f"{pedido.observacoes or ''}\n[Devolução Total registrada em {hoje_local().strftime('%d/%m/%Y')} por {user.nome}]"
         
         # Cancela qualquer conta a pagar que já pudesse ter sido criada para ele
         contas = ContaPagar.query.filter_by(pedido_compra_id=pedido.id, estabelecimento_id=estab_id).all()
@@ -697,7 +697,7 @@ def listar_boletos():
         if vencimento_ate:
             query = query.filter(ContaPagar.data_vencimento <= datetime.strptime(vencimento_ate, '%Y-%m-%d').date())
         if apenas_vencidos:
-            query = query.filter(ContaPagar.data_vencimento < date.today())
+            query = query.filter(ContaPagar.data_vencimento < hoje_local())
         
         query = query.order_by(ContaPagar.data_vencimento.asc())
         
@@ -716,7 +716,7 @@ def listar_boletos():
             
             # Calcular dias para vencimento
             if conta.data_vencimento:
-                dias_vencimento = (conta.data_vencimento - date.today()).days
+                dias_vencimento = (conta.data_vencimento - hoje_local()).days
                 conta_dict['dias_vencimento'] = dias_vencimento
                 conta_dict['status_vencimento'] = (
                     'vencido' if dias_vencimento < 0 else
@@ -736,17 +736,17 @@ def listar_boletos():
             'vencidos': db.session.query(func.count(ContaPagar.id)).filter(
                 ContaPagar.estabelecimento_id == estab_id,
                 ContaPagar.status == 'aberto',
-                ContaPagar.data_vencimento < date.today()
+                ContaPagar.data_vencimento < hoje_local()
             ).scalar() or 0,
             'vence_hoje': db.session.query(func.count(ContaPagar.id)).filter(
                 ContaPagar.estabelecimento_id == estab_id,
                 ContaPagar.status == 'aberto',
-                ContaPagar.data_vencimento == date.today()
+                ContaPagar.data_vencimento == hoje_local()
             ).scalar() or 0,
             'vence_7_dias': db.session.query(func.count(ContaPagar.id)).filter(
                 ContaPagar.estabelecimento_id == estab_id,
                 ContaPagar.status == 'aberto',
-                ContaPagar.data_vencimento.between(date.today(), date.today() + timedelta(days=7))
+                ContaPagar.data_vencimento.between(hoje_local(), hoje_local() + timedelta(days=7))
             ).scalar() or 0
         }
         

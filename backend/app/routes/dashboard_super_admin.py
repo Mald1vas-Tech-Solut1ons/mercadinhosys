@@ -9,9 +9,9 @@ from app.dashboard_cientifico import DashboardOrchestrator
 from app.models import db, Estabelecimento, Venda, Funcionario, DashboardMetrica
 from app.decorators.rbac import super_admin_required
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy import func
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, now_utc
 
 logger = logging.getLogger(__name__)
 dashboard_super_admin_bp = Blueprint("dashboard_super_admin", __name__)
@@ -29,7 +29,7 @@ def listar_estabelecimentos():
             # Obter métricas básicas
             vendas_mes = db.session.query(func.count(Venda.id)).filter(
                 Venda.estabelecimento_id == est.id,
-                Venda.data_venda >= datetime.now() - timedelta(days=30)
+                Venda.data_venda >= now_utc() - timedelta(days=30)
             ).scalar() or 0
             
             total_vendas = db.session.query(func.count(Venda.id)).filter(
@@ -214,7 +214,7 @@ def resumo_geral():
         vendas_totais_valor = db.session.query(func.sum(Venda.total)).scalar() or 0
         
         # Vendas dos últimos 30 dias
-        trinta_dias_atras = datetime.now() - timedelta(days=30)
+        trinta_dias_atras = now_utc() - timedelta(days=30)
         vendas_30_qtd = db.session.query(func.count(Venda.id)).filter(Venda.data_venda >= trinta_dias_atras).scalar() or 0
         vendas_30_valor = db.session.query(func.sum(Venda.total)).filter(Venda.data_venda >= trinta_dias_atras).scalar() or 0
         

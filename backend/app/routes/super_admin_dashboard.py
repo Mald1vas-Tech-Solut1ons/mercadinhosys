@@ -17,10 +17,10 @@ from app.models import (
     CatalogoMestre,
 )
 from app.decorators.rbac import super_admin_required
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy import func, and_, or_
 import logging
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, now_utc, hoje_local, local_date_to_utc_naive
 
 logger = logging.getLogger(__name__)
 super_admin_dashboard_bp = Blueprint("super_admin_dashboard", __name__)
@@ -57,7 +57,7 @@ def listar_estabelecimentos_ativos():
             vendas_hoje = db.session.query(func.count(Venda.id)).filter(
                 and_(
                     Venda.estabelecimento_id == est.id,
-                    Venda.data_venda >= datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                    Venda.data_venda >= local_date_to_utc_naive(hoje_local())
                 )
             ).scalar() or 0
             
@@ -124,8 +124,8 @@ def dashboard_estabelecimento_especifico(estabelecimento_id):
         days = request.args.get("days", default=30, type=int)
         
         # Métricas do estabelecimento
-        hoje = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        dias_atras = datetime.now() - timedelta(days=days)
+        hoje = local_date_to_utc_naive(hoje_local())  # meia-noite de Brasília, em UTC (como o banco)
+        dias_atras = now_utc() - timedelta(days=days)
         
         # Vendas
         vendas_periodo = db.session.query(
@@ -201,7 +201,7 @@ def dashboard_estabelecimento_especifico(estabelecimento_id):
                 }
             },
             "periodo_analise": days,
-            "data_geracao": iso_utc(datetime.now())
+            "data_geracao": iso_utc(now_utc())
         }
         
         return jsonify({
@@ -233,7 +233,7 @@ def resumo_completo_sistema():
         ).first()
         
         # Vendas dos últimos 30 dias
-        trinta_dias_atras = datetime.now() - timedelta(days=30)
+        trinta_dias_atras = now_utc() - timedelta(days=30)
         vendas_30_dias = db.session.query(
             func.count(Venda.id).label('quantidade'),
             func.sum(Venda.total).label('valor')
@@ -277,7 +277,7 @@ def resumo_completo_sistema():
                 }
                 for est in top_estabelecimentos
             ],
-            "data_geracao": iso_utc(datetime.now())
+            "data_geracao": iso_utc(now_utc())
         }
         
         return jsonify({
@@ -300,7 +300,7 @@ def saas_metrics():
     Churn, MRR/ARPU, distribuição de planos, trials, tenants em risco.
     """
     try:
-        agora = datetime.now()
+        agora = now_utc()
         ha_30 = agora - timedelta(days=30)
         inativo_dias = int(request.args.get("inativo_dias", 14))
         limite_inatividade = agora - timedelta(days=inativo_dias)
@@ -538,5 +538,5 @@ def health_check():
     return jsonify({
         "success": True,
         "message": "Super Admin Dashboard funcionando",
-        "timestamp": iso_utc(datetime.now())
+        "timestamp": iso_utc(now_utc())
     })

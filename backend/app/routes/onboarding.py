@@ -19,7 +19,7 @@ onboarding_bp = Blueprint("onboarding", __name__)
 TRIAL_DIAS = 60
 
 from app.decorators.rbac import super_admin_required
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local
 
 @onboarding_bp.route("/registrar", methods=["POST"])
 def registrar_conta():
@@ -100,10 +100,10 @@ def registrar_conta():
                 bairro=bairro,
                 cidade=cidade,
                 estado=estado,
-                data_abertura=date.today(),
+                data_abertura=hoje_local(),
                 plano="trial",
                 plano_status="experimental",                        # Período de teste self-service
-                vencimento_plano=date.today() + timedelta(days=TRIAL_DIAS),
+                vencimento_plano=hoje_local() + timedelta(days=TRIAL_DIAS),
                 ativo=True                                          # Trial ativo imediatamente
             )
             db.session.add(novo_estabelecimento)
@@ -156,7 +156,7 @@ def registrar_conta():
                 telefone=celular_admin,
                 email=email_admin,
                 cargo="Propietário",
-                data_admissao=date.today(),
+                data_admissao=hoje_local(),
                 username=username,
                 role="ADMIN",
                 nivel_acesso=1,  # sem isso cai no default 4 (Caixa) e o PIN/gates de gerente recusam o dono
@@ -214,7 +214,7 @@ def registrar_conta():
                 "senha_temporaria": senha_temporaria if senha_foi_gerada else None,
                 "trial": {
                     "dias": TRIAL_DIAS,
-                    "vencimento": iso_utc((date.today() + timedelta(days=TRIAL_DIAS))),
+                    "vencimento": iso_utc((hoje_local() + timedelta(days=TRIAL_DIAS))),
                 },
             })), 201
 

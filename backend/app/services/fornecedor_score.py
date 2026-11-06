@@ -15,12 +15,13 @@ Regras (cada uma corrige um erro da versão anterior):
 - O cálculo é puro: calcular_metricas() não grava nada; quem grava é aplicar_metricas().
 """
 import re
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func
 
 from app.models import ContaPagar, MovimentacaoEstoque, PedidoCompra, Produto, db
+from app.utils.timezone import hoje_local
 
 MIN_AMOSTRA = 3
 SCORE_NEUTRO = 70
@@ -43,7 +44,7 @@ def _data(valor):
 
 def avaliar_entregas(pedidos, prazo_padrao_dias, hoje=None) -> dict:
     """Pontualidade, atraso e fill rate de uma lista de pedidos de compra."""
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_local()
     avaliadas = no_prazo = sem_data_recebimento = 0
     atrasos = []
     solicitado = utilizavel = avariado = Decimal("0")

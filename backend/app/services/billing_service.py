@@ -6,6 +6,7 @@ from app.models import Estabelecimento, EfiWebhookEvent, db
 from datetime import datetime, timedelta, timezone
 from efipay import EfiPay
 from app.decorators.plan_guards import normalize_plan
+from app.utils.timezone import agora_local
 
 class BillingService:
     def __init__(self):
@@ -74,7 +75,7 @@ class BillingService:
                     ],
                     "settings": {
                         "payment_method": "all",
-                        "expire_at": (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d"),
+                        "expire_at": (agora_local() + timedelta(days=5)).strftime("%Y-%m-%d"),
                         "request_delivery_address": False
                     },
                     "metadata": {
@@ -98,7 +99,7 @@ class BillingService:
                     ],
                     "settings": {
                         "message": f"Assinatura MercadinhoSys - {normalized_plan}",
-                        "expire_at": (datetime.now() + timedelta(days=5)).strftime("%Y-%m-%d"),
+                        "expire_at": (agora_local() + timedelta(days=5)).strftime("%Y-%m-%d"),
                         "request_delivery_address": False,
                         "payment_method": "pix,credit_card"
                     },

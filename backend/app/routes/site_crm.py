@@ -23,7 +23,7 @@ from app.middleware.rate_limit import limiter
 from app.models import (
     LEAD_ETAPAS, SITE_EVENTOS, Lead, LeadHistorico, SiteAcesso, SiteEvento, SiteVisitante, db,
 )
-from app.utils.timezone import iso_utc
+from app.utils.timezone import iso_utc, hoje_local
 
 site_bp = Blueprint("site", __name__)
 crm_bp = Blueprint("crm", __name__)
@@ -194,7 +194,7 @@ def listar_leads_crm():
                                           Lead.bairro.ilike(termo), Lead.cidade.ilike(termo)))
     leads = consulta.order_by(Lead.data_cadastro.desc()).limit(1000).all()
     por_etapa = Counter((l.etapa or "novo") for l in Lead.query.with_entities(Lead.etapa).all())
-    hoje = date.today()
+    hoje = hoje_local()
     return jsonify({
         "success": True,
         "etapas": list(LEAD_ETAPAS),

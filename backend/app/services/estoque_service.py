@@ -7,12 +7,12 @@ transação e bloqueia o produto antes (``lock_checkout``); este módulo nunca
 faz commit.
 """
 import json
-from datetime import date
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from sqlalchemy import func
 
 from app.models import MovimentacaoEstoque, PedidoVenda, PedidoVendaItem, Produto, ProdutoLote, db
+from app.utils.timezone import hoje_local
 
 QTD = Decimal('0.001')
 CENT = Decimal('0.01')
@@ -87,14 +87,14 @@ def quantidade_em_quarentena(produto) -> Decimal:
         ProdutoLote.estabelecimento_id == produto.estabelecimento_id,
         ProdutoLote.ativo.is_(True),
         ProdutoLote.quantidade > 0,
-        ProdutoLote.data_validade < date.today(),
+        ProdutoLote.data_validade < hoje_local(),
     ).scalar()
     return Decimal(str(total or 0))
 
 
 def _vencido_sem_lote(produto) -> bool:
     """Validade só no cadastro (sem lote com saldo) e já passou; com lote, quem decide é a quarentena."""
-    if produto.controlar_validade is False or not produto.data_validade or produto.data_validade >= date.today():
+    if produto.controlar_validade is False or not produto.data_validade or produto.data_validade >= hoje_local():
         return False
     tem_lote = db.session.query(ProdutoLote.id).filter(
         ProdutoLote.produto_id == produto.id,

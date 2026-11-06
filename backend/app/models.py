@@ -20,6 +20,18 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
+
+def _hoje_local():
+    """Import tardio (evita import circular de app.utils no topo do módulo)."""
+    from app.utils.timezone import hoje_local
+    return hoje_local()
+
+
+def _now_utc():
+    """Import tardio (evita import circular de app.utils no topo do módulo)."""
+    from app.utils.timezone import now_utc
+    return now_utc()
+
 def iso_utc(valor):
     """Import tardio: app.utils carrega serviços que dependem de app (import circular)."""
     from app.utils.timezone import iso_utc as _iso_utc
@@ -1436,7 +1448,7 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         query = ProdutoLote.query.filter_by(produto_id=self.id, estabelecimento_id=self.estabelecimento_id, ativo=True)\
             .filter(ProdutoLote.quantidade > 0)
         if not incluir_vencidos and self.controlar_validade is not False:
-            query = query.filter(ProdutoLote.data_validade >= date.today())
+            query = query.filter(ProdutoLote.data_validade >= _hoje_local())
         query = query.order_by(ProdutoLote.data_validade.asc(), ProdutoLote.data_entrada.asc(), ProdutoLote.id.asc())
         return query.with_for_update().all() if bloquear else query.all()
 
@@ -1551,7 +1563,7 @@ class ProdutoLote(db.Model, MultiTenantMixin):
 
     @property
     def dias_para_vencer(self) -> int:
-        return (self.data_validade - date.today()).days
+        return (self.data_validade - _hoje_local()).days
 
     @property
     def esta_vencido(self) -> bool:
@@ -2462,7 +2474,6 @@ class Auditoria(db.Model, MultiTenantMixin):
     @classmethod
     def registrar_direto(cls, connection, estabelecimento_id, tipo_evento, descricao, usuario_id=None, valor=None, detalhes=None):
         import json
-        from datetime import datetime
         try:
             connection.execute(
                 cls.__table__.insert().values(
@@ -2472,7 +2483,7 @@ class Auditoria(db.Model, MultiTenantMixin):
                     usuario_id=usuario_id,
                     valor=valor,
                     detalhes_json=detalhes, # SQLAlchemy Core handles dict to JSON
-                    data_evento=datetime.now()
+                    data_evento=_now_utc()
                 )
             )
         except Exception as e:
@@ -2528,7 +2539,7 @@ class Motorista(db.Model, MultiTenantMixin):
                       db.UniqueConstraint("estabelecimento_id", "cpf", name="uq_motorista_estab_cpf"))
 
     def to_dict(self):
-        hoje = date.today()
+        hoje = _hoje_local()
         dias_cnh = (self.validade_cnh - hoje).days if self.validade_cnh else None
         return {"id": self.id, "nome": self.nome, "cpf": self.cpf, "rg": self.rg,
                 "cnh": self.cnh, "categoria_cnh": self.categoria_cnh,
@@ -2575,7 +2586,7 @@ class Veiculo(db.Model, MultiTenantMixin):
                       db.UniqueConstraint("estabelecimento_id", "placa", name="uq_veiculo_estab_placa"))
 
     def to_dict(self):
-        hoje = date.today()
+        hoje = _hoje_local()
         dias_licenc = (self.data_vencimento_licenciamento - hoje).days if self.data_vencimento_licenciamento else None
         dias_seguro = (self.data_vencimento_seguro - hoje).days if self.data_vencimento_seguro else None
         return {"id": self.id, "placa": self.placa, "renavam": self.renavam, "tipo": self.tipo,
@@ -2752,7 +2763,7 @@ class Entrega(db.Model, MultiTenantMixin, SoftDeleteMixin):
                       db.Index("ix_entrega_motorista", "motorista_id"))
 
     def to_dict(self):
-        from app.utils.timezone import iso_utc, iso_local
+        from app.utils.timezone import iso_local
         return {"id": self.id, "codigo_rastreamento": self.codigo_rastreamento, "venda_id": self.venda_id,
                 "cliente_id": self.cliente_id, "cliente_nome": self.cliente.nome if self.cliente else None,
                 "motorista_id": self.motorista_id, "motorista_nome": self.motorista.nome if self.motorista else None,

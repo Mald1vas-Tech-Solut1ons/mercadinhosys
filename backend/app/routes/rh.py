@@ -19,6 +19,7 @@ from app.models import (
 from app.decorators.decorator_jwt import funcionario_required, gerente_ou_admin_required
 from app.decorators.plan_guards import plan_required
 from app.dashboard_cientifico.data_layer import DataLayer
+from app.utils.timezone import hoje_local
 
 rh_bp = Blueprint("rh", __name__)
 
@@ -459,7 +460,7 @@ def criar_beneficio_funcionario():
             funcionario_id=int(funcionario_id),
             beneficio_id=beneficio.id,
             valor=Decimal(str(valor_mensal)) if valor_mensal else Decimal("0"),
-            data_inicio=datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else date.today(),
+            data_inicio=datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else hoje_local(),
             ativo=True,
         )
         db.session.add(fb)
@@ -980,7 +981,7 @@ def holerite_funcionario():
     if not alvo:
         return jsonify({"success": False, "message": "Funcionário não encontrado"}), 404
 
-    mes_referencia = request.args.get("mes_referencia") or date.today().strftime("%Y-%m")
+    mes_referencia = request.args.get("mes_referencia") or hoje_local().strftime("%Y-%m")
     try:
         return jsonify({"success": True, "data": calcular_holerite(alvo, mes_referencia)}), 200
     except Exception as e:
@@ -1015,7 +1016,7 @@ def retrospectiva():
         data_inicio = datetime.strptime(di, "%Y-%m-%d").date()
         data_fim = datetime.strptime(df, "%Y-%m-%d").date()
     else:
-        ano_mes = request.args.get("ano_mes") or date.today().strftime("%Y-%m")
+        ano_mes = request.args.get("ano_mes") or hoje_local().strftime("%Y-%m")
         data_inicio, data_fim = limites_do_mes(ano_mes)
 
     try:
@@ -1039,7 +1040,7 @@ def listar_provisoes():
         from app.utils.query_helpers import get_authorized_establishment_id
 
         estab_id = get_authorized_establishment_id()
-        ano_mes = request.args.get("ano_mes") or date.today().strftime("%Y-%m")
+        ano_mes = request.args.get("ano_mes") or hoje_local().strftime("%Y-%m")
         regime = None
         try:
             from app.models import Estabelecimento

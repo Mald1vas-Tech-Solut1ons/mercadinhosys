@@ -13,8 +13,9 @@ from app.models import (
     ChecklistVeiculo, ITENS_CHECKLIST_PADRAO,
 )
 from app.decorators.rbac import tenant_or_super_admin_required, resource_required
-from app.utils.timezone import iso_utc, now_utc, hoje_local
-from datetime import datetime, date, timedelta
+from app.utils.timezone import iso_utc, now_utc, hoje_local, agora_local
+from app.utils.query_helpers import get_local_date
+from datetime import datetime, timedelta
 from decimal import Decimal
 import json
 import logging
@@ -379,7 +380,7 @@ def relatorio_conformidade():
     try:
         est_id = request.allowed_estabelecimento_id
         dias_alerta = request.args.get("dias_alerta", 30, type=int)
-        hoje = date.today()
+        hoje = hoje_local()
         limite_alerta = hoje + timedelta(days=dias_alerta)
 
         motoristas = Motorista.query.filter_by(estabelecimento_id=est_id, ativo=True).all()
@@ -531,7 +532,7 @@ def criar_entrega():
         venda = Venda.query.get_or_404(data["venda_id"])
         
         # Gerar código de rastreamento único
-        codigo = f"MS{datetime.now().strftime('%y%m%d')}{str(venda.id).zfill(5)}"
+        codigo = f"MS{agora_local().strftime('%y%m%d')}{str(venda.id).zfill(5)}"
         
         entrega = Entrega(
             estabelecimento_id=request.allowed_estabelecimento_id,
@@ -547,7 +548,7 @@ def criar_entrega():
             endereco_complemento=data.get("endereco_complemento", ""),
             endereco_referencia=data.get("endereco_referencia", ""),
             status="pendente",
-            data_prevista=datetime.now() + timedelta(minutes=45),
+            data_prevista=now_utc() + timedelta(minutes=45),
             taxa_entrega=Decimal(str(data.get("taxa_entrega", 0))),
             pagamento_tipo=data.get("pagamento_tipo", "loja"), # loja ou entrega
             pagamento_status=data.get("pagamento_status", "pendente"),
@@ -761,7 +762,7 @@ def criar_venda_entrega_unificada():
             db.session.rollback()
             return jsonify({"success": False, "error": "Veículo não encontrado"}), 404
 
-        agora = datetime.now()
+        agora = now_utc()
         venda = Venda(
             estabelecimento_id=est_id,
             cliente_id=cliente.id if cliente else None,
@@ -976,7 +977,7 @@ def get_stats():
         
         total_hoje = Entrega.query.filter(
             Entrega.estabelecimento_id == est_id,
-            func.date(Entrega.created_at) == date.today()
+            get_local_date(Entrega.created_at) == hoje_local()
         ).count()
         
         pendentes = Entrega.query.filter_by(estabelecimento_id=est_id, status="pendente").count()
@@ -984,7 +985,7 @@ def get_stats():
         entregues_hoje = Entrega.query.filter(
             Entrega.estabelecimento_id == est_id,
             Entrega.status == "entregue",
-            func.date(Entrega.data_entrega) == date.today()
+            get_local_date(Entrega.data_entrega) == hoje_local()
         ).count()
         
         # Top Motoristas (últimos 30 dias)
@@ -994,7 +995,7 @@ def get_stats():
         ).join(Entrega).filter(
             Motorista.estabelecimento_id == est_id,
             Entrega.status == "entregue",
-            Entrega.data_entrega >= datetime.now() - timedelta(days=30)
+            Entrega.data_entrega >= now_utc() - timedelta(days=30)
         ).group_by(Motorista.id).order_by(func.count(Entrega.id).desc()).limit(5).all()
 
         # MÉTRICAS AVANÇADAS (Magnitude Senior)

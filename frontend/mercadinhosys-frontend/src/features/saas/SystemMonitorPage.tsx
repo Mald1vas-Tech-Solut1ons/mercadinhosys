@@ -12,7 +12,6 @@ import {
     Clock,
     CheckCircle2,
     XCircle,
-    Trash2,
     Plus,
     Shield,
     Info,
@@ -22,7 +21,6 @@ import { apiClient } from '../../api/apiClient';
 import { showToast } from '../../utils/toast';
 import { useSuperAdmin } from '../../contexts/SuperAdminContext';
 import { isValidCNPJ, isValidCPF, isValidEmail, erroSenha } from '../../utils/validators';
-import { confirmar } from '../../components/ui/Confirmacao';
 
 interface Log {
     id: number;
@@ -187,20 +185,6 @@ const SystemMonitorPage: React.FC = () => {
             }
         } catch (err) {
             showToast.error('Erro ao alterar status');
-        }
-    };
-
-    const deleteAccount = async (id: number, name: string) => {
-        if (!(await confirmar({ titulo: `Excluir a loja "${name}"?`, mensagem: 'Todos os dados da loja serão apagados permanentemente. Esta ação não pode ser desfeita.', acao: 'Excluir permanentemente', perigo: true }))) return;
-
-        try {
-            const res = await apiClient.delete(`/saas/monitor/establishments/${id}`);
-            if (res.data.success) {
-                showToast.success(res.data.message);
-                fetchData();
-            }
-        } catch (err) {
-            showToast.error('Erro ao excluir conta');
         }
     };
 
@@ -585,13 +569,6 @@ const SystemMonitorPage: React.FC = () => {
                                                     title="Editar Plano/Conta"
                                                 >
                                                     <Settings size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => deleteAccount(ten.id, ten.nome_fantasia)}
-                                                    className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                    title="Excluir Definitivamente"
-                                                >
-                                                    <Trash2 size={18} />
                                                 </button>
                                             </div>
                                         </td>

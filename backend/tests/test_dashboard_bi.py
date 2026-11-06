@@ -154,3 +154,45 @@ def test_categorias_variacao_usa_a_chave_e_nao_o_rotulo(session, ctx):
     bloco = next(c for c in dados["categorias"] if c["categoria"] == ctx["cat"].nome)
     assert bloco["variacao_pct"] == 100.0
     assert "_chave" not in bloco
+
+
+def test_progresso_loja_conta_produtos_e_vendas_de_hoje(client, session, ctx):
+    """Checklist "Primeiros passos": duas contagens leves, sem pedir o /cientifico inteiro."""
+    antes = client.get("/api/dashboard/progresso-loja", headers=ctx["headers"])
+    assert antes.status_code == 200, antes.get_json()
+    base = antes.get_json()["data"]
+    assert base["produtos"] >= 3  # os três da fixture, ativos
+
+    _venda(session, ctx, [(ctx["panela"], 1, 100)], datetime.utcnow() - timedelta(minutes=5))
+    _venda(session, ctx, [(ctx["tampa"], 1, 10)], datetime.utcnow() - timedelta(days=3))  # não é hoje
+
+    depois = client.get("/api/dashboard/progresso-loja", headers=ctx["headers"]).get_json()["data"]
+    assert depois["vendas_hoje"] == base["vendas_hoje"] + 1
+    assert depois["produtos"] == base["produtos"]
+
+
+def test_cientifico_fresh_pula_o_cache(client, session, ctx, monkeypatch):
+    """Abrir o painel usa o cache de 10 min; o botão "Atualizar" (fresh=1) recalcula."""
+    chamadas = []
+
+    class OrquestradorFalso:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_scientific_dashboard(self, **kwargs):
+            chamadas.append(kwargs)
+            return {"success": True, "n": len(chamadas)}
+
+    import app.routes.dashboard as rota
+    monkeypatch.setattr(rota, "DashboardOrchestrator", OrquestradorFalso)
+
+    url = "/api/dashboard/cientifico?days=7"
+    primeira = client.get(url, headers=ctx["headers"])
+    if primeira.status_code == 403:
+        pytest.skip("Loja de teste sem plano Pro")
+    assert primeira.status_code == 200
+    client.get(url, headers=ctx["headers"])                 # cache
+    assert len(chamadas) == 1
+    fresca = client.get(url + "&fresh=1", headers=ctx["headers"])
+    assert fresca.status_code == 200
+    assert len(chamadas) == 2

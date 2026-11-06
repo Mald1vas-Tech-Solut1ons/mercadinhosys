@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { buscarAlertasDashboard } from '../alertasCompartilhados';
 import { AlertTriangle, ChevronDown, Clock, PackageX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -28,11 +29,10 @@ const AlertsPanel: React.FC = () => {
         const fetchAlertas = async () => {
             setLoading(true);
             try {
-                const { apiClient } = await import('../../../api/apiClient');
-                const res = await apiClient.get('/dashboard/alertas');
-                const lista: AlertaItem[] = res.data.alertas || [];
+                const res = await buscarAlertasDashboard<AlertaItem>();
+                const lista: AlertaItem[] = res.alertas || [];
                 setAlertas(lista);
-                setTotal(res.data.total ?? lista.length);
+                setTotal(res.total ?? lista.length);
             } catch (e) {
                 console.error(e);
             } finally {

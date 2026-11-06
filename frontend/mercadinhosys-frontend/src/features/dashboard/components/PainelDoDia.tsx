@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { buscarAlertasDashboard } from '../alertasCompartilhados';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, ArrowRight, CheckCircle2, MessageCircle, PackageX, Wallet } from 'lucide-react';
 import { apiClient } from '../../../api/apiClient';
@@ -58,8 +59,8 @@ const PainelDoDia: React.FC<{ data: any }> = ({ data }) => {
         let vivo = true;
         (async () => {
             try {
-                const resposta = await apiClient.get('/dashboard/alertas');
-                if (vivo) setAlertas(resposta.data?.alertas || []);
+                const resposta = await buscarAlertasDashboard<AlertaOperacional>();
+                if (vivo) setAlertas(resposta.alertas || []);
             } catch {
                 // Painel do dia não pode derrubar o dashboard: sem alertas, sem cartão.
             }

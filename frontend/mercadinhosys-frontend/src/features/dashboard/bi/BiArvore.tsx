@@ -5,6 +5,7 @@ import type { ColunaId, LimiaresBI } from './biConfig';
 import { COLUNAS } from './biConfig';
 import type { Agregado, No } from './biCalc';
 import { agregar, estaParado, fmtBRL, fmtNum, fmtPct, montarArvore } from './biCalc';
+import { dataLocalISO } from '../../../utils/dataLocal';
 
 type Ordem = { coluna: ColunaId | 'nome'; dir: 'asc' | 'desc' };
 
@@ -189,7 +190,7 @@ const BiArvore: React.FC<{
       const planilha = XLSX.utils.json_to_sheet(linhas);
       const livro = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(livro, planilha, 'BI produtos');
-      XLSX.writeFile(livro, `bi-produtos-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      XLSX.writeFile(livro, `bi-produtos-${dataLocalISO()}.xlsx`);
     } finally {
       setExportando(false);
     }

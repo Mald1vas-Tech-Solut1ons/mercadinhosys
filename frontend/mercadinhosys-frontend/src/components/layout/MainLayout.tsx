@@ -91,7 +91,7 @@ const MainLayout: React.FC = () => {
                     e o próprio chat cuida da área segura do celular. */}
                 <main
                     ref={mainRef}
-                    className={`relative flex-1 overflow-x-hidden min-h-0 ${
+                    className={`relative flex-1 overflow-x-hidden min-h-0 [overflow-anchor:none] ${
                         emConsultor
                             ? 'overflow-hidden p-0 md:p-4'
                             : 'overflow-y-auto p-4 md:p-6 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-6'

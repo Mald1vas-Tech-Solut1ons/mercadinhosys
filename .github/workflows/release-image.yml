@@ -1,0 +1,245 @@
+name: Release Image
+
+# Constrói a imagem do backend FORA da VM de produção (1 GB, dividida com a loja) e a publica no
+# GHCR com o label org.opencontainers.image.revision=<sha>. Só roda depois que o ci.yml terminou
+# VERDE no push para a master; a prova (ci-proof.json) é a do SHA exato, no formato do release.py.
+# Em pull request só valida o pipeline (build + ensaio de partida), sem publicar nada.
+# Runbook: infra/oracle/RELEASE.md
+
+on:
+  workflow_run:
+    workflows: ["MercadinhoSys CI"]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "SHA completo (40) de um commit da master com CI verde (reconstrói/republica a imagem)"
+        required: true
+  pull_request:
+    branches: [main, master]
+    paths:
+      - backend/Dockerfile
+      - backend/requirements.txt
+      - backend/migrations/**
+      - infra/oracle/release*.py
+      - infra/oracle/migration_rehearsal.py
+      - infra/oracle/schema-export.sh
+      - .github/workflows/release-image.yml
+      - .github/workflows/migration-rehearsal.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-image-${{ github.event.workflow_run.head_sha || inputs.sha || github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/mald1vas-tech-solut1ons/mercadinhosys-backend
+
+jobs:
+  image:
+    name: Build, ensaio de partida e publicação
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+    outputs:
+      sha: ${{ steps.mode.outputs.sha }}
+      sha12: ${{ steps.mode.outputs.sha12 }}
+      published: ${{ steps.mode.outputs.publish }}
+      digest: ${{ steps.push.outputs.digest }}
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Resolver SHA e modo
+        id: mode
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_SHA: ${{ inputs.sha }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          case "$EVENT" in
+            workflow_run)      sha="$RUN_SHA";   publish=true ;;
+            workflow_dispatch) sha="$INPUT_SHA"; publish=true ;;
+            *)                 sha="$PR_SHA";    publish=false ;;
+          esac
+          if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::SHA inválido (precisa de 40 hexadecimais minúsculos)"; exit 1
+          fi
+          {
+            echo "sha=$sha"
+            echo "sha12=${sha:0:12}"
+            echo "publish=$publish"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.mode.outputs.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Prova de CI do SHA exato (ci-proof.json)
+        if: steps.mode.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.mode.outputs.sha }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?head_sha=${SHA}&event=push&branch=master&status=completed&per_page=50" \
+            --jq '[.workflow_runs[] | select(.conclusion == "success" and .head_sha == env.SHA and .path == ".github/workflows/ci.yml")]
+                  | sort_by(.updated_at) | last | select(. != null)
+                  | {id, name, path, head_sha, head_branch, event, status, conclusion, html_url, run_attempt, updated_at}' > ci-proof.json
+          if [ ! -s ci-proof.json ]; then
+            echo "::error::Não há run VERDE do ci.yml em push na master para $SHA. Sem CI verde no SHA exato não há imagem."
+            exit 1
+          fi
+          cat ci-proof.json
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build da imagem (linux/amd64, a mesma arquitetura da VM)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: mercadinhosys-backend:local
+          labels: |
+            org.opencontainers.image.revision=${{ steps.mode.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.title=mercadinhosys-backend
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Conferir label e cadeia de migrações da imagem
+        env:
+          SHA: ${{ steps.mode.outputs.sha }}
+        run: |
+          revision=$(docker image inspect mercadinhosys-backend:local --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+          if [ "$revision" != "$SHA" ]; then echo "::error::label de revisão da imagem ($revision) difere do SHA"; exit 1; fi
+          {
+            echo "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/postgres"
+            echo "FLASK_APP=run:app"
+            echo "FLASK_ENV=production"
+            echo "SKIP_DB_SETUP=true"
+            echo "SKIP_SCHEMA_SYNC=true"
+            echo "SECRET_KEY=$(openssl rand -hex 32)"
+            echo "JWT_SECRET_KEY=$(openssl rand -hex 32)"
+            echo "REDIS_URL="
+            echo "SENTRY_DSN="
+            echo "CORS_ORIGINS=https://mercadinhosys.vercel.app"
+          } > "$RUNNER_TEMP/app.env"
+          # O alembic da imagem e o analisador do manifesto precisam concordar sobre o head.
+          image_head=$(docker run --rm --network host --env-file "$RUNNER_TEMP/app.env" mercadinhosys-backend:local flask db heads | grep -E '\(head\)' | awk '{print $1}')
+          scan_head=$(python -I -c "import sys; sys.path.insert(0, 'infra/oracle'); import release_plan; print(release_plan.scan_migrations('backend/migrations/versions')['head'])")
+          echo "head da imagem: $image_head | head do analisador: $scan_head"
+          if [ -z "$image_head" ] || [ "$image_head" != "$scan_head" ]; then
+            echo "::error::A imagem e o analisador de migrações discordam sobre o head"; exit 1
+          fi
+
+      - name: Ensaio de partida (somente pull request; schema sintético, nunca aceito pela VM)
+        if: steps.mode.outputs.publish != 'true'
+        run: |
+          docker run --rm --network host -e PGPASSWORD=postgres postgres:15-alpine psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE synthetic'
+          sed -e 's#/postgres$#/synthetic#' -e 's/^SKIP_DB_SETUP=true/SKIP_DB_SETUP=false/' "$RUNNER_TEMP/app.env" > "$RUNNER_TEMP/create.env"
+          # Banco vazio: o app cria as tabelas (create_all) e o stamp marca o head, como um banco novo.
+          docker run --rm --network host --env-file "$RUNNER_TEMP/create.env" mercadinhosys-backend:local python -c "import run"
+          docker run --rm --network host --env-file "$RUNNER_TEMP/app.env" -e DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/synthetic mercadinhosys-backend:local flask db stamp head
+          head=$(python -I -c "import sys; sys.path.insert(0, 'infra/oracle'); import release_plan; print(release_plan.scan_migrations('backend/migrations/versions')['head'])")
+          {
+            echo "-- SNAPSHOT_TAKEN_AT: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "-- ALEMBIC_VERSION: $head"
+            docker run --rm --network host -e PGPASSWORD=postgres postgres:15-alpine pg_dump -h 127.0.0.1 -U postgres -d synthetic --schema-only --no-owner --no-acl
+          } > snapshot.sql
+          PGPASSWORD=postgres python infra/oracle/migration_rehearsal.py \
+            --image mercadinhosys-backend:local --snapshot snapshot.sql --versions backend/migrations/versions \
+            --sha "${{ steps.mode.outputs.sha }}" --image-digest "sha256:$(printf '0%.0s' $(seq 64))" \
+            --schema-source synthetic-create-all --out rehearsal-selftest.json
+
+      - name: Login no GHCR
+        if: steps.mode.outputs.publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publicar no GHCR e anotar o digest
+        id: push
+        if: steps.mode.outputs.publish == 'true'
+        env:
+          SHA12: ${{ steps.mode.outputs.sha12 }}
+        run: |
+          docker tag mercadinhosys-backend:local "$IMAGE_REPOSITORY:$SHA12"
+          docker push "$IMAGE_REPOSITORY:$SHA12" | tee push.log
+          digest=$(grep -oE 'digest: sha256:[0-9a-f]{64}' push.log | tail -1 | cut -d' ' -f2)
+          repo_digest=$(docker image inspect "$IMAGE_REPOSITORY:$SHA12" --format '{{index .RepoDigests 0}}')
+          if [ -z "$digest" ] || [ "$repo_digest" != "$IMAGE_REPOSITORY@$digest" ]; then
+            echo "::error::Não foi possível confirmar o digest publicado"; exit 1
+          fi
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Manifesto da release (digest + prova de CI + cadeia de migrações)
+        if: steps.mode.outputs.publish == 'true'
+        run: |
+          python -I infra/oracle/release_plan.py manifest --sha "${{ steps.mode.outputs.sha }}" \
+            --digest "${{ steps.push.outputs.digest }}" --ci-proof ci-proof.json \
+            --versions backend/migrations/versions --out release-manifest.json
+          {
+            echo "### Imagem publicada"
+            echo '```'
+            echo "$IMAGE_REPOSITORY@${{ steps.push.outputs.digest }}"
+            echo '```'
+            echo "Artefato **release-${{ steps.mode.outputs.sha12 }}**: ci-proof.json + release-manifest.json."
+            echo "Próximo passo: infra/oracle/RELEASE.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar artefato da release
+        if: steps.mode.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.mode.outputs.sha12 }}
+          path: |
+            ci-proof.json
+            release-manifest.json
+          retention-days: 30
+          if-no-files-found: error
+
+  rehearsal:
+    name: Ensaio da migração (schema da produção)
+    needs: image
+    # Liga-se sozinho quando o dono cadastra a variável (e os segredos) descritos no runbook.
+    # Sem isso, rode migration-rehearsal.yml à mão antes de uma release com migração.
+    if: needs.image.outputs.published == 'true' && vars.ORACLE_SCHEMA_VIA_SSH == 'true'
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+    uses: ./.github/workflows/migration-rehearsal.yml
+    with:
+      sha: ${{ needs.image.outputs.sha }}
+      release_run_id: ${{ github.run_id }}
+    secrets: inherit

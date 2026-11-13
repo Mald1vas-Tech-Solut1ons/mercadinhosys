@@ -23,6 +23,11 @@ jobs:
         run: python -m unittest discover -s infra/oracle -p test_db_split.py -v
       - name: Verify Compose and PostgreSQL forwarding backup restore
         run: python infra/oracle/verify-db-split-ci.py
+      - name: Verify release rules (plan, deploy, rollback, migration rehearsal engine)
+        run: |
+          python -m unittest discover -s infra/oracle -p "test_release*.py" -v
+          bash -n infra/oracle/schema-export.sh
+          bash -n infra/oracle/ship-release.sh
 
   backend-tests:
     name: Backend Pytest & Multi-Tenant Audit

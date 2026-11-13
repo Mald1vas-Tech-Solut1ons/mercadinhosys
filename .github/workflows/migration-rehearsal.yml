@@ -1,0 +1,175 @@
+name: Migration Rehearsal
+
+# Ensaia as migrações pendentes da imagem JÁ publicada contra o schema (só schema) da produção,
+# num PostgreSQL descartável do runner. Nenhum dado de cliente entra aqui: o retrato é um
+# pg_dump --schema-only (infra/oracle/schema-export.sh) e o ensaio aborta se achar linha de dados.
+# Resultado: artefato release-<sha12>-rehearsed (manifesto com o ensaio anexado), que o
+# release.py exige quando a release traz migração nova. Runbook: infra/oracle/RELEASE.md
+#
+# De onde vem o schema:
+#   1) input schema_snapshot_gz_b64 (operador: ssh ... schema-export.sh | gzip -9 | base64 -w0), ou
+#   2) SSH com a chave dedicada, presa ao comando schema-export.sh (segredo ORACLE_SCHEMA_SSH_KEY).
+
+on:
+  workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: true
+      release_run_id:
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "SHA completo (40) da release já publicada pelo release-image.yml"
+        required: true
+      schema_snapshot_gz_b64:
+        description: "Opcional: retrato do schema em gzip+base64 (se vazio, usa SSH com a chave dedicada)"
+        required: false
+      release_run_id:
+        description: "Opcional: id do run do release-image.yml (se vazio, usa o último verde do SHA)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migration-rehearsal-${{ inputs.sha }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_REPOSITORY: ghcr.io/mald1vas-tech-solut1ons/mercadinhosys-backend
+
+jobs:
+  rehearse:
+    name: Ensaio no schema da produção
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+      actions: read
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Validar SHA
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          printf '%s' "$SHA" | grep -Eq '^[0-9a-f]{40}$' || { echo "::error::SHA inválido"; exit 1; }
+          echo "SHA12=${SHA:0:12}" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Baixar o manifesto da release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ inputs.sha }}
+          RUN_ID: ${{ inputs.release_run_id }}
+        run: |
+          if [ -z "$RUN_ID" ]; then
+            RUN_ID=$(gh run list --workflow release-image.yml --commit "$SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          fi
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "::error::Não há run verde do release-image.yml para $SHA: publique a imagem primeiro"; exit 1
+          fi
+          gh run download "$RUN_ID" --name "release-$SHA12" --dir release
+          ls release
+
+      - name: Baixar a imagem por digest e conferir
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          ref=$(python -I -c "import json, os; m=json.load(open('release/release-manifest.json')); assert m['sha']==os.environ['SHA']; print(m['image']['ref'])")
+          echo "IMAGE_REF=$ref" >> "$GITHUB_ENV"
+          echo "IMAGE_DIGEST=${ref#*@}" >> "$GITHUB_ENV"
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Pull por digest
+        env:
+          SHA: ${{ inputs.sha }}
+        run: |
+          docker pull "$IMAGE_REF"
+          docker tag "$IMAGE_REF" rehearsal-image
+          revision=$(docker image inspect rehearsal-image --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+          [ "$revision" = "$SHA" ] || { echo "::error::label de revisão da imagem difere do SHA"; exit 1; }
+
+      - name: Retrato do schema da produção (somente schema)
+        env:
+          SNAPSHOT_B64: ${{ inputs.schema_snapshot_gz_b64 }}
+          SSH_KEY: ${{ secrets.ORACLE_SCHEMA_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ vars.ORACLE_SSH_KNOWN_HOSTS }}
+          ORACLE_HOST: ${{ vars.ORACLE_HOST }}
+        run: |
+          umask 077
+          if [ -n "$SNAPSHOT_B64" ]; then
+            printf '%s' "$SNAPSHOT_B64" | base64 -d | gzip -dc > snapshot.sql
+          elif [ -n "$SSH_KEY" ] && [ -n "$ORACLE_HOST" ] && [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KEY" > "$RUNNER_TEMP/schema_key"
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > "$RUNNER_TEMP/known_hosts"
+            # A chave só executa schema-export.sh (command= + restrict no authorized_keys da VM).
+            ssh -i "$RUNNER_TEMP/schema_key" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes \
+                -o UserKnownHostsFile="$RUNNER_TEMP/known_hosts" -o ConnectTimeout=30 \
+                "ubuntu@$ORACLE_HOST" schema-export > snapshot.sql
+            rm -f "$RUNNER_TEMP/schema_key"
+          else
+            echo "::error::Sem retrato do schema. Informe schema_snapshot_gz_b64 ou cadastre ORACLE_SCHEMA_SSH_KEY, ORACLE_HOST e ORACLE_SSH_KNOWN_HOSTS (infra/oracle/RELEASE.md)."
+            exit 1
+          fi
+          echo "retrato: $(wc -c < snapshot.sql) bytes, $(grep -c '^CREATE TABLE' snapshot.sql) tabelas"
+          head -2 snapshot.sql
+
+      - name: Ensaio (carrega schema, migra, sobe a API, testa reversibilidade)
+        env:
+          PGPASSWORD: postgres
+          SHA: ${{ inputs.sha }}
+        run: |
+          python -I infra/oracle/migration_rehearsal.py --image rehearsal-image --snapshot snapshot.sql \
+            --versions backend/migrations/versions --sha "$SHA" --image-digest "$IMAGE_DIGEST" --out rehearsal.json
+
+      - name: Anexar o ensaio ao manifesto
+        run: |
+          python -I infra/oracle/release_plan.py attach-rehearsal --manifest release/release-manifest.json --rehearsal rehearsal.json
+          cp rehearsal.json release/rehearsal.json
+          {
+            echo "### Ensaio aprovado"
+            python -I -c "import json; r=json.load(open('rehearsal.json')); print('- de', r['from_revision'], 'para', r['head_revision'], '| pendentes:', ', '.join(r['pending']) or 'nenhuma', '| reversível:', r['reversible'], '(' + str(r['reversible_reason']) + ')')"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Guardar artefato ensaiado
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ env.SHA12 }}-rehearsed
+          path: release/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Resultado do ensaio (também quando falha)
+        if: failure()
+        run: |
+          [ -f rehearsal.json ] && python -I -c "import json; r=json.load(open('rehearsal.json')); print(r.get('error'))" || true

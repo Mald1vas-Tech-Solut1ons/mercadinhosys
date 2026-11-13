@@ -452,8 +452,11 @@ const ReportsPage: React.FC = () => {
             const despesasPessoal = dreBackend.despesas_pessoal !== undefined ? parseFloat(dreBackend.despesas_pessoal) : 0;
             const despesasTotal = dreBackend.total_despesas !== undefined ? parseFloat(dreBackend.total_despesas) : (despesasOperacionais + despesasPessoal);
 
-            // Lucro Liquido = Lucro Bruto - Despesas Totais
-            const lucroLiquido = lucroBruto - despesasTotal;
+            // Perda de dose (ml que saiu sem venda) custou a garrafa e fica fora do CMV.
+            const perdasDose = dreBackend.perdas_estoque_dose !== undefined ? parseFloat(dreBackend.perdas_estoque_dose) : 0;
+
+            // Lucro Liquido = Lucro Bruto - Perdas de dose - Despesas Totais
+            const lucroLiquido = lucroBruto - perdasDose - despesasTotal;
 
             const totalVendas = stats.total_vendas || 0;
 
@@ -463,6 +466,7 @@ const ReportsPage: React.FC = () => {
                 cmv_estimado: cmvEstimado,
                 cmv_estimado_pct: cmvEstimadoPct,
                 lucro_bruto: lucroBruto,
+                perdas_dose: perdasDose,
                 lucro_liquido: lucroLiquido,
                 despesas_total: despesasTotal,
                 despesas_pessoal: despesasPessoal,
@@ -772,6 +776,7 @@ const ReportsPage: React.FC = () => {
             { 'Descrição': '(-) Custo da Mercadoria Vendida (CMV)', 'Valor (R$)': financeiroData.custo_mercadoria, 'Observação': '' },
             { 'Descrição': 'Inclui custo estimado', 'Valor (R$)': (financeiroData.cmv_estimado ?? 0) > 0 ? financeiroData.cmv_estimado : '', 'Observação': (financeiroData.cmv_estimado_pct ?? 0) > 0 ? `Inclui ${Number(financeiroData.cmv_estimado_pct).toFixed(1)}% de custo estimado` : '' },
             { 'Descrição': '(=) LUCRO BRUTO', 'Valor (R$)': financeiroData.lucro_bruto, 'Observação': `Margem: ${financeiroData.faturamento > 0 ? ((financeiroData.lucro_bruto / financeiroData.faturamento) * 100).toFixed(1) : '0'}%` },
+            ...((financeiroData.perdas_dose ?? 0) > 0 ? [{ 'Descrição': '(-) Perdas de dose', 'Valor (R$)': financeiroData.perdas_dose, 'Observação': 'Perda, cortesia, descarte e diferença de garrafa por dose' }] : []),
             { 'Descrição': '(-) Despesas com Pessoal', 'Valor (R$)': financeiroData.despesas_pessoal, 'Observação': 'Salários, encargos, provisões e rescisões' },
             { 'Descrição': '(-) Despesas Operacionais', 'Valor (R$)': financeiroData.despesas_operacionais, 'Observação': `Fixas: ${fmtBRL(financeiroData.despesas_mes?.recorrentes || 0)} | Variáveis: ${fmtBRL(financeiroData.despesas_mes?.variaveis || 0)}` },
             { 'Descrição': '(=) LUCRO LÍQUIDO', 'Valor (R$)': financeiroData.lucro_liquido, 'Observação': `Margem: ${financeiroData.faturamento > 0 ? ((financeiroData.lucro_liquido / financeiroData.faturamento) * 100).toFixed(1) : '0'}%` },
@@ -1181,6 +1186,17 @@ const ReportsPage: React.FC = () => {
                             <span>Margem bruta</span>
                             <span>{financeiroData.faturamento > 0 ? ((financeiroData.lucro_bruto / financeiroData.faturamento) * 100).toFixed(1) : '0'}%</span>
                         </div>
+                        {(financeiroData.perdas_dose ?? 0) > 0 && (
+                            <>
+                                <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                                    <span className="text-gray-500 dark:text-gray-400 pl-4">( - ) Perdas de dose</span>
+                                    <span className="text-red-600 dark:text-red-400 font-medium">{fmtBRL(financeiroData.perdas_dose)}</span>
+                                </div>
+                                <div className="flex justify-between py-1 text-xs text-gray-400 dark:text-gray-500 pl-8 mb-2">
+                                    <span>Perda, cortesia, descarte e diferença ao encerrar garrafa</span>
+                                </div>
+                            </>
+                        )}
                         <div className="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                             <span className="text-gray-500 dark:text-gray-400 pl-4">( - ) Despesas com Pessoal</span>
                             <span className="text-red-600 dark:text-red-400 font-medium">{fmtBRL(financeiroData.despesas_pessoal || 0)}</span>

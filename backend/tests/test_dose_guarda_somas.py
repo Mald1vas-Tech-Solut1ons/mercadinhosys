@@ -17,6 +17,7 @@ SQL_CRU = re.compile(r"SUM\(\s*vi\.quantidade\s*\)", re.IGNORECASE)
 # arquivo (relativo a app/) -> quantas somas brutas são permitidas e por quê
 PERMITIDAS = {
     "routes/vendas.py": (2, "total_itens / itens por venda nas estatísticas de vendas: itens passados no caixa"),
+    "services/dose_metricas.py": (2, "doses vendidas (quantidade de item de dose = nº de doses), por produto e por hora"),
     "services/comparativo_service.py": (1, "'itens' do resumo do período: itens passados no caixa"),
     "services/rh_calculator_service.py": (1, "'produtos passados' do funcionário: trabalho no caixa, dose é item"),
 }

@@ -130,6 +130,7 @@ export interface ResumoFinanceiro {
         aviso?: string | null;
         custo_mercadoria: number;
         lucro_bruto: number;
+        perdas_estoque_dose?: number;
         despesas_pessoal: number;
         despesas_operacionais: number;
         total_despesas: number;

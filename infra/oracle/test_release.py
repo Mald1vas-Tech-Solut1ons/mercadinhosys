@@ -256,6 +256,10 @@ class FakeHost:
     def disk_free(self):
         return self.free_disk
 
+    def sha256(self, path):
+        import hashlib
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
     def names(self):
         return [c[0] for c in self.commands]
 
@@ -268,7 +272,10 @@ class FakeHost:
                 return json.dumps([{'Id': NEW_ID, 'RepoDigests': self.digests,
                                     'Config': {'Labels': {vm.REVISION_LABEL: self.label}}}]).encode()
             raise RuntimeError('inspect de algo inexistente: ' + command[1])
-        if command[0] == 'pull':
+        if command[0] in ('pull', 'load'):
+            self.pulled = True
+            return b''
+        if command[0] == 'tag' and command[1] == 'mercadinhosys-backend:local':
             self.pulled = True
             return b''
         if command[0] == 'exec':

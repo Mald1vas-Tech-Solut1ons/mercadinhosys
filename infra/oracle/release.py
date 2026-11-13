@@ -16,6 +16,7 @@ Não roda seed, não restaura o banco operacional e não imprime credenciais.
 """
 import argparse
 import contextlib
+import hashlib
 import importlib.util
 import json
 import os
@@ -97,6 +98,13 @@ class Host:
 
     def disk_free(self):
         return shutil.disk_usage('/var/lib/docker').free
+
+    def sha256(self, path):
+        digest = hashlib.sha256()
+        with open(path, 'rb') as handle:
+            for block in iter(lambda: handle.read(1 << 20), b''):
+                digest.update(block)
+        return digest.hexdigest()
 
 
 class Releaser:
@@ -256,15 +264,41 @@ class Releaser:
         plan = release_plan.plan_migration(production, manifest, self.accept_destructive)
         return manifest, plan, proof_url
 
+    def _already_prepared(self, manifest):
+        """`deploy` repete o `prepare`: reaproveita a imagem que ESTE pacote já trouxe e verificou."""
+        try:
+            done = load_json(self.root / 'prepare-result.json')
+            image = self.info(self.image)
+        except (OSError, ValueError, RuntimeError):
+            return None
+        labels = (image.get('Config') or {}).get('Labels') or {}
+        if done.get('prepared') and done.get('image_digest') == manifest['image']['digest'] \
+                and done.get('image_id') == image['Id'] and labels.get(REVISION_LABEL) == manifest['sha']:
+            return image
+        return None
+
     def pull(self, manifest):
-        """Baixa por DIGEST (imutável): o que foi ensaiado e a prova de CI são desta imagem exata."""
+        """Baixa por DIGEST (imutável) ou carrega image.tar.gz verificado pelo SHA-256 do manifesto."""
         ref = manifest['image']['ref']
         if self.host.disk_free() < MIN_FREE_DISK:
             raise ReleaseRefused('Menos de 2 GB livres em /var/lib/docker: libere espaço antes de baixar a imagem')
-        self.docker('pull', ref)
-        self.docker('tag', ref, self.image)
+        reused = self._already_prepared(manifest)
+        if reused:
+            return reused
+        archive = self.root / 'image.tar.gz'
+        from_archive = archive.is_file()
+        if from_archive:
+            expected = manifest['image'].get('archive_sha256')
+            if not expected or self.host.sha256(archive) != expected:
+                raise ReleaseRefused('image.tar.gz não confere com o SHA-256 do manifesto: arquivo corrompido ou de outra build')
+            self.docker('load', '-i', str(archive))
+            self.docker('tag', 'mercadinhosys-backend:local', self.image)
+            archive.unlink()
+        else:
+            self.docker('pull', ref)
+            self.docker('tag', ref, self.image)
         image = self.info(self.image)
-        if manifest['image']['digest'] not in ' '.join(image.get('RepoDigests') or []):
+        if not from_archive and manifest['image']['digest'] not in ' '.join(image.get('RepoDigests') or []):
             raise ReleaseRefused('A imagem local não vem do digest do manifesto')
         revision = (image.get('Config') or {}).get('Labels', {}).get(REVISION_LABEL)
         if revision != manifest['sha']:

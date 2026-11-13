@@ -210,24 +210,28 @@ jobs:
           docker tag mercadinhosys-backend:local "$IMAGE_REPOSITORY:$SHA12"
           docker push "$IMAGE_REPOSITORY:$SHA12" | tee push.log
           digest=$(grep -oE 'digest: sha256:[0-9a-f]{64}' push.log | tail -1 | cut -d' ' -f2)
-          repo_digest=$(docker image inspect "$IMAGE_REPOSITORY:$SHA12" --format '{{index .RepoDigests 0}}')
-          if [ -z "$digest" ] || [ "$repo_digest" != "$IMAGE_REPOSITORY@$digest" ]; then
+          repo_digests=$(docker image inspect "$IMAGE_REPOSITORY:$SHA12" --format '{{range .RepoDigests}}{{.}}{{"\n"}}{{end}}')
+          if [ -z "$digest" ] || ! printf '%s\n' "$repo_digests" | grep -Fxq "$IMAGE_REPOSITORY@$digest"; then
             echo "::error::Não foi possível confirmar o digest publicado"; exit 1
           fi
+          docker save mercadinhosys-backend:local | gzip -1 > image.tar.gz
+          archive_sha256=$(sha256sum image.tar.gz | awk '{print $1}')
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "archive_sha256=$archive_sha256" >> "$GITHUB_OUTPUT"
 
       - name: Manifesto da release (digest + prova de CI + cadeia de migrações)
         if: steps.mode.outputs.publish == 'true'
         run: |
           python -I infra/oracle/release_plan.py manifest --sha "${{ steps.mode.outputs.sha }}" \
             --digest "${{ steps.push.outputs.digest }}" --ci-proof ci-proof.json \
-            --versions backend/migrations/versions --out release-manifest.json
+            --versions backend/migrations/versions --archive-sha256 "${{ steps.push.outputs.archive_sha256 }}" \
+            --out release-manifest.json
           {
             echo "### Imagem publicada"
             echo '```'
             echo "$IMAGE_REPOSITORY@${{ steps.push.outputs.digest }}"
             echo '```'
-            echo "Artefato **release-${{ steps.mode.outputs.sha12 }}**: ci-proof.json + release-manifest.json."
+            echo "Artefato **release-${{ steps.mode.outputs.sha12 }}**: ci-proof.json + release-manifest.json + image.tar.gz."
             echo "Próximo passo: infra/oracle/RELEASE.md"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -239,7 +243,8 @@ jobs:
           path: |
             ci-proof.json
             release-manifest.json
-          retention-days: 30
+            image.tar.gz
+          retention-days: 7
           if-no-files-found: error
 
   rehearsal:

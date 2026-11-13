@@ -30,6 +30,7 @@ REHEARSAL_MAX_AGE_HOURS = 72
 
 _SHA = re.compile(r'[0-9a-f]{40}')
 _DIGEST = re.compile(r'sha256:[0-9a-f]{64}')
+_HEX64 = re.compile(r'[0-9a-f]{64}')
 _REVISION = re.compile(r'[0-9A-Za-z_]{1,40}')
 _DESTRUCTIVE_ATTRS = {'drop_table', 'drop_column'}
 _DESTRUCTIVE_SQL = re.compile(r'\b(DROP|TRUNCATE|DELETE)\b', re.IGNORECASE)
@@ -178,14 +179,18 @@ def pending_revisions(migrations, production_revision):
 
 # --------------------------------------------------------------------------- manifesto
 
-def build_manifest(sha, digest, ci_proof, versions_dir, repository=IMAGE_REPOSITORY, built_at=None):
+def build_manifest(sha, digest, ci_proof, versions_dir, repository=IMAGE_REPOSITORY, built_at=None,
+                   archive_sha256=None):
     if not _SHA.fullmatch(sha or ''):
         raise ReleaseRefused('SHA precisa ter 40 caracteres hexadecimais')
     if not _DIGEST.fullmatch(digest or ''):
         raise ReleaseRefused('Digest da imagem inválido')
     validate_ci_proof(ci_proof, sha, sha[:12])
+    if archive_sha256 is not None and not _HEX64.fullmatch(archive_sha256):
+        raise ReleaseRefused('SHA-256 do arquivo da imagem inválido')
     return {'manifest_version': MANIFEST_VERSION, 'release': sha[:12], 'sha': sha,
-            'image': {'repository': repository, 'digest': digest, 'ref': f'{repository}@{digest}'},
+            'image': {'repository': repository, 'digest': digest, 'ref': f'{repository}@{digest}',
+                      'archive_sha256': archive_sha256},
             'ci_run': ci_proof['html_url'],
             'built_at': built_at or datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
             'migrations': scan_migrations(versions_dir), 'rehearsal': None}
@@ -202,6 +207,8 @@ def validate_manifest(manifest, release):
         raise ReleaseRefused('Imagem fora do registro autorizado')
     if not _DIGEST.fullmatch(image.get('digest', '')) or image.get('ref') != f"{IMAGE_REPOSITORY}@{image['digest']}":
         raise ReleaseRefused('Digest da imagem inválido no manifesto')
+    if image.get('archive_sha256') is not None and not _HEX64.fullmatch(str(image['archive_sha256'])):
+        raise ReleaseRefused('SHA-256 do arquivo da imagem inválido no manifesto')
     migrations = manifest.get('migrations') or {}
     if migrations.get('head') not in (migrations.get('graph') or {}):
         raise ReleaseRefused('Manifesto sem grafo de migrações')
@@ -311,13 +318,15 @@ def main(argv=None):
     build.add_argument('--ci-proof', required=True)
     build.add_argument('--versions', required=True)
     build.add_argument('--out', required=True)
+    build.add_argument('--archive-sha256')
     attach = sub.add_parser('attach-rehearsal')
     attach.add_argument('--manifest', required=True)
     attach.add_argument('--rehearsal', required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == 'manifest':
-            manifest = build_manifest(args.sha, args.digest, _load(args.ci_proof), args.versions)
+            manifest = build_manifest(args.sha, args.digest, _load(args.ci_proof), args.versions,
+                                      archive_sha256=args.archive_sha256)
             Path(args.out).write_text(json.dumps(manifest, indent=2), encoding='utf-8')
         else:
             manifest = validate_manifest(_load(args.manifest), _load(args.manifest)['release'])

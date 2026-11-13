@@ -46,6 +46,10 @@ remote "mkdir -p '$remote_root'"
 ssh "${ssh_opts[@]}" "ubuntu@$host" "tar -x -C '$remote_root'" < "$work/package.tar"
 ssh "${ssh_opts[@]}" "ubuntu@$host" "cat > '$remote_root/release-manifest.json'" < "$work/pkg/release-manifest.json"
 ssh "${ssh_opts[@]}" "ubuntu@$host" "cat > '$remote_root/ci-proof.json'" < "$work/pkg/ci-proof.json"
+if [[ -f "$work/pkg/image.tar.gz" ]]; then
+  echo "enviando imagem verificada (image.tar.gz)..."
+  ssh "${ssh_opts[@]}" "ubuntu@$host" "cat > '$remote_root/image.tar.gz'" < "$work/pkg/image.tar.gz"
+fi
 echo "pacote enviado para $remote_root"
 
 script="$remote_root/infra/oracle/release.py"

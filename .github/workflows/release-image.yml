@@ -179,6 +179,20 @@ jobs:
             --sha "${{ steps.mode.outputs.sha }}" --image-digest "sha256:$(printf '0%.0s' $(seq 64))" \
             --schema-source synthetic-create-all --out rehearsal-selftest.json
 
+      - name: Ensaio com migração pendente (informativo, somente pull request)
+        # Reaplica a ÚLTIMA migração sobre o schema sintético: exercita upgrade, API, downgrade e reupgrade
+        # num PostgreSQL real. Informativo: migração antiga não idempotente sobre create_all não reprova o PR.
+        if: steps.mode.outputs.publish != 'true'
+        continue-on-error: true
+        run: |
+          parent=$(python -I -c "import sys; sys.path.insert(0, 'infra/oracle'); import release_plan as r; m=r.scan_migrations('backend/migrations/versions'); print(m['graph'][m['head']]['down'][0])")
+          sed -i "s/^-- ALEMBIC_VERSION: .*/-- ALEMBIC_VERSION: $parent/" snapshot.sql
+          PGPASSWORD=postgres python infra/oracle/migration_rehearsal.py \
+            --image mercadinhosys-backend:local --snapshot snapshot.sql --versions backend/migrations/versions \
+            --sha "${{ steps.mode.outputs.sha }}" --image-digest "sha256:$(printf '0%.0s' $(seq 64))" \
+            --schema-source synthetic-create-all --out rehearsal-pending.json || { cat rehearsal-pending.json; exit 1; }
+          cat rehearsal-pending.json
+
       - name: Login no GHCR
         if: steps.mode.outputs.publish == 'true'
         uses: docker/login-action@v3

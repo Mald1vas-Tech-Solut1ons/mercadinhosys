@@ -19,6 +19,9 @@ import { useViewSchema, schemaHelpers, flagsDaSubcategoria } from '../../../serv
 import { irParaCampo, campoDoErroServidor } from '../irParaCampo';
 import BarcodeScanner from '../../pdv/components/BarcodeScanner';
 import { dataLocalISO } from '../../../utils/dataLocal';
+import DosesEditor from './DosesEditor';
+import { dosesService, erroDoses } from '../dosesService';
+import { ConfigDosesLoja, DosesEstado, deResposta, estadoVazio, paraPayload, validarDoses } from '../utils/doses';
 
 interface ProductFormModalProps {
     show: boolean;
@@ -173,6 +176,12 @@ const ProductFormModal = ({
     // em edição): mexer no custo passa a recalcular a MARGEM, não o preço.
     const precoVendaManual = useRef(false);
 
+    // Venda por dose (garrafa → doses de ml livre). Grava junto do produto, pelo endpoint próprio.
+    const [doses, setDoses] = useState<DosesEstado>(estadoVazio());
+    const dosesSalvas = useRef('');                       // retrato do que veio do servidor (detecta mudança)
+    const [dosesLoja, setDosesLoja] = useState<ConfigDosesLoja | null>(null);
+    const [dosesInfo, setDosesInfo] = useState<{ sugeridoMl: number | null; garrafasAbertas: number }>({ sugeridoMl: null, garrafasAbertas: 0 });
+
     // Motor de Renderização Contextual: o schema decide campos, unidades e grupos
     const { schema } = useViewSchema(formData.familia_produto || undefined, formData.tipo_item);
     // Validade pela subcategoria escolhida (vela e lâmina não perguntam; banho fabricado pergunta).
@@ -226,6 +235,25 @@ const ProductFormModal = ({
             }))
             .filter(g => g.campos.length > 0);
     }, [schema, formData.tipo_item, camposDoPerfil, formData.atributos]);
+
+    useEffect(() => {
+        if (!show) return;
+        let ativo = true;
+        setDoses(estadoVazio());
+        dosesSalvas.current = JSON.stringify(paraPayload(estadoVazio()));
+        setDosesInfo({ sugeridoMl: null, garrafasAbertas: 0 });
+        dosesService.config().then(c => { if (ativo) setDosesLoja(c); }).catch(() => { /* atalhos são opcionais */ });
+        if (editMode && produto) {
+            dosesService.ler(produto.id).then(r => {
+                if (!ativo) return;
+                const estado = deResposta(r);
+                setDoses(estado);
+                dosesSalvas.current = JSON.stringify(paraPayload(estado));
+                setDosesInfo({ sugeridoMl: r.config.volume_sugerido_ml, garrafasAbertas: r.garrafas_abertas });
+            }).catch(() => { /* produto sem doses ou sem permissão de leitura: o editor abre vazio */ });
+        }
+        return () => { ativo = false; };
+    }, [show, editMode, produto?.id]);
 
     useEffect(() => {
         if (!show) return;
@@ -613,6 +641,19 @@ const ProductFormModal = ({
         irParaCampo(formRef.current, campo);
     };
 
+    // Doses vão depois do produto (precisam do id). Só chama o servidor se mudou algo (ou se o produto é novo e vende por dose).
+    const salvarDoses = async (produtoId: number) => {
+        if (ehServico) return;
+        const mudou = JSON.stringify(paraPayload(doses)) !== dosesSalvas.current;
+        if (!mudou && !(doses.vende_por_dose && !editMode)) return;
+        try {
+            const r = await dosesService.salvar(produtoId, doses);
+            (r.avisos || []).slice(0, 2).forEach(a => showToast.warning(a.mensagem, { duration: 7000 }));
+        } catch (err: any) {
+            showToast.error(`O produto foi salvo, mas as doses não: ${erroDoses(err)}. Abra o produto e configure de novo.`, { duration: 9000 });
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -655,6 +696,9 @@ const ProductFormModal = ({
             faltou('cest', 'Produto com ICMS por substituição tributária (ST) precisa do CEST com 7 dígitos. Peça ao contador ou veja na nota do fornecedor.');
             return;
         }
+
+        const erroDose = !ehServico ? validarDoses(doses) : null;
+        if (erroDose) { faltou('volume_embalagem_ml', erroDose); return; }
 
         // Validade pela subcategoria (só no cadastro novo com estoque; na edição a validade é dos lotes).
         const flagsFamilia = flagsItem;
@@ -743,6 +787,7 @@ const ProductFormModal = ({
                     success: ehServico ? 'Serviço atualizado!' : 'Produto atualizado!',
                     error: 'Erro ao atualizar',
                 }, { theme: 'warning' });
+                await salvarDoses(produto.id);
                 onSuccess();
             } else {
                 // Criar produto — tratando 409 (EAN duplicado) explicitamente
@@ -768,6 +813,7 @@ const ProductFormModal = ({
                 }
 
                 const criado = result.produto;
+                if (criado?.id) await salvarDoses(criado.id);
                 if (!ehServico && criado && onPrintLabel) {
                     showToast.successAction('Produto cadastrado com sucesso!', 'Imprimir etiqueta', () => onPrintLabel(criado));
                 } else {
@@ -1410,6 +1456,25 @@ const ProductFormModal = ({
                                     </p>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ── Venda por dose: bebidas (ou produto que já vende por dose) ── */}
+                {!ehServico && (formData.familia_produto === 'bebida' || doses.vende_por_dose) && (
+                    <div>
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Venda por dose</h4>
+                        <div className={sectionClass}>
+                            <DosesEditor
+                                valor={doses}
+                                onChange={setDoses}
+                                custoGarrafa={Number(formData.preco_custo) || 0}
+                                precoGarrafa={Number(formData.preco_venda) || 0}
+                                nomeProduto={formData.nome}
+                                loja={dosesLoja}
+                                volumeSugeridoMl={dosesInfo.sugeridoMl}
+                                garrafasAbertas={dosesInfo.garrafasAbertas}
+                            />
                         </div>
                     </div>
                 )}

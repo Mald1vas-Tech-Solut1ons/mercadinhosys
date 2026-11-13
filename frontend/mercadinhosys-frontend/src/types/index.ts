@@ -174,6 +174,8 @@ export interface Produto {
     quantidade_estoque?: number; // Alias para quantidade
     estoque_atual?: number;      // REAL-TIME: Estoque atômico vindo do backend
     quantidade_minima: number;
+    /** Só bebida que vende por dose: a garrafa aberta (saldo em ml, quantas, vencidas, doses que rende). */
+    dose?: import('../features/products/utils/estoqueDose').ResumoAberto;
     estoque_minimo?: number; // Alias para quantidade_minima
     estoque_status?: 'normal' | 'baixo' | 'esgotado';
     localizacao?: string;

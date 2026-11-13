@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { textoDaAberta } from '../utils/estoqueDose';
 import { Edit, Trash2, Archive, ShoppingCart, FileText, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, Layers, PackageX, MoreHorizontal, History, Package, ZoomIn, Barcode } from 'lucide-react';
 import { Produto } from '../../../types';
 import { formatCurrency } from '../../../utils/formatters';
@@ -236,6 +237,11 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                 </td>
                                 <td className="px-5 py-3 tabular-nums font-medium text-gray-600 dark:text-slate-300">
                                     {produto.quantidade} <span className="text-xs text-gray-400 dark:text-slate-500">{produto.unidade_medida}</span>
+                                    {textoDaAberta(produto.dose) && (
+                                        <span className="mt-0.5 block text-[11px] font-semibold text-sky-600 dark:text-sky-400" data-testid="estoque-aberta">
+                                            + {textoDaAberta(produto.dose)}
+                                        </span>
+                                    )}
                                 </td>
                                 <td className="px-5 py-3">
                                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${getStockBadge(produto)}`}>
@@ -396,6 +402,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                                 <div className="flex flex-col bg-gray-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-gray-200 dark:border-slate-800">
                                     <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Estoque</span>
                                     <span className="font-semibold text-gray-700 dark:text-slate-200">{produto.quantidade} <span className="text-xs text-gray-500 dark:text-slate-400 font-normal">{produto.unidade_medida}</span></span>
+                                    {textoDaAberta(produto.dose) && (
+                                        <span className="text-[11px] font-semibold text-sky-600 dark:text-sky-400">+ {textoDaAberta(produto.dose)}</span>
+                                    )}
                                 </div>
                                 <div className="flex flex-col bg-gray-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-gray-200 dark:border-slate-800">
                                     <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Venda</span>

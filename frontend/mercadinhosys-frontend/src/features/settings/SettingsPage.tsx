@@ -16,6 +16,7 @@ import { buscarCep, formatCep, formatCnpj, formatPhone } from '../../utils/cepUt
 import { apiClient } from '../../api/apiClient';
 import SubscriptionSettings from './SubscriptionSettings';
 import SegmentSettings from './SegmentSettings';
+import DosesSettings from './DosesSettings';
 import PermissoesSettings from './PermissoesSettings';
 import { useTheme } from '../../theme/useTheme';
 import { authService } from '../auth/authService';
@@ -1041,6 +1042,9 @@ const SettingsPage: React.FC = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Venda por dose (bebidas): padrões da loja; o ml de cada dose é livre por produto */}
+                    {activeTab === 'estoque' && <div className="mt-6"><DosesSettings /></div>}
 
                     {/* ABA PONTO & RH */}
                     {activeTab === 'ponto' && (

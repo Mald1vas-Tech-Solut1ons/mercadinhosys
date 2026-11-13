@@ -8,6 +8,7 @@ import { useConfig } from '../../../contexts/ConfigContext';
 import BarcodeScanner from './BarcodeScanner';
 import { parseDataValidade } from '../../../utils/validade';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
+import { temDoses } from '../utils/dosesPdv';
 
 interface ProdutoSearchProps {
     onProdutoSelecionado: (produto: Produto) => void;
@@ -76,6 +77,8 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
                                 id: p.id, nome: p.nome, codigo_barras: p.codigo_barras,
                                 codigo_interno: p.codigo_interno, preco_venda: p.preco_venda,
                                 quantidade: p.quantidade, unidade_medida: p.unidade_medida,
+                                vende_por_dose: p.vende_por_dose, volume_embalagem_ml: p.volume_embalagem_ml,
+                                doses: p.doses, saldo_aberto_ml: p.saldo_aberto_ml,
                             })) as unknown as Produto[];
                             setResultados(mapped.slice(0, 20));
                             setErro('📴 Offline — usando catálogo salvo no aparelho');
@@ -116,8 +119,10 @@ const ProdutoSearch: React.FC<ProdutoSearchProps> = ({ onProdutoSelecionado, dis
         
         const un = ((produto as any).unidade_medida || 'UN').toUpperCase();
         const isPeso = UNIDADES_PESO.includes(un) || produto.tipo === 'granel';
+        // Bebida com dose abre a folha de escolha (que tem o foco e o teclado 1-9/Enter): não roubar o foco de volta.
+        const abreFolhaDeDose = temDoses(produto as any);
         
-        if (!isPeso) {
+        if (!isPeso && !abreFolhaDeDose) {
             setTimeout(() => {
                 inputRef.current?.focus();
             }, 50);

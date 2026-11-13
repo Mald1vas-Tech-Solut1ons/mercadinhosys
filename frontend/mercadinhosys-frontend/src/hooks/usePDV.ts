@@ -4,6 +4,9 @@ import { pdvService, ConfiguracoesPDV, CaixaPDV } from '../features/pdv/pdvServi
 import { showToast } from '../utils/toast';
 import { mensagemErro } from '../utils/mensagemErro';
 import { parseDataValidade } from '../utils/validade';
+import {
+    DoseDaLinha, ProdutoPdv, chaveDaLinha, chaveDe, maxDaLinha, maxGarrafasInteiras, temDoses,
+} from '../features/pdv/utils/dosesPdv';
 
 export interface ItemCarrinho {
     produto: Produto;
@@ -14,6 +17,10 @@ export interface ItemCarrinho {
     total: number;
     /** FASE 1.7: true quando o desconto foi autorizado por gerente/admin via PinDialog. */
     descontoAutorizadoExterno?: boolean;
+    /** Identidade da linha: o mesmo produto pode ter garrafa, dose e dose livre ao mesmo tempo. */
+    chave?: string;
+    /** Linha vendida por dose: `quantidade` é o nº de doses e `precoUnitario` o preço de UMA dose. */
+    dose?: DoseDaLinha;
 }
 
 export interface FormaPagamento {
@@ -355,7 +362,10 @@ export const usePDV = () => {
 
     // Adicionar produto ao carrinho
     // Retorna false quando o item foi recusado antes de ir ao carrinho (produto vencido).
-    const adicionarProduto = useCallback((produto: Produto, quantidade: number = 1): boolean => {
+    const adicionarProduto = useCallback((
+        produto: Produto, quantidade: number = 1, opcoes?: { dose?: DoseDaLinha; preco?: number },
+    ): boolean => {
+        const dose = opcoes?.dose;
         const controlarValidade = configuracoes?.controlar_validade ?? true;
 
         if (controlarValidade && produto.data_validade) {
@@ -391,21 +401,29 @@ export const usePDV = () => {
             }
         }
 
+        const chave = chaveDaLinha(produto.id, dose);
         setCarrinho(prev => {
-            const itemExistente = prev.find(item => item.produto.id === produto.id);
-            const estoqueDisponivel = getEstoqueDisponivel(produto);
+            const itemExistente = prev.find(item => chaveDe(item) === chave);
+            const estoqueFechado = getEstoqueDisponivel(produto);
+            const comoDose = produto as ProdutoPdv;
+            // Dose: o limite é em ml (aberta + fechadas − o que outras linhas já pegaram). Garrafa inteira de um
+            // produto que também vende por dose: desconta as garrafas que as doses do carrinho vão abrir.
+            const estoqueDisponivel = dose
+                ? maxDaLinha(prev, comoDose, estoqueFechado, dose)
+                : temDoses(comoDose) ? maxGarrafasInteiras(prev, comoDose, estoqueFechado) : estoqueFechado;
+            const nomeNaMensagem = dose ? `${produto.nome} (${dose.nome})` : produto.nome;
 
             if (itemExistente) {
                 const novaQuantidade = itemExistente.quantidade + quantidade;
                 const permiteSemEstoque = configuracoes?.permitir_venda_sem_estoque ?? false;
 
                 if (!permiteSemEstoque && novaQuantidade > estoqueDisponivel) {
-                    showToast.warning(`Estoque insuficiente para ${produto.nome}`);
+                    showToast.warning(`Estoque insuficiente para ${nomeNaMensagem}`);
                     const qtdPermitida = Math.max(0, estoqueDisponivel);
                     if (itemExistente.quantidade >= qtdPermitida) return prev;
 
                     return prev.map(item =>
-                        item.produto.id === produto.id
+                        chaveDe(item) === chave
                             ? {
                                 ...item,
                                 quantidade: qtdPermitida,
@@ -416,7 +434,7 @@ export const usePDV = () => {
                 }
 
                 return prev.map(item =>
-                    item.produto.id === produto.id
+                    chaveDe(item) === chave
                         ? {
                             ...item,
                             quantidade: novaQuantidade,
@@ -425,7 +443,7 @@ export const usePDV = () => {
                         : item
                 );
             } else {
-                const preco = (produto as any).preco_venda_efetivo ?? produto.preco_venda;
+                const preco = opcoes?.preco ?? (produto as any).preco_venda_efetivo ?? produto.preco_venda;
                 const permiteSemEstoque = configuracoes?.permitir_venda_sem_estoque ?? false;
 
                 let qtdPedida = quantidade;
@@ -434,7 +452,8 @@ export const usePDV = () => {
                 }
 
                 if (!permiteSemEstoque && qtdPedida <= 0 && estoqueDisponivel <= 0) {
-                    showToast.error(`Produto ${produto.nome} sem estoque disponível`);
+                    showToast.error(dose ? `Sem ${dose.nome} disponível de ${produto.nome}`
+                        : `Produto ${produto.nome} sem estoque disponível`);
                     return prev;
                 }
 
@@ -445,6 +464,8 @@ export const usePDV = () => {
                     desconto: 0,
                     descontoPercentual: false,
                     total: round(preco * qtdPedida),
+                    // Produto comum segue sem `chave` (a chave dele é o id): carrinhos salvos continuam válidos.
+                    ...(dose ? { chave, dose } : {}),
                 };
                 return [...prev, novoItem];
             }
@@ -452,22 +473,28 @@ export const usePDV = () => {
         return true;
     }, [configuracoes, getEstoqueDisponivel, round, setCarrinho]);
 
-    const removerProduto = useCallback((produtoId: number) => {
-        setCarrinho(prev => prev.filter(item => item.produto.id !== produtoId));
+    // `ref`: chave da linha (ou o id do produto, para linha sem dose).
+    const removerProduto = useCallback((ref: number | string) => {
+        setCarrinho(prev => prev.filter(item => chaveDe(item) !== String(ref)));
     }, [setCarrinho]);
 
-    const atualizarQuantidade = useCallback((produtoId: number, quantidadeBruta: number) => {
+    const atualizarQuantidade = useCallback((ref: number | string, quantidadeBruta: number) => {
+        const chave = String(ref);
         // 3 casas = gramas/ml; evita 0.1 + 0.2 = 0.30000000000000004 no granel
         const quantidade = Math.round((quantidadeBruta + Number.EPSILON) * 1000) / 1000;
         if (quantidade <= 0) {
-            removerProduto(produtoId);
+            removerProduto(chave);
             return;
         }
 
         setCarrinho(prev =>
             prev.map(item => {
-                if (item.produto.id === produtoId) {
-                    const estoqueMax = getEstoqueDisponivel(item.produto);
+                if (chaveDe(item) === chave) {
+                    const estoqueFechado = getEstoqueDisponivel(item.produto);
+                    const comoDose = item.produto as ProdutoPdv;
+                    const estoqueMax = item.dose
+                        ? maxDaLinha(prev, comoDose, estoqueFechado, item.dose)
+                        : temDoses(comoDose) ? maxGarrafasInteiras(prev, comoDose, estoqueFechado) : estoqueFechado;
                     const permiteSemEstoque = configuracoes?.permitir_venda_sem_estoque ?? false;
 
                     const qtdValida = permiteSemEstoque
@@ -485,9 +512,10 @@ export const usePDV = () => {
         );
     }, [removerProduto, configuracoes, getEstoqueDisponivel, round, setCarrinho]);
 
-    const aplicarDescontoItem = useCallback((produtoId: number, desconto: number, percentual: boolean = false) => {
+    const aplicarDescontoItem = useCallback((ref: number | string, desconto: number, percentual: boolean = false) => {
         if (!configuracoes) return;
-        const item = (sessaoAtiva.carrinho || []).find(i => i.produto.id === produtoId);
+        const produtoId = ref;
+        const item = (sessaoAtiva.carrinho || []).find(i => chaveDe(i) === String(ref));
         if (!item) return;
 
         const descontoValor = percentual
@@ -516,7 +544,7 @@ export const usePDV = () => {
 
         setCarrinho(prev =>
             prev.map(item => {
-                if (item.produto.id === produtoId) {
+                if (chaveDe(item) === String(ref)) {
                     return {
                         ...item,
                         desconto: descontoValor,
@@ -577,7 +605,10 @@ export const usePDV = () => {
                     id: item.produto.id,
                     quantity: item.quantidade,
                     discount: item.desconto,
-                    price: item.precoUnitario
+                    price: item.precoUnitario,
+                    // Dose cadastrada: dose_id. Dose livre (ml digitado no caixa): dose_ml. Sem dose: venda comum.
+                    ...(item.dose?.id ? { dose_id: item.dose.id } : {}),
+                    ...(item.dose && !item.dose.id ? { dose_ml: item.dose.volumeMl } : {}),
                 })),
                 subtotal,
                 desconto: descontoTotal,
@@ -644,14 +675,14 @@ export const usePDV = () => {
     /** FASE 1.7: aplica o desconto SEM checar limite — só deve ser chamado pela UI
      *  depois que o PinDialog autorizou um gerente/admin. O `pinAutorizado` é repassado
      *  para o backend no próximo finalizarVenda para gravar Auditoria no servidor. */
-    const aplicarDescontoItemAutorizado = useCallback((produtoId: number, desconto: number, percentual: boolean = false) => {
-        const item = (sessaoAtiva.carrinho || []).find(i => i.produto.id === produtoId);
+    const aplicarDescontoItemAutorizado = useCallback((ref: number | string, desconto: number, percentual: boolean = false) => {
+        const item = (sessaoAtiva.carrinho || []).find(i => chaveDe(i) === String(ref));
         if (!item) return;
         const descontoValor = percentual
             ? item.precoUnitario * item.quantidade * (desconto / 100)
             : desconto;
         setCarrinho(prev =>
-            prev.map(it => it.produto.id === produtoId
+            prev.map(it => chaveDe(it) === String(ref)
                 ? {
                     ...it,
                     desconto: descontoValor,

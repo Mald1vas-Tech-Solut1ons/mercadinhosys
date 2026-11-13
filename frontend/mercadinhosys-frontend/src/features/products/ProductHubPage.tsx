@@ -6,7 +6,8 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     ComposedChart, Bar, Line, Legend
 } from 'recharts';
-import { ArrowLeft, TrendingUp, DollarSign, Activity, Truck, AlertTriangle, Percent, Clock, Package, CheckCircle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, DollarSign, Activity, Truck, AlertTriangle, Percent, Clock, Package, CheckCircle, GlassWater } from 'lucide-react';
+import DosesPainel from './components/DosesPainel';
 import { showToast } from '../../utils/toast';
 import ImageZoomModal from '../../components/ui/ImageZoomModal';
 import './ProductHubPage.css';
@@ -639,6 +640,18 @@ export default function ProductHubPage() {
                         )}
                     </div>
                 </div>
+
+                {/* Venda por dose: garrafas abertas, perda/cortesia, contagem e razão de ml */}
+                {produto.dose && (
+                    <div className="content-panel" style={{ gridColumn: '1 / -1' }}>
+                        <div className="panel-header">
+                            <h3 className="panel-title"><GlassWater size={20} color="#0ea5e9" /> Venda por dose</h3>
+                        </div>
+                        <div style={{ marginTop: '16px' }}>
+                            <DosesPainel produtoId={produto.id} />
+                        </div>
+                    </div>
+                )}
 
                 {/* Tabela de Lotes */}
                 <div className="content-panel" style={{ gridColumn: '1 / -1' }}>

@@ -10,6 +10,7 @@ import { mensagemErro } from '../../../utils/mensagemErro';
 import { formatCurrency } from '../../../utils/formatters';
 import { pedirPin } from '../../../components/ui/PedidoPin';
 import { confirmar } from '../../../components/ui/Confirmacao';
+import GarrafasAbertasContagem, { type ItemComAberta } from '../components/GarrafasAbertasContagem';
 
 /**
  * "O que sumiu" — contagem cíclica de estoque (FASE 3.1).
@@ -53,6 +54,8 @@ interface Divergente {
 
 type Decisao = 'sumiu' | 'recontar' | 'ajustar';
 
+type LinhaConferida = { produto_id: number; nome: string; garrafas_abertas?: ItemComAberta['garrafas'] };
+
 type Etapa = 'secoes' | 'bipagem' | 'conferencia';
 
 const EstoqueCountsPage: React.FC = () => {
@@ -64,6 +67,7 @@ const EstoqueCountsPage: React.FC = () => {
     const [contagem, setContagem] = useState<{ id: number; nome: string } | null>(null);
     const [itens, setItens] = useState<ItemContagem[]>([]);
     const [divergentes, setDivergentes] = useState<Divergente[]>([]);
+    const [abertas, setAbertas] = useState<ItemComAberta[]>([]);
     const [itensOk, setItensOk] = useState(0);
     const [decisoes, setDecisoes] = useState<Record<number, Decisao>>({});
     const [bipando, setBipando] = useState(false);
@@ -150,6 +154,10 @@ const EstoqueCountsPage: React.FC = () => {
         try {
             const { data } = await apiClient.get(`/contagem/${contagem.id}/conferir`);
             setDivergentes(data.divergentes || []);
+            // Bebida que vende por dose: a garrafa aberta não é bipada, conta-se em ml (bloco abaixo).
+            setAbertas([...(data.ok || []), ...(data.divergentes || [])]
+                .filter((l: LinhaConferida) => (l.garrafas_abertas || []).length > 0)
+                .map((l: LinhaConferida) => ({ produto_id: l.produto_id, nome: l.nome, garrafas: l.garrafas_abertas! })));
             setItensOk(data.resumo?.itens_ok ?? 0);
             setDecisoes(Object.fromEntries(
                 (data.divergentes || []).map((d: Divergente) => [d.produto_id, d.divergencia < 0 ? 'sumiu' : 'ajustar'])
@@ -406,6 +414,8 @@ const EstoqueCountsPage: React.FC = () => {
                     ))}
                 </ul>
             )}
+
+            <GarrafasAbertasContagem itens={abertas} />
 
             {divergentes.length > 0 && (
                 <button

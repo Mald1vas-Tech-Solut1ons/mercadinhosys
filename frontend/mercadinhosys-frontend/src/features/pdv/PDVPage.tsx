@@ -15,7 +15,8 @@ import {
     Lock,
     AlertTriangle,
     Search,
-    Wallet
+    Wallet,
+    GlassWater
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProdutoSearch from './components/ProdutoSearch';
@@ -27,6 +28,9 @@ import CupomFiscalModal from './components/CupomFiscalModal';
 import ReimprimirCupomModal, { type CupomParaReimprimir } from './components/ReimprimirCupomModal';
 import { salvarCupomLocal, salvarCabecalhoCupom, codigoOffline } from './cupomLocal';
 import PesoInputModal from './components/PesoInputModal';
+import DoseSheet, { type EscolhaDose } from './components/DoseSheet';
+import CardapioDoses from './components/CardapioDoses';
+import { chaveDe, nomeDaLinha, temDoses, type ProdutoPdv } from './utils/dosesPdv';
 import { usePDV } from '../../hooks/usePDV';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
 import { pdvService, genUuid, type ComprovanteVendaResponse } from './pdvService';
@@ -159,7 +163,7 @@ const PDVPage: React.FC = () => {
     const [listaReimpressaoAberta, setListaReimpressaoAberta] = useState(false);
     const [reimpressao, setReimpressao] = useState<CupomParaReimprimir | null>(null);
     // FASE 1.7: desconto pendente de autorização (o PinDialog abre com esse contexto)
-    const [descontoPendente, setDescontoPendente] = useState<{ produtoId: number; desconto: number; percentual: boolean } | null>(null);
+    const [descontoPendente, setDescontoPendente] = useState<{ produtoId: number | string; desconto: number; percentual: boolean } | null>(null);
     // Consulta de preço sem vender: resposta grande na tela, some em 5s.
     const [modoConsulta, setModoConsulta] = useState(false);
     const [consultaPreco, setConsultaPreco] = useState<{ nome: string; preco: number; unidade: string } | null>(null);
@@ -167,6 +171,11 @@ const PDVPage: React.FC = () => {
     useEffect(() => { salvarCabecalhoCupom(configuracoes?.cupom_cabecalho); }, [configuracoes?.cupom_cabecalho]);
     const [mostrarModalPeso, setMostrarModalPeso] = useState(false);
     const [produtoPendentePeso, setProdutoPendentePeso] = useState<any>(null);
+    // Venda por dose: produto esperando a escolha (garrafa/dose), cardápio de doses e recarga do saldo aberto.
+    const [produtoPendenteDose, setProdutoPendenteDose] = useState<ProdutoPdv | null>(null);
+    const [cardapioAberto, setCardapioAberto] = useState(false);
+    const [versaoDoses, setVersaoDoses] = useState(0);
+    const selecionarProdutoRef = useRef<(p: any) => void>(() => {});
 
     // FASE 1.1: Bloqueio total sem caixa aberto — o PDV mostra só o botão "Abrir Caixa"
     const bloqueioCaixa = !caixaAberto && !loading;
@@ -244,7 +253,8 @@ const PDVPage: React.FC = () => {
                     }
                     try {
                         const p = await pdvService.buscarPorCodigoBarras(code);
-                        if (p) { if (adicionarProduto(p as any)) showToast.success(`Lido: ${p.nome}`); }
+                        if (p && temDoses(p as any)) selecionarProdutoRef.current(p);        // bebida com dose: pergunta o que servir
+                        else if (p) { if (adicionarProduto(p as any)) showToast.success(`Lido: ${p.nome}`); }
                         else showToast.error(`Código ${code} não encontrado`);
                     } catch (err) { showToast.error(mensagemErro(err, 'Erro ao ler código de barras')); }
                 }
@@ -303,7 +313,7 @@ const PDVPage: React.FC = () => {
         };
         const uuidVenda = checkoutUuidRef.current!;  // definido logo acima
         const itensCupom = carrinho.map((item: any) => ({
-            nome: item.produto.nome,
+            nome: nomeDaLinha(item.produto.nome, item.dose),
             codigo: item.produto.codigo_barras,
             quantidade: item.quantidade,
             precoUnitario: item.precoUnitario,
@@ -355,6 +365,7 @@ const PDVPage: React.FC = () => {
                     console.warn('Não foi possível guardar a cópia do cupom no aparelho', e);
                 }
                 setVendaFinalizada({ ...venda, codigo, ...resumo, cupomLocal });
+                setVersaoDoses(v => v + 1);        // o saldo da garrafa aberta mudou: recarrega o cardápio de doses
                 setFormaPagamentoAberta(false);
                 // Limpa carrinho/pagamentos JÁ: um novo F9/F10 não tem o que reenviar.
                 limparCarrinho();
@@ -403,7 +414,7 @@ const PDVPage: React.FC = () => {
         setFormaPagamentoAberta(true);
     };
 
-    const handleAplicarDesconto = (produtoId: number, val: number, perc: boolean) => {
+    const handleAplicarDesconto = (produtoId: number | string, val: number, perc: boolean) => {
         try {
             aplicarDescontoItem(produtoId, val, perc);
         } catch (e: any) {
@@ -467,6 +478,11 @@ const PDVPage: React.FC = () => {
             window.setTimeout(() => setConsultaPreco(null), 5000);
             return;
         }
+        if (temDoses(p)) {
+            // Bebida que vende por dose: o caixa escolhe garrafa inteira ou uma das doses do lojista.
+            setProdutoPendenteDose(p);
+            return;
+        }
         const aGranel = ['KG', 'G', 'L', 'ML'].includes(p.unidade_medida?.toUpperCase()) || p.tipo === 'granel';
 
         if (aGranel) {
@@ -475,6 +491,22 @@ const PDVPage: React.FC = () => {
         } else {
             adicionarProduto(p, 1);
         }
+    };
+
+    selecionarProdutoRef.current = handleProdutoSelecionado;
+
+    const estoqueFechadoDe = (p: any) => {
+        const n = Number(p.estoque_atual ?? p.quantidade_estoque ?? p.quantidade ?? 0);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    // Escolha da folha ou do cardápio → carrinho. Garrafa inteira entra como produto comum.
+    const adicionarEscolhaDeDose = (produto: ProdutoPdv, escolha: EscolhaDose) => {
+        const ok = escolha.tipo === 'garrafa'
+            ? adicionarProduto(produto as any, 1)
+            : adicionarProduto(produto as any, 1, { dose: escolha.dose, preco: escolha.preco });
+        if (ok) showToast.success(escolha.tipo === 'garrafa' ? `+1 ${produto.nome}` : `+1 ${produto.nome} · ${escolha.dose.nome}`);
+        setProdutoPendenteDose(null);
     };
 
     const fecharModalPesoSemToast = () => {
@@ -597,6 +629,19 @@ const PDVPage: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {produtoPendenteDose && temDoses(produtoPendenteDose) && (
+                <DoseSheet
+                    produto={produtoPendenteDose}
+                    estoqueFechado={estoqueFechadoDe(produtoPendenteDose)}
+                    carrinho={carrinho}
+                    offline={!isOnline}
+                    permitirSemEstoque={configuracoes?.permitir_venda_sem_estoque ?? false}
+                    onEscolher={(escolha) => adicionarEscolhaDeDose(produtoPendenteDose, escolha)}
+                    onFechar={() => setProdutoPendenteDose(null)}
+                    onGarrafaEncerrada={() => { setProdutoPendenteDose(null); setVersaoDoses(v => v + 1); }}
+                />
+            )}
+
             <PinDialog
                 open={!!descontoPendente}
                 title="Autorizar desconto"
@@ -680,6 +725,23 @@ const PDVPage: React.FC = () => {
                                 <Search className="h-4 w-4" />
                                 {modoConsulta ? 'Consultando — bipe o produto' : 'Só consultar preço'}
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setCardapioAberto(v => !v)}
+                                aria-pressed={cardapioAberto}
+                                className={`mt-2 ml-2 inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black uppercase tracking-wide transition-colors ${cardapioAberto
+                                    ? 'border-blue-500 bg-blue-600 text-white'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}
+                            >
+                                <GlassWater className="h-4 w-4" />
+                                Doses
+                            </button>
+                            {cardapioAberto && (
+                                <div className="mt-3">
+                                    <CardapioDoses versao={versaoDoses} offline={!isOnline}
+                                        onEscolher={(p, escolha) => adicionarEscolhaDeDose(p, escolha)} />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -696,15 +758,16 @@ const PDVPage: React.FC = () => {
                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {carrinho.map((item: any) => (
                                     <CarrinhoItem
-                                        key={item.produto.id}
+                                        key={chaveDe(item)}
                                         produto={item.produto}
                                         quantidade={item.quantidade}
                                         precoUnitario={item.precoUnitario}
                                         desconto={item.desconto}
                                         total={item.total}
-                                        onAtualizarQuantidade={(qtd) => atualizarQuantidade(item.produto.id, qtd)}
-                                        onRemover={() => removerProduto(item.produto.id)}
-                                        onAplicarDesconto={(val, perc) => handleAplicarDesconto(item.produto.id, val, perc)}
+                                        dose={item.dose}
+                                        onAtualizarQuantidade={(qtd) => atualizarQuantidade(chaveDe(item), qtd)}
+                                        onRemover={() => removerProduto(chaveDe(item))}
+                                        onAplicarDesconto={(val, perc) => handleAplicarDesconto(chaveDe(item), val, perc)}
                                     />
                                 ))}
                             </div>

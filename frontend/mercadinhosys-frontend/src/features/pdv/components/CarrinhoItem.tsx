@@ -7,6 +7,7 @@ import { parseDataValidade } from '../../../utils/validade';
 import { showToast } from '../../../utils/toast';
 import { useConfig } from '../../../contexts/ConfigContext';
 import ImageZoomModal from '../../../components/ui/ImageZoomModal';
+import { DoseDaLinha, rotuloDaDose } from '../utils/dosesPdv';
 
 interface CarrinhoItemProps {
     produto: Produto;
@@ -17,6 +18,8 @@ interface CarrinhoItemProps {
     onAtualizarQuantidade: (quantidade: number) => void;
     onRemover: () => void;
     onAplicarDesconto: (desconto: number, percentual: boolean) => void;
+    /** Linha vendida por dose: quantidade = nº de doses, preço = preço de UMA dose. */
+    dose?: DoseDaLinha;
 }
 
 const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
@@ -28,8 +31,10 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
     onAtualizarQuantidade,
     onRemover,
     onAplicarDesconto,
+    dose,
 }) => {
-    const isGranel = ['KG', 'L', 'G', 'ML'].includes(produto.unidade_medida?.toUpperCase()) || (produto as any).tipo === 'granel';
+    // Dose é contada em copos (inteiro) mesmo que a garrafa seja em L/ml.
+    const isGranel = !dose && (['KG', 'L', 'G', 'ML'].includes(produto.unidade_medida?.toUpperCase()) || (produto as any).tipo === 'granel');
 
     const { config } = useConfig();
     const mostrarFotoProduto = config?.mostrar_foto_produto_pdv ?? false;
@@ -156,9 +161,15 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                         <h4 className="font-bold text-slate-800 dark:text-white text-sm leading-tight uppercase tracking-tight truncate">
                             {produto.nome}
                         </h4>
+                        {dose && (
+                            <p className="mt-0.5 inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/30 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-blue-700 dark:text-blue-300"
+                                data-testid="linha-dose">
+                                {rotuloDaDose(dose)}
+                            </p>
+                        )}
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                             <span className="text-xs font-bold text-slate-500 dark:text-gray-400">
-                                {formatCurrency(precoUnitario)}<span className="text-[10px] opacity-50">/un</span>
+                                {formatCurrency(precoUnitario)}<span className="text-[10px] opacity-50">/{dose ? 'dose' : 'un'}</span>
                             </span>
                             {produto.codigo_barras && (
                                 <span className="text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded uppercase tracking-wide">
@@ -166,7 +177,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                                 </span>
                             )}
                             {/* Estoque disponível */}
-                            {(() => {
+                            {!dose && (() => {
                                 const estoque = produto.estoque_atual ?? (produto as any).quantidade_estoque ?? (produto as any).quantidade ?? null;
                                 if (estoque === null) return null;
                                 const baixo = estoque <= 5;
@@ -254,7 +265,7 @@ const CarrinhoItem: React.FC<CarrinhoItemProps> = ({
                             </button>
                         </div>
                         <span className="text-[10px] font-black text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg uppercase tracking-widest shrink-0">
-                            {produto.unidade_medida || 'UN'}
+                            {dose ? 'DOSE' : (produto.unidade_medida || 'UN')}
                         </span>
                     </div>
 

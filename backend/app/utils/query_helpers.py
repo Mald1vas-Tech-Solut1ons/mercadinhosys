@@ -690,13 +690,21 @@ def get_venda_itens_safe(venda_id):
         sql = """
             SELECT vi.id, vi.produto_id, vi.quantidade, vi.preco_unitario, vi.total_item,
                    p.nome as produto_nome, p.codigo_barras,
-                   p.icms_aliquota, p.pis_aliquota, p.cofins_aliquota
+                   p.icms_aliquota, p.pis_aliquota, p.cofins_aliquota,
+                   vi.dose_nome, vi.dose_volume_ml
             FROM venda_itens vi
             JOIN produtos p ON vi.produto_id = p.id
             WHERE vi.venda_id = :vid
         """
         tenant_filter, params = _filtro_tenant_sql({"vid": venda_id}, coluna="vi.estabelecimento_id")
         rows = db.session.execute(text(sql + tenant_filter), params).fetchall()
+
+        def nome_no_cupom(nome, dose_nome, dose_ml):
+            # Item de dose sai no cupom como "WHISKY 1L - Dose (50 ml)": quantidade e preço são por dose.
+            if not dose_nome:
+                return nome
+            ml = f"{float(dose_ml):g}".replace(".", ",") if dose_ml is not None else ""
+            return f"{nome} - {dose_nome}" + (f" ({ml} ml)" if ml else "")
 
         return [
             {
@@ -705,11 +713,13 @@ def get_venda_itens_safe(venda_id):
                 "quantidade": r[2],
                 "preco_unitario": r[3],
                 "total_item": r[4],
-                "produto_nome": r[5],
+                "produto_nome": nome_no_cupom(r[5], r[10], r[11]),
                 "produto_codigo": r[6],
                 "icms_aliquota": float(r[7] or 0),
                 "pis_aliquota": float(r[8] or 0),
                 "cofins_aliquota": float(r[9] or 0),
+                "dose_nome": r[10],
+                "dose_volume_ml": float(r[11]) if r[11] is not None else None,
             }
             for r in rows
         ]

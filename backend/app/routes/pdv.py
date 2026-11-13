@@ -19,6 +19,7 @@ from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import get_jwt_identity, jwt_required, get_jwt
 from app.models import db, Produto, Venda, VendaItem, MovimentacaoEstoque, Configuracao, Funcionario, Cliente, Auditoria
 from app.decorators.decorator_jwt import funcionario_required
+from app.services import dose_service
 from app.services.estoque_service import registrar_saida
 import pytz
 import uuid
@@ -621,9 +622,13 @@ def validar_produto():
             alerta_alto_giro = True
             mensagem_alerta = "Produto de Alto Giro - Verificar se precisa de reposição na gôndola"
             
+        oferta_dose = dose_service.oferta_pdv(
+            None if str(estabelecimento_id).lower() == "all" else estabelecimento_id, [produto_data.get("id")]
+        ).get(produto_data.get("id"), {})
         return jsonify({
             "valido": True,
             "produto": {
+                **oferta_dose,
                 "id": produto_data.get("id"),
                 "nome": produto_data.get("nome"),
                 "codigo_barras": produto_data.get("codigo_barras"),
@@ -741,6 +746,7 @@ def catalogo_offline():
             "preco_venda": float(r[4] or 0), "quantidade": float(r[5] or 0),
             "unidade_medida": r[6] or "UN",
         } for r in q.all()]
+        _anexar_doses(produtos, estabelecimento_id, todos=True)
         return jsonify({
             "success": True, "produtos": produtos, "total": len(produtos),
             "gerado_em": iso_utc(datetime.now(timezone.utc)),
@@ -748,6 +754,53 @@ def catalogo_offline():
     except Exception as e:
         current_app.logger.error(f"Erro em catalogo_offline: {e}")
         return jsonify({"success": False, "error": "Falha ao montar catálogo offline"}), 500
+
+
+def _anexar_doses(produtos, estabelecimento_id, todos=False):
+    """Põe em cada produto que vende por dose as doses, o volume da garrafa e o saldo aberto (venda no balcão).
+
+    Nunca derruba a busca do PDV: se a leitura das doses falhar, o produto segue como venda comum.
+    """
+    try:
+        estab = None if str(estabelecimento_id).lower() == "all" else estabelecimento_id
+        oferta = dose_service.oferta_pdv(estab, None if todos else [p["id"] for p in produtos])
+        for p in produtos:
+            p.update(oferta.get(p["id"], {}))
+    except Exception as erro:  # pragma: no cover - defesa
+        current_app.logger.warning(f"Doses indisponíveis na busca do PDV: {erro}")
+
+
+@pdv_bp.route("/cardapio-doses", methods=["GET"])
+@funcionario_required
+def cardapio_doses():
+    """Bebidas que vendem por dose (com o que dá para servir agora): os botões rápidos do caixa de bar.
+
+    Uma linha por produto com as doses ativas, o saldo da garrafa aberta e o estoque fechado.
+    """
+    try:
+        from app.utils.query_helpers import get_authorized_establishment_id
+        estabelecimento_id = get_authorized_establishment_id()
+        if str(estabelecimento_id).lower() == "all":
+            return jsonify({"success": True, "produtos": []}), 200
+        oferta = dose_service.oferta_pdv(estabelecimento_id)
+        if not oferta:
+            return jsonify({"success": True, "produtos": []}), 200
+        produtos = Produto.query.filter(Produto.estabelecimento_id == estabelecimento_id,
+                                        Produto.id.in_(list(oferta))).order_by(Produto.nome).all()
+        itens = []
+        for p in produtos:
+            fechadas = float(p.quantidade or 0)
+            item = {"id": p.id, "nome": p.nome, "marca": p.marca or "", "imagem_url": p.imagem_url or "",
+                    "preco_venda": float(p.preco_venda or 0), "preco_venda_efetivo": float(p.preco_venda or 0),
+                    "quantidade_estoque": fechadas, "estoque_atual": fechadas, "quantidade": fechadas,
+                    "unidade_medida": p.unidade_medida or "UN", **oferta[p.id]}
+            # Só aparece o que dá para servir: garrafa aberta com saldo ou garrafa fechada em estoque.
+            if fechadas > 0 or item["saldo_aberto_ml"] > 0:
+                itens.append(item)
+        return jsonify({"success": True, "produtos": itens}), 200
+    except Exception as erro:
+        current_app.logger.error(f"Erro no cardápio de doses: {erro}")
+        return jsonify({"success": False, "error": "Falha ao montar o cardápio de doses"}), 500
 
 
 @pdv_bp.route("/buscar-produtos", methods=["GET"])
@@ -837,6 +890,7 @@ def buscar_produtos_pdv():
                 "data_validade": str(row_map["data_validade"]) if row_map.get("data_validade") else None,
             })
 
+        _anexar_doses(produtos, estabelecimento_id)
         return jsonify({"success": True, "produtos": produtos}), 200
 
     except Exception as e:
@@ -1107,13 +1161,23 @@ def finalizar_venda():
                 preco_unitario = to_decimal(item_data.get("price") or item_data.get("preco_unitario", produto.preco_venda))
                 total_item = to_decimal(preco_unitario * quantidade, precision=2)
 
+                # Item de dose (`dose_id`): baixa ml da garrafa aberta; sem `dose_id`, venda comum.
                 try:
-                    _, custo_unitario = registrar_saida(
-                        produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
-                        motivo=f"Venda PDV {nova_venda.codigo}", data=data_venda,
-                        permitir_sem_estoque=vende_sem_estoque)
+                    item_dose = dose_service.baixar_item(
+                        produto, item_data, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
+                        data=data_venda, permitir_sem_estoque=vende_sem_estoque)
+                    if item_dose is not None:
+                        custo_unitario, extras_dose = item_dose.custo_unitario, item_dose.colunas
+                    else:
+                        _, custo_unitario = registrar_saida(
+                            produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
+                            motivo=f"Venda PDV {nova_venda.codigo}", data=data_venda,
+                            permitir_sem_estoque=vende_sem_estoque)
+                        extras_dose = {}
                 except ValueError as erro_estoque:
                     db.session.rollback()
+                    if getattr(erro_estoque, "resposta", None) is not None:
+                        return erro_estoque.resposta
                     return jsonify({"error": str(erro_estoque)}), 400
 
                 novo_item = VendaItem(
@@ -1122,7 +1186,7 @@ def finalizar_venda():
                     produto_id=produto.id,
                     produto_nome=produto.nome,
                     produto_codigo=produto.codigo_interno or produto.codigo_barras,
-                    produto_unidade=produto.unidade_medida or "UN",
+                    **{"produto_unidade": produto.unidade_medida or "UN", **extras_dose},
                     quantidade=quantidade,
                     preco_unitario=preco_unitario,
                     total_item=total_item,
@@ -1136,11 +1200,17 @@ def finalizar_venda():
                     margem_lucro_real=to_decimal((preco_unitario - custo_unitario) * quantidade, precision=2)
                 )
                 db.session.add(novo_item)
+                if item_dose is not None:
+                    db.session.flush()
+                    dose_service.vincular_item(item_dose.resultado, novo_item)
 
                 # Mantém os contadores denormalizados em sincronia com o ledger,
                 # para as telas de LISTAGEM (giro, mais vendidos) não ficarem zeradas.
                 # O HUB do produto agrega ao vivo; aqui é a via rápida das listas.
-                produto.quantidade_vendida = to_decimal((produto.quantidade_vendida or 0) + quantidade, precision=3)
+                # Dose conta em garrafas equivalentes: o contador é na unidade de estoque.
+                produto.quantidade_vendida = to_decimal(
+                    (produto.quantidade_vendida or 0) + (item_dose.resultado.qtd_base if item_dose else quantidade),
+                    precision=6)
                 produto.total_vendido = to_decimal((produto.total_vendido or 0) + total_item, precision=2)
                 produto.ultima_venda = data_venda
 

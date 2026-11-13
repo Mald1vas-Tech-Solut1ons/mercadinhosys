@@ -94,7 +94,9 @@ def test_revisao_e_a_cabeca_unica():
     config = Config()
     config.set_main_option("script_location", str(CAMINHO.parent.parent))
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["c3e9a5f1b7d2"]
+    # Cabeça única (sem ramo paralelo) e a cadeia da produção continua dentro dela, mesmo com migrations novas por cima.
+    [cabeca] = script.get_heads()
+    assert "c3e9a5f1b7d2" in {r.revision for r in script.iterate_revisions(cabeca, "base")}
     assert script.get_revision("c3e9a5f1b7d2").down_revision == "b8d4f0a2c3e5"
     assert script.get_revision("b8d4f0a2c3e5").down_revision == "a7c3e9f1b2d4"
 

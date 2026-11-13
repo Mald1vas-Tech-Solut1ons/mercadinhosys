@@ -388,7 +388,7 @@ class DataLayer:
                 Produto.nome,
                 Produto.preco_custo,
                 Produto.preco_venda,
-                func.sum(VendaItem.quantidade).label('quantidade_vendida'),
+                func.sum(VendaItem.quantidade_base).label('quantidade_vendida'),
                 func.sum(VendaItem.total_item).label('faturamento')
             ).join(VendaItem, VendaItem.produto_id == Produto.id)\
              .join(Venda, Venda.id == VendaItem.venda_id)\
@@ -441,7 +441,7 @@ class DataLayer:
             # Necessário para não filtrar os produtos quando fizermos o LEFT JOIN
             query_vendas = db.session.query(
                 VendaItem.produto_id,
-                func.sum(VendaItem.quantidade).label('qtd'),
+                func.sum(VendaItem.quantidade_base).label('qtd'),
                 func.sum(VendaItem.total_item).label('total')
             ).join(Venda, Venda.id == VendaItem.venda_id).filter(
                 Venda.data_venda >= start_date,
@@ -519,7 +519,7 @@ class DataLayer:
             vendas_q = db.session.query(
                 Produto.fornecedor_id.label('fid'),
                 func.sum(VendaItem.total_item).label('total_faturado'),
-                func.sum(VendaItem.quantidade).label('total_itens')
+                func.sum(VendaItem.quantidade_base).label('total_itens')
             ).select_from(VendaItem).join(
                 Venda, Venda.id == VendaItem.venda_id
             ).join(
@@ -746,7 +746,7 @@ class DataLayer:
                 hour_extract.label('hora'),
                 Produto.id,
                 Produto.nome,
-                func.sum(VendaItem.quantidade).label('quantidade_vendida'),
+                func.sum(VendaItem.quantidade_base).label('quantidade_vendida'),
                 func.sum(VendaItem.total_item).label('faturamento')
             ).join(VendaItem, VendaItem.produto_id == Produto.id)\
              .join(Venda, Venda.id == VendaItem.venda_id)\
@@ -2139,7 +2139,7 @@ class DataLayer:
             from app.models import VendaItem
             query_top_prod = db.session.query(
                 VendaItem.produto_nome,
-                func.sum(VendaItem.quantidade).label('qtde'),
+                func.sum(VendaItem.quantidade_base).label('qtde'),
                 func.sum(VendaItem.total_item).label('valor')
             ).join(Venda, Venda.id == VendaItem.venda_id).join(
                 PagamentoModel, PagamentoModel.venda_id == Venda.id

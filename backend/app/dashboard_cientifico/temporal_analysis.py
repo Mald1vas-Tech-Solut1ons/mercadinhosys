@@ -214,7 +214,7 @@ class TemporalAnalysis:
                 hour_extract.label('hora'),
                 func.coalesce(CategoriaProduto.nome, 'Geral').label('categoria'),
                 VendaItem.produto_nome.label('produto'),
-                func.sum(VendaItem.quantidade).label('quantidade_vendida'),
+                func.sum(VendaItem.quantidade_base).label('quantidade_vendida'),
                 func.sum(VendaItem.total_item).label('faturamento'),
                 func.count(Venda.id).label('frequencia')
             ).join(

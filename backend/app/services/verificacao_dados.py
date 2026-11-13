@@ -54,7 +54,7 @@ def vendas_do_produto(estab_id=None):
     """quantidade_vendida/total_vendido do produto x itens de vendas não canceladas (mesma regra do backfill)."""
     ledger = db.session.query(
         VendaItem.produto_id.label("pid"),
-        func.sum(VendaItem.quantidade).label("qtd"),
+        func.sum(VendaItem.quantidade_base).label("qtd"),
         func.sum(VendaItem.total_item).label("total"),
     ).join(Venda, Venda.id == VendaItem.venda_id) \
         .filter(func.lower(func.coalesce(Venda.status, "")) != "cancelada")

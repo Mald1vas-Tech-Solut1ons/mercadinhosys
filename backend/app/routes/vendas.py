@@ -508,10 +508,10 @@ def estatisticas_vendas():
 
         produtos_res = db.session.query(
             Produto.nome, Fornecedor.nome_fantasia,
-            func.sum(VendaItem.quantidade), func.sum(VendaItem.total_item)
+            func.sum(VendaItem.quantidade_base), func.sum(VendaItem.total_item)
         ).join(VendaItem, VendaItem.produto_id == Produto.id).outerjoin(Fornecedor).filter(
             VendaItem.venda_id.in_(ids_select)
-        ).group_by(Produto.id, Produto.nome, Fornecedor.nome_fantasia).order_by(func.sum(VendaItem.quantidade).desc()).limit(10).all()
+        ).group_by(Produto.id, Produto.nome, Fornecedor.nome_fantasia).order_by(func.sum(VendaItem.quantidade_base).desc()).limit(10).all()
 
         fornecedores_res = db.session.query(
             Fornecedor.nome_fantasia,
@@ -607,7 +607,7 @@ def relatorio_diario():
         produtos_dia = defaultdict(lambda: {"quantidade": 0, "total": 0, "nome": ""})
         for v in vendas:
             for item in v.itens:
-                produtos_dia[item.produto_id]["quantidade"] += float(item.quantidade)
+                produtos_dia[item.produto_id]["quantidade"] += float(item.quantidade_base)  # garrafas, não doses
                 produtos_dia[item.produto_id]["total"] += float(item.total_item)
                 produtos_dia[item.produto_id]["nome"] = item.produto_nome
 
@@ -884,6 +884,7 @@ def criar_venda():
             db.session.flush()
 
             from app.services.estoque_service import registrar_saida
+            from app.services import dose_service
             for item_data in data["items"]:
                 # Extração robusta de campos (suporte a múltiplos padrões de frontend)
                 produto_id = item_data.get("id") or item_data.get("productId") or item_data.get("produto_id")
@@ -901,9 +902,16 @@ def criar_venda():
                     raise Exception("Produto inativo")
 
                 total_item = (preco_unitario * quantidade).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                _, custo_unitario = registrar_saida(
-                    produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
-                    motivo=f"Venda #{nova_venda.codigo}")
+                # Item de dose (`dose_id`) baixa ml da garrafa aberta; sem `dose_id`, venda comum.
+                item_dose = dose_service.baixar_item(
+                    produto, item_data, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id)
+                if item_dose is not None:
+                    custo_unitario, extras_dose = item_dose.custo_unitario, item_dose.colunas
+                else:
+                    _, custo_unitario = registrar_saida(
+                        produto, quantidade, venda_id=nova_venda.id, funcionario_id=nova_venda.funcionario_id,
+                        motivo=f"Venda #{nova_venda.codigo}")
+                    extras_dose = {}
                 venda_item = VendaItem(
                     venda_id=nova_venda.id,
                     estabelecimento_id=estabelecimento_id, # Usar variável local garantida
@@ -914,7 +922,7 @@ def criar_venda():
                     total_item=total_item,
                     produto_nome=produto.nome,
                     produto_codigo=produto.codigo_barras or produto.codigo_interno,
-                    produto_unidade=produto.unidade_medida or "UN",
+                    **{"produto_unidade": produto.unidade_medida or "UN", **extras_dose},
                     custo_unitario=custo_unitario,
                     # Retrato da classificação no momento da venda (PLANO §2).
                     familia_produto=produto.familia_produto,
@@ -923,8 +931,13 @@ def criar_venda():
                     margem_lucro_real=((preco_unitario - custo_unitario) * quantidade).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                 )
                 db.session.add(venda_item)
+                if item_dose is not None:
+                    db.session.flush()
+                    dose_service.vincular_item(item_dose.resultado, venda_item)
 
-                produto.quantidade_vendida = Decimal(str(produto.quantidade_vendida or 0)) + quantidade
+                # Dose conta em garrafas equivalentes: o contador é na unidade de estoque.
+                produto.quantidade_vendida = Decimal(str(produto.quantidade_vendida or 0)) + (
+                    item_dose.resultado.qtd_base if item_dose else quantidade)
                 produto.total_vendido = Decimal(str(produto.total_vendido or 0)) + total_item
                 produto.ultima_venda = datetime.now(timezone.utc)
 
@@ -1004,6 +1017,8 @@ def criar_venda():
 
         except Exception as inner_e:
             db.session.rollback()
+            if getattr(inner_e, "resposta", None) is not None:      # dose livre sem autorização: pede o PIN
+                return inner_e.resposta
             return jsonify({"error": "FALHA_PROCESSAMENTO", "message": str(inner_e)}), 400
 
     except Exception as e:
@@ -1134,14 +1149,14 @@ def vendas_do_dia():
 
         produtos_mais_vendidos = db.session.query(
             VendaItem.produto_nome,
-            func.sum(VendaItem.quantidade).label("quantidade_total"),
+            func.sum(VendaItem.quantidade_base).label("quantidade_total"),
             func.sum(VendaItem.total_item).label("total_vendido"),
         ).join(Venda).filter(
             Venda.estabelecimento_id == estabelecimento_id,
             Venda.created_at >= inicio_utc,
             Venda.created_at < fim_utc,
             Venda.status == "finalizada",
-        ).group_by(VendaItem.produto_nome).order_by(func.sum(VendaItem.quantidade).desc()).limit(10).all()
+        ).group_by(VendaItem.produto_nome).order_by(func.sum(VendaItem.quantidade_base).desc()).limit(10).all()
 
         return jsonify({
             "data": iso_utc(hoje),
@@ -1291,9 +1306,11 @@ def cancelar_venda(venda_id):
                           [{'productId': item.produto_id} for item in venda.itens], venda.cliente_id)
             # O razão de movimentos diz o que saiu. Vendas antigas sem movimento
             # tiveram baixa sem rastro, exceto a venda-entrega legada, que nunca baixou.
+            # Item de dose nunca entra aqui: a quantidade dele é de doses, não de unidades de estoque
+            # (os ml voltam pelo razão de ml, logo abaixo).
             legado = None if venda.tipo_venda == 'delivery' else [
                 (item.produto_id, item.quantidade) for item in venda.itens
-                if item.produto is not None and controla_estoque(item.produto)]
+                if not item.eh_dose and item.produto is not None and controla_estoque(item.produto)]
             # Só entra em itens_perda produto que é desta venda: id solto não pode
             # virar perda de outro item.
             da_venda = {item.produto_id for item in venda.itens}
@@ -1307,14 +1324,20 @@ def cancelar_venda(venda_id):
                                   produtos_perda=itens_perda)
             from app.services.estoque_service import registrar_perda_de_venda
             registrar_perda_de_venda(venda, itens_perda, funcionario_id=funcionario_id)
+            # Doses: os ml voltam à garrafa de origem (ou viram perda, se a dose não volta ao balcão).
+            from app.services import dose_service
+            dose_service.estornar_doses_venda(
+                venda.id, venda.estabelecimento_id, funcionario_id=funcionario_id,
+                motivo=f"Cancelamento da venda #{venda.codigo}", produtos_perda=itens_perda)
             for item in venda.itens:
                 produto = Produto.query.filter_by(id=item.produto_id, estabelecimento_id=estabelecimento_id).first()
                 if produto:
                     # Reverter denormalizações do produto — sem isso, giro/curva
                     # ABC/ranking de mais vendidos ficavam inflados por vendas
                     # que na verdade foram desfeitas.
+                    # Na unidade de estoque (dose = garrafas equivalentes), a mesma que a venda somou.
                     produto.quantidade_vendida = max(
-                        Decimal(0), Decimal(str(produto.quantidade_vendida or 0)) - Decimal(str(item.quantidade))
+                        Decimal(0), Decimal(str(produto.quantidade_vendida or 0)) - Decimal(str(item.quantidade_base))
                     )
                     produto.total_vendido = max(
                         Decimal(0), Decimal(str(produto.total_vendido or 0)) - Decimal(str(item.total_item or 0))

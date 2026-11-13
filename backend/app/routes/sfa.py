@@ -368,7 +368,7 @@ def kpi_vendedor():
         if foco_rows:
             itens_foco = db.session.execute(
                 text("""
-                    SELECT COALESCE(SUM(vi.quantidade), 0) as total
+                    SELECT COALESCE(SUM(COALESCE(vi.qtd_base, vi.quantidade)), 0) as total
                     FROM venda_itens vi
                     JOIN vendas v ON v.id = vi.venda_id
                     WHERE v.funcionario_id = :vid

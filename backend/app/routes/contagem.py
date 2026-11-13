@@ -267,6 +267,13 @@ def conferir(contagem_id):
         return jsonify({"error": "Contagem não encontrada"}), 404
 
     divergentes, ok = [], []
+    # Bebida que vende por dose: o bip conta as garrafas FECHADAS; a aberta não está na prateleira e se conta em
+    # ml (ajuste da garrafa). Devolve as abertas de cada produto para a tela mandar o dono contá-las.
+    from app.services import dose_service
+    abertas_por_produto = {}
+    for garrafa in dose_service.garrafas_abertas_da_loja(estab_id):
+        abertas_por_produto.setdefault(garrafa.produto_id, []).append(
+            {"id": garrafa.id, "saldo_ml": float(garrafa.saldo_ml), "volume_inicial_ml": float(garrafa.volume_inicial_ml)})
     for item in contagem.itens:
         divergencia = _num(item.quantidade_contada) - _num(item.quantidade_esperada)
         item.divergencia = divergencia
@@ -284,6 +291,8 @@ def conferir(contagem_id):
             "fora_da_secao": bool(item.fora_da_secao),
             "decisao": item.decisao,
         }
+        if item.produto_id in abertas_por_produto:
+            linha["garrafas_abertas"] = abertas_por_produto[item.produto_id]
         (ok if divergencia == 0 else divergentes).append(linha)
 
     if contagem.status == "aberta":

@@ -272,8 +272,11 @@ def registrar_perda_de_venda(venda, produtos_perda, *, funcionario_id, motivo="P
     registrados = []
     for produto_id in perda:
         # Quantidade que a venda consumiu deste produto (agregando mais de um item do mesmo produto).
+        # Item de dose fica de fora: a quantidade dele é de doses e a perda dele é em ml
+        # (dose_service.estornar_doses_venda registra a perda no razão de ml).
         quantidade = sum(
-            (Decimal(str(item.quantidade or 0)) for item in venda.itens if item.produto_id == produto_id),
+            (Decimal(str(item.quantidade or 0)) for item in venda.itens
+             if item.produto_id == produto_id and not item.eh_dose),
             Decimal("0"),
         )
         if quantidade <= 0:

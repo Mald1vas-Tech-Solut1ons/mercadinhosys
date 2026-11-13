@@ -565,6 +565,12 @@ class Configuracao(db.Model, MultiTenantMixin, SerializableMixin):
     aliquota_impostos_venda = db.Column(db.Numeric(5, 2), nullable=True)
     # LGPD / Opt-in do Consultor da Loja (IA): ativo por padrão, loja pode desligar a qualquer momento
     ai_consultor_ativo = db.Column(db.Boolean, nullable=False, server_default=db.true(), default=True)
+    # ---- Venda por dose (padrões da loja; cada produto pode sobrescrever) ----
+    doses_padrao = db.Column(db.Text, nullable=True)                       # JSON: ml que a loja trabalha, ex. [50, 100]
+    margem_alvo_dose_pct = db.Column(db.Numeric(5, 2), nullable=True)      # margem SOBRE A VENDA que a dose deve dar
+    perda_esperada_pct = db.Column(db.Numeric(5, 2), nullable=False, server_default="0")
+    alerta_garrafa_aberta_dias = db.Column(db.Integer, nullable=True)      # garrafa aberta há mais que isso vira alerta
+    alerta_rendimento_pct = db.Column(db.Numeric(5, 2), nullable=True)     # rendimento real abaixo disso vira alerta
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     __table_args__ = (db.UniqueConstraint("estabelecimento_id", name="uq_configuracao_estab"),)
@@ -1194,7 +1200,9 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     pis_aliquota = db.Column(db.Numeric(5, 2), default=0)
     cofins_aliquota = db.Column(db.Numeric(5, 2), default=0)
     total_vendido = db.Column(db.Numeric(19, 4), default=0.0)
-    quantidade_vendida = db.Column(db.Numeric(10, 3), default=0.0)
+    # 6 casas: dose vendida soma garrafas equivalentes (50 ml de 750 = 0,066667) e 3 casas acumulariam erro
+    # contra o razão (verificacao_dados.vendas_do_produto compara os dois).
+    quantidade_vendida = db.Column(db.Numeric(14, 6), default=0.0)
     ultima_venda = db.Column(db.DateTime)
     classificacao_abc = db.Column(db.String(1))
     data_fabricacao = db.Column(db.Date)
@@ -1229,6 +1237,13 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
     # Papel na fábrica: None/revenda (comprado e revendido), fabricado, semiacabado, materia_prima,
     # embalagem. Matéria-prima e embalagem não aparecem no PDV (models_producao).
     papel_producao = db.Column(db.String(20), nullable=True)
+    # ---- Venda por dose (services/dose_service.py, models_dose.py) ----
+    # A garrafa/barril segue em estoque como unidade; a dose é só um jeito de vendê-la.
+    # `volume_embalagem_ml` é o volume que cada unidade de estoque rende (garrafa de 1 L = 1000).
+    vende_por_dose = db.Column(db.Boolean, nullable=False, server_default=db.false(), default=False)
+    volume_embalagem_ml = db.Column(db.Numeric(10, 2), nullable=True)
+    validade_aberta_dias = db.Column(db.Integer, nullable=True)       # vida da garrafa depois de aberta
+    perda_esperada_pct = db.Column(db.Numeric(5, 2), nullable=True)   # vazio herda da loja (Configuracao)
     ativo = db.Column(db.Boolean, default=True)
     deleted_at = db.Column(db.DateTime, nullable=True)
     categoria = db.relationship("CategoriaProduto", backref=db.backref("produtos", lazy=True))
@@ -1411,7 +1426,7 @@ class Produto(db.Model, MultiTenantMixin, SoftDeleteMixin, SerializableMixin, Au
         days = int(days) if days else 30
         if days <= 0: days = 30
         data_inicio = utcnow() - timedelta(days=days)
-        total = db.session.query(func.coalesce(func.sum(VendaItem.quantidade), 0)).join(Venda)\
+        total = db.session.query(func.coalesce(func.sum(VendaItem.quantidade_base), 0)).join(Venda)\
             .filter(Venda.estabelecimento_id == self.estabelecimento_id, Venda.data_venda >= data_inicio, Venda.status == "finalizada", VendaItem.produto_id == self.id).scalar() or 0
         return float(total) / float(days)
 
@@ -1914,10 +1929,33 @@ class VendaItem(db.Model, MultiTenantMixin, SerializableMixin, AuditMixin):
     familia_produto = db.Column(db.String(40), nullable=True)
     categoria_oficial = db.Column(db.String(60), nullable=True)
     subcategoria_oficial = db.Column(db.String(80), nullable=True)
+    # ---- Venda por dose: retrato da dose no momento da venda ----
+    # `quantidade` = nº de doses (preço x quantidade = total do item); `qtd_base` = garrafas
+    # equivalentes (ml vendidos / volume da garrafa), a unidade que giro, cobertura e ABC precisam.
+    # `dose_id` é só referência histórica (sem FK): nome e ml abaixo bastam para ler a venda.
+    dose_id = db.Column(db.Integer, nullable=True, index=True)
+    dose_nome = db.Column(db.String(60), nullable=True)
+    dose_volume_ml = db.Column(db.Numeric(10, 2), nullable=True)
+    ml_total = db.Column(db.Numeric(14, 2), nullable=True)
+    qtd_base = db.Column(db.Numeric(14, 6), nullable=True)
     venda = db.relationship("Venda", back_populates="itens")
     produto = db.relationship("Produto", backref=db.backref("itens_venda", lazy=True))
     __table_args__ = (db.Index("ix_venda_item_venda", "venda_id"), db.Index("ix_venda_item_produto", "produto_id"),
                       db.UniqueConstraint("sync_uuid", name="uq_venda_itens_sync_uuid"))
+
+    @property
+    def eh_dose(self) -> bool:
+        """Item vendido por dose (cadastrada ou livre): `quantidade` é de doses, não de unidades de estoque."""
+        return self.ml_total is not None
+
+    @hybrid_property
+    def quantidade_base(self):
+        """Quantidade na unidade de ESTOQUE (garrafa), para giro/cobertura/ABC. Venda comum = quantidade."""
+        return self.qtd_base if self.qtd_base is not None else self.quantidade
+
+    @quantidade_base.expression
+    def quantidade_base(cls):
+        return func.coalesce(cls.qtd_base, cls.quantidade)
 
     def to_dict(self, depth=0):
         data = super().to_dict(depth=depth)

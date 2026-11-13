@@ -686,6 +686,7 @@ def criar_venda_entrega_unificada():
     from app.decorators.plan_guards import normalize_plan, plano_efetivo
     from app.models import Auditoria, ContaReceber, Estabelecimento, Pagamento
     from app.services.estoque_service import registrar_saida
+    from app.services import dose_service
     from app.utils.checkout_locking import lock_checkout, validate_credit, validate_pricing
     from app.utils.sale_validation import number, validate_payments, validate_totals
 
@@ -709,7 +710,8 @@ def criar_venda_entrega_unificada():
             return jsonify({"success": False, "error": "Adicione itens à venda"}), 400
         itens = [{"produto_id": i.get("produto_id"),
                   "quantidade": i.get("quantidade", i.get("quantity", 1)),
-                  "preco_unitario": i.get("preco_unitario", i.get("price"))} for i in itens]
+                  "preco_unitario": i.get("preco_unitario", i.get("price")),
+                  "dose_id": i.get("dose_id")} for i in itens]
         taxa = number(data.get("taxa_entrega", 0), "Taxa de entrega")
         subtotal, desconto, total = validate_totals(
             {"items": itens, "subtotal": data.get("subtotal", 0), "desconto": data.get("desconto", 0),
@@ -794,15 +796,28 @@ def criar_venda_entrega_unificada():
             quantidade = Decimal(str(item["quantidade"]))
             preco = Decimal(str(item["preco_unitario"]))
             total_item = (quantidade * preco).quantize(cent)
-            _, custo = registrar_saida(prod, quantidade, venda_id=venda.id, funcionario_id=operador.id,
-                                       motivo=f"Venda entrega {venda.codigo}", data=agora)
+            # Item de dose (`dose_id`) baixa ml da garrafa aberta; sem `dose_id`, venda comum.
+            try:
+                item_dose = dose_service.baixar_item(prod, item, venda_id=venda.id, funcionario_id=operador.id,
+                                                     data=agora)
+            except dose_service.DoseError as erro_dose:
+                db.session.rollback()
+                if getattr(erro_dose, "resposta", None) is not None:   # dose livre sem autorização: pede o PIN
+                    return erro_dose.resposta
+                return jsonify({"success": False, "error": str(erro_dose)}), 400
+            if item_dose is not None:
+                custo, extras_dose = item_dose.custo_unitario, item_dose.colunas
+            else:
+                _, custo = registrar_saida(prod, quantidade, venda_id=venda.id, funcionario_id=operador.id,
+                                           motivo=f"Venda entrega {venda.codigo}", data=agora)
+                extras_dose = {}
             v_item = VendaItem(
                 venda_id=venda.id,
                 estabelecimento_id=est_id,
                 produto_id=prod.id,
                 produto_nome=prod.nome,
                 produto_codigo=prod.codigo_interno or prod.codigo_barras,
-                produto_unidade=prod.unidade_medida or "UN",
+                **{"produto_unidade": prod.unidade_medida or "UN", **extras_dose},
                 quantidade=quantidade,
                 preco_unitario=preco,
                 total_item=total_item,
@@ -817,7 +832,12 @@ def criar_venda_entrega_unificada():
             )
             db.session.add(v_item)
             venda_itens.append(v_item)
-            prod.quantidade_vendida = Decimal(str(prod.quantidade_vendida or 0)) + quantidade
+            if item_dose is not None:
+                db.session.flush()
+                dose_service.vincular_item(item_dose.resultado, v_item)
+            # Dose conta em garrafas equivalentes: o contador é na unidade de estoque.
+            prod.quantidade_vendida = Decimal(str(prod.quantidade_vendida or 0)) + (
+                item_dose.resultado.qtd_base if item_dose else quantidade)
             prod.total_vendido = Decimal(str(prod.total_vendido or 0)) + total_item
             prod.ultima_venda = agora
         db.session.flush()

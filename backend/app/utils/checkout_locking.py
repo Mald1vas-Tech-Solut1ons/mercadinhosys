@@ -50,7 +50,29 @@ def normalizar_itens_checkout(items):
             item[chave] = produto_id
         _unificar(item, _CHAVES_QUANTIDADE, 'quantidade', lambda v: Decimal(str(v)))
         _unificar(item, _CHAVES_PRECO, 'preço', lambda v: Decimal(str(v)))
+        if _eh_dose(item):
+            try:
+                if int(item['dose_id']) <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise ValueError('Item com dose inválida') from None
+        if _eh_dose_livre(item):
+            if _eh_dose(item):
+                raise ValueError('Item com dose cadastrada e ml livre ao mesmo tempo')
+            try:
+                if not Decimal(str(item['dose_ml'])).is_finite() or Decimal(str(item['dose_ml'])) <= 0:
+                    raise ValueError
+            except (ArithmeticError, TypeError, ValueError):
+                raise ValueError('Item com ml de dose inválido') from None
     return items
+
+
+def _eh_dose(item):
+    return item.get('dose_id') not in (None, '', 0, '0')
+
+
+def _eh_dose_livre(item):
+    return item.get('dose_ml') not in (None, '', 0, '0')
 
 
 def lock_checkout(tenant_id, actor_id, items, client_id=None, offline_uuid=None):
@@ -73,6 +95,15 @@ def lock_checkout(tenant_id, actor_id, items, client_id=None, offline_uuid=None)
     return client
 
 
+def _doses_do_carrinho(items, tenant_id):
+    ids = {int(i['dose_id']) for i in items if _eh_dose(i)}
+    if not ids:
+        return {}
+    from app.models_dose import ProdutoDose
+    return {d.id: d for d in ProdutoDose.query.filter(
+        ProdutoDose.estabelecimento_id == tenant_id, ProdutoDose.id.in_(ids)).all()}
+
+
 def validate_pricing(user, items, discount, tenant_id):
     """Aplica os limites já exibidos pela configuração do PDV no servidor."""
     from app.decorators.rbac import nivel_do_role
@@ -89,6 +120,7 @@ def validate_pricing(user, items, discount, tenant_id):
     normalizar_itens_checkout(items)  # idempotente: mesma leitura de item que o lock e a rota
     catalog_total = Decimal(0)
     charged = Decimal(0)
+    doses = _doses_do_carrinho(items, tenant_id)
     for item in items:
         product = getattr(g, 'checkout_products', {}).get(item['produto_id'])
         if not product:
@@ -96,7 +128,18 @@ def validate_pricing(user, items, discount, tenant_id):
             raise ValueError(f"Produto {item['produto_id']} não encontrado nesta loja")
         quantity = Decimal(str(item.get('quantity', item.get('quantidade', 1))))
         price = Decimal(str(item.get('price', item.get('preco_unitario', 0))))
-        catalog_total += Decimal(str(product.preco_venda)) * quantity
+        preco_catalogo = product.preco_venda
+        if _eh_dose(item):
+            # Item de dose: o preço de referência é o da dose, não o da garrafa inteira.
+            dose = doses.get(int(item['dose_id']))
+            if not dose or dose.produto_id != product.id or not dose.ativa:
+                raise ValueError('Dose não encontrada para este produto')
+            preco_catalogo = dose.preco_venda
+        elif _eh_dose_livre(item):
+            # Dose livre: referência é o R$/ml da dose padrão do produto x ml digitado.
+            from app.services import dose_service
+            preco_catalogo = dose_service.preco_referencia_livre(product, Decimal(str(item['dose_ml'])))
+        catalog_total += Decimal(str(preco_catalogo)) * quantity
         charged += price * quantity
     effective_discount = max(Decimal(0), catalog_total - charged) + Decimal(str(discount))
     if catalog_total and effective_discount * 100 > catalog_total * max(Decimal(0), min(limit, Decimal(100))):

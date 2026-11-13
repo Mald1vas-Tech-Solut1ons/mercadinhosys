@@ -134,7 +134,7 @@ def analise_bi(estabelecimento_id: int, dias: int | None = 30,
                     VendaItem.produto_id,
                     func.coalesce(func.sum(VendaItem.total_item), 0).label("receita"),
                     func.coalesce(func.sum(func.coalesce(VendaItem.custo_unitario, 0) * VendaItem.quantidade), 0).label("custo"),
-                    func.coalesce(func.sum(VendaItem.quantidade), 0).label("qtd"),
+                    func.coalesce(func.sum(VendaItem.quantidade_base), 0).label("qtd"),
                     func.count(func.distinct(VendaItem.venda_id)).label("vendas"),
                 )
                 .join(Venda, Venda.id == VendaItem.venda_id)
@@ -167,7 +167,7 @@ def analise_bi(estabelecimento_id: int, dias: int | None = 30,
     dia_local = get_local_date(Venda.data_venda)
     diario: dict[int, list[float]] = defaultdict(list)
     for produto_id, _dia, qtd in (
-        db.session.query(VendaItem.produto_id, dia_local, func.sum(VendaItem.quantidade))
+        db.session.query(VendaItem.produto_id, dia_local, func.sum(VendaItem.quantidade_base))
         .join(Venda, Venda.id == VendaItem.venda_id)
         .filter(VendaItem.estabelecimento_id == estabelecimento_id,
                 Venda.estabelecimento_id == estabelecimento_id,

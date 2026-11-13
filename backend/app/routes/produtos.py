@@ -1782,10 +1782,17 @@ def listar_produtos():
         hoje_giro_lista = hoje_local()
         agregado_lista = get_vendas_agregadas(estabelecimento_id)
 
+        # Bebida que vende por dose: garrafa aberta de cada produto da página, numa consulta só.
+        from app.services import dose_service
+        abertas_lista = dose_service.resumo_aberto(estabelecimento_id, [p.id for p in paginacao_items]) \
+            if str(estabelecimento_id).lower() != "all" else {}
+
         for produto in paginacao_items:
             metrica = metrica_produto(produto, hoje_giro_lista, agregado=agregado_lista)
             produto._giro_metrica = metrica
             produto_dict = produto.to_dict(include_metrics=include_metrics)
+            if produto.id in abertas_lista:
+                produto_dict["dose"] = abertas_lista[produto.id]
             # Métricas da fonte única sempre disponíveis para o frontend (cards,
             # lista e modais), independentemente de include_metrics.
             produto_dict["vmd"] = metrica["vmd"]
@@ -5757,7 +5764,7 @@ def obter_produto_hub(id):
         # ultima_venda), que não eram atualizadas na venda e ficavam zeradas —
         # causando o HUB mostrar 0 mesmo com vendas reais. Exclui vendas canceladas.
         base_q = db.session.query(
-            func.sum(VendaItem.quantidade).label('qtd'),
+            func.sum(VendaItem.quantidade_base).label('qtd'),
             func.sum(VendaItem.total_item).label('total'),
             func.min(Venda.data_venda).label('primeira'),
         ).join(Venda, Venda.id == VendaItem.venda_id).filter(
@@ -5801,6 +5808,7 @@ def obter_produto_hub(id):
         # ESSE período — antes ficava travado em 90d mesmo com outro filtro
         # selecionado, enquanto faturamento/quantidade já respeitavam o filtro.
         # Cards e lista continuam na janela fixa (não regride a unificação).
+        from app.services import dose_service as dose_service_hub
         if periodo != 'all' and dias_filtro:
             from app.utils.giro_cache import dias_efetivos as _dias_efetivos
             dias_ativos_periodo = _dias_efetivos(primeira_venda_periodo, hoje.date(), janela_dias=dias_filtro)
@@ -5812,6 +5820,9 @@ def obter_produto_hub(id):
             produto._giro_metrica = _metrica_produto(produto, hoje.date())
 
         produto_dict = produto.to_dict(include_metrics=True, include_relationships=True)
+        _aberta_hub = dose_service_hub.resumo_aberto(estabelecimento_id, [produto.id])
+        if produto.id in _aberta_hub:
+            produto_dict["dose"] = _aberta_hub[produto.id]
         # Override the metrics in the dict so the UI uses the filtered ones
         produto_dict['quantidade_vendida'] = qtd_vendida
         produto_dict['total_vendido'] = total_vendido
@@ -5892,7 +5903,7 @@ def obter_vendas_historico(id):
         query_vendas = (
             db.session.query(
                 get_local_date(Venda.data_venda).label('data'),
-                func.sum(VendaItem.quantidade).label('quantidade_total'),
+                func.sum(VendaItem.quantidade_base).label('quantidade_total'),
                 func.sum(VendaItem.total_item).label('valor_total'),
                 func.count(VendaItem.id).label('numero_vendas')
             )

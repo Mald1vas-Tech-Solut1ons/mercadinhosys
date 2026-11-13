@@ -81,7 +81,7 @@ def montar_contexto(estabelecimento_id: int, is_manager: bool = True) -> dict:
     # 3. Top 10 Produtos Vendidos no Mês Atual
     q_top_produtos = db.session.query(
         Produto.nome,
-        func.sum(VendaItem.quantidade).label("qtd_vendida"),
+        func.sum(VendaItem.quantidade_base).label("qtd_vendida"),
         func.sum(VendaItem.total_item).label("valor_total")
     ).join(VendaItem.produto).join(VendaItem.venda).filter(
         Venda.status != 'cancelada',

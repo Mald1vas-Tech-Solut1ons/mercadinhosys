@@ -51,7 +51,7 @@ def get_vendas_agregadas(estabelecimento_id) -> dict:
     rows = (
         db.session.query(
             VendaItem.produto_id,
-            func.sum(VendaItem.quantidade),
+            func.sum(VendaItem.quantidade_base),
             func.sum(VendaItem.total_item),
             func.min(Venda.data_venda),
             func.max(Venda.data_venda),

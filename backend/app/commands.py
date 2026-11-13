@@ -92,7 +92,7 @@ def register_commands(app):
             linhas = (
                 db.session.query(
                     VendaItem.produto_id.label("pid"),
-                    func.sum(VendaItem.quantidade).label("qtd_val"),
+                    func.sum(VendaItem.quantidade_base).label("qtd_val"),
                     func.sum(VendaItem.total_item).label("total_val"),
                     func.max(Venda.data_venda).label("max_data"),
                 )

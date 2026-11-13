@@ -789,6 +789,17 @@ def rastreio_lote(estab_id, lote_id):
                        "data": iso_utc(getattr(venda, "data_venda", None)), "status": getattr(venda, "status", None),
                        "quantidade": float(qtd), "cliente": getattr(cliente, "nome", None),
                        "telefone": getattr(cliente, "telefone", None)})
+
+    # Venda por dose: a garrafa foi aberta deste lote e as doses saíram dela. A abertura não tem venda
+    # (saída sem venda_id), então o rastro vem do razão de ml: garrafas do lote -> doses vendidas.
+    from app.services import dose_service
+    for item in dose_service.vendas_do_lote(estab_id, lote.id):
+        venda = db.session.get(Venda, item["venda_id"])
+        cliente = getattr(venda, "cliente", None) if venda else None
+        vendas.append({"venda_id": item["venda_id"], "codigo": getattr(venda, "codigo", None),
+                       "data": iso_utc(getattr(venda, "data_venda", None)), "status": getattr(venda, "status", None),
+                       "quantidade": item["quantidade"], "ml": item["ml"], "por_dose": True,
+                       "cliente": getattr(cliente, "nome", None), "telefone": getattr(cliente, "telefone", None)})
     return {"lote": _lote_info(lote), "produzido_por": origem, "usado_em": usado_em, "vendas": vendas}
 
 

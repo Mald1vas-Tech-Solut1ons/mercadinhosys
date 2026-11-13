@@ -470,7 +470,7 @@ def obter_cliente(id):
             db.session.query(
                 VendaItem.produto_nome,
                 VendaItem.produto_codigo,
-                db.func.sum(VendaItem.quantidade).label("quantidade_total"),
+                db.func.sum(VendaItem.quantidade_base).label("quantidade_total"),
                 db.func.sum(VendaItem.total_item).label("valor_total"),
             )
             .join(Venda, Venda.id == VendaItem.venda_id)
@@ -479,7 +479,7 @@ def obter_cliente(id):
                 Venda.estabelecimento_id == estabelecimento_id,
             )
             .group_by(VendaItem.produto_nome, VendaItem.produto_codigo)
-            .order_by(db.func.sum(VendaItem.quantidade).desc())
+            .order_by(db.func.sum(VendaItem.quantidade_base).desc())
             .limit(5)
             .all()
         )
@@ -1283,11 +1283,11 @@ def gerar_mensagem_ia(id):
         # ── Contexto: produtos que o cliente mais comprou ──
         from app.models import Produto, Configuracao
         top_produtos = (
-            db.session.query(VendaItem.produto_nome, func.sum(VendaItem.quantidade).label("qtd"))
+            db.session.query(VendaItem.produto_nome, func.sum(VendaItem.quantidade_base).label("qtd"))
             .join(Venda, Venda.id == VendaItem.venda_id)
             .filter(Venda.cliente_id == id, Venda.status == "finalizada")
             .group_by(VendaItem.produto_nome)
-            .order_by(func.sum(VendaItem.quantidade).desc())
+            .order_by(func.sum(VendaItem.quantidade_base).desc())
             .limit(5)
             .all()
         )
@@ -1798,7 +1798,7 @@ def listar_produtos_cliente(id):
             db.session.query(
                 VendaItem.produto_id,
                 VendaItem.produto_nome,
-                func.sum(VendaItem.quantidade).label('total_quantidade'),
+                func.sum(VendaItem.quantidade_base).label('total_quantidade'),
                 func.sum(VendaItem.total_item).label('total_gasto'),
                 func.max(Venda.data_venda).label('ultima_compra')
             )
@@ -1809,7 +1809,7 @@ def listar_produtos_cliente(id):
                 Venda.status == "finalizada"
             )
             .group_by(VendaItem.produto_id, VendaItem.produto_nome)
-            .order_by(func.sum(VendaItem.quantidade).desc())
+            .order_by(func.sum(VendaItem.quantidade_base).desc())
             .limit(100)
             .all()
         )

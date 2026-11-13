@@ -44,7 +44,7 @@ def _resumo(estab_id, inicio, fim) -> dict:
 
 def _por_produto(estab_id, inicio, fim) -> dict:
     linhas = db.session.query(VendaItem.produto_id, func.coalesce(func.sum(VendaItem.total_item), 0),
-                              func.coalesce(func.sum(VendaItem.quantidade), 0)) \
+                              func.coalesce(func.sum(VendaItem.quantidade_base), 0)) \
         .join(Venda, Venda.id == VendaItem.venda_id).filter(*_janela(estab_id, inicio, fim)) \
         .group_by(VendaItem.produto_id).all()
     return {pid: (Decimal(str(t)), Decimal(str(q))) for pid, t, q in linhas}

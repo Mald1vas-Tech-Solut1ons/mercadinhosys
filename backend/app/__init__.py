@@ -500,6 +500,7 @@ def create_app(config_name=None):
                 # Garante que os modelos sejam carregados para o metadata do SQLAlchemy
                 from app.models import FuncionarioPreferencias
                 from app import models_producao  # noqa: F401  (fichas/ordens nascem junto no banco novo)
+                from app import models_dose  # noqa: F401  (doses/garrafas abertas nascem junto no banco novo)
                 db.create_all()
                 
                 # Garantir que a tabela de histórico de login também seja criada explicitamente se omitida
@@ -978,6 +979,15 @@ def create_app(config_name=None):
         logger.info("✅ Blueprint Contagem cíclica registrado em /api/contagem")
     except Exception as e:
         logger.error(f"❌ Erro ao registrar Contagem cíclica: {e}")
+
+    # Venda por dose: configuração das doses (produto, padrões da loja, aplicar em lote)
+    try:
+        from app import models_dose  # noqa: F401  (registry do SQLAlchemy em testes/CLI)
+        from app.routes.doses import doses_bp
+        app.register_blueprint(doses_bp, url_prefix="/api/doses")
+        logger.info("✅ Blueprint Doses registrado em /api/doses")
+    except Exception as e:
+        logger.error(f"❌ Erro ao registrar Doses: {e}")
 
     # Produção própria (fábrica): ficha técnica e ordem de produção
     try:

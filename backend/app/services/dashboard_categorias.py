@@ -78,7 +78,7 @@ def _agregar(estabelecimento_id: int, inicio: datetime, fim: datetime):
             func.coalesce(Produto.familia_produto, "Sem família").label("familia"),
             func.coalesce(func.sum(VendaItem.total_item), 0).label("receita"),
             func.coalesce(func.sum(custo), 0).label("custo"),
-            func.coalesce(func.sum(VendaItem.quantidade), 0).label("quantidade"),
+            func.coalesce(func.sum(VendaItem.quantidade_base), 0).label("quantidade"),
             func.count(func.distinct(VendaItem.produto_id)).label("produtos"),
         )
         .join(Venda, Venda.id == VendaItem.venda_id)

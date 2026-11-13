@@ -235,7 +235,7 @@ def calcular_previsao_esgotamento(produto_id: int, estabelecimento_id: int) -> D
     data_inicio = now_utc() - timedelta(days=STOCK_PREDICTION_DAYS)
     
     vendas_recentes = db.session.query(
-        func.sum(VendaItem.quantidade).label('total_vendido')
+        func.sum(VendaItem.quantidade_base).label('total_vendido')
     ).join(
         Venda, VendaItem.venda_id == Venda.id
     ).filter(
@@ -312,7 +312,7 @@ def relatorio_rentabilidade_abc(estabelecimento_id: int, days: int = 30, data_in
         Produto.margem_lucro.label('margem_lucro'),
         Produto.quantidade.label('estoque_atual'),
         Produto.classificacao_abc.label('classe_abc'),
-        func.sum(VendaItem.quantidade).label('quantidade_vendida'),
+        func.sum(VendaItem.quantidade_base).label('quantidade_vendida'),
         func.sum(VendaItem.total_item).label('faturamento'),
         lucro_real_expr
     ).join(

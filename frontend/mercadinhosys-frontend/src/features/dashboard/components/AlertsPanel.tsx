@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 export interface AlertaItem {
     id: string | number;
-    tipo: 'ruptura' | 'cobertura' | 'vencimento' | 'vencido';
+    tipo: 'ruptura' | 'cobertura' | 'vencimento' | 'vencido' | 'dose';
     produto_id?: number;
     produto_nome: string;
     quantidade?: number;
@@ -59,6 +59,7 @@ const AlertsPanel: React.FC = () => {
         { n: qtd('vencido'), rotulo: 'vencido(s)', cor: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
         { n: qtd('ruptura'), rotulo: 'estoque crítico', cor: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
         { n: qtd('cobertura'), rotulo: 'acabando (giro)', cor: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+        { n: qtd('dose'), rotulo: 'de dose', cor: 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300' },
         { n: qtd('vencimento'), rotulo: 'a vencer', cor: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' },
     ].filter(r => r.n > 0);
 
@@ -124,15 +125,17 @@ const AlertsPanel: React.FC = () => {
                                         ? `Estoque atual: ${alerta.quantidade} (Mínimo: ${alerta.estoque_minimo})`
                                         : alerta.tipo === 'cobertura'
                                             ? (alerta.mensagem || `Estoque: ${alerta.quantidade} — acaba em ${alerta.cobertura_dias} dia(s)`)
-                                            : alerta.tipo === 'vencido'
-                                                ? `Venceu em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
-                                                : `Vence em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
+                                            : alerta.tipo === 'dose'
+                                                ? (alerta.mensagem || '')
+                                                : alerta.tipo === 'vencido'
+                                                    ? `Venceu em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
+                                                    : `Vence em: ${new Date(alerta.data_validade!).toLocaleDateString()}`
                                     }
                                 </p>
                             </div>
                             <button 
                                 onClick={() => {
-                                    const produtoId = String(alerta.id).split('_')[1];
+                                    const produtoId = alerta.tipo === 'dose' ? (alerta.produto_id ? String(alerta.produto_id) : '') : String(alerta.id).split('_')[1];
                                     if (produtoId) {
                                         navigate(`/products/${produtoId}`);
                                     } else {

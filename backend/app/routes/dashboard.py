@@ -455,6 +455,57 @@ def dashboard_bi():
         return jsonify({"success": False, "error": "Erro ao montar o BI"}), 500
 
 
+@dashboard_bp.route("/doses", methods=["GET"])
+@gerente_ou_admin_required
+@plan_required('Pro')
+def dashboard_doses():
+    """Aba Doses: vendas, margem, rendimento, perdas, garrafas abertas e cobertura (fonte: dose_metricas).
+
+    Período: `de`/`ate` (AAAA-MM-DD, dia da loja) ou `days` (1-365). `formato=csv` exporta a tabela por produto.
+    """
+    try:
+        from app.services import dose_metricas
+        from app.services.dashboard_bi import resolver_periodo
+
+        estabelecimento_id = get_establishment_id()
+        if str(estabelecimento_id).lower() == "all":
+            return jsonify({"success": False, "error": "Escolha uma loja para ver as doses."}), 400
+        try:
+            inicio, fim = resolver_periodo(request.args.get("days", default=30, type=int),
+                                           request.args.get("de"), request.args.get("ate"))
+        except ValueError:
+            return jsonify({"success": False, "error": "Datas inválidas: use AAAA-MM-DD."}), 400
+        dados = dose_metricas.metricas(estabelecimento_id, inicio, fim)
+        if request.args.get("formato") == "csv":
+            return _csv_doses(dados, inicio, fim)
+        return jsonify({"success": True, "data": dados}), 200
+    except Exception as e:
+        logger.exception("Erro no dashboard de doses: %s", e)
+        return jsonify({"success": False, "error": "Erro ao montar as doses"}), 500
+
+
+def _csv_doses(dados, inicio, fim):
+    import csv
+    import io
+    from flask import Response
+
+    def celula(v):
+        # Texto vindo do cadastro nunca abre fórmula na planilha.
+        return "'" + v if isinstance(v, str) and v[:1] in ("=", "+", "-", "@") else v
+
+    saida = io.StringIO()
+    escritor = csv.writer(saida, delimiter=";")
+    escritor.writerow(["Produto", "Doses", "ml", "Receita", "Custo", "Margem", "Margem %", "Garrafas equivalentes",
+                       "Rendimento %", "Garrafas encerradas", "Desvio ml", "Cobertura dias", "Cobertura doses"])
+    for p in dados["produtos"]:
+        escritor.writerow([celula(p["produto"]), p["doses"], p["ml"], p["receita"], p["custo"], p["margem"],
+                           p["margem_pct"], p["garrafas_equivalentes"], p["rendimento_pct"],
+                           p["garrafas_encerradas"], p["desvio_ml"], p["cobertura_dias"], p["cobertura_doses"]])
+    nome = f"doses_{inicio.isoformat()}_{fim.isoformat()}.csv"
+    return Response("\ufeff" + saida.getvalue(), mimetype="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{nome}"'})
+
+
 @dashboard_bp.route("/executivo", methods=["GET"])
 @gerente_ou_admin_required
 @plan_required('Pro')
@@ -550,6 +601,27 @@ def _deve_alertar_por_cobertura(metrica, produto, hoje):
     return ajustada < COBERTURA_ALERTA_DIAS, ajustada
 
 
+def _alertas_dose(estabelecimento_id) -> list:
+    """Alertas de venda por dose (garrafa aberta velha/vencida, rendimento, margem) no formato do painel."""
+    if str(estabelecimento_id).lower() == "all":
+        return []
+    try:
+        from app.services import dose_metricas
+        saida = []
+        for i, a in enumerate(dose_metricas.alertas_da_loja(estabelecimento_id)):
+            if a["tipo"] == "sem_garrafa_encerrada":
+                continue  # dica de uso, vive na aba Doses; não é alerta operacional
+            saida.append({
+                "id": f"dose_{a.get('produto_id') or 0}_{i}", "tipo": "dose", "subtipo": a["tipo"],
+                "produto_id": a.get("produto_id"), "produto_nome": a["titulo"], "mensagem": a["descricao"],
+                "severidade": a["severidade"]})
+        return saida
+    except Exception as erro_dose:
+        # Alerta de dose não pode derrubar o painel de alertas inteiro.
+        logger.warning(f"Alertas de dose indisponíveis: {erro_dose}")
+        return []
+
+
 @dashboard_bp.route("/alertas", methods=["GET"])
 @jwt_required()
 def dashboard_alertas():
@@ -571,8 +643,9 @@ def dashboard_alertas():
         dias_validade = int(config.get("dias_alerta_validade") or 30)
         limite_validade = hoje + timedelta(days=dias_validade)
 
+        alertas_dose = _alertas_dose(estabelecimento_id)
         if not alertar_ruptura and not alertar_validade:
-            return jsonify({"success": True, "alertas": [], "total": 0})
+            return jsonify({"success": True, "alertas": alertas_dose, "total": len(alertas_dose)})
 
         query = Produto.query.filter_by(ativo=True)
         if str(estabelecimento_id).lower() != 'all':
@@ -656,7 +729,8 @@ def dashboard_alertas():
             return 3
 
         alertas.sort(key=lambda x: get_priority(x))
-        
+        alertas.extend(alertas_dose)
+
         return jsonify({"success": True, "alertas": alertas[:50], "total": len(alertas)})
     except Exception as e:
         logger.error(f"Erro ao buscar alertas operacionais: {e}")

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../../api/apiClient';
-import { Target, Package, AlertTriangle, Users, DollarSign, Activity, BarChart3 } from 'lucide-react';
+import { Target, Package, AlertTriangle, Users, DollarSign, Activity, BarChart3, GlassWater } from 'lucide-react';
 
 import ExecutiveTab from './components/tabs/ExecutiveTab';
 import SalesSfaTab from './components/tabs/SalesSfaTab';
@@ -8,6 +8,7 @@ import InventoryTab from './components/tabs/InventoryTab';
 import FinancialTab from './components/tabs/FinancialTab';
 import RHTab from './components/tabs/RHTab';
 import BiTab from './bi/BiTab';
+import DosesTab from './doses/DosesTab';
 import { authService } from '../auth/authService';
 import { isPlanoGratis } from '../../utils/permissions';
 import ConsultorAcesso from './components/ConsultorAcesso';
@@ -94,6 +95,7 @@ export default function DashboardPageV2() {
         { id: 'executive', label: 'Visão Executiva', icon: Activity },
         { id: 'sales', label: 'Vendas & SFA', icon: Target },
         { id: 'bi', label: 'Análise BI', icon: BarChart3 },
+        { id: 'doses', label: 'Doses', icon: GlassWater },
         { id: 'inventory', label: 'Estoque Inteligente', icon: Package },
         { id: 'financial', label: 'Financeiro', icon: DollarSign },
         { id: 'rh', label: 'Equipe & RH', icon: Users },
@@ -232,6 +234,7 @@ export default function DashboardPageV2() {
             {abaAtiva === 'executive' && <ExecutiveTab data={data} onNavigateToTab={setActiveTab} periodo={periodo} onVerPeriodo={(dias) => setDaysFilter(dias)} />}
             {abaAtiva === 'sales' && <SalesSfaTab data={data} />}
             {abaAtiva === 'bi' && <BiTab periodo={periodo} />}
+            {abaAtiva === 'doses' && <DosesTab periodo={periodo} />}
             {abaAtiva === 'inventory' && <InventoryTab data={data} />}
             {abaAtiva === 'financial' && <FinancialTab data={data} />}
             {abaAtiva === 'rh' && <RHTab data={data} onRefresh={() => loadData(true)} />}

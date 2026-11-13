@@ -1202,6 +1202,16 @@ def resumo_financeiro():
             receita_liquida = receita_bruta - impostos_venda
         lucro_bruto = receita_liquida - vendas.get("cogs", 0.0)
 
+        # Venda por dose: o ml que saiu sem venda (perda, cortesia, descarte, diferença ao encerrar a garrafa)
+        # custou a garrafa e só aparece aqui; o CMV só conhece as doses vendidas.
+        perdas_dose = 0.0
+        if str(estabelecimento_id).lower() != 'all':
+            try:
+                from app.services import dose_metricas
+                perdas_dose = dose_metricas.custo_perdas_total(estabelecimento_id, dt_inicio, dt_fim)
+            except Exception as erro_dose:
+                current_app.logger.warning(f"Perda de dose fora do DRE: {erro_dose}")
+
         # Transparência do custo estimado: o valor do CMV não muda — só informa
         # quanto dele vem de custo estimado (origem != informado na venda).
         cmv_estimado = float(vendas.get("cogs_estimado", 0.0) or 0.0)
@@ -1226,10 +1236,11 @@ def resumo_financeiro():
                 "cmv_estimado": cmv_estimado,
                 "cmv_estimado_pct": round(cmv_estimado_pct, 2),
                 "lucro_bruto": lucro_bruto,
+                "perdas_estoque_dose": perdas_dose,
                 "despesas_pessoal": custo_folha_total,
                 "despesas_operacionais": despesas_operacionais,
                 "total_despesas": despesas_operacionais + custo_folha_total,
-                "lucro_liquido": lucro_bruto - despesas_operacionais - custo_folha_total,
+                "lucro_liquido": lucro_bruto - perdas_dose - despesas_operacionais - custo_folha_total,
                 "impostos_configurados": aliquota_impostos is not None,
                 "aliquota_impostos_venda": aliquota_impostos,
                 "regime_tributario": regime or None,

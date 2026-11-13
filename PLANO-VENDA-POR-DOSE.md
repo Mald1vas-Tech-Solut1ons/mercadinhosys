@@ -162,7 +162,18 @@ Solução: `VendaItem.quantidade_base` (hybrid_property = `coalesce(qtd_base, qu
 - **Contagem cíclica:** o bip conta as garrafas fechadas (o esperado já exclui a aberta, então bate). `conferir` agora devolve as garrafas abertas dos produtos contados e a tela mostra o bloco "Garrafas abertas: conte em ml" com o campo e o botão Registrar (ajuste por contagem). Não mudou o banco da contagem.
 - **Validade depois de aberta:** garrafa vencida sai do saldo vendável e do cardápio, aparece em `/vencidas` e no painel, e espera o descarte.
 - **Verificado no navegador:** lista com a aberta; hub com o painel; perda de 40 ml (R$ 4,80) e contagem (770 ml, diferença −40 ml) gravadas no razão; contagem cíclica de ponta a ponta; celular a 375 px sem estouro. Bug achado e corrigido: formulário de saída de ml cortava o botão em largura média.
-- **Ainda não:** custo de perda/cortesia/descarte/desvio no DRE e o dashboard de doses (WP6); o aviso de "garrafa aberta há N dias" e de "rendimento baixo" na tela inicial (WP6); cobertura em doses (WP6).
+- **Ainda não (feito no WP6, ver 4.2.5):** custo de perda no DRE, dashboard de doses, alertas e cobertura em doses.
+
+#### 4.2.5 WP6 enxuto: o que foi feito (2026-11-13)
+
+- **Fonte única:** `services/dose_metricas.py` (`metricas`, `custo_perdas`, `alertas_da_loja`). Dashboard, DRE e alertas leem dali.
+- **Rotas:** `GET /api/dashboard/doses` (gerente, plano Pro; `de/ate` ou `days`; `formato=csv` exporta a tabela por produto, com proteção contra fórmula de planilha) e alertas de dose dentro de `GET /api/dashboard/alertas` (`tipo: "dose"`, aparecem no painel "Alertas Operacionais").
+- **Aba Doses** no dashboard: doses, ml, receita, custo, margem e margem depois das perdas; rendimento das garrafas encerradas; perdas por tipo e por funcionário; doses por hora; garrafas abertas (idade, valor, vencida); tabela por produto com R$/garrafa em dose × preço da garrafa fechada, desvio e cobertura em dias e em doses.
+- **DRE:** `dre_consolidado.perdas_estoque_dose` (custo em R$ de perda, cortesia, degustação, descarte e diferença ao encerrar; ajuste negativo conta, positivo abate) desconta do lucro líquido; o CMV não muda. Aparece no DRE da tela de Relatórios e na exportação.
+- **Alertas** só do que o lojista pediu para vigiar: garrafa aberta velha (`alerta_garrafa_aberta_dias`), vencida, rendimento abaixo de `alerta_rendimento_pct`, margem da dose abaixo de `margem_alvo_dose_pct`; aviso de uso quando nenhuma garrafa foi encerrada.
+- **Rendimento** = ml vendido líquido ÷ volume das garrafas encerradas no período (só a garrafa que terminou mostra o desvio).
+- **Fora desta entrega:** relatório de dose em página própria (a aba exporta CSV), resumo diário e Consultor IA (WP7), `lucro_liquido` do dashboard científico (`orchestration.py`) ainda não desconta a perda de dose.
+- **Testes:** `tests/test_dose_metricas.py` (12), `DosesTab.test.tsx` (5); guarda de somas atualizada com as 2 somas aprovadas de `dose_metricas`. Verificado no navegador (demo descartável) em desktop e 375 px.
 
 ### 4.3 Rotas novas (`routes/doses.py`, blueprint próprio)
 
